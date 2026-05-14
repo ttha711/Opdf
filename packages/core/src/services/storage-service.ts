@@ -1,10 +1,11 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { RecentDocument, SessionSnapshot } from "../types/index.js";
+import type { Annotation, RecentDocument, SessionSnapshot } from "../types/index.js";
 
 interface StorageStore {
   recents: RecentDocument[];
   session: SessionSnapshot;
+  annotationsByDocument?: Record<string, Annotation[]>;
 }
 
 export class StorageService {
@@ -25,6 +26,7 @@ export class StorageService {
         activeTabIndex: 0,
         updatedAt: Date.now(),
       },
+      annotationsByDocument: {},
     };
   }
 
@@ -75,6 +77,20 @@ export class StorageService {
     await mkdir(dirname(output), { recursive: true });
     await writeFile(output, bytes);
     return output;
+  }
+
+  async listAnnotations(documentId: string): Promise<Annotation[]> {
+    const store = await this.readStore();
+    return [...(store.annotationsByDocument?.[documentId] ?? [])];
+  }
+
+  async writeAnnotations(documentId: string, annotations: Annotation[]): Promise<void> {
+    const store = await this.readStore();
+    store.annotationsByDocument = {
+      ...(store.annotationsByDocument ?? {}),
+      [documentId]: annotations,
+    };
+    await this.writeStore(store);
   }
 
   async cleanup(): Promise<void> {

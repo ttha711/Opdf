@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation, OcrJob } from "@opdf/core";
 import { PdfViewer } from "./components/PdfViewer";
 import { useOpdfBridge } from "./hooks/useOpdfBridge";
@@ -31,33 +31,8 @@ function ToolIconButton({
   );
 }
 
-function FileIconButton({
-  label,
-  inputId,
-  onKeyboardOpen,
-  children,
-}: {
-  label: string;
-  inputId: string;
-  onKeyboardOpen: () => void;
-  children: React.ReactNode;
-}) {
-  function onKeyDown(event: React.KeyboardEvent<HTMLLabelElement>) {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    onKeyboardOpen();
-  }
-
-  return (
-    <label className="icon-btn file-icon-btn" htmlFor={inputId} title={label} aria-label={label} role="button" tabIndex={0} onKeyDown={onKeyDown}>
-      {children}
-    </label>
-  );
-}
-
 export function App() {
   const bridge = useOpdfBridge();
-  const fileInputId = useId();
   const [fileName, setFileName] = useState("");
   const [docBytes, setDocBytes] = useState<Uint8Array | null>(null);
   const [page, setPage] = useState(1);
@@ -84,10 +59,10 @@ export function App() {
   const lastWheelFlipAtRef = useRef(0);
   const hasDocument = useMemo(() => Boolean(fileName && docBytes), [fileName, docBytes]);
   const highlightMode = activeTool === "highlight";
-  const isElectronRuntime = typeof navigator !== "undefined" && navigator.userAgent.includes("Electron");
+  const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
 
   async function openFile() {
-    if (!isElectronRuntime) {
+    if (!hasDesktopBridge) {
       const input = fileInputRef.current;
       if (!input) return;
       input.value = "";
@@ -127,6 +102,36 @@ export function App() {
     setThumbnails([]);
     setAnnotations([]);
   }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const openPath = params.get("open");
+    if (!openPath || hasDesktopBridge) return;
+    const devOpenPath = openPath;
+
+    let cancelled = false;
+    async function loadDevFile() {
+      try {
+        const response = await fetch(`/@fs/${devOpenPath.replaceAll("\\", "/")}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (cancelled) return;
+        setFileName(devOpenPath.split(/[\\/]/).pop() || devOpenPath);
+        setDocBytes(bytes);
+        setPage(1);
+        setViewerError(null);
+        setThumbnails([]);
+        setAnnotations([]);
+      } catch (error) {
+        if (!cancelled) setViewerError(error instanceof Error ? error.message : "Unable to open file");
+      }
+    }
+
+    void loadDevFile();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasDesktopBridge]);
 
   async function addHighlight(pageNumber: number, rect: { x: number; y: number; width: number; height: number }) {
     if (!fileName) return;
@@ -263,15 +268,21 @@ export function App() {
             <ToolIconButton label="Select Tool" active={activeTool === "select"} onClick={() => setActiveTool("select")}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="m4 3 6 15 2-7 7-2z" /></svg>
             </ToolIconButton>
-            {isElectronRuntime ? (
-              <ToolIconButton label="Open File" onClick={openFile}>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8h-8l-2-3H5a2 2 0 0 0-2 2z" /><path d="M12 11v6" /><path d="M9 14h6" /></svg>
-              </ToolIconButton>
-            ) : (
-              <FileIconButton label="Open File" inputId={fileInputId} onKeyboardOpen={openFile}>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8h-8l-2-3H5a2 2 0 0 0-2 2z" /><path d="M12 11v6" /><path d="M9 14h6" /></svg>
-              </FileIconButton>
-            )}
+            <ToolIconButton label="Open File" onClick={openFile}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8h-8l-2-3H5a2 2 0 0 0-2 2z" /><path d="M12 11v6" /><path d="M9 14h6" /></svg>
+            </ToolIconButton>
+            {!hasDesktopBridge ? (
+              <input
+                ref={fileInputRef}
+                className="hidden-file-input"
+                type="file"
+                accept="application/pdf"
+                onClick={(event) => {
+                  event.currentTarget.value = "";
+                }}
+                onChange={onSelectLocalFile}
+              />
+            ) : null}
           </div>
         </div>
 
@@ -322,7 +333,6 @@ export function App() {
             <ToolIconButton label="Run OCR" disabled={!hasDocument} onClick={runOcr}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h6M7 16h4" /></svg></ToolIconButton>
             <ToolIconButton label="Rotate Left" disabled={!hasDocument} onClick={rotateLeft}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8V3h5" /><path d="M3 3a9 9 0 1 0 3 13" /></svg></ToolIconButton>
             <ToolIconButton label="Rotate Right" disabled={!hasDocument} onClick={rotateRight}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8V3h-5" /><path d="M21 3a9 9 0 1 1-3 13" /></svg></ToolIconButton>
-            <input id={fileInputId} ref={fileInputRef} className="hidden-file-input" type="file" accept="application/pdf" onClick={(event) => { event.currentTarget.value = ""; }} onChange={onSelectLocalFile} />
           </div>
         </div>
       </header>
@@ -355,7 +365,6 @@ export function App() {
             highlightMode={highlightMode}
             shapeMode={activeTool === "shape"}
             searchText={pageSearch}
-            onCreateHighlight={(rect) => addHighlight(page, rect)}
             onPageToolAction={onPageToolAction}
             onDocumentLoaded={onLoaded}
             onSearchResult={onSearchResult}

@@ -33,6 +33,14 @@ export class AnnotationService {
     return [...this.getState(documentId).annotations];
   }
 
+  replace(documentId: string, annotations: Annotation[]): Annotation[] {
+    const state = this.getState(documentId);
+    state.annotations = this.cloneAnnotations(annotations);
+    state.undoStack = [];
+    state.redoStack = [];
+    return this.list(documentId);
+  }
+
   create(documentId: string, input: AnnotationCreateInput): Annotation {
     const state = this.getState(documentId);
     this.commitSnapshot(state);

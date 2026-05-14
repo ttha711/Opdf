@@ -82,11 +82,33 @@ function registerIpcHandlers(): void {
   ipcMain.handle("opdf:storage:restore-session", async () => storageService.restoreSession());
   ipcMain.handle("opdf:storage:write-session", async (_event, session: SessionSnapshot) => storageService.writeSession(session));
 
-  ipcMain.handle("opdf:annotation:list", async (_event, documentId: string) => annotationService.list(documentId));
-  ipcMain.handle("opdf:annotation:create", async (_event, documentId: string, input: AnnotationCreateInput) => annotationService.create(documentId, input));
-  ipcMain.handle("opdf:annotation:delete", async (_event, documentId: string, id: string) => annotationService.delete(documentId, id));
-  ipcMain.handle("opdf:annotation:undo", async (_event, documentId: string) => annotationService.undo(documentId));
-  ipcMain.handle("opdf:annotation:redo", async (_event, documentId: string) => annotationService.redo(documentId));
+  ipcMain.handle("opdf:annotation:list", async (_event, documentId: string) => {
+    const stored = await storageService.listAnnotations(documentId);
+    if (stored.length > 0 && annotationService.list(documentId).length === 0) {
+      annotationService.replace(documentId, stored);
+    }
+    return annotationService.list(documentId);
+  });
+  ipcMain.handle("opdf:annotation:create", async (_event, documentId: string, input: AnnotationCreateInput) => {
+    const created = annotationService.create(documentId, input);
+    await storageService.writeAnnotations(documentId, annotationService.list(documentId));
+    return created;
+  });
+  ipcMain.handle("opdf:annotation:delete", async (_event, documentId: string, id: string) => {
+    const deleted = annotationService.delete(documentId, id);
+    await storageService.writeAnnotations(documentId, annotationService.list(documentId));
+    return deleted;
+  });
+  ipcMain.handle("opdf:annotation:undo", async (_event, documentId: string) => {
+    const annotations = annotationService.undo(documentId);
+    await storageService.writeAnnotations(documentId, annotations);
+    return annotations;
+  });
+  ipcMain.handle("opdf:annotation:redo", async (_event, documentId: string) => {
+    const annotations = annotationService.redo(documentId);
+    await storageService.writeAnnotations(documentId, annotations);
+    return annotations;
+  });
 
   ipcMain.handle("opdf:ocr:enqueue", async (_event, filePath: string, language?: string) => ocrService.enqueue(filePath, language));
   ipcMain.handle("opdf:ocr:run", async (_event, jobId: string) => ocrService.runLocalMock(jobId));

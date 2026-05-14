@@ -18,7 +18,6 @@ interface PdfViewerProps {
   annotations?: Annotation[];
   highlightMode?: boolean;
   searchText?: string;
-  onCreateHighlight?: (rect: { x: number; y: number; width: number; height: number }) => void;
   onPageToolAction?: (page: number, rect: { x: number; y: number; width: number; height: number }) => void;
   shapeMode?: boolean;
   onDocumentLoaded?: (pages: number) => void;
@@ -49,7 +48,6 @@ export function PdfViewer({
   annotations = [],
   highlightMode = false,
   searchText,
-  onCreateHighlight,
   onPageToolAction,
   shapeMode = false,
   onDocumentLoaded,
@@ -70,7 +68,7 @@ export function PdfViewer({
   const onThumbsLoadedRef = useRef(onThumbsLoaded);
   const onSearchResultRef = useRef(onSearchResult);
   const [draftRect, setDraftRect] = useState<{ page: number; x: number; y: number; width: number; height: number } | null>(null);
-  const dragStateRef = useRef<{ page: number; startX: number; startY: number } | null>(null);
+  const dragStateRef = useRef<{ page: number; startX: number; startY: number; rect: { x: number; y: number; width: number; height: number } } | null>(null);
 
   useEffect(() => {
     onDocumentLoadedRef.current = onDocumentLoaded;
@@ -206,7 +204,13 @@ export function PdfViewer({
         c.height = Math.floor(vp.height);
         const renderTask = p.render({ canvasContext: ctx, viewport: vp });
         activeRenderTasks.push(renderTask);
-        await renderTask.promise;
+        try {
+          await renderTask.promise;
+        } catch (error) {
+          p.cleanup();
+          if (isRenderingCancelled(error)) return;
+          throw error;
+        }
         if (cancelled) {
           p.cleanup();
           return;
@@ -260,18 +264,37 @@ export function PdfViewer({
 
   useEffect(() => {
     if (viewMode !== "continuous") return;
-    const target = pageElementsRef.current.get(page);
-    if (!target) return;
-    const scrollContainer = target.closest(".viewer-area");
-    if (!(scrollContainer instanceof HTMLElement)) return;
-    const containerRect = scrollContainer.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    const nextTop = scrollContainer.scrollTop + (targetRect.top - containerRect.top) - 12;
-    scrollContainer.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+    let frameId = 0;
+    let attempts = 0;
+    const scrollToPage = () => {
+      attempts += 1;
+      const target = pageElementsRef.current.get(page);
+      const scrollContainer = target?.closest(".viewer-area");
+      if (target && scrollContainer instanceof HTMLElement) {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const nextTop = scrollContainer.scrollTop + (targetRect.top - containerRect.top) - 12;
+        scrollContainer.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+        return;
+      }
+      if (attempts < 8) frameId = window.requestAnimationFrame(scrollToPage);
+    };
+    frameId = window.requestAnimationFrame(scrollToPage);
+    return () => window.cancelAnimationFrame(frameId);
   }, [page, viewMode, renderedPages]);
 
-  const pageHighlights = useMemo(
-    () => annotations.filter((a) => a.kind === "highlight").map((a) => ({ id: a.id, page: a.page, x: Number(a.payload.x ?? 0), y: Number(a.payload.y ?? 0), width: Number(a.payload.width ?? 0), height: Number(a.payload.height ?? 0) })),
+  const visibleAnnotations = useMemo(
+    () => annotations.map((a) => ({
+      id: a.id,
+      kind: a.kind,
+      page: a.page,
+      x: Number(a.payload.x ?? 0),
+      y: Number(a.payload.y ?? 0),
+      width: Number(a.payload.width ?? (a.kind === "note" ? 0.16 : 0.24)),
+      height: Number(a.payload.height ?? 0.08),
+      text: String(a.payload.text ?? ""),
+      signer: String(a.payload.signer ?? ""),
+    })),
     [annotations]
   );
 
@@ -292,40 +315,50 @@ export function PdfViewer({
               style={{ width: `${p.width}px`, height: `${p.height}px` }}
               onMouseDown={(event) => {
                 onActivePageChange?.(p.pageNumber);
-                if (!shapeMode) return;
+                if (!shapeMode && !highlightMode) return;
                 const pt = getNormalizedRect(event.currentTarget, event.clientX, event.clientY);
-                dragStateRef.current = { page: p.pageNumber, startX: pt.x, startY: pt.y };
-                setDraftRect({ page: p.pageNumber, x: pt.x, y: pt.y, width: 0, height: 0 });
+                const rect = { x: pt.x, y: pt.y, width: 0, height: 0 };
+                dragStateRef.current = { page: p.pageNumber, startX: pt.x, startY: pt.y, rect };
+                setDraftRect({ page: p.pageNumber, ...rect });
               }}
               onMouseMove={(event) => {
-                if (!shapeMode || !dragStateRef.current || dragStateRef.current.page !== p.pageNumber) return;
+                if ((!shapeMode && !highlightMode) || !dragStateRef.current || dragStateRef.current.page !== p.pageNumber) return;
                 const pt = getNormalizedRect(event.currentTarget, event.clientX, event.clientY);
                 const x = Math.min(dragStateRef.current.startX, pt.x);
                 const y = Math.min(dragStateRef.current.startY, pt.y);
                 const width = Math.abs(pt.x - dragStateRef.current.startX);
                 const height = Math.abs(pt.y - dragStateRef.current.startY);
-                setDraftRect({ page: p.pageNumber, x, y, width, height });
+                const rect = { x, y, width, height };
+                dragStateRef.current.rect = rect;
+                setDraftRect({ page: p.pageNumber, ...rect });
               }}
               onMouseUp={(event) => {
                 onActivePageChange?.(p.pageNumber);
-                if (shapeMode && dragStateRef.current && draftRect && draftRect.page === p.pageNumber) {
-                  onPageToolAction?.(p.pageNumber, draftRect);
+                if ((shapeMode || highlightMode) && dragStateRef.current && dragStateRef.current.page === p.pageNumber) {
+                  const rect = normalizeUsableRect(dragStateRef.current.rect);
+                  if (rect.width > 0 && rect.height > 0) onPageToolAction?.(p.pageNumber, rect);
                   dragStateRef.current = null;
                   setDraftRect(null);
                   return;
                 }
                 const pt = getNormalizedRect(event.currentTarget, event.clientX, event.clientY);
-                if (highlightMode) onCreateHighlight?.({ x: pt.x, y: pt.y, width: 0.25, height: 0.06 });
                 onPageToolAction?.(p.pageNumber, { x: pt.x, y: pt.y, width: 0.18, height: 0.08 });
               }}
             >
-              <img src={p.imageUrl} alt={`Page ${p.pageNumber}`} className="pdf-page-img" />
+              <img src={p.imageUrl} alt={`Page ${p.pageNumber}`} className="pdf-page-img" draggable={false} />
               <div className="overlay-layer">
-                {pageHighlights.filter((h) => h.page === p.pageNumber).map((rect) => (
-                  <div key={rect.id} className="highlight-box" style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.width * 100}%`, height: `${rect.height * 100}%` }} />
+                {visibleAnnotations.filter((item) => item.page === p.pageNumber).map((item) => (
+                  <div
+                    key={item.id}
+                    className={`annotation-box annotation-${item.kind}`}
+                    style={{ left: `${item.x * 100}%`, top: `${item.y * 100}%`, width: `${item.width * 100}%`, height: `${item.height * 100}%` }}
+                  >
+                    {item.kind === "note" ? item.text || "Note" : null}
+                    {item.kind === "signature" ? item.signer || "Signature" : null}
+                  </div>
                 ))}
                 {draftRect && draftRect.page === p.pageNumber ? (
-                  <div className="shape-draft-box" style={{ left: `${draftRect.x * 100}%`, top: `${draftRect.y * 100}%`, width: `${draftRect.width * 100}%`, height: `${draftRect.height * 100}%` }} />
+                  <div className={`shape-draft-box ${highlightMode ? "highlight-draft-box" : ""}`} style={{ left: `${draftRect.x * 100}%`, top: `${draftRect.y * 100}%`, width: `${draftRect.width * 100}%`, height: `${draftRect.height * 100}%` }} />
                 ) : null}
               </div>
             </div>
@@ -341,6 +374,19 @@ function getNormalizedRect(container: HTMLDivElement, clientX: number, clientY: 
   const x = Math.min(Math.max((clientX - bounds.left) / bounds.width, 0), 1);
   const y = Math.min(Math.max((clientY - bounds.top) / bounds.height, 0), 1);
   return { x, y };
+}
+
+function normalizeUsableRect(rect: { x: number; y: number; width: number; height: number }) {
+  return {
+    x: rect.x,
+    y: rect.y,
+    width: rect.width < 0.005 ? 0 : rect.width,
+    height: rect.height < 0.005 ? 0 : rect.height,
+  };
+}
+
+function isRenderingCancelled(error: unknown) {
+  return error instanceof Error && error.name === "RenderingCancelledException";
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {

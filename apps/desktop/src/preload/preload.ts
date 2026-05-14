@@ -13,6 +13,11 @@ const api = {
   pickAndOpenDocument: () => ipcRenderer.invoke("opdf:pick-and-open") as Promise<OpenDocumentResult | null>,
   openDocument: (filePath: string) => ipcRenderer.invoke("opdf:open", filePath) as Promise<OpenDocumentResult>,
   saveDocument: (filePath: string, bytes: Uint8Array) => ipcRenderer.invoke("opdf:save", filePath, bytes) as Promise<void>,
+  exportFlattened: (bytes: Uint8Array, annotations: any[]) => ipcRenderer.invoke("opdf:export-flattened", bytes, annotations) as Promise<Uint8Array>,
+  compressPdf: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:compress", bytes) as Promise<Uint8Array>,
+  watermarkPdf: (bytes: Uint8Array, text: string) => ipcRenderer.invoke("opdf:watermark", bytes, text) as Promise<Uint8Array>,
+  mergePdfs: (bytesList: Uint8Array[]) => ipcRenderer.invoke("opdf:merge", bytesList) as Promise<Uint8Array>,
+  splitPdf: (bytes: Uint8Array, pages: number[]) => ipcRenderer.invoke("opdf:split", bytes, pages) as Promise<Uint8Array[]>,
   saveDocumentAs: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:save-as", bytes) as Promise<string | null>,
 
   getRecent: () => ipcRenderer.invoke("opdf:storage:get-recent") as Promise<RecentDocument[]>,

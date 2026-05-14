@@ -43,7 +43,7 @@ export function App() {
   const [ocrJobs, setOcrJobs] = useState<OcrJob[]>([]);
   const [pageSearch, setPageSearch] = useState("");
   const [searchResult, setSearchResult] = useState("");
-  const [activeTool, setActiveTool] = useState<"select" | "highlight" | "note" | "shape" | "signature">("select");
+  const [activeTool, setActiveTool] = useState<"select" | "highlight" | "note" | "shape" | "signature" | "redact">("select");
   const [zoomPreset, setZoomPreset] = useState<"actual" | "fit-width" | "fit-page">("actual");
   const [pendingNote, setPendingNote] = useState<{ page: number; rect: { x: number; y: number; width: number; height: number } } | null>(null);
   const [noteText, setNoteText] = useState("New note");
@@ -61,17 +61,32 @@ export function App() {
   const highlightMode = activeTool === "highlight";
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
 
+  async function loadBrowserFile(file: File) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    setFileName(file.name);
+    setDocBytes(bytes);
+    setPage(1);
+    setViewerError(null);
+    setThumbnails([]);
+    setAnnotations([]);
+  }
+
   async function openFile() {
     if (!hasDesktopBridge) {
       const input = fileInputRef.current;
-      if (!input) return;
+      if (!input) {
+        setViewerError("File picker is unavailable.");
+        return;
+      }
       input.value = "";
       try {
-        input.click();
-      } catch {
         if (typeof input.showPicker === "function") {
           input.showPicker();
+        } else {
+          input.click();
         }
+      } catch (error) {
+        setViewerError("Cannot open file picker. Please click 'Choose File' directly.");
       }
       return;
     }
@@ -94,13 +109,7 @@ export function App() {
   async function onSelectLocalFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    setFileName(file.name);
-    setDocBytes(bytes);
-    setPage(1);
-    setViewerError(null);
-    setThumbnails([]);
-    setAnnotations([]);
+    await loadBrowserFile(file);
   }
 
   useEffect(() => {
@@ -135,24 +144,61 @@ export function App() {
 
   async function addHighlight(pageNumber: number, rect: { x: number; y: number; width: number; height: number }) {
     if (!fileName) return;
-    const created = await bridge.createAnnotation(fileName, {
+    const tempId = crypto.randomUUID();
+    const optimistic: Annotation = {
+      id: tempId,
       page: pageNumber,
       kind: "highlight",
-      payload: { color: "#facc15", ...rect },
-    });
-    setAnnotations((prev) => [...prev, created]);
+      payload: { color: "rgba(250, 204, 21, 0.4)", ...rect },
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    
+    setAnnotations((prev) => [...prev, optimistic]);
+    
+    try {
+      const created = await bridge.createAnnotation(fileName, {
+        page: pageNumber,
+        kind: "highlight",
+        payload: { color: "#facc15", ...rect },
+      });
+      setAnnotations((prev) => prev.map(a => a.id === tempId ? created : a));
+    } catch (err) {
+      setAnnotations((prev) => prev.filter(a => a.id !== tempId));
+      setViewerError("Failed to save highlight");
+    }
   }
 
-  async function createToolAnnotation(kind: "note" | "shape" | "signature", pageNumber: number, rect: { x: number; y: number; width: number; height: number }) {
+  async function createToolAnnotation(kind: "note" | "shape" | "signature" | "redact", pageNumber: number, rect: { x: number; y: number; width: number; height: number }) {
     if (!fileName) return;
+    const tempId = crypto.randomUUID();
     const payload =
       kind === "note"
         ? { text: noteText || "New note", x: rect.x, y: rect.y }
-        : kind === "shape"
-          ? { shape: "rectangle", stroke: "#ef4444", ...rect }
-          : { signer: signatureStyle, ...rect };
-    const created = await bridge.createAnnotation(fileName, { page: pageNumber, kind, payload });
-    setAnnotations((prev) => [...prev, created]);
+          : kind === "shape"
+            ? { shape: "rectangle", stroke: "#ef4444", ...rect }
+            : kind === "redact"
+              ? { shape: "rectangle", ...rect }
+              : { signer: signatureStyle, ...rect };
+
+    const optimistic: Annotation = {
+      id: tempId,
+      page: pageNumber,
+      kind,
+      payload,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    setAnnotations((prev) => [...prev, optimistic]);
+
+    try {
+      const created = await bridge.createAnnotation(fileName, { page: pageNumber, kind, payload });
+      setAnnotations((prev) => prev.map(a => a.id === tempId ? created : a));
+    } catch (err) {
+      setAnnotations((prev) => prev.filter(a => a.id !== tempId));
+      setViewerError(`Failed to save ${kind}`);
+    }
   }
 
   async function undoAnnotations() {
@@ -176,6 +222,125 @@ export function App() {
     const job = await bridge.enqueueOcr(fileName, "eng+vie");
     await bridge.runOcr(job.id);
     setOcrJobs(await bridge.listOcrJobs());
+  }
+
+  async function exportPdf() {
+    if (!hasDocument || !fileName || !docBytes) return;
+    try {
+      const flattenedBytes = await bridge.exportFlattened(docBytes, annotations);
+      if (hasDesktopBridge) {
+        await bridge.saveDocumentAs(flattenedBytes);
+      } else {
+        const blob = new Blob([flattenedBytes as unknown as BlobPart], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `exported-${fileName}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch(err) {
+      console.error(err);
+      setViewerError("Failed to export PDF.");
+    }
+  }
+
+  async function compressDocument() {
+    if (!docBytes || !fileName) return;
+    try {
+      setViewerError("Compressing... (this may take a few seconds)");
+      const compressed = await bridge.compressPdf(docBytes);
+      setDocBytes(compressed);
+      setViewerError("Compression complete!");
+      setTimeout(() => setViewerError(null), 3000);
+    } catch (err) {
+      setViewerError("Compression failed: " + err);
+    }
+  }
+
+  async function addWatermark() {
+    if (!docBytes) return;
+    const text = prompt("Enter watermark text:", "CONFIDENTIAL");
+    if (!text) return;
+    try {
+      const watermarked = await bridge.watermarkPdf(docBytes, text);
+      setDocBytes(watermarked);
+    } catch (err) {
+      setViewerError("Watermark failed: " + err);
+    }
+  }
+
+  async function mergeDocuments() {
+    if (!hasDesktopBridge || !docBytes) {
+      alert("Merge currently requires the Desktop App for native file selection.");
+      return;
+    }
+    alert("Select a second PDF to append to the current one.");
+    const file2 = await bridge.pickAndOpenDocument();
+    if (!file2) return;
+    try {
+      const merged = await bridge.mergePdfs([docBytes, file2.bytes]);
+      setDocBytes(merged);
+      setPage(1);
+    } catch (err) {
+      setViewerError("Merge failed: " + err);
+    }
+  }
+
+  async function splitDocument() {
+    if (!docBytes || !fileName) return;
+    const pageStr = prompt("Enter the exact page number you want to extract as a standalone PDF:", "1");
+    if (!pageStr) return;
+    const p = parseInt(pageStr, 10);
+    if (isNaN(p) || p < 1 || p > totalPages) return;
+    try {
+      const splitDocs = await bridge.splitPdf(docBytes, [p - 1]);
+      if (splitDocs.length) {
+        if (hasDesktopBridge) {
+          await bridge.saveDocumentAs(splitDocs[0]);
+        } else {
+          const blob = new Blob([splitDocs[0] as unknown as BlobPart], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `page-${p}-${fileName}`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      }
+    } catch (err) {
+      setViewerError("Split failed");
+    }
+  }
+
+  async function convertToImages() {
+    if (!fileName || thumbnails.length === 0) {
+      alert("Please wait for all pages to finish rendering before converting.");
+      return;
+    }
+    try {
+      setViewerError("Zipping images...");
+      const { zipSync } = await import("fflate");
+      const zipData: Record<string, Uint8Array> = {};
+      
+      for (const thumb of thumbnails) {
+        const res = await fetch(thumb.url);
+        const buf = await res.arrayBuffer();
+        zipData[`page-${thumb.page}.jpg`] = new Uint8Array(buf);
+      }
+      
+      const zipped = zipSync(zipData);
+      const blob = new Blob([zipped as unknown as BlobPart], { type: "application/zip" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${fileName}-images.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setViewerError(null);
+    } catch (err) {
+      setViewerError("Failed to convert: " + err);
+    }
   }
 
   function onLoaded(pages: number) {
@@ -241,7 +406,7 @@ export function App() {
       setShowSignModal(true);
       return;
     }
-    if (activeTool === "shape") {
+    if (activeTool === "shape" || activeTool === "redact") {
       return createToolAnnotation(activeTool, pageNumber, rect);
     }
   }
@@ -283,6 +448,9 @@ export function App() {
                 onChange={onSelectLocalFile}
               />
             ) : null}
+            <ToolIconButton label="Export PDF" disabled={!hasDocument} onClick={exportPdf}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            </ToolIconButton>
           </div>
         </div>
 
@@ -294,6 +462,9 @@ export function App() {
             </ToolIconButton>
             <ToolIconButton label="Note Box" active={activeTool === "note"} disabled={!hasDocument} onClick={() => setActiveTool("note")}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+            </ToolIconButton>
+            <ToolIconButton label="Redact" active={activeTool === "redact"} disabled={!hasDocument} onClick={() => setActiveTool("redact")}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" strokeWidth="2"><rect x="4" y="6" width="16" height="12" /></svg>
             </ToolIconButton>
           </div>
         </div>
@@ -335,6 +506,27 @@ export function App() {
             <ToolIconButton label="Rotate Right" disabled={!hasDocument} onClick={rotateRight}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8V3h-5" /><path d="M21 3a9 9 0 1 1-3 13" /></svg></ToolIconButton>
           </div>
         </div>
+
+        <div className="toolbar-group">
+          <span className="tool-group-title">Advanced</span>
+          <div className="right-actions">
+            <ToolIconButton label="Compress" disabled={!hasDocument} onClick={compressDocument}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="m14 11-2-2-2 2M12 9v8M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></svg>
+            </ToolIconButton>
+            <ToolIconButton label="Watermark" disabled={!hasDocument} onClick={addWatermark}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+            </ToolIconButton>
+            <ToolIconButton label="Split" disabled={!hasDocument} onClick={splitDocument}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12h16M4 6h16M4 18h16" /></svg>
+            </ToolIconButton>
+            <ToolIconButton label="Merge" onClick={mergeDocuments}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+            </ToolIconButton>
+            <ToolIconButton label="To Images" disabled={!hasDocument} onClick={convertToImages}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+            </ToolIconButton>
+          </div>
+        </div>
       </header>
 
       <main className="workspace acrobat-body">
@@ -364,6 +556,7 @@ export function App() {
             annotations={annotations}
             highlightMode={highlightMode}
             shapeMode={activeTool === "shape"}
+            redactMode={activeTool === "redact"}
             searchText={pageSearch}
             onPageToolAction={onPageToolAction}
             onDocumentLoaded={onLoaded}

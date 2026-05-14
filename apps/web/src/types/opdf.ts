@@ -12,6 +12,11 @@ export interface OpdfBridge {
   pickAndOpenDocument: () => Promise<OpenDocumentResult | null>;
   openDocument: (filePath: string) => Promise<OpenDocumentResult>;
   saveDocument: (filePath: string, bytes: Uint8Array) => Promise<void>;
+  exportFlattened: (bytes: Uint8Array, annotations: Annotation[]) => Promise<Uint8Array>;
+  compressPdf: (bytes: Uint8Array) => Promise<Uint8Array>;
+  watermarkPdf: (bytes: Uint8Array, text: string) => Promise<Uint8Array>;
+  mergePdfs: (bytesList: Uint8Array[]) => Promise<Uint8Array>;
+  splitPdf: (bytes: Uint8Array, pages: number[]) => Promise<Uint8Array[]>;
   saveDocumentAs: (bytes: Uint8Array) => Promise<string | null>;
   getRecent: () => Promise<RecentDocument[]>;
   pushRecent: (filePath: string) => Promise<void>;

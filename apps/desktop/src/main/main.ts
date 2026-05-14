@@ -63,6 +63,14 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle("opdf:open", async (_event, filePath: string) => documentService.open(filePath));
   ipcMain.handle("opdf:save", async (_event, filePath: string, bytes: Uint8Array) => documentService.save(filePath, bytes));
+  ipcMain.handle("opdf:export-flattened", async (_event, bytes: Uint8Array, annotations: any[]) => documentService.exportFlattened(bytes, annotations));
+  
+  // Advanced Tools
+  ipcMain.handle("opdf:compress", async (_event, bytes: Uint8Array) => documentService.compressPdf(bytes));
+  ipcMain.handle("opdf:watermark", async (_event, bytes: Uint8Array, text: string) => documentService.watermarkPdf(bytes, text));
+  ipcMain.handle("opdf:merge", async (_event, bytesList: Uint8Array[]) => documentService.merge(bytesList));
+  ipcMain.handle("opdf:split", async (_event, bytes: Uint8Array, pages: number[]) => documentService.split(bytes, pages));
+
   ipcMain.handle("opdf:save-as", async (_event, bytes: Uint8Array) => {
     const result = await dialog.showSaveDialog({
       filters: [{ name: "PDF", extensions: ["pdf"] }],
@@ -111,7 +119,7 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("opdf:ocr:enqueue", async (_event, filePath: string, language?: string) => ocrService.enqueue(filePath, language));
-  ipcMain.handle("opdf:ocr:run", async (_event, jobId: string) => ocrService.runLocalMock(jobId));
+  ipcMain.handle("opdf:ocr:run", async (_event, jobId: string) => ocrService.run(jobId));
   ipcMain.handle("opdf:ocr:list", async () => ocrService.list());
 }
 

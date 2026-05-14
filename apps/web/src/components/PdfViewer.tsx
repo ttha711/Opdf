@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist";
 import type { Annotation } from "@opdf/core";
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
+import { FabricPage } from "./FabricPage";
 
 GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -20,6 +21,7 @@ interface PdfViewerProps {
   searchText?: string;
   onPageToolAction?: (page: number, rect: { x: number; y: number; width: number; height: number }) => void;
   shapeMode?: boolean;
+  redactMode?: boolean;
   onDocumentLoaded?: (pages: number) => void;
   onSearchResult?: (found: boolean, message: string) => void;
   onError?: (message: string | null) => void;
@@ -50,6 +52,7 @@ export function PdfViewer({
   searchText,
   onPageToolAction,
   shapeMode = false,
+  redactMode = false,
   onDocumentLoaded,
   onSearchResult,
   onError,
@@ -68,7 +71,6 @@ export function PdfViewer({
   const onThumbsLoadedRef = useRef(onThumbsLoaded);
   const onSearchResultRef = useRef(onSearchResult);
   const [draftRect, setDraftRect] = useState<{ page: number; x: number; y: number; width: number; height: number } | null>(null);
-  const dragStateRef = useRef<{ page: number; startX: number; startY: number; rect: { x: number; y: number; width: number; height: number } } | null>(null);
 
   useEffect(() => {
     onDocumentLoadedRef.current = onDocumentLoaded;
@@ -283,21 +285,6 @@ export function PdfViewer({
     return () => window.cancelAnimationFrame(frameId);
   }, [page, viewMode, renderedPages]);
 
-  const visibleAnnotations = useMemo(
-    () => annotations.map((a) => ({
-      id: a.id,
-      kind: a.kind,
-      page: a.page,
-      x: Number(a.payload.x ?? 0),
-      y: Number(a.payload.y ?? 0),
-      width: Number(a.payload.width ?? (a.kind === "note" ? 0.16 : 0.24)),
-      height: Number(a.payload.height ?? 0.08),
-      text: String(a.payload.text ?? ""),
-      signer: String(a.payload.signer ?? ""),
-    })),
-    [annotations]
-  );
-
   return (
     <div className="viewer-shell">
       {renderedPages.length === 0 ? (
@@ -311,56 +298,31 @@ export function PdfViewer({
               ref={(el) => {
                 if (el) pageElementsRef.current.set(p.pageNumber, el);
               }}
-              className={`page-stage page-transition ${transitionDirection} ${highlightMode ? "highlight-mode" : ""}`}
+              className={`page-stage page-transition ${transitionDirection} ${highlightMode ? "highlight-mode" : ""} ${shapeMode ? "shape-mode" : ""} ${redactMode ? "redact-mode" : ""}`}
               style={{ width: `${p.width}px`, height: `${p.height}px` }}
-              onMouseDown={(event) => {
+              onClick={(event) => {
                 onActivePageChange?.(p.pageNumber);
-                if (!shapeMode && !highlightMode) return;
-                const pt = getNormalizedRect(event.currentTarget, event.clientX, event.clientY);
-                const rect = { x: pt.x, y: pt.y, width: 0, height: 0 };
-                dragStateRef.current = { page: p.pageNumber, startX: pt.x, startY: pt.y, rect };
-                setDraftRect({ page: p.pageNumber, ...rect });
-              }}
-              onMouseMove={(event) => {
-                if ((!shapeMode && !highlightMode) || !dragStateRef.current || dragStateRef.current.page !== p.pageNumber) return;
-                const pt = getNormalizedRect(event.currentTarget, event.clientX, event.clientY);
-                const x = Math.min(dragStateRef.current.startX, pt.x);
-                const y = Math.min(dragStateRef.current.startY, pt.y);
-                const width = Math.abs(pt.x - dragStateRef.current.startX);
-                const height = Math.abs(pt.y - dragStateRef.current.startY);
-                const rect = { x, y, width, height };
-                dragStateRef.current.rect = rect;
-                setDraftRect({ page: p.pageNumber, ...rect });
-              }}
-              onMouseUp={(event) => {
-                onActivePageChange?.(p.pageNumber);
-                if ((shapeMode || highlightMode) && dragStateRef.current && dragStateRef.current.page === p.pageNumber) {
-                  const rect = normalizeUsableRect(dragStateRef.current.rect);
-                  if (rect.width > 0 && rect.height > 0) onPageToolAction?.(p.pageNumber, rect);
-                  dragStateRef.current = null;
-                  setDraftRect(null);
-                  return;
+                // Allow clicking to place note/signature only if we are in those modes
+                // FabricPage handles dragging for shape/highlight/redact
+                if (!shapeMode && !highlightMode && !redactMode) {
+                  const pt = getNormalizedRect(event.currentTarget, event.clientX, event.clientY);
+                  onPageToolAction?.(p.pageNumber, { x: pt.x, y: pt.y, width: 0.18, height: 0.08 });
                 }
-                const pt = getNormalizedRect(event.currentTarget, event.clientX, event.clientY);
-                onPageToolAction?.(p.pageNumber, { x: pt.x, y: pt.y, width: 0.18, height: 0.08 });
               }}
             >
-              <img src={p.imageUrl} alt={`Page ${p.pageNumber}`} className="pdf-page-img" draggable={false} />
-              <div className="overlay-layer">
-                {visibleAnnotations.filter((item) => item.page === p.pageNumber).map((item) => (
-                  <div
-                    key={item.id}
-                    className={`annotation-box annotation-${item.kind}`}
-                    style={{ left: `${item.x * 100}%`, top: `${item.y * 100}%`, width: `${item.width * 100}%`, height: `${item.height * 100}%` }}
-                  >
-                    {item.kind === "note" ? item.text || "Note" : null}
-                    {item.kind === "signature" ? item.signer || "Signature" : null}
-                  </div>
-                ))}
-                {draftRect && draftRect.page === p.pageNumber ? (
-                  <div className={`shape-draft-box ${highlightMode ? "highlight-draft-box" : ""}`} style={{ left: `${draftRect.x * 100}%`, top: `${draftRect.y * 100}%`, width: `${draftRect.width * 100}%`, height: `${draftRect.height * 100}%` }} />
-                ) : null}
-              </div>
+              <FabricPage
+                pageNumber={p.pageNumber}
+                width={p.width}
+                height={p.height}
+                imageUrl={p.imageUrl}
+                annotations={annotations}
+                highlightMode={highlightMode || false}
+                shapeMode={shapeMode || false}
+                redactMode={redactMode || false}
+                onAnnotationCreated={(pageNum, kind, rect) => {
+                  onPageToolAction?.(pageNum, rect as any);
+                }}
+              />
             </div>
           ))}
           {viewMode === "continuous" ? <div ref={loadMoreRef} style={{ height: "1px" }} aria-hidden="true" /> : null}

@@ -24,6 +24,26 @@ function createMockBridge(): OpdfBridge {
       throw new Error("openDocument requires desktop runtime. Use local file input in web dev.");
     },
     async saveDocument() {},
+    async exportFlattened(bytes: Uint8Array, annotations: any[]) {
+      console.log("[MockBridge] exportFlattened", bytes.length, annotations);
+      return bytes;
+    },
+    async compressPdf(bytes) {
+      console.log("[MockBridge] compressPdf", bytes.length);
+      return bytes;
+    },
+    async watermarkPdf(bytes, text) {
+      console.log("[MockBridge] watermarkPdf", bytes.length, text);
+      return bytes;
+    },
+    async mergePdfs(bytesList) {
+      console.log("[MockBridge] mergePdfs", bytesList.length);
+      return bytesList[0];
+    },
+    async splitPdf(bytes, pages) {
+      console.log("[MockBridge] splitPdf", bytes.length, pages);
+      return [bytes];
+    },
     async saveDocumentAs() {
       return null;
     },

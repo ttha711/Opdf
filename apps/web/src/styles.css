@@ -172,6 +172,8 @@ body { margin: 0; }
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 .page-stage.highlight-mode { cursor: crosshair; }
+.page-stage.shape-mode { cursor: crosshair; }
+.page-stage.redact-mode { cursor: crosshair; }
 .pdf-page-img { display: block; width: 100%; height: 100%; border: 1px solid #d1d5db; }
 
 .overlay-layer { position: absolute; inset: 0; pointer-events: none; }

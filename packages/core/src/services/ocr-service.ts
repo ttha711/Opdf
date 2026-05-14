@@ -39,29 +39,39 @@ export class OcrService {
     return job;
   }
 
-  async runLocalMock(id: string): Promise<OcrJob | null> {
-    const initialJob = this.jobs.get(id);
-    if (!initialJob || initialJob.status === "cancelled") {
-      return initialJob ?? null;
+  async run(id: string): Promise<OcrJob | null> {
+    const job = this.jobs.get(id);
+    if (!job || job.status === "cancelled") {
+      return job ?? null;
     }
 
-    initialJob.status = "running";
-    for (const progress of [20, 40, 60, 80, 100]) {
-      const current = this.jobs.get(id);
-      if (!current || current.status === "cancelled") {
-        return current ?? null;
-      }
-      current.progress = progress;
-      await new Promise((resolve) => setTimeout(resolve, 80));
+    job.status = "running";
+    
+    try {
+      const Tesseract = await import("tesseract.js");
+      const worker = await Tesseract.createWorker(job.language, 1, {
+        logger: (m: any) => {
+          if (m.status === 'recognizing text') {
+            job.progress = 20 + Math.floor(m.progress * 70);
+          }
+        }
+      });
+      job.progress = 20;
+      
+      // Note: In a full PDF pipeline, we would convert PDF pages to images first.
+      // Here we assume filePath is an image or tesseract can handle it.
+      const ret = await worker.recognize(job.filePath);
+      
+      job.progress = 100;
+      job.status = "done";
+      job.outputPath = job.filePath; // Placeholder for actual PDF generation with text layer
+      
+      await worker.terminate();
+    } catch (error) {
+      job.status = "failed";
     }
 
-    const doneJob = this.jobs.get(id);
-    if (!doneJob) {
-      return null;
-    }
-    doneJob.status = "done";
-    doneJob.outputPath = doneJob.filePath;
-    return doneJob;
+    return job;
   }
 
   applyTextLayer(filePath: string, _ocrText: string): string {

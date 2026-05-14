@@ -1,0 +1,34 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]: OPDF Desktop
+    - button "Open File" [ref=e7] [cursor=pointer]
+    - generic [ref=e8]:
+      - button "Prev" [disabled] [ref=e9]
+      - generic [ref=e10]: 1/1
+      - button "Next" [disabled] [ref=e11]
+    - generic [ref=e12]:
+      - button "-" [disabled] [ref=e13]
+      - generic [ref=e14]: 100%
+      - button "+" [disabled] [ref=e15]
+    - textbox "Find text in current page" [ref=e17]
+    - generic [ref=e18]:
+      - button "Highlight" [disabled] [ref=e19]
+      - button "Undo" [disabled] [ref=e20]
+      - button "Redo" [disabled] [ref=e21]
+      - button "OCR" [disabled] [ref=e22]
+  - main [ref=e23]:
+    - complementary [ref=e24]:
+      - generic [ref=e25]:
+        - heading "Document" [level=3] [ref=e26]
+        - paragraph [ref=e27]: No file selected
+        - paragraph [ref=e28]: "Pages: 0"
+        - paragraph [ref=e29]: Search result will show here
+      - generic [ref=e30]:
+        - heading "Annotations (0)" [level=3] [ref=e31]
+        - list
+      - generic [ref=e32]:
+        - heading "OCR Jobs" [level=3] [ref=e33]
+        - list [ref=e34]:
+          - listitem [ref=e35]: No OCR job yet
+    - region "PDF viewer area" [ref=e36]:
+      - paragraph [ref=e38]: Open a PDF to start

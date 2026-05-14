@@ -1,0 +1,22 @@
+{
+  "name": "opdf",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline-first PDF desktop app (web-first dev, desktop runtime)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @opdf/core && npm run build -w @opdf/web && npm run build -w @opdf/desktop",
+    "typecheck": "npm run build -w @opdf/core && npm run typecheck -w @opdf/web && npm run typecheck -w @opdf/desktop",
+    "lint": "npm run typecheck",
+    "web-dev": "npm run dev -w @opdf/web",
+    "desktop-dev": "npm run dev -w @opdf/desktop",
+    "desktop-build": "npm run build -w @opdf/desktop",
+    "desktop-package": "npm run package -w @opdf/desktop"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

@@ -5,6 +5,11 @@ import type {
   OpenDocumentResult,
   RecentDocument,
   SessionSnapshot,
+  PasswordOptions,
+  PageNumbers,
+  HeaderFooterLine,
+  CropOptions,
+  InsertOptions,
 } from "@opdf/core";
 
 export interface OpdfBridge {
@@ -30,6 +35,19 @@ export interface OpdfBridge {
   enqueueOcr: (filePath: string, language?: string) => Promise<OcrJob>;
   runOcr: (jobId: string) => Promise<OcrJob | null>;
   listOcrJobs: () => Promise<OcrJob[]>;
+
+  /* ----- NEW FEATURES ----- */
+  encryptPdf: (bytes: Uint8Array, opts: PasswordOptions) => Promise<Uint8Array>;
+  decryptPdf: (bytes: Uint8Array, password: string) => Promise<Uint8Array>;
+  insertPages: (bytes: Uint8Array, opts: InsertOptions) => Promise<Uint8Array>;
+  deletePages: (bytes: Uint8Array, pageNumbers: number[]) => Promise<Uint8Array>;
+  cropPage: (bytes: Uint8Array, opts: CropOptions) => Promise<Uint8Array>;
+  addPageNumbers: (bytes: Uint8Array, opts: PageNumbers) => Promise<Uint8Array>;
+  addHeaderFooter: (bytes: Uint8Array, lines: HeaderFooterLine[], isHeader: boolean) => Promise<Uint8Array>;
+  addBookmarks: (bytes: Uint8Array, bookmarks: Array<{ title: string; page: number; parent?: number }>) => Promise<Uint8Array>;
+  addBatesNumbering: (bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => Promise<Uint8Array>;
+  convertToPdfA: (bytes: Uint8Array) => Promise<Uint8Array>;
+  rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => Promise<Uint8Array>;
 }
 
 declare global {

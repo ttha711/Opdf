@@ -7,6 +7,11 @@ import {
   OcrService,
   StorageService,
   type AnnotationCreateInput,
+  type CropOptions,
+  type HeaderFooterLine,
+  type InsertOptions,
+  type PageNumbers,
+  type PasswordOptions,
   type SessionSnapshot,
 } from "@opdf/core";
 
@@ -70,6 +75,17 @@ function registerIpcHandlers(): void {
   ipcMain.handle("opdf:watermark", async (_event, bytes: Uint8Array, text: string) => documentService.watermarkPdf(bytes, text));
   ipcMain.handle("opdf:merge", async (_event, bytesList: Uint8Array[]) => documentService.merge(bytesList));
   ipcMain.handle("opdf:split", async (_event, bytes: Uint8Array, pages: number[]) => documentService.split(bytes, pages));
+  ipcMain.handle("opdf:encrypt", async (_event, bytes: Uint8Array, opts: PasswordOptions) => documentService.encryptPdf(bytes, opts));
+  ipcMain.handle("opdf:decrypt", async (_event, bytes: Uint8Array, password: string) => documentService.decryptPdf(bytes, password));
+  ipcMain.handle("opdf:insert-pages", async (_event, bytes: Uint8Array, opts: InsertOptions) => documentService.insertPages(bytes, opts));
+  ipcMain.handle("opdf:delete-pages", async (_event, bytes: Uint8Array, pageNumbers: number[]) => documentService.deletePages(bytes, pageNumbers));
+  ipcMain.handle("opdf:crop-page", async (_event, bytes: Uint8Array, opts: CropOptions) => documentService.cropPage(bytes, opts));
+  ipcMain.handle("opdf:add-page-numbers", async (_event, bytes: Uint8Array, opts: PageNumbers) => documentService.addPageNumbers(bytes, opts));
+  ipcMain.handle("opdf:add-header-footer", async (_event, bytes: Uint8Array, lines: HeaderFooterLine[], isHeader: boolean) => documentService.addHeaderFooter(bytes, lines, isHeader));
+  ipcMain.handle("opdf:add-bookmarks", async (_event, bytes: Uint8Array, bookmarks: Array<{ title: string; page: number; parent?: number }>) => documentService.addBookmarks(bytes, bookmarks));
+  ipcMain.handle("opdf:add-bates-numbering", async (_event, bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => documentService.addBatesNumbering(bytes, prefix, startNumber, suffix));
+  ipcMain.handle("opdf:convert-to-pdfa", async (_event, bytes: Uint8Array) => documentService.convertToPdfA(bytes));
+  ipcMain.handle("opdf:rotate-pages", async (_event, bytes: Uint8Array, pageNumbers: number[], degrees: number) => documentService.rotatePages(bytes, pageNumbers, degrees));
 
   ipcMain.handle("opdf:save-as", async (_event, bytes: Uint8Array) => {
     const result = await dialog.showSaveDialog({

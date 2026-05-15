@@ -31,6 +31,61 @@ function ToolIconButton({
   );
 }
 
+type DocumentTool =
+  | "delete-pages"
+  | "insert-pdf"
+  | "crop-current"
+  | "page-numbers"
+  | "header"
+  | "footer"
+  | "bates"
+  | "encrypt"
+  | "decrypt"
+  | "normalize"
+  | "rotate-all-left"
+  | "rotate-all-right";
+
+function parsePageList(input: string, totalPages: number): number[] {
+  const pages = new Set<number>();
+  for (const rawPart of input.split(",")) {
+    const part = rawPart.trim();
+    if (!part) continue;
+    const range = /^(\d+)\s*-\s*(\d+)$/.exec(part);
+    if (range) {
+      const start = Number(range[1]);
+      const end = Number(range[2]);
+      const low = Math.min(start, end);
+      const high = Math.max(start, end);
+      for (let pageNumber = low; pageNumber <= high; pageNumber += 1) {
+        if (pageNumber >= 1 && pageNumber <= totalPages) pages.add(pageNumber);
+      }
+      continue;
+    }
+    const pageNumber = Number(part);
+    if (Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= totalPages) {
+      pages.add(pageNumber);
+    }
+  }
+  return [...pages].sort((a, b) => a - b);
+}
+
+function pickBrowserPdfBytes(): Promise<Uint8Array | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/pdf";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      resolve(new Uint8Array(await file.arrayBuffer()));
+    };
+    input.click();
+  });
+}
+
 export function App() {
   const bridge = useOpdfBridge();
   const [fileName, setFileName] = useState("");
@@ -51,6 +106,7 @@ export function App() {
   const [signatureStyle, setSignatureStyle] = useState("User Signature");
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"continuous" | "page">("continuous");
+  const [documentTool, setDocumentTool] = useState<DocumentTool>("delete-pages");
   const [transitionTick, setTransitionTick] = useState(0);
   const [transitionDirection, setTransitionDirection] = useState<"next" | "prev">("next");
   const [thumbnails, setThumbnails] = useState<Array<{ page: number; url: string }>>([]);
@@ -110,6 +166,15 @@ export function App() {
     const file = event.target.files?.[0];
     if (!file) return;
     await loadBrowserFile(file);
+  }
+
+  function replaceDocumentBytes(bytes: Uint8Array, nextPage = page) {
+    setDocBytes(bytes);
+    setAnnotations([]);
+    setThumbnails([]);
+    setViewerError(null);
+    setPage(Math.max(1, nextPage));
+    setTransitionTick((n) => n + 1);
   }
 
   useEffect(() => {
@@ -343,6 +408,125 @@ export function App() {
     }
   }
 
+  async function runDocumentTool() {
+    if (!docBytes || !fileName) return;
+
+    try {
+      if (documentTool === "delete-pages") {
+        const input = prompt("Pages to delete (example: 2,4-6):", String(page));
+        if (!input) return;
+        const pages = parsePageList(input, totalPages);
+        if (pages.length === 0) throw new Error("No valid pages selected");
+        const next = await bridge.deletePages(docBytes, pages);
+        replaceDocumentBytes(next, Math.min(page, totalPages - pages.length));
+        return;
+      }
+
+      if (documentTool === "insert-pdf") {
+        const targetInput = prompt("Insert at page number:", String(page));
+        if (!targetInput) return;
+        const targetPage = Number(targetInput);
+        if (!Number.isInteger(targetPage) || targetPage < 1 || targetPage > Math.max(totalPages, 1)) {
+          throw new Error("Invalid target page");
+        }
+        const position = confirm("Insert after this page? Choose Cancel to insert before.") ? "after" : "before";
+        let bytes: Uint8Array | null = null;
+        if (hasDesktopBridge) {
+          const picked = await bridge.pickAndOpenDocument();
+          bytes = picked?.bytes ?? null;
+        } else {
+          bytes = await pickBrowserPdfBytes();
+        }
+        if (!bytes) return;
+        const next = await bridge.insertPages(docBytes, { targetPage, position, bytes });
+        replaceDocumentBytes(next, targetPage);
+        return;
+      }
+
+      if (documentTool === "crop-current") {
+        const marginInput = prompt("Crop margin percent from each edge (0-45):", "5");
+        if (!marginInput) return;
+        const margin = Math.min(45, Math.max(0, Number(marginInput))) / 100;
+        const next = await bridge.cropPage(docBytes, {
+          page,
+          x: margin,
+          y: margin,
+          width: 1 - margin * 2,
+          height: 1 - margin * 2,
+        });
+        replaceDocumentBytes(next, page);
+        return;
+      }
+
+      if (documentTool === "page-numbers") {
+        const prefix = prompt("Page number prefix:", "Page ");
+        if (prefix === null) return;
+        const next = await bridge.addPageNumbers(docBytes, {
+          position: "bottom-center",
+          startNumber: 1,
+          fontSize: 11,
+          fontColor: "#111827",
+          prefix,
+        });
+        replaceDocumentBytes(next, page);
+        return;
+      }
+
+      if (documentTool === "header" || documentTool === "footer") {
+        const text = prompt(documentTool === "header" ? "Header text:" : "Footer text:", fileName);
+        if (!text) return;
+        const next = await bridge.addHeaderFooter(
+          docBytes,
+          [{ align: "center", text, fontSize: 10, fontColor: "#374151" }],
+          documentTool === "header",
+        );
+        replaceDocumentBytes(next, page);
+        return;
+      }
+
+      if (documentTool === "bates") {
+        const prefix = prompt("Bates prefix:", "OPDF-");
+        if (prefix === null) return;
+        const startInput = prompt("Start number:", "1");
+        if (!startInput) return;
+        const startNumber = Number(startInput);
+        if (!Number.isInteger(startNumber) || startNumber < 0) throw new Error("Invalid start number");
+        const next = await bridge.addBatesNumbering(docBytes, prefix, startNumber);
+        replaceDocumentBytes(next, page);
+        return;
+      }
+
+      if (documentTool === "encrypt") {
+        const password = prompt("New PDF password:");
+        if (!password) return;
+        const next = await bridge.encryptPdf(docBytes, { userPassword: password, ownerPassword: password });
+        replaceDocumentBytes(next, page);
+        return;
+      }
+
+      if (documentTool === "decrypt") {
+        const password = prompt("Current PDF password:");
+        if (!password) return;
+        const next = await bridge.decryptPdf(docBytes, password);
+        replaceDocumentBytes(next, page);
+        return;
+      }
+
+      if (documentTool === "normalize") {
+        const next = await bridge.convertToPdfA(docBytes);
+        replaceDocumentBytes(next, page);
+        return;
+      }
+
+      const degrees = documentTool === "rotate-all-left" ? -90 : 90;
+      const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
+      const next = await bridge.rotatePages(docBytes, pages, degrees);
+      replaceDocumentBytes(next, page);
+    } catch (err) {
+      setViewerError(err instanceof Error ? err.message : `Failed to run ${documentTool}`);
+    }
+  }
+
   function onLoaded(pages: number) {
     setTotalPages(pages);
     setPage((p) => Math.min(Math.max(1, p), Math.max(1, pages)));
@@ -524,6 +708,29 @@ export function App() {
             </ToolIconButton>
             <ToolIconButton label="To Images" disabled={!hasDocument} onClick={convertToImages}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+            </ToolIconButton>
+            <select
+              className="tool-select"
+              value={documentTool}
+              onChange={(e) => setDocumentTool(e.target.value as DocumentTool)}
+              disabled={!hasDocument}
+              aria-label="Document tool"
+            >
+              <option value="delete-pages">Delete pages</option>
+              <option value="insert-pdf">Insert PDF</option>
+              <option value="crop-current">Crop page</option>
+              <option value="page-numbers">Page numbers</option>
+              <option value="header">Header</option>
+              <option value="footer">Footer</option>
+              <option value="bates">Bates</option>
+              <option value="encrypt">Encrypt</option>
+              <option value="decrypt">Decrypt</option>
+              <option value="normalize">PDF/A</option>
+              <option value="rotate-all-left">Rotate all left</option>
+              <option value="rotate-all-right">Rotate all right</option>
+            </select>
+            <ToolIconButton label="Run Document Tool" disabled={!hasDocument} onClick={runDocumentTool}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
             </ToolIconButton>
           </div>
         </div>

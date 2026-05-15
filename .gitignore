@@ -4,3 +4,8 @@ dist/
 .DS_Store
 .vscode/
 coverage/
+
+# Debug & Temporary files
+.playwright-mcp/
+annotation-after-fix.png
+structure.txt

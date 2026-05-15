@@ -123,6 +123,11 @@ function registerIpcHandlers(): void {
     await storageService.writeAnnotations(documentId, annotationService.list(documentId));
     return deleted;
   });
+  ipcMain.handle("opdf:annotation:update", async (_event, documentId: string, id: string, payload: Record<string, unknown>) => {
+    const updated = annotationService.update(documentId, id, payload);
+    await storageService.writeAnnotations(documentId, annotationService.list(documentId));
+    return updated;
+  });
   ipcMain.handle("opdf:annotation:undo", async (_event, documentId: string) => {
     const annotations = annotationService.undo(documentId);
     await storageService.writeAnnotations(documentId, annotations);

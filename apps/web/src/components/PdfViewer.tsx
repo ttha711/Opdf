@@ -19,14 +19,19 @@ interface PdfViewerProps {
   annotations?: Annotation[];
   highlightMode?: boolean;
   searchText?: string;
-  onPageToolAction?: (page: number, rect: { x: number; y: number; width: number; height: number }) => void;
+  activeTool?: string;
+  onPageToolAction?: (page: number, kind: string, rect: { x: number; y: number; width: number; height: number }) => void;
   shapeMode?: boolean;
   redactMode?: boolean;
+  measureMode?: boolean;
   onDocumentLoaded?: (pages: number) => void;
   onSearchResult?: (found: boolean, message: string) => void;
   onError?: (message: string | null) => void;
   onActivePageChange?: (page: number) => void;
-  onThumbsLoaded?: (thumbs: Array<{ page: number; url: string }>) => void;
+  onThumbsLoaded?: (thumbs: Array<{ page: number; url: string; blob: Blob }>) => void;
+  initialThumbnails?: Array<{ page: number; url: string; blob: Blob }>;
+  onAnnotationUpdated?: (id: string, payload: Record<string, unknown>) => void;
+  onAnnotationDeleted?: (id: string) => void;
 }
 
 interface RenderedPage {
@@ -50,18 +55,25 @@ export function PdfViewer({
   annotations = [],
   highlightMode = false,
   searchText,
+  activeTool = "select",
   onPageToolAction,
   shapeMode = false,
   redactMode = false,
+  measureMode = false,
   onDocumentLoaded,
   onSearchResult,
   onError,
   onActivePageChange,
   onThumbsLoaded,
+  initialThumbnails,
+  onAnnotationUpdated,
+  onAnnotationDeleted,
 }: PdfViewerProps) {
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [renderedPages, setRenderedPages] = useState<RenderedPage[]>([]);
   const [continuousLoadedUntil, setContinuousLoadedUntil] = useState(0);
+  const renderedPagesRef = useRef<RenderedPage[]>([]);
+  const lastParamsRef = useRef({ pdf: null as PDFDocumentProxy | null, scale, rotation, viewMode });
   const pageElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const renderedUrlsRef = useRef<string[]>([]);
@@ -112,27 +124,38 @@ export function PdfViewer({
 
         thumbnailUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
         thumbnailUrlsRef.current = [];
-        const thumbCount = Math.min(nextPdf.numPages, 40);
-        const thumbs: Array<{ page: number; url: string }> = [];
-        for (let i = 1; i <= thumbCount; i += 1) {
-          if (cancelled) break;
-          const p = await nextPdf.getPage(i);
-          const vp = p.getViewport({ scale: 0.2 });
-          const c = document.createElement("canvas");
-          const ctx = c.getContext("2d");
-          if (!ctx) continue;
-          c.width = Math.max(1, Math.floor(vp.width));
-          c.height = Math.max(1, Math.floor(vp.height));
-          const renderTask = p.render({ canvasContext: ctx, viewport: vp });
-          await renderTask.promise;
-          const blob = await canvasToBlob(c, "image/jpeg", 0.7);
-          if (!blob) continue;
-          const url = URL.createObjectURL(blob);
-          thumbnailUrlsRef.current.push(url);
-          thumbs.push({ page: i, url });
-          p.cleanup();
+
+        if (initialThumbnails && initialThumbnails.length > 0) {
+          onThumbsLoadedRef.current?.(initialThumbnails);
+          // Still register them for cleanup
+          initialThumbnails.forEach(t => thumbnailUrlsRef.current.push(t.url));
+        } else {
+          const thumbCount = Math.min(nextPdf.numPages, 40);
+          const thumbs: Array<{ page: number; url: string; blob: Blob }> = [];
+          for (let i = 1; i <= thumbCount; i += 1) {
+            if (cancelled) break;
+            const p = await nextPdf.getPage(i);
+            const vp = p.getViewport({ scale: 0.1 });
+            const c = document.createElement("canvas");
+            const ctx = c.getContext("2d");
+            if (!ctx) continue;
+            c.width = Math.max(1, Math.floor(vp.width));
+            c.height = Math.max(1, Math.floor(vp.height));
+            const renderTask = p.render({ canvasContext: ctx, viewport: vp });
+            await renderTask.promise;
+            
+            // Draw annotations on thumbnail
+            drawAnnotationsToCanvas(ctx, annotations, i, c.width, c.height);
+
+            const blob = await canvasToBlob(c, "image/jpeg", 0.4);
+            if (!blob) continue;
+            const url = URL.createObjectURL(blob);
+            thumbnailUrlsRef.current.push(url);
+            thumbs.push({ page: i, url, blob });
+            p.cleanup();
+          }
+          if (!cancelled) onThumbsLoadedRef.current?.(thumbs);
         }
-        if (!cancelled) onThumbsLoadedRef.current?.(thumbs);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to load PDF";
         onDocumentLoadedRef.current?.(0);
@@ -185,23 +208,57 @@ export function PdfViewer({
     const activeRenderTasks: Array<{ cancel: () => void }> = [];
 
     (async () => {
-      const pagesToRender: number[] = [];
+      const paramsChanged = 
+        lastParamsRef.current.pdf !== pdf || 
+        lastParamsRef.current.scale !== scale || 
+        lastParamsRef.current.rotation !== rotation || 
+        lastParamsRef.current.viewMode !== viewMode;
+
+      if (paramsChanged) {
+        // Revoke all previous URLs and clear the rendered state
+        renderedPagesRef.current.forEach((p) => URL.revokeObjectURL(p.imageUrl));
+        renderedPagesRef.current = [];
+        setRenderedPages([]);
+        lastParamsRef.current = { pdf, scale, rotation, viewMode };
+      }
+
+      const targetPages: number[] = [];
       if (viewMode === "continuous") {
         const endPage = Math.max(1, Math.min(pdf.numPages, continuousLoadedUntil || Math.min(CONTINUOUS_BATCH_SIZE, pdf.numPages)));
         for (let i = 1; i <= endPage; i += 1) {
-          pagesToRender.push(i);
+          targetPages.push(i);
         }
       } else {
-        pagesToRender.push(Math.min(Math.max(1, page), pdf.numPages));
+        targetPages.push(Math.min(Math.max(1, page), pdf.numPages));
       }
 
-      const next: RenderedPage[] = [];
+      // Find page numbers not yet rendered in our current set
+      const renderedPageNums = new Set(renderedPagesRef.current.map(p => p.pageNumber));
+      const pagesToRender = targetPages.filter(pNum => !renderedPageNums.has(pNum));
+
+      if (pagesToRender.length === 0) {
+        // Everything is already rendered, just handle search if applicable
+        if (searchText && searchText.trim().length > 0) {
+          const safePage = Math.min(Math.max(1, page), pdf.numPages);
+          const searchPage = await pdf.getPage(safePage);
+          const content = await searchPage.getTextContent();
+          const pageText = content.items.map((item) => ("str" in item ? item.str : "")).join(" ").toLowerCase();
+          const query = searchText.toLowerCase();
+          onSearchResultRef.current?.(pageText.includes(query), `"${searchText}" on page ${safePage}`);
+        } else {
+          onSearchResultRef.current?.(false, "enter text to search");
+        }
+        return;
+      }
+
+      const newlyRendered: RenderedPage[] = [];
       for (const pNum of pagesToRender) {
+        if (cancelled) break;
         const p = await pdf.getPage(pNum);
         const vp = p.getViewport({ scale, rotation });
         const c = document.createElement("canvas");
         const ctx = c.getContext("2d");
-        if (!ctx) continue;
+        if (!ctx) { p.cleanup(); continue; }
         c.width = Math.floor(vp.width);
         c.height = Math.floor(vp.height);
         const renderTask = p.render({ canvasContext: ctx, viewport: vp });
@@ -223,16 +280,22 @@ export function PdfViewer({
           continue;
         }
         const url = URL.createObjectURL(blob);
-        next.push({ pageNumber: pNum, width: vp.width, height: vp.height, imageUrl: url });
+        newlyRendered.push({ pageNumber: pNum, width: vp.width, height: vp.height, imageUrl: url });
         p.cleanup();
       }
 
       if (!cancelled) {
-        renderedUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-        renderedUrlsRef.current = next.map((p) => p.imageUrl);
-        setRenderedPages(next);
+        setRenderedPages(prev => {
+          // Merge existing rendered pages with new ones and sort them by page number
+          const combined = [...prev, ...newlyRendered].sort((a, b) => a.pageNumber - b.pageNumber);
+          const next = viewMode === "continuous" ? combined : newlyRendered;
+          renderedPagesRef.current = next;
+          renderedUrlsRef.current = next.map((p) => p.imageUrl);
+          return next;
+        });
       } else {
-        next.forEach((p) => URL.revokeObjectURL(p.imageUrl));
+        // Cleanup the newly generated URLs if execution was cancelled mid-flight
+        newlyRendered.forEach((p) => URL.revokeObjectURL(p.imageUrl));
       }
 
       if (searchText && searchText.trim().length > 0) {
@@ -264,6 +327,44 @@ export function PdfViewer({
     [pdf]
   );
 
+  // ── Update active page thumbnail when annotations change ──────────────
+  useEffect(() => {
+    if (!pdf || !onThumbsLoaded) return;
+    const timeout = setTimeout(async () => {
+      try {
+        const pNum = page;
+        const p = await pdf.getPage(pNum);
+        const vp = p.getViewport({ scale: 0.1 });
+        const c = document.createElement("canvas");
+        const ctx = c.getContext("2d");
+        if (!ctx) return;
+        c.width = Math.max(1, Math.floor(vp.width));
+        c.height = Math.max(1, Math.floor(vp.height));
+        await p.render({ canvasContext: ctx, viewport: vp }).promise;
+        
+        drawAnnotationsToCanvas(ctx, annotations, pNum, c.width, c.height);
+        
+        const blob = await canvasToBlob(c, "image/jpeg", 0.4);
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        
+        // Update App state
+        const nextThumbs = (initialThumbnails || []).map(t => {
+          if (t.page === pNum) {
+            URL.revokeObjectURL(t.url);
+            return { page: pNum, url, blob };
+          }
+          return t;
+        });
+        onThumbsLoaded(nextThumbs);
+        p.cleanup();
+      } catch (e) {
+        console.error("Failed to update thumbnail", e);
+      }
+    }, 2000);
+    return () => clearTimeout(timeout);
+  }, [annotations.length, page, pdf]);
+
   useEffect(() => {
     if (viewMode !== "continuous") return;
     let frameId = 0;
@@ -288,7 +389,15 @@ export function PdfViewer({
   return (
     <div className="viewer-shell">
       {renderedPages.length === 0 ? (
-        <p className="empty-viewer">Open a PDF to start</p>
+        <div className="empty-viewer">
+          <svg viewBox="0 0 64 64" width="72" height="72" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="10" y="4" width="36" height="48" rx="3"/>
+            <path d="M34 4v14h12"/>
+            <path d="M18 28h20M18 34h16M18 40h12"/>
+          </svg>
+          <p>Open a PDF to get started</p>
+          <small>Use File → Open or drag &amp; drop a PDF file</small>
+        </div>
       ) : (
         <div className={`doc-column ${viewMode === "page" ? "single" : "continuous"}`} key={transitionTick}>
           {renderedPages.map((p) => (
@@ -303,10 +412,18 @@ export function PdfViewer({
               onClick={(event) => {
                 onActivePageChange?.(p.pageNumber);
                 // Allow clicking to place note/signature only if we are in those modes
-                // FabricPage handles dragging for shape/highlight/redact
-                if (!shapeMode && !highlightMode && !redactMode) {
+                // FabricPage handles dragging for shape/highlight/redact/measure
+                if (!shapeMode && !highlightMode && !redactMode && !measureMode) {
                   const pt = getNormalizedRect(event.currentTarget, event.clientX, event.clientY);
-                  onPageToolAction?.(p.pageNumber, { x: pt.x, y: pt.y, width: 0.18, height: 0.08 });
+                  // Add a tiny jitter to prevent overlapping
+                  const jitterX = (Math.random() - 0.5) * 0.02;
+                  const jitterY = (Math.random() - 0.5) * 0.02;
+                  // Forward the current tool kind (note / signature) for correct dispatch
+                  onPageToolAction?.(p.pageNumber, activeTool, { 
+                    x: Math.max(0, Math.min(1, pt.x + jitterX)), 
+                    y: Math.max(0, Math.min(1, pt.y + jitterY)), 
+                    width: 0.18, height: 0.08 
+                  });
                 }
               }}
             >
@@ -319,9 +436,12 @@ export function PdfViewer({
                 highlightMode={highlightMode || false}
                 shapeMode={shapeMode || false}
                 redactMode={redactMode || false}
+                measureMode={measureMode || false}
                 onAnnotationCreated={(pageNum, kind, rect) => {
-                  onPageToolAction?.(pageNum, rect as any);
+                  onPageToolAction?.(pageNum, kind, rect as any);
                 }}
+                onAnnotationUpdated={onAnnotationUpdated}
+                onAnnotationDeleted={onAnnotationDeleted}
               />
             </div>
           ))}
@@ -355,4 +475,36 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob), type, quality);
   });
+}
+
+function drawAnnotationsToCanvas(ctx: CanvasRenderingContext2D, annotations: Annotation[], page: number, width: number, height: number) {
+  const pageAnns = annotations.filter(a => a.page === page);
+  for (const ann of pageAnns) {
+    const payload = ann.payload as any;
+    if (!payload) continue;
+    
+    const { x, y, width: w, height: h, color, stroke, opacity } = payload;
+    const absX = (x || 0) * width;
+    const absY = (y || 0) * height;
+    const absW = (w || 0) * width;
+    const absH = (h || 0) * height;
+
+    ctx.save();
+    ctx.globalAlpha = opacity !== undefined ? opacity : 1;
+    
+    if (ann.kind === "highlight") {
+      ctx.fillStyle = color || "#facc15";
+      ctx.globalAlpha = opacity !== undefined ? opacity : 0.4;
+      ctx.fillRect(absX, absY, absW, absH);
+    } else if (ann.kind === "shape") {
+      ctx.strokeStyle = stroke || "#ef4444";
+      ctx.lineWidth = Math.max(1, 2 * (width / 200)); // Scale line width
+      ctx.strokeRect(absX, absY, absW, absH);
+    } else if (ann.kind === "redact") {
+      ctx.fillStyle = "#000000";
+      ctx.globalAlpha = 1;
+      ctx.fillRect(absX, absY, absW, absH);
+    }
+    ctx.restore();
+  }
 }

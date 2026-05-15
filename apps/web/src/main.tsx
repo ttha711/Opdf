@@ -3,6 +3,10 @@ import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import "./styles.css";
 
+if (!document.documentElement.dataset.density) {
+  document.documentElement.dataset.density = "comfortable";
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />

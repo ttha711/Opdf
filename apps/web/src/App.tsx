@@ -1,90 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation, OcrJob } from "@opdf/core";
 import { PdfViewer } from "./components/PdfViewer";
+import { AppHeader } from "./components/AppHeader";
+import { ThumbnailPanel } from "./components/ThumbnailPanel";
+import { RightInfoPanel } from "./components/RightInfoPanel";
+import { OverlayEditors } from "./components/OverlayEditors";
+import { StatusBar } from "./components/StatusBar";
 import { useOpdfBridge } from "./hooks/useOpdfBridge";
+import { useAnnotationActions } from "./hooks/useAnnotationActions";
+import { useDocumentActions } from "./hooks/useDocumentActions";
+import { useViewerControls } from "./hooks/useViewerControls";
+import { useAppMenus } from "./hooks/useAppMenus";
+import { useDocumentLifecycle } from "./hooks/useDocumentLifecycle";
+import type { ActiveTool, PendingNote, ViewMode, ZoomPreset } from "./lib/app-types";
+import type { DocumentTool } from "./lib/document-tools";
+import { savePdfBytes, saveWebState, loadFullDraft } from "./lib/web-storage";
 import "./types/opdf";
-
-function ToolIconButton({
-  label,
-  onClick,
-  disabled,
-  active,
-  children,
-}: {
-  label: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  active?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      className={`icon-btn ${active ? "active-tool" : ""}`}
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-      type="button"
-    >
-      {children}
-    </button>
-  );
-}
-
-type DocumentTool =
-  | "delete-pages"
-  | "insert-pdf"
-  | "crop-current"
-  | "page-numbers"
-  | "header"
-  | "footer"
-  | "bates"
-  | "encrypt"
-  | "decrypt"
-  | "normalize"
-  | "rotate-all-left"
-  | "rotate-all-right";
-
-function parsePageList(input: string, totalPages: number): number[] {
-  const pages = new Set<number>();
-  for (const rawPart of input.split(",")) {
-    const part = rawPart.trim();
-    if (!part) continue;
-    const range = /^(\d+)\s*-\s*(\d+)$/.exec(part);
-    if (range) {
-      const start = Number(range[1]);
-      const end = Number(range[2]);
-      const low = Math.min(start, end);
-      const high = Math.max(start, end);
-      for (let pageNumber = low; pageNumber <= high; pageNumber += 1) {
-        if (pageNumber >= 1 && pageNumber <= totalPages) pages.add(pageNumber);
-      }
-      continue;
-    }
-    const pageNumber = Number(part);
-    if (Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= totalPages) {
-      pages.add(pageNumber);
-    }
-  }
-  return [...pages].sort((a, b) => a - b);
-}
-
-function pickBrowserPdfBytes(): Promise<Uint8Array | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/pdf";
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) {
-        resolve(null);
-        return;
-      }
-      resolve(new Uint8Array(await file.arrayBuffer()));
-    };
-    input.click();
-  });
-}
 
 export function App() {
   const bridge = useOpdfBridge();
@@ -98,434 +29,75 @@ export function App() {
   const [ocrJobs, setOcrJobs] = useState<OcrJob[]>([]);
   const [pageSearch, setPageSearch] = useState("");
   const [searchResult, setSearchResult] = useState("");
-  const [activeTool, setActiveTool] = useState<"select" | "highlight" | "note" | "shape" | "signature" | "redact">("select");
-  const [zoomPreset, setZoomPreset] = useState<"actual" | "fit-width" | "fit-page">("actual");
-  const [pendingNote, setPendingNote] = useState<{ page: number; rect: { x: number; y: number; width: number; height: number } } | null>(null);
+  const [activeTool, setActiveTool] = useState<ActiveTool>("select");
+  const [zoomPreset, setZoomPreset] = useState<ZoomPreset>("actual");
+  const [pendingNote, setPendingNote] = useState<PendingNote>(null);
   const [noteText, setNoteText] = useState("New note");
   const [showSignModal, setShowSignModal] = useState(false);
   const [signatureStyle, setSignatureStyle] = useState("User Signature");
   const [viewerError, setViewerError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"continuous" | "page">("continuous");
+  const [viewMode, setViewMode] = useState<ViewMode>("continuous");
   const [documentTool, setDocumentTool] = useState<DocumentTool>("delete-pages");
   const [transitionTick, setTransitionTick] = useState(0);
   const [transitionDirection, setTransitionDirection] = useState<"next" | "prev">("next");
-  const [thumbnails, setThumbnails] = useState<Array<{ page: number; url: string }>>([]);
+  const [thumbnails, setThumbnails] = useState<Array<{ page: number; url: string; blob: Blob }>>([]);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [showFindBar, setShowFindBar] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("opdf-theme") as "light" | "dark") || "light";
+    }
+    return "light";
+  });
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const findInputRef = useRef<HTMLInputElement>(null);
   const lastWheelFlipAtRef = useRef(0);
   const hasDocument = useMemo(() => Boolean(fileName && docBytes), [fileName, docBytes]);
   const highlightMode = activeTool === "highlight";
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
 
-  async function loadBrowserFile(file: File) {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    setFileName(file.name);
-    setDocBytes(bytes);
-    setPage(1);
-    setViewerError(null);
-    setThumbnails([]);
-    setAnnotations([]);
-  }
+  const { openFile, onSelectLocalFile, replaceDocumentBytes, closeDocument } = useDocumentLifecycle({
+    bridge,
+    hasDesktopBridge,
+    fileInputRef,
+    page,
+    setFileName,
+    setDocBytes,
+    setPage,
+    setTotalPages,
+    setViewerError,
+    setThumbnails,
+    setAnnotations,
+    setTransitionTick,
+  });
 
-  async function openFile() {
-    if (!hasDesktopBridge) {
-      const input = fileInputRef.current;
-      if (!input) {
-        setViewerError("File picker is unavailable.");
-        return;
-      }
-      input.value = "";
-      try {
-        if (typeof input.showPicker === "function") {
-          input.showPicker();
-        } else {
-          input.click();
-        }
-      } catch (error) {
-        setViewerError("Cannot open file picker. Please click 'Choose File' directly.");
-      }
-      return;
-    }
+  const { addHighlight, createToolAnnotation, undoAnnotations, redoAnnotations, removeAnnotation, updateAnnotation } = useAnnotationActions({
+    bridge,
+    fileName,
+    noteText,
+    signatureStyle,
+    setAnnotations,
+    setViewerError,
+  });
 
-    try {
-      const result = await bridge.pickAndOpenDocument();
-      if (result) {
-        setFileName(result.filePath);
-        setDocBytes(result.bytes);
-        setPage(1);
-        setViewerError(null);
-        setThumbnails([]);
-        await bridge.pushRecent(result.filePath);
-        setAnnotations(await bridge.listAnnotations(result.filePath));
-        return;
-      }
-    } catch {}
-  }
-
-  async function onSelectLocalFile(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    await loadBrowserFile(file);
-  }
-
-  function replaceDocumentBytes(bytes: Uint8Array, nextPage = page) {
-    setDocBytes(bytes);
-    setAnnotations([]);
-    setThumbnails([]);
-    setViewerError(null);
-    setPage(Math.max(1, nextPage));
-    setTransitionTick((n) => n + 1);
-  }
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const openPath = params.get("open");
-    if (!openPath || hasDesktopBridge) return;
-    const devOpenPath = openPath;
-
-    let cancelled = false;
-    async function loadDevFile() {
-      try {
-        const response = await fetch(`/@fs/${devOpenPath.replaceAll("\\", "/")}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const bytes = new Uint8Array(await response.arrayBuffer());
-        if (cancelled) return;
-        setFileName(devOpenPath.split(/[\\/]/).pop() || devOpenPath);
-        setDocBytes(bytes);
-        setPage(1);
-        setViewerError(null);
-        setThumbnails([]);
-        setAnnotations([]);
-      } catch (error) {
-        if (!cancelled) setViewerError(error instanceof Error ? error.message : "Unable to open file");
-      }
-    }
-
-    void loadDevFile();
-    return () => {
-      cancelled = true;
-    };
-  }, [hasDesktopBridge]);
-
-  async function addHighlight(pageNumber: number, rect: { x: number; y: number; width: number; height: number }) {
-    if (!fileName) return;
-    const tempId = crypto.randomUUID();
-    const optimistic: Annotation = {
-      id: tempId,
-      page: pageNumber,
-      kind: "highlight",
-      payload: { color: "rgba(250, 204, 21, 0.4)", ...rect },
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-    
-    setAnnotations((prev) => [...prev, optimistic]);
-    
-    try {
-      const created = await bridge.createAnnotation(fileName, {
-        page: pageNumber,
-        kind: "highlight",
-        payload: { color: "#facc15", ...rect },
-      });
-      setAnnotations((prev) => prev.map(a => a.id === tempId ? created : a));
-    } catch (err) {
-      setAnnotations((prev) => prev.filter(a => a.id !== tempId));
-      setViewerError("Failed to save highlight");
-    }
-  }
-
-  async function createToolAnnotation(kind: "note" | "shape" | "signature" | "redact", pageNumber: number, rect: { x: number; y: number; width: number; height: number }) {
-    if (!fileName) return;
-    const tempId = crypto.randomUUID();
-    const payload =
-      kind === "note"
-        ? { text: noteText || "New note", x: rect.x, y: rect.y }
-          : kind === "shape"
-            ? { shape: "rectangle", stroke: "#ef4444", ...rect }
-            : kind === "redact"
-              ? { shape: "rectangle", ...rect }
-              : { signer: signatureStyle, ...rect };
-
-    const optimistic: Annotation = {
-      id: tempId,
-      page: pageNumber,
-      kind,
-      payload,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
-
-    setAnnotations((prev) => [...prev, optimistic]);
-
-    try {
-      const created = await bridge.createAnnotation(fileName, { page: pageNumber, kind, payload });
-      setAnnotations((prev) => prev.map(a => a.id === tempId ? created : a));
-    } catch (err) {
-      setAnnotations((prev) => prev.filter(a => a.id !== tempId));
-      setViewerError(`Failed to save ${kind}`);
-    }
-  }
-
-  async function undoAnnotations() {
-    if (!fileName) return;
-    setAnnotations(await bridge.undoAnnotation(fileName));
-  }
-
-  async function redoAnnotations() {
-    if (!fileName) return;
-    setAnnotations(await bridge.redoAnnotation(fileName));
-  }
-
-  async function removeAnnotation(id: string) {
-    if (!fileName) return;
-    await bridge.deleteAnnotation(fileName, id);
-    setAnnotations(await bridge.listAnnotations(fileName));
-  }
-
-  async function runOcr() {
-    if (!fileName) return;
-    const job = await bridge.enqueueOcr(fileName, "eng+vie");
-    await bridge.runOcr(job.id);
-    setOcrJobs(await bridge.listOcrJobs());
-  }
-
-  async function exportPdf() {
-    if (!hasDocument || !fileName || !docBytes) return;
-    try {
-      const flattenedBytes = await bridge.exportFlattened(docBytes, annotations);
-      if (hasDesktopBridge) {
-        await bridge.saveDocumentAs(flattenedBytes);
-      } else {
-        const blob = new Blob([flattenedBytes as unknown as BlobPart], { type: "application/pdf" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `exported-${fileName}`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch(err) {
-      console.error(err);
-      setViewerError("Failed to export PDF.");
-    }
-  }
-
-  async function compressDocument() {
-    if (!docBytes || !fileName) return;
-    try {
-      setViewerError("Compressing... (this may take a few seconds)");
-      const compressed = await bridge.compressPdf(docBytes);
-      setDocBytes(compressed);
-      setViewerError("Compression complete!");
-      setTimeout(() => setViewerError(null), 3000);
-    } catch (err) {
-      setViewerError("Compression failed: " + err);
-    }
-  }
-
-  async function addWatermark() {
-    if (!docBytes) return;
-    const text = prompt("Enter watermark text:", "CONFIDENTIAL");
-    if (!text) return;
-    try {
-      const watermarked = await bridge.watermarkPdf(docBytes, text);
-      setDocBytes(watermarked);
-    } catch (err) {
-      setViewerError("Watermark failed: " + err);
-    }
-  }
-
-  async function mergeDocuments() {
-    if (!hasDesktopBridge || !docBytes) {
-      alert("Merge currently requires the Desktop App for native file selection.");
-      return;
-    }
-    alert("Select a second PDF to append to the current one.");
-    const file2 = await bridge.pickAndOpenDocument();
-    if (!file2) return;
-    try {
-      const merged = await bridge.mergePdfs([docBytes, file2.bytes]);
-      setDocBytes(merged);
-      setPage(1);
-    } catch (err) {
-      setViewerError("Merge failed: " + err);
-    }
-  }
-
-  async function splitDocument() {
-    if (!docBytes || !fileName) return;
-    const pageStr = prompt("Enter the exact page number you want to extract as a standalone PDF:", "1");
-    if (!pageStr) return;
-    const p = parseInt(pageStr, 10);
-    if (isNaN(p) || p < 1 || p > totalPages) return;
-    try {
-      const splitDocs = await bridge.splitPdf(docBytes, [p - 1]);
-      if (splitDocs.length) {
-        if (hasDesktopBridge) {
-          await bridge.saveDocumentAs(splitDocs[0]);
-        } else {
-          const blob = new Blob([splitDocs[0] as unknown as BlobPart], { type: "application/pdf" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `page-${p}-${fileName}`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }
-      }
-    } catch (err) {
-      setViewerError("Split failed");
-    }
-  }
-
-  async function convertToImages() {
-    if (!fileName || thumbnails.length === 0) {
-      alert("Please wait for all pages to finish rendering before converting.");
-      return;
-    }
-    try {
-      setViewerError("Zipping images...");
-      const { zipSync } = await import("fflate");
-      const zipData: Record<string, Uint8Array> = {};
-      
-      for (const thumb of thumbnails) {
-        const res = await fetch(thumb.url);
-        const buf = await res.arrayBuffer();
-        zipData[`page-${thumb.page}.jpg`] = new Uint8Array(buf);
-      }
-      
-      const zipped = zipSync(zipData);
-      const blob = new Blob([zipped as unknown as BlobPart], { type: "application/zip" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${fileName}-images.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setViewerError(null);
-    } catch (err) {
-      setViewerError("Failed to convert: " + err);
-    }
-  }
-
-  async function runDocumentTool() {
-    if (!docBytes || !fileName) return;
-
-    try {
-      if (documentTool === "delete-pages") {
-        const input = prompt("Pages to delete (example: 2,4-6):", String(page));
-        if (!input) return;
-        const pages = parsePageList(input, totalPages);
-        if (pages.length === 0) throw new Error("No valid pages selected");
-        const next = await bridge.deletePages(docBytes, pages);
-        replaceDocumentBytes(next, Math.min(page, totalPages - pages.length));
-        return;
-      }
-
-      if (documentTool === "insert-pdf") {
-        const targetInput = prompt("Insert at page number:", String(page));
-        if (!targetInput) return;
-        const targetPage = Number(targetInput);
-        if (!Number.isInteger(targetPage) || targetPage < 1 || targetPage > Math.max(totalPages, 1)) {
-          throw new Error("Invalid target page");
-        }
-        const position = confirm("Insert after this page? Choose Cancel to insert before.") ? "after" : "before";
-        let bytes: Uint8Array | null = null;
-        if (hasDesktopBridge) {
-          const picked = await bridge.pickAndOpenDocument();
-          bytes = picked?.bytes ?? null;
-        } else {
-          bytes = await pickBrowserPdfBytes();
-        }
-        if (!bytes) return;
-        const next = await bridge.insertPages(docBytes, { targetPage, position, bytes });
-        replaceDocumentBytes(next, targetPage);
-        return;
-      }
-
-      if (documentTool === "crop-current") {
-        const marginInput = prompt("Crop margin percent from each edge (0-45):", "5");
-        if (!marginInput) return;
-        const margin = Math.min(45, Math.max(0, Number(marginInput))) / 100;
-        const next = await bridge.cropPage(docBytes, {
-          page,
-          x: margin,
-          y: margin,
-          width: 1 - margin * 2,
-          height: 1 - margin * 2,
-        });
-        replaceDocumentBytes(next, page);
-        return;
-      }
-
-      if (documentTool === "page-numbers") {
-        const prefix = prompt("Page number prefix:", "Page ");
-        if (prefix === null) return;
-        const next = await bridge.addPageNumbers(docBytes, {
-          position: "bottom-center",
-          startNumber: 1,
-          fontSize: 11,
-          fontColor: "#111827",
-          prefix,
-        });
-        replaceDocumentBytes(next, page);
-        return;
-      }
-
-      if (documentTool === "header" || documentTool === "footer") {
-        const text = prompt(documentTool === "header" ? "Header text:" : "Footer text:", fileName);
-        if (!text) return;
-        const next = await bridge.addHeaderFooter(
-          docBytes,
-          [{ align: "center", text, fontSize: 10, fontColor: "#374151" }],
-          documentTool === "header",
-        );
-        replaceDocumentBytes(next, page);
-        return;
-      }
-
-      if (documentTool === "bates") {
-        const prefix = prompt("Bates prefix:", "OPDF-");
-        if (prefix === null) return;
-        const startInput = prompt("Start number:", "1");
-        if (!startInput) return;
-        const startNumber = Number(startInput);
-        if (!Number.isInteger(startNumber) || startNumber < 0) throw new Error("Invalid start number");
-        const next = await bridge.addBatesNumbering(docBytes, prefix, startNumber);
-        replaceDocumentBytes(next, page);
-        return;
-      }
-
-      if (documentTool === "encrypt") {
-        const password = prompt("New PDF password:");
-        if (!password) return;
-        const next = await bridge.encryptPdf(docBytes, { userPassword: password, ownerPassword: password });
-        replaceDocumentBytes(next, page);
-        return;
-      }
-
-      if (documentTool === "decrypt") {
-        const password = prompt("Current PDF password:");
-        if (!password) return;
-        const next = await bridge.decryptPdf(docBytes, password);
-        replaceDocumentBytes(next, page);
-        return;
-      }
-
-      if (documentTool === "normalize") {
-        const next = await bridge.convertToPdfA(docBytes);
-        replaceDocumentBytes(next, page);
-        return;
-      }
-
-      const degrees = documentTool === "rotate-all-left" ? -90 : 90;
-      const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
-      const next = await bridge.rotatePages(docBytes, pages, degrees);
-      replaceDocumentBytes(next, page);
-    } catch (err) {
-      setViewerError(err instanceof Error ? err.message : `Failed to run ${documentTool}`);
-    }
-  }
+  const { runOcr, exportPdf, compressDocument, addWatermark, mergeDocuments, splitDocument, convertToImages, runDocumentTool } = useDocumentActions({
+    bridge,
+    hasDocument,
+    hasDesktopBridge,
+    fileName,
+    docBytes,
+    page,
+    totalPages,
+    thumbnails,
+    annotations,
+    documentTool,
+    replaceDocumentBytes,
+    setDocBytes,
+    setPage,
+    setOcrJobs,
+    setViewerError,
+  });
 
   function onLoaded(pages: number) {
     setTotalPages(pages);
@@ -536,222 +108,280 @@ export function App() {
     setSearchResult(found ? `Found: ${message}` : `Not found: ${message}`);
   }
 
-  function goPrevPage() {
-    setTransitionDirection("prev");
-    setTransitionTick((n) => n + 1);
-    setPage((p) => Math.max(1, p - 1));
-  }
+  const {
+    goPrevPage,
+    goNextPage,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+    applyZoomPreset,
+    rotateLeft,
+    rotateRight,
+    onPageToolAction,
+    onViewerWheel,
+    onActivePageChange,
+  } = useViewerControls({
+    hasDocument,
+    highlightMode,
+    viewMode,
+    totalPages,
+    setTransitionDirection,
+    setTransitionTick,
+    setPage,
+    setZoomPreset,
+    setScale,
+    setRotation,
+    lastWheelFlipAtRef,
+    activeTool,
+    addHighlight,
+    createToolAnnotation,
+    setPendingNote,
+    setShowSignModal,
+  });
 
-  function goNextPage() {
-    setTransitionDirection("next");
-    setTransitionTick((n) => n + 1);
-    setPage((p) => (totalPages > 0 ? Math.min(totalPages, p + 1) : p + 1));
-  }
+  const closeMenu = () => setOpenMenu(null);
+  const toggleMenu = (name: string) => setOpenMenu(prev => prev === name ? null : name);
 
-  function zoomIn() {
-    setZoomPreset("actual");
-    setScale((s) => Math.min(3, Number((s + 0.1).toFixed(2))));
-  }
+  const { fileMenuItems, editMenuItems, viewMenuItems, toolsMenuItems } = useAppMenus({
+    hasDocument,
+    viewMode,
+    setViewMode,
+    setActiveTool,
+    openFile,
+    closeDocument,
+    exportPdf,
+    compressDocument,
+    addWatermark,
+    mergeDocuments,
+    splitDocument,
+    convertToImages,
+    undoAnnotations,
+    redoAnnotations,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+    applyZoomPreset,
+    rotateLeft,
+    rotateRight,
+    runOcr,
+    setDocumentTool,
+    runDocumentTool,
+  });
 
-  function zoomOut() {
-    setZoomPreset("actual");
-    setScale((s) => Math.max(0.5, Number((s - 0.1).toFixed(2))));
-  }
-
-  function resetZoom() {
-    setZoomPreset("actual");
-    setScale(1);
-  }
-
-  function applyZoomPreset(preset: "actual" | "fit-width" | "fit-page") {
-    setZoomPreset(preset);
-    if (preset === "actual") setScale(1);
-    if (preset === "fit-width") setScale(1.35);
-    if (preset === "fit-page") setScale(0.85);
-  }
-
-  function rotateLeft() {
-    setRotation((r) => (r - 90 + 360) % 360);
-  }
-
-  function rotateRight() {
-    setRotation((r) => (r + 90) % 360);
-  }
-
-  async function onPageToolAction(pageNumber: number, rect: { x: number; y: number; width: number; height: number }) {
-    if (!hasDocument) return;
-    if (activeTool === "highlight") return addHighlight(pageNumber, rect);
-    if (activeTool === "note") {
-      setPendingNote({ page: pageNumber, rect });
-      return;
+  // ── Web Persistence ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (hasDesktopBridge) return;
+    async function initDraft() {
+      const draft = await loadFullDraft();
+      if (draft && draft.bytes && draft.state) {
+        setFileName(draft.state.fileName);
+        setDocBytes(draft.bytes);
+        setAnnotations(draft.state.annotations || []);
+        setPage(draft.state.page || 1);
+        if (draft.state.thumbnails && draft.state.thumbnails.length > 0) {
+          const restored = draft.state.thumbnails.map(t => ({
+            ...t,
+            url: URL.createObjectURL(t.blob)
+          }));
+          setThumbnails(restored);
+        }
+        if (bridge.replaceAnnotations) {
+          await bridge.replaceAnnotations(draft.state.fileName, draft.state.annotations || []);
+        }
+      }
     }
-    if (activeTool === "signature") {
-      setPendingNote({ page: pageNumber, rect });
-      setShowSignModal(true);
-      return;
-    }
-    if (activeTool === "shape" || activeTool === "redact") {
-      return createToolAnnotation(activeTool, pageNumber, rect);
-    }
-  }
+    void initDraft();
+  }, [bridge, hasDesktopBridge]);
 
-  function onViewerWheel(event: React.WheelEvent<HTMLElement>) {
-    if (!hasDocument || highlightMode || viewMode === "continuous") return;
-    const now = Date.now();
-    if (now - lastWheelFlipAtRef.current < 180 || Math.abs(event.deltaY) < 10) return;
-    if (event.deltaY > 0) goNextPage();
-    else goPrevPage();
-    lastWheelFlipAtRef.current = now;
-  }
+  useEffect(() => {
+    if (hasDesktopBridge || !docBytes) return;
+    void savePdfBytes(docBytes);
+  }, [hasDesktopBridge, docBytes]);
 
-  function onActivePageChange(nextPage: number) {
-    setPage((p) => (p === nextPage ? p : nextPage));
+  useEffect(() => {
+    if (hasDesktopBridge || !hasDocument) return;
+    const timeout = setTimeout(() => {
+      saveWebState({
+        fileName,
+        annotations,
+        thumbnails,
+        page,
+      });
+    }, 1500);
+    return () => clearTimeout(timeout);
+  }, [hasDesktopBridge, hasDocument, fileName, annotations, thumbnails, page]);
+
+  // ── Theme Effect ──────────────────────────────────────────────────────
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("opdf-theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => t === "light" ? "dark" : "light");
+
+  // ── Global keyboard shortcuts ──────────────────────────────────────────
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const ctrl = e.ctrlKey || e.metaKey;
+      const target = e.target as HTMLElement;
+      const inInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
+      if (ctrl && e.key === "o") { e.preventDefault(); openFile(); return; }
+      if (ctrl && e.key === "s") { e.preventDefault(); exportPdf(); return; }
+      if (ctrl && e.key === "z") { e.preventDefault(); undoAnnotations(); return; }
+      if (ctrl && (e.key === "y" || (e.shiftKey && e.key === "Z"))) {
+        e.preventDefault(); redoAnnotations(); return;
+      }
+      if (ctrl && e.key === "f") {
+        e.preventDefault();
+        setShowFindBar(prev => {
+          if (!prev) setTimeout(() => findInputRef.current?.focus(), 50);
+          return !prev;
+        });
+        return;
+      }
+      if (ctrl && e.shiftKey && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        toggleTheme();
+        return;
+      }
+
+      if (inInput) return;
+      if (e.key === "+" || e.key === "=") { zoomIn(); return; }
+      if (e.key === "-") { zoomOut(); return; }
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); goPrevPage(); return; }
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); goNextPage(); return; }
+      if (e.key === "Escape") { setShowFindBar(false); setOpenMenu(null); }
+
+      // Acrobat single-key shortcuts
+      if (e.key.toLowerCase() === "v") { setActiveTool("select"); return; }
+      if (e.key.toLowerCase() === "i") { setActiveTool("highlight"); return; }
+      if (e.key.toLowerCase() === "t") { setActiveTool("note"); return; }
+      if (e.key.toLowerCase() === "r") { setActiveTool("redact"); return; }
+      if (e.key.toLowerCase() === "s") { setActiveTool("signature"); return; }
+      if (e.key.toLowerCase() === "q") { setActiveTool("shape"); return; }
+      if (e.key.toLowerCase() === "m") { setActiveTool("measure"); return; }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [openFile, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage, theme]);
+
+  // ── Drag & drop PDF onto viewer ────────────────────────────────────────
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+  async function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const file = Array.from(e.dataTransfer.files).find(
+      f => f.type === "application/pdf" || f.name.endsWith(".pdf")
+    );
+    if (!file) return;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    setFileName(file.name);
+    setDocBytes(bytes);
+    setPage(1);
+    setViewerError(null);
+    setThumbnails([]);
+    setAnnotations([]);
   }
 
   return (
     <div className="app acrobat-shell">
-      <header className="acrobat-topbar multi-row">
-        <div className="toolbar-group">
-          <span className="tool-group-title">Select</span>
-          <div className="left-actions">
-            <ToolIconButton label="Select Tool" active={activeTool === "select"} onClick={() => setActiveTool("select")}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="m4 3 6 15 2-7 7-2z" /></svg>
-            </ToolIconButton>
-            <ToolIconButton label="Open File" onClick={openFile}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8h-8l-2-3H5a2 2 0 0 0-2 2z" /><path d="M12 11v6" /><path d="M9 14h6" /></svg>
-            </ToolIconButton>
-            {!hasDesktopBridge ? (
-              <input
-                ref={fileInputRef}
-                className="hidden-file-input"
-                type="file"
-                accept="application/pdf"
-                onClick={(event) => {
-                  event.currentTarget.value = "";
-                }}
-                onChange={onSelectLocalFile}
-              />
-            ) : null}
-            <ToolIconButton label="Export PDF" disabled={!hasDocument} onClick={exportPdf}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-            </ToolIconButton>
-          </div>
-        </div>
-
-        <div className="toolbar-group">
-          <span className="tool-group-title">Comment</span>
-          <div className="left-actions">
-            <ToolIconButton label="Highlight" active={activeTool === "highlight"} disabled={!hasDocument} onClick={() => setActiveTool("highlight")}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 5 4 4-9 9H6v-4z" /><path d="m12 8 4 4" /></svg>
-            </ToolIconButton>
-            <ToolIconButton label="Note Box" active={activeTool === "note"} disabled={!hasDocument} onClick={() => setActiveTool("note")}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-            </ToolIconButton>
-            <ToolIconButton label="Redact" active={activeTool === "redact"} disabled={!hasDocument} onClick={() => setActiveTool("redact")}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" strokeWidth="2"><rect x="4" y="6" width="16" height="12" /></svg>
-            </ToolIconButton>
-          </div>
-        </div>
-
-        <div className="toolbar-group">
-          <span className="tool-group-title">Organize</span>
-          <div className="center-actions">
-            <ToolIconButton label="Previous Page" disabled={!hasDocument} onClick={goPrevPage}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg></ToolIconButton>
-            <input className="page-input" value={page} onChange={(e) => {
-              const next = Number(e.target.value || 1);
-              if (Number.isFinite(next)) setPage(Math.min(Math.max(1, next), Math.max(1, totalPages)));
-            }} />
-            <span className="of-pages">of {Math.max(totalPages, 1)}</span>
-            <ToolIconButton label="Next Page" disabled={!hasDocument || (totalPages > 0 && page >= totalPages)} onClick={goNextPage}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg></ToolIconButton>
-            <ToolIconButton label="Zoom Out" disabled={!hasDocument} onClick={zoomOut}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /><path d="M8 11h6" /></svg></ToolIconButton>
-            <button className="zoom-readout" disabled={!hasDocument} onClick={resetZoom} title="Reset Zoom" aria-label="Reset Zoom" type="button">{Math.round(scale * 100)}%</button>
-            <select className="zoom-preset" value={zoomPreset} onChange={(e) => applyZoomPreset(e.target.value as "actual" | "fit-width" | "fit-page")} disabled={!hasDocument}>
-              <option value="actual">Actual size</option>
-              <option value="fit-width">Fit width</option>
-              <option value="fit-page">Fit page</option>
-            </select>
-            <ToolIconButton label="Zoom In" disabled={!hasDocument} onClick={zoomIn}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /><path d="M11 8v6M8 11h6" /></svg></ToolIconButton>
-          </div>
-        </div>
-
-        <div className="toolbar-group">
-          <span className="tool-group-title">Fill & Sign</span>
-          <div className="right-actions">
-            <input className="search-input" placeholder="Find text" value={pageSearch} onChange={(e) => setPageSearch(e.target.value)} />
-            <ToolIconButton label={viewMode === "continuous" ? "Continuous Scroll" : "Single Page Step"} onClick={() => setViewMode((m) => (m === "continuous" ? "page" : "continuous"))}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 4h12v4H6zM6 10h12v4H6zM6 16h12v4H6z" /></svg>
-            </ToolIconButton>
-            <ToolIconButton label="Rectangle" active={activeTool === "shape"} disabled={!hasDocument} onClick={() => setActiveTool("shape")}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="6" width="16" height="12" /></svg></ToolIconButton>
-            <ToolIconButton label="Signature" active={activeTool === "signature"} disabled={!hasDocument} onClick={() => setActiveTool("signature")}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 20h16" /><path d="m6 16 8-8 3 3-8 8H6z" /></svg></ToolIconButton>
-            <ToolIconButton label="Undo" disabled={!hasDocument} onClick={undoAnnotations}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 14 4 9l5-5" /><path d="M20 20a8 8 0 0 0-8-8H4" /></svg></ToolIconButton>
-            <ToolIconButton label="Redo" disabled={!hasDocument} onClick={redoAnnotations}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 14 5-5-5-5" /><path d="M4 20a8 8 0 0 1 8-8h8" /></svg></ToolIconButton>
-            <ToolIconButton label="Run OCR" disabled={!hasDocument} onClick={runOcr}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h6M7 16h4" /></svg></ToolIconButton>
-            <ToolIconButton label="Rotate Left" disabled={!hasDocument} onClick={rotateLeft}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8V3h5" /><path d="M3 3a9 9 0 1 0 3 13" /></svg></ToolIconButton>
-            <ToolIconButton label="Rotate Right" disabled={!hasDocument} onClick={rotateRight}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8V3h-5" /><path d="M21 3a9 9 0 1 1-3 13" /></svg></ToolIconButton>
-          </div>
-        </div>
-
-        <div className="toolbar-group">
-          <span className="tool-group-title">Advanced</span>
-          <div className="right-actions">
-            <ToolIconButton label="Compress" disabled={!hasDocument} onClick={compressDocument}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="m14 11-2-2-2 2M12 9v8M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /></svg>
-            </ToolIconButton>
-            <ToolIconButton label="Watermark" disabled={!hasDocument} onClick={addWatermark}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
-            </ToolIconButton>
-            <ToolIconButton label="Split" disabled={!hasDocument} onClick={splitDocument}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12h16M4 6h16M4 18h16" /></svg>
-            </ToolIconButton>
-            <ToolIconButton label="Merge" onClick={mergeDocuments}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
-            </ToolIconButton>
-            <ToolIconButton label="To Images" disabled={!hasDocument} onClick={convertToImages}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-            </ToolIconButton>
-            <select
-              className="tool-select"
-              value={documentTool}
-              onChange={(e) => setDocumentTool(e.target.value as DocumentTool)}
-              disabled={!hasDocument}
-              aria-label="Document tool"
-            >
-              <option value="delete-pages">Delete pages</option>
-              <option value="insert-pdf">Insert PDF</option>
-              <option value="crop-current">Crop page</option>
-              <option value="page-numbers">Page numbers</option>
-              <option value="header">Header</option>
-              <option value="footer">Footer</option>
-              <option value="bates">Bates</option>
-              <option value="encrypt">Encrypt</option>
-              <option value="decrypt">Decrypt</option>
-              <option value="normalize">PDF/A</option>
-              <option value="rotate-all-left">Rotate all left</option>
-              <option value="rotate-all-right">Rotate all right</option>
-            </select>
-            <ToolIconButton label="Run Document Tool" disabled={!hasDocument} onClick={runDocumentTool}>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>
-            </ToolIconButton>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        fileInputRef={fileInputRef}
+        hasDesktopBridge={hasDesktopBridge}
+        hasDocument={hasDocument}
+        fileName={fileName}
+        openFile={openFile}
+        closeDocument={closeDocument}
+        fileMenuItems={fileMenuItems}
+        editMenuItems={editMenuItems}
+        viewMenuItems={viewMenuItems}
+        toolsMenuItems={toolsMenuItems}
+        openMenu={openMenu}
+        toggleMenu={toggleMenu}
+        closeMenu={closeMenu}
+        activeTool={activeTool}
+        setActiveTool={setActiveTool}
+        exportPdf={exportPdf}
+        page={page}
+        totalPages={totalPages}
+        setPage={setPage}
+        goPrevPage={goPrevPage}
+        goNextPage={goNextPage}
+        zoomOut={zoomOut}
+        zoomIn={zoomIn}
+        resetZoom={resetZoom}
+        scale={scale}
+        zoomPreset={zoomPreset}
+        applyZoomPreset={applyZoomPreset}
+        pageSearch={pageSearch}
+        setPageSearch={setPageSearch}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        undoAnnotations={undoAnnotations}
+        redoAnnotations={redoAnnotations}
+        runOcr={runOcr}
+        rotateLeft={rotateLeft}
+        rotateRight={rotateRight}
+        compressDocument={compressDocument}
+        addWatermark={addWatermark}
+        splitDocument={splitDocument}
+        mergeDocuments={mergeDocuments}
+        convertToImages={convertToImages}
+        documentTool={documentTool}
+        setDocumentTool={setDocumentTool}
+        runDocumentTool={runDocumentTool}
+        onSelectLocalFile={onSelectLocalFile}
+        showFindBar={showFindBar}
+        onToggleFindBar={() => setShowFindBar(p => !p)}
+        theme={theme}
+        toggleTheme={toggleTheme}
+      />
 
       <main className="workspace acrobat-body">
-        <aside className="left-panel thumbnail-panel">
-          <h3>Table of Contents</h3>
-          <div className="thumb-list">
-            {thumbnails.map((t) => (
-              <button key={t.page} className={`thumb-item ${page === t.page ? "active" : ""}`} onClick={() => setPage(t.page)}>
-                <img src={t.url} className="thumb-preview-img" alt={`thumb-${t.page}`} />
-                <span>{t.page}</span>
-              </button>
-            ))}
-            {!hasDocument ? <p className="muted">Open a PDF to view thumbnails.</p> : null}
-            {hasDocument && thumbnails.length === 0 ? <p className="muted">Rendering thumbnails...</p> : null}
-          </div>
-        </aside>
+        <ThumbnailPanel thumbnails={thumbnails} page={page} hasDocument={hasDocument} onSelectPage={setPage} />
 
-        <section className="viewer-area" tabIndex={0} onWheel={onViewerWheel} aria-label="PDF viewer area">
+        <section
+          className="viewer-area"
+          tabIndex={0}
+          onWheel={onViewerWheel}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          aria-label="PDF viewer area"
+        >
+          {/* Floating find bar — Ctrl+F */}
+          {showFindBar && (
+            <div className="find-bar">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+              </svg>
+              <input
+                ref={findInputRef}
+                className="find-bar-input"
+                placeholder="Find in document…"
+                value={pageSearch}
+                onChange={e => setPageSearch(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Escape") { setShowFindBar(false); setPageSearch(""); }
+                }}
+              />
+              {searchResult && <span className="find-bar-result">{searchResult}</span>}
+              <button
+                className="find-bar-close"
+                onClick={() => { setShowFindBar(false); setPageSearch(""); }}
+                title="Close (Esc)"
+              >
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+          )}
           <PdfViewer
             transitionTick={transitionTick}
             transitionDirection={transitionDirection}
@@ -764,6 +394,8 @@ export function App() {
             highlightMode={highlightMode}
             shapeMode={activeTool === "shape"}
             redactMode={activeTool === "redact"}
+            measureMode={activeTool === "measure"}
+            activeTool={activeTool}
             searchText={pageSearch}
             onPageToolAction={onPageToolAction}
             onDocumentLoaded={onLoaded}
@@ -771,60 +403,38 @@ export function App() {
             onError={setViewerError}
             onActivePageChange={onActivePageChange}
             onThumbsLoaded={setThumbnails}
+            initialThumbnails={thumbnails}
+            onAnnotationUpdated={updateAnnotation}
+            onAnnotationDeleted={removeAnnotation}
           />
         </section>
-        {pendingNote && activeTool === "note" ? (
-          <div className="floating-editor">
-            <h4>Note text</h4>
-            <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} />
-            <div className="floating-actions">
-              <button onClick={() => setPendingNote(null)}>Cancel</button>
-              <button onClick={async () => { await createToolAnnotation("note", pendingNote.page, pendingNote.rect); setPendingNote(null); }}>Add</button>
-            </div>
-          </div>
-        ) : null}
-        {showSignModal && pendingNote && activeTool === "signature" ? (
-          <div className="modal-backdrop">
-            <div className="sign-modal">
-              <h4>Choose signature style</h4>
-              <select value={signatureStyle} onChange={(e) => setSignatureStyle(e.target.value)}>
-                <option>User Signature</option>
-                <option>U. Signature</option>
-                <option>Approved by User</option>
-              </select>
-              <div className="floating-actions">
-                <button onClick={() => { setShowSignModal(false); setPendingNote(null); }}>Cancel</button>
-                <button onClick={async () => { await createToolAnnotation("signature", pendingNote.page, pendingNote.rect); setShowSignModal(false); setPendingNote(null); }}>Place</button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <OverlayEditors
+          pendingNote={pendingNote}
+          activeTool={activeTool}
+          noteText={noteText}
+          setNoteText={setNoteText}
+          signatureStyle={signatureStyle}
+          setSignatureStyle={setSignatureStyle}
+          showSignModal={showSignModal}
+          setShowSignModal={setShowSignModal}
+          setPendingNote={setPendingNote}
+          createToolAnnotation={createToolAnnotation}
+        />
 
-        <aside className="left-panel info-panel">
-          <section className="panel-card">
-            <h3>Document</h3>
-            <p className="mono">{fileName || "No file selected"}</p>
-            <p>Pages: {totalPages || 0}</p>
-            <p>{searchResult || "Search result will show here"}</p>
-            {viewerError ? <p className="error-text">Render error: {viewerError}</p> : null}
-          </section>
-          <section className="panel-card">
-            <h3>Annotations ({annotations.length})</h3>
-            <ul className="list">
-              {annotations.map((a) => (
-                <li key={a.id}><span>{a.kind} @ p{a.page}</span><button onClick={() => removeAnnotation(a.id)}>Delete</button></li>
-              ))}
-            </ul>
-          </section>
-          <section className="panel-card">
-            <h3>OCR Jobs</h3>
-            <ul className="list">
-              {ocrJobs.map((j) => (<li key={j.id}>{j.status} ({j.progress}%)</li>))}
-              {ocrJobs.length === 0 ? <li>No OCR job yet</li> : null}
-            </ul>
-          </section>
-        </aside>
+        <RightInfoPanel
+          hasDocument={hasDocument}
+          fileName={fileName}
+          totalPages={totalPages}
+          page={page}
+          scale={scale}
+          viewerError={viewerError}
+          searchResult={searchResult}
+          annotations={annotations}
+          ocrJobs={ocrJobs}
+          onRemoveAnnotation={removeAnnotation}
+        />
       </main>
+      <StatusBar hasDocument={hasDocument} page={page} totalPages={totalPages} viewerError={viewerError} scale={scale} viewMode={viewMode} activeTool={activeTool} />
     </div>
   );
 }

@@ -30,7 +30,18 @@ function createMockBridge(): OpdfBridge {
     updatedAt: Date.now(),
   };
   const annotations = new Map<string, Annotation[]>();
+  const undoStacks = new Map<string, Annotation[][]>();
+  const redoStacks = new Map<string, Annotation[][]>();
   const ocrJobs = new Map<string, OcrJob>();
+
+  function commitSnapshot(documentId: string) {
+    const current = annotations.get(documentId) ?? [];
+    const stack = undoStacks.get(documentId) ?? [];
+    stack.push(current.map(a => ({ ...a, payload: { ...(a.payload as object) } })));
+    if (stack.length > 50) stack.shift();
+    undoStacks.set(documentId, stack);
+    redoStacks.set(documentId, []);
+  }
 
   return {
     async openProjectFolder() { return false; },
@@ -39,9 +50,74 @@ function createMockBridge(): OpdfBridge {
       throw new Error("openDocument requires desktop runtime. Use local file input in web dev.");
     },
     async saveDocument() {},
-    async exportFlattened(bytes: Uint8Array, _annotations: any[]) {
-      console.log("[MockBridge] exportFlattened", bytes.length);
-      return bytes;
+    async exportFlattened(bytes, annotations) {
+      console.log("[MockBridge] exportFlattened", bytes.length, annotations.length);
+      const pdfLib = await loadPdfLib();
+      const doc = await pdfLib.PDFDocument.load(bytes);
+      const pages = doc.getPages();
+
+      for (const ann of annotations) {
+        if (!ann.payload || ann.page > pages.length) continue;
+        const page = pages[ann.page - 1];
+        const { width, height } = page.getSize();
+        const { x, y, width: w, height: h, color, stroke, opacity, text, signer, fontSize } = ann.payload as any;
+
+        const absX = (x || 0) * width;
+        const absY = height - (y || 0) * height - (h || 0.05) * height;
+        const absW = (w || 0.1) * width;
+        const absH = (h || 0.05) * height;
+
+        if (ann.kind === "highlight") {
+          page.drawRectangle({
+            x: absX, y: absY, width: absW, height: absH,
+            color: parseColor(color || "#facc15", pdfLib),
+            opacity: opacity || 0.4,
+          });
+        } else if (ann.kind === "shape") {
+          page.drawRectangle({
+            x: absX, y: absY, width: absW, height: absH,
+            borderColor: parseColor(stroke || "#ef4444", pdfLib),
+            borderWidth: 2,
+            opacity: opacity || 1,
+          });
+        } else if (ann.kind === "redact") {
+          page.drawRectangle({
+            x: absX, y: absY, width: absW, height: absH,
+            color: pdfLib.rgb(0, 0, 0),
+            opacity: 1,
+          });
+        } else if (ann.kind === "note") {
+          const textVal = String(text || "Note");
+          // 1. Draw solid background mask
+          page.drawRectangle({
+            x: absX, y: absY, width: absW, height: absH,
+            color: parseColor(color || "#fff8d6", pdfLib),
+            opacity: opacity !== undefined ? opacity : 1,
+          });
+          // 2. Overlay the text
+          const standardFont = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
+          const fs = Number(fontSize) || 14;
+          page.drawText(textVal, {
+            x: absX + 5,
+            y: absY + absH - fs - 5,
+            size: fs,
+            font: standardFont,
+            color: pdfLib.rgb(0, 0, 0),
+            maxWidth: absW - 10,
+          });
+        } else if (ann.kind === "signature") {
+          const textVal = String(signer || "Signature");
+          const signatureFont = await doc.embedFont(pdfLib.StandardFonts.TimesRomanItalic);
+          page.drawText(textVal, {
+            x: absX,
+            y: absY + 5,
+            size: 20,
+            font: signatureFont,
+            color: pdfLib.rgb(0, 0, 0.8), // standard blue-ish signature color
+          });
+        }
+      }
+      return doc.save();
     },
     async compressPdf(bytes) {
       console.log("[MockBridge] compressPdf", bytes.length);
@@ -67,7 +143,14 @@ function createMockBridge(): OpdfBridge {
     async restoreSession() { return session; },
     async writeSession(nextSession) { session = nextSession; },
     async listAnnotations(documentId) { return annotations.get(documentId) ?? []; },
+    async replaceAnnotations(documentId, next) {
+      annotations.set(documentId, next);
+      undoStacks.set(documentId, []);
+      redoStacks.set(documentId, []);
+      return next;
+    },
     async createAnnotation(documentId, input: AnnotationCreateInput) {
+      commitSnapshot(documentId);
       const next: Annotation = {
         id: crypto.randomUUID(),
         kind: input.kind,
@@ -82,11 +165,52 @@ function createMockBridge(): OpdfBridge {
     },
     async deleteAnnotation(documentId, id) {
       const current = annotations.get(documentId) ?? [];
+      if (!current.some(a => a.id === id)) return false;
+      commitSnapshot(documentId);
       annotations.set(documentId, current.filter((a) => a.id !== id));
-      return current.some((a) => a.id === id);
+      return true;
     },
-    async undoAnnotation(documentId) { return annotations.get(documentId) ?? []; },
-    async redoAnnotation(documentId) { return annotations.get(documentId) ?? []; },
+    async updateAnnotation(documentId, id, payload) {
+      const current = annotations.get(documentId) ?? [];
+      const index = current.findIndex((a) => a.id === id);
+      if (index === -1) return null;
+      commitSnapshot(documentId);
+      const updated: Annotation = {
+        ...current[index],
+        payload: { ...(current[index].payload as object), ...payload },
+        updatedAt: Date.now(),
+      };
+      const next = [...current];
+      next[index] = updated;
+      annotations.set(documentId, next);
+      return updated;
+    },
+    async undoAnnotation(documentId) {
+      const stack = undoStacks.get(documentId) ?? [];
+      const previous = stack.pop();
+      if (!previous) return annotations.get(documentId) ?? [];
+      
+      const current = annotations.get(documentId) ?? [];
+      const redoStack = redoStacks.get(documentId) ?? [];
+      redoStack.push(current.map(a => ({ ...a, payload: { ...(a.payload as object) } })));
+      redoStacks.set(documentId, redoStack);
+
+      annotations.set(documentId, previous);
+      return previous;
+    },
+    async redoAnnotation(documentId) {
+      const stack = redoStacks.get(documentId) ?? [];
+      const next = stack.pop();
+      if (!next) return annotations.get(documentId) ?? [];
+
+      const current = annotations.get(documentId) ?? [];
+      const undoStack = undoStacks.get(documentId) ?? [];
+      undoStack.push(current.map(a => ({ ...a, payload: { ...(a.payload as object) } })));
+      undoStacks.set(documentId, undoStack);
+
+      annotations.set(documentId, next);
+      return next;
+    },
     async enqueueOcr(filePath, language = "eng+vie") {
       const job: OcrJob = { id: crypto.randomUUID(), filePath, language, status: "queued", progress: 0 };
       ocrJobs.set(job.id, job);

@@ -28,8 +28,10 @@ export interface OpdfBridge {
   restoreSession: () => Promise<SessionSnapshot>;
   writeSession: (session: SessionSnapshot) => Promise<void>;
   listAnnotations: (documentId: string) => Promise<Annotation[]>;
+  replaceAnnotations: (documentId: string, annotations: Annotation[]) => Promise<Annotation[]>;
   createAnnotation: (documentId: string, input: AnnotationCreateInput) => Promise<Annotation>;
   deleteAnnotation: (documentId: string, id: string) => Promise<boolean>;
+  updateAnnotation: (documentId: string, id: string, payload: Record<string, unknown>) => Promise<Annotation | null>;
   undoAnnotation: (documentId: string) => Promise<Annotation[]>;
   redoAnnotation: (documentId: string) => Promise<Annotation[]>;
   enqueueOcr: (filePath: string, language?: string) => Promise<OcrJob>;

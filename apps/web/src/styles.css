@@ -1,282 +1,261 @@
+@import "tailwindcss";
+
+/* MANUAL CSS WARNING:
+ * This stylesheet contains hand-tuned UI styling.
+ * AI/codegen tools must NOT auto-refactor, reformat, or rewrite manual CSS blocks here
+ * unless explicitly requested by the user.
+ */
+
 :root {
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  color: #1f2937;
-  background: #f3f4f6;
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+  --acrobat-blue: #0061d5;
+  --acrobat-blue-hover: #0050b3;
+  --bg-app: #e1e3e6;
+  --bg-panel: #f4f4f4;
+  --bg-toolbar: #ffffff;
+  --border-color: #d1d5db;
+  --text-primary: #2c2c2c;
+  --text-secondary: #5e5e5e;
+  --icon-color: #4b4b4b;
+  --ui-muted-bg: #f8f8f8;
+  --ui-hover-bg: #eaeaea;
+  --ui-divider: #eeeeee;
+  --ui-subtle-hover: #e0e0e0;
+  --ui-accent-bg: #e8f0fe;
+  --ui-danger: #d32f2f;
+  --ui-radius-sm: 4px;
+  --ui-radius-md: 6px;
+  --ui-radius-lg: 8px;
+  --ui-gap-xs: 4px;
+  --ui-gap-sm: 6px;
+  --ui-gap-md: 8px;
+  --ui-gap-lg: 12px;
+  --ui-pad-sm: 8px;
+  --ui-pad-md: 12px;
+  --ui-pad-lg: 16px;
+  --ui-font-xs: 12px;
+  --ui-font-sm: 13px;
+  --ui-success-bg: #f0fdf4;
+  --ui-success-text: #166534;
+  --ui-error-bg: #fef2f2;
+  --ui-error-text: #991b1b;
+  color: var(--text-primary);
 }
 
-* { box-sizing: border-box; }
-body { margin: 0; }
-
-.app {
-  height: 100vh;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  background: #d1d5db;
-  overflow: hidden;
+:root[data-theme="dark"] {
+  --bg-app: #121212;
+  --bg-panel: #1e1e1e;
+  --bg-toolbar: #262626;
+  --border-color: #333333;
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --icon-color: #d1d5db;
+  --ui-muted-bg: #1a1a1a;
+  --ui-hover-bg: #374151;
+  --ui-divider: #262626;
+  --ui-subtle-hover: #2d3748;
+  --ui-accent-bg: #1e293b;
+  --ui-success-bg: #064e3b;
+  --ui-success-text: #6ee7b7;
+  --ui-error-bg: #450a0a;
+  --ui-error-text: #fca5a5;
 }
 
-.acrobat-topbar {
+:root[data-density="comfortable"] {
+  --ui-radius-sm: 4px;
+  --ui-radius-md: 6px;
+  --ui-radius-lg: 8px;
+  --ui-gap-xs: 4px;
+  --ui-gap-sm: 6px;
+  --ui-gap-md: 8px;
+  --ui-gap-lg: 12px;
+  --ui-pad-sm: 8px;
+  --ui-pad-md: 12px;
+  --ui-pad-lg: 16px;
+  --ui-font-xs: 12px;
+  --ui-font-sm: 13px;
+}
+
+:root[data-density="compact"] {
+  --ui-radius-sm: 3px;
+  --ui-radius-md: 5px;
+  --ui-radius-lg: 7px;
+  --ui-gap-xs: 2px;
+  --ui-gap-sm: 4px;
+  --ui-gap-md: 6px;
+  --ui-gap-lg: 10px;
+  --ui-pad-sm: 6px;
+  --ui-pad-md: 10px;
+  --ui-pad-lg: 12px;
+  --ui-font-xs: 11px;
+  --ui-font-sm: 12px;
+}
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  body { @apply m-0; background: var(--bg-app); }
+}
+
+@layer components {
+  .app { @apply h-screen overflow-hidden grid; grid-template-rows: auto minmax(0, 1fr) 26px; background: var(--bg-app); }
+  .top-menu-btn { @apply inline-flex cursor-pointer items-center gap-1.5 rounded px-2.5 py-1.5 text-[13px] font-medium transition-colors; color: var(--text-primary); }
+  .top-menu-btn:hover { @apply bg-[#eaeaea]; }
+
+  .top-menu-btn.menu-open { @apply bg-[#e8e8e8]; }
+
+  .workspace.acrobat-body { @apply grid min-h-0 overflow-hidden; grid-template-columns: 200px 1fr 240px; }
+  .left-panel { @apply z-[2] overflow-auto border-r p-4 shadow-[1px_0_3px_rgba(0,0,0,.02)]; background: var(--bg-panel); border-color: var(--border-color); }
+
+  .viewer-area { @apply flex justify-center overflow-auto py-6 outline-none; background: var(--bg-app); scroll-behavior: smooth; }
+  .viewer-area:focus { box-shadow: inset 0 0 0 1px var(--acrobat-blue); }
+  .viewer-shell { @apply flex min-h-[calc(100vh-120px)] w-full items-start justify-center; }
+  .doc-column { @apply flex w-full flex-col items-center; }
+
+  .empty-viewer { @apply flex flex-col items-center justify-center gap-3 px-5 py-[60px] text-[var(--text-secondary)]; }
+  .empty-viewer svg { @apply opacity-30; }
+  .empty-viewer p { @apply m-0 text-base; }
+  .empty-viewer small { @apply text-[13px] opacity-70; }
+
+  .hidden-file-input { @apply fixed left-[-9999px] top-[-9999px] h-px w-px opacity-0; }
+  .floating-editor { @apply fixed bottom-[30px] right-[300px] z-20 w-[300px] rounded-lg border p-4 shadow-lg; background: var(--bg-toolbar); border-color: var(--border-color); }
+  .floating-editor h4 { @apply mb-3 mt-0 text-sm; color: var(--text-primary); }
+  .floating-editor textarea { @apply mb-3 h-[100px] w-full resize-none rounded border p-2; background: var(--ui-muted-bg); color: var(--text-primary); border-color: var(--border-color); font-family: inherit; }
+  .floating-editor textarea:focus { @apply outline-none; border-color: var(--acrobat-blue); }
+  .floating-actions { @apply flex justify-end gap-2; }
+  .floating-actions button { @apply cursor-pointer rounded px-4 py-1.5 text-[13px] font-medium; }
+  .floating-actions button:first-child { @apply border bg-transparent; border-color: var(--border-color); color: var(--text-primary); }
+  .floating-actions button:first-child:hover { @apply bg-[#f0f0f0]; }
+  .floating-actions button:last-child { border-color: var(--acrobat-blue); background: var(--acrobat-blue); @apply border text-white; }
+  .floating-actions button:last-child:hover { background: var(--acrobat-blue-hover); }
+
+  .modal-backdrop { @apply fixed inset-0 z-30 grid place-items-center bg-black/40; }
+  .sign-modal { @apply w-[360px] rounded-lg p-6 shadow-xl; background: var(--bg-toolbar); }
+  .sign-modal h4 { @apply mb-4 mt-0 text-lg font-semibold; color: var(--text-primary); }
+  .sign-modal select { @apply mb-6 w-full rounded border p-2 text-sm; background: var(--bg-toolbar); color: var(--text-primary); border-color: var(--border-color); }
+
+  .page-stage { @apply relative mb-4 inline-block bg-white shadow-[0_2px_5px_rgba(0,0,0,.2),0_0_1px_rgba(0,0,0,.1)]; }
+  .page-transition.next { animation: pageInNext .16s ease-out; }
+  .page-transition.prev { animation: pageInPrev .16s ease-out; }
+  .page-stage.highlight-mode, .page-stage.shape-mode, .page-stage.redact-mode { @apply cursor-crosshair; }
+  .overlay-layer { @apply pointer-events-none absolute inset-0; }
+  .annotation-box { @apply absolute overflow-hidden; }
+  .annotation-highlight { border: 1px solid rgba(202,138,4,.8); background: rgba(250,204,21,.35); }
+  .annotation-shape { border: 2px solid #ef4444; background: rgba(239,68,68,.08); }
+  .annotation-note { @apply min-h-[42px] min-w-[80px] rounded-[2px] border bg-[#fff8d6] p-2 text-[13px] leading-[1.4] text-[#333] shadow; border-color: #f5c71a; }
+  .annotation-signature {
+    @apply flex items-end border-b-2 border-gray-900 px-1.5 pb-1 text-gray-900;
+    font-family: "Brush Script MT", "Segoe Script", cursive;
+    font-size: 24px;
+    line-height: 1.2;
+  }
+
+  .find-bar {
+    @apply absolute top-4 right-8 z-30 flex items-center gap-2 rounded-lg border p-2 shadow-xl;
+    background: var(--bg-toolbar);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+  }
+  .find-bar-input {
+    @apply border-none bg-transparent text-sm focus:outline-none;
+    color: var(--text-primary);
+    width: 180px;
+  }
+  .find-bar-result {
+    @apply border-l px-2 text-xs text-[var(--text-secondary)];
+    border-color: var(--border-color);
+  }
+  .find-bar-close {
+    @apply flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[var(--ui-hover-bg)];
+    color: var(--text-secondary);
+  }
+}
+
+@keyframes pageInNext {
+  from { opacity: .75; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pageInPrev {
+  from { opacity: .75; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== MANUAL CSS BLOCK: ANNOTATION FLOATING TOOLBAR =====
+ * DO NOT AUTO-EDIT THIS BLOCK WITH AI.
+ * Keep spacing/sizing/visual behavior as-is unless user requests changes.
+ */
+.ann-toolbar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: #f3f4f6;
-  border-bottom: 1px solid #c7cbd1;
-}
-.acrobat-topbar.multi-row { row-gap: 8px; }
-.toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 10px;
-  border-right: 1px solid #d7dbe2;
-}
-.toolbar-group:last-child { border-right: none; }
-.tool-group-title {
-  font-size: 11px;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: .04em;
+  gap: 2px;
+  background: var(--bg-toolbar);
+  border: 1px solid var(--border-color);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: 0 4px 16px rgba(0,0,0,.18), 0 1px 4px rgba(0,0,0,.10);
+  padding: 4px 6px;
+  user-select: none;
+  animation: annToolbarIn .12s ease-out;
+  pointer-events: all;
 }
 
-.left-actions, .center-actions, .right-actions {
+@keyframes annToolbarIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.ann-toolbar-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-.right-actions { justify-content: flex-end; }
-
-.btn {
-  border: 1px solid #c7cbd1;
-  background: white;
-  color: #111827;
-  border-radius: 6px;
-  padding: 6px 10px;
+  gap: 4px;
+  padding: 3px 5px;
+  border-radius: var(--ui-radius-sm);
   cursor: pointer;
+  transition: background .12s;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
 }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn.ghost { background: #f9fafb; }
-.icon-btn {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #c7cbd1;
-  background: #f9fafb;
-  color: #111827;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.icon-btn svg {
-  width: 18px;
-  height: 18px;
+
+.ann-toolbar-item:hover { background: var(--ui-hover-bg); }
+
+.ann-toolbar-color { position: relative; }
+.ann-toolbar-color-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1.5px solid rgba(0,0,0,.2);
   display: block;
-  overflow: visible;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
 }
-.icon-btn:hover:not(:disabled) { background: #eef2f7; }
-.icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.zoom-readout {
-  min-width: 58px;
-  height: 34px;
-  border: 1px solid #c7cbd1;
-  background: #fff;
-  color: #111827;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-}
-.zoom-readout:disabled { opacity: 0.45; cursor: not-allowed; }
-.zoom-preset {
-  height: 34px;
-  border: 1px solid #c7cbd1;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 12px;
-  padding: 0 8px;
-}
-.tool-select {
-  width: 136px;
-  height: 34px;
-  border: 1px solid #c7cbd1;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 12px;
-  padding: 0 8px;
-}
-.tool-select:disabled { opacity: 0.45; }
-
-.page-input {
-  width: 52px;
-  border: 1px solid #c7cbd1;
-  border-radius: 4px;
-  padding: 6px;
-  text-align: center;
-}
-.of-pages { color: #4b5563; font-size: 13px; }
-
-.workspace.acrobat-body {
-  display: grid;
-  grid-template-columns: 220px 1fr 290px;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.left-panel {
-  background: #f3f4f6;
-  border-right: 1px solid #c7cbd1;
-  overflow: auto;
-  padding: 10px;
-}
-.info-panel { border-left: 1px solid #c7cbd1; border-right: none; }
-
-.thumbnail-panel h3 { margin: 4px 0 10px; font-size: 16px; }
-.thumb-list { display: grid; gap: 10px; }
-.thumb-item {
-  border: 1px solid #c7cbd1;
-  background: white;
-  border-radius: 4px;
-  padding: 6px;
-  display: grid;
-  gap: 6px;
-  cursor: pointer;
-}
-.thumb-item.active { border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb inset; }
-.thumb-preview {
-  width: 100%;
-  height: 120px;
-  background: linear-gradient(#f8fafc, #e5e7eb);
-  border: 1px solid #d1d5db;
-}
-.thumb-preview-img {
-  width: 100%;
-  height: 120px;
-  object-fit: contain;
-  background: #fff;
-  border: 1px solid #d1d5db;
-}
-.muted { color: #6b7280; font-size: 12px; }
-
-.viewer-area {
-  background: #d1d5db;
-  overflow: auto;
-  padding: 22px 0;
-  outline: none;
-  scroll-behavior: smooth;
-}
-.viewer-area:focus { box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.5); }
-
-.viewer-shell { display: flex; justify-content: center; align-items: flex-start; min-height: calc(100vh - 120px); width: 100%; }
-.doc-column { width: 100%; display: flex; flex-direction: column; align-items: center; }
-
-.page-stage {
-  position: relative;
-  display: inline-block;
-  margin-bottom: 14px;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-}
-.page-stage.highlight-mode { cursor: crosshair; }
-.page-stage.shape-mode { cursor: crosshair; }
-.page-stage.redact-mode { cursor: crosshair; }
-.pdf-page-img { display: block; width: 100%; height: 100%; border: 1px solid #d1d5db; }
-
-.overlay-layer { position: absolute; inset: 0; pointer-events: none; }
-.annotation-box { position: absolute; overflow: hidden; }
-.annotation-highlight { border: 1px solid rgba(202,138,4,.8); background: rgba(250,204,21,.35); }
-.annotation-shape { border: 2px solid #ef4444; background: rgba(239,68,68,.08); }
-.annotation-note {
-  min-width: 80px;
-  min-height: 42px;
-  border: 1px solid #d97706;
-  background: #fef3c7;
-  color: #78350f;
-  padding: 6px;
-  font-size: 12px;
-  line-height: 1.25;
-  box-shadow: 0 2px 6px rgba(120, 53, 15, 0.18);
-}
-.annotation-signature {
-  border-bottom: 2px solid #111827;
-  color: #111827;
-  font-family: "Brush Script MT", "Segoe Script", cursive;
-  font-size: 22px;
-  line-height: 1.2;
-  display: flex;
-  align-items: flex-end;
-  padding: 0 6px 4px;
-}
-.shape-draft-box { position: absolute; border: 1px dashed #ef4444; background: rgba(239,68,68,.15); }
-.highlight-draft-box { border-color: rgba(202,138,4,.9); background: rgba(250,204,21,.28); }
-
-.page-transition.next { animation: pageInNext 140ms ease-out; }
-.page-transition.prev { animation: pageInPrev 140ms ease-out; }
-
-.panel-card {
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 10px;
-  background: white;
-  margin-bottom: 10px;
-}
-.panel-card h3 { margin: 0 0 8px; font-size: 14px; }
-
-.search-input {
-  width: 180px;
-  border: 1px solid #c7cbd1;
-  border-radius: 6px;
-  padding: 6px 8px;
-}
-
-.list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
-.list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 6px;
-}
-
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; }
-.error-text { color: #dc2626; font-size: 12px; }
-.empty-viewer { color: #6b7280; }
-.hidden-file-input {
-  position: fixed;
-  width: 1px;
-  height: 1px;
+.ann-toolbar-color-input {
+  position: absolute;
+  inset: 0;
   opacity: 0;
-  left: -9999px;
-  top: -9999px;
-}
-.active-tool { border-color: #f59e0b; background: #fffbeb; }
-.floating-editor {
-  position: fixed;
-  right: 310px;
-  bottom: 24px;
-  width: 280px;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 10px;
-  z-index: 20;
-}
-.floating-editor textarea { width: 100%; height: 90px; margin: 8px 0; }
-.floating-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,.2);
-  display: grid; place-items: center; z-index: 30;
-}
-.sign-modal {
-  background: #fff; border-radius: 10px; padding: 14px; width: 320px; border: 1px solid #d1d5db;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  border: none;
+  padding: 0;
 }
 
-@keyframes pageInNext { from { opacity: .75; transform: translateY(8px);} to {opacity:1; transform:translateY(0);} }
-@keyframes pageInPrev { from { opacity: .75; transform: translateY(-8px);} to {opacity:1; transform:translateY(0);} }
+.ann-toolbar-opacity { gap: 5px; }
+.ann-toolbar-label { display: flex; align-items: center; color: var(--text-secondary); }
+.ann-toolbar-slider {
+  width: 60px;
+  height: 4px;
+  accent-color: var(--acrobat-blue);
+  cursor: pointer;
+}
+.ann-toolbar-pct { font-size: 11px; color: var(--text-secondary); min-width: 28px; text-align: right; }
+
+.ann-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border-color);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.ann-toolbar-delete { color: var(--ui-danger); }
+.ann-toolbar-delete:hover { background: #fdecea; }
+/* ===== END MANUAL CSS BLOCK ===== */

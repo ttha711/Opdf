@@ -121,6 +121,9 @@ export class AnnotationService {
 
   private commitSnapshot(state: AnnotationState): void {
     state.undoStack.push(this.cloneAnnotations(state.annotations));
+    if (state.undoStack.length > 50) {
+      state.undoStack.shift();
+    }
     state.redoStack = [];
   }
 

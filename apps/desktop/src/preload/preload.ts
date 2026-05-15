@@ -44,6 +44,7 @@ const api = {
   listAnnotations: (documentId: string) => ipcRenderer.invoke("opdf:annotation:list", documentId) as Promise<Annotation[]>,
   createAnnotation: (documentId: string, input: AnnotationCreateInput) => ipcRenderer.invoke("opdf:annotation:create", documentId, input) as Promise<Annotation>,
   deleteAnnotation: (documentId: string, id: string) => ipcRenderer.invoke("opdf:annotation:delete", documentId, id) as Promise<boolean>,
+  updateAnnotation: (documentId: string, id: string, payload: Record<string, unknown>) => ipcRenderer.invoke("opdf:annotation:update", documentId, id, payload) as Promise<Annotation | null>,
   undoAnnotation: (documentId: string) => ipcRenderer.invoke("opdf:annotation:undo", documentId) as Promise<Annotation[]>,
   redoAnnotation: (documentId: string) => ipcRenderer.invoke("opdf:annotation:redo", documentId) as Promise<Annotation[]>,
 

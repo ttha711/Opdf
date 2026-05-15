@@ -1,0 +1,88 @@
+type UseAppViewModelArgs = {
+  state: any;
+  actions: any;
+  menuItems: any;
+  callbacks: any;
+};
+
+export function useAppViewModel({ state, actions, menuItems, callbacks }: UseAppViewModelArgs) {
+  const headerProps = {
+    fileInputRef: state.fileInputRef,
+    hasDesktopBridge: state.hasDesktopBridge,
+    hasDocument: state.hasDocument,
+    fileName: state.fileName,
+    openFile: actions.openFile,
+    closeDocument: actions.closeDocument,
+    fileMenuItems: menuItems.fileMenuItems,
+    editMenuItems: menuItems.editMenuItems,
+    viewMenuItems: menuItems.viewMenuItems,
+    toolsMenuItems: menuItems.toolsMenuItems,
+    openMenu: state.openMenu,
+    toggleMenu: callbacks.toggleMenu,
+    closeMenu: callbacks.closeMenu,
+    activeTool: state.activeTool,
+    setActiveTool: state.setActiveTool,
+    exportPdf: actions.exportPdf,
+    page: state.page,
+    totalPages: state.totalPages,
+    setPage: state.setPage,
+    goPrevPage: actions.goPrevPage,
+    goNextPage: actions.goNextPage,
+    zoomOut: actions.zoomOut,
+    zoomIn: actions.zoomIn,
+    resetZoom: actions.resetZoom,
+    scale: state.scale,
+    zoomPreset: state.zoomPreset,
+    applyZoomPreset: actions.applyZoomPreset,
+    pageSearch: state.pageSearch,
+    setPageSearch: state.setPageSearch,
+    viewMode: state.viewMode,
+    setViewMode: state.setViewMode,
+    undoAnnotations: actions.undoAnnotations,
+    redoAnnotations: actions.redoAnnotations,
+    runOcr: actions.runOcr,
+    rotateLeft: actions.rotateLeft,
+    rotateRight: actions.rotateRight,
+    compressDocument: actions.compressDocument,
+    addWatermark: actions.addWatermark,
+    splitDocument: actions.splitDocument,
+    mergeDocuments: actions.mergeDocuments,
+    convertToImages: actions.convertToImages,
+    documentTool: state.documentTool,
+    setDocumentTool: state.setDocumentTool,
+    runDocumentTool: actions.runDocumentTool,
+    onSelectLocalFile: actions.onSelectLocalFile,
+    showFindBar: state.showFindBar,
+    onToggleFindBar: callbacks.onToggleFindBar,
+    theme: state.theme,
+    toggleTheme: callbacks.toggleTheme,
+  };
+
+  const viewerProps = {
+    transitionTick: state.transitionTick,
+    transitionDirection: state.transitionDirection,
+    data: state.docBytes,
+    page: state.page,
+    scale: state.scale,
+    rotation: state.rotation,
+    viewMode: state.viewMode,
+    annotations: state.annotations,
+    highlightMode: state.highlightMode,
+    shapeMode: state.activeTool === "shape",
+    redactMode: state.activeTool === "redact",
+    measureMode: state.activeTool === "measure",
+    activeTool: state.activeTool,
+    searchText: state.pageSearch,
+    onPageToolAction: actions.onPageToolAction,
+    onDocumentLoaded: callbacks.onLoaded,
+    onSearchResult: callbacks.onSearchResult,
+    onError: state.setViewerError,
+    onActivePageChange: actions.onActivePageChange,
+    onThumbsLoaded: state.setThumbnails,
+    initialThumbnails: state.thumbnails,
+    onAnnotationUpdated: actions.updateAnnotation,
+    onAnnotationDeleted: actions.removeAnnotation,
+  };
+
+  return { headerProps, viewerProps };
+}

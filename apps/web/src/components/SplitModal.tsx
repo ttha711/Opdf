@@ -200,7 +200,7 @@ export function SplitModal({
         {/* Body */}
         <div className="premium-modal-body">
           {/* Active document metadata */}
-          <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-gray-800 p-3 border border-dashed border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between rounded-lg p-3 border border-dashed" style={{ background: 'var(--ui-muted-bg)', borderColor: 'var(--border-color)' }}>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-gray-450 uppercase tracking-wide">Source Document</p>
               <p className="text-sm font-semibold truncate text-[var(--text-primary)]">{fileName || "No document loaded"}</p>

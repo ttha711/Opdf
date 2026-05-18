@@ -75,25 +75,58 @@ export function usePdfDataLoader(params: {
 
         const thumbCount = Math.min(nextPdf.numPages, 40);
         const thumbs: Array<{ page: number; url: string; blob: Blob }> = [];
-        for (let i = 1; i <= thumbCount; i += 1) {
+        
+        // Controlled Concurrency Batching (Batch size = 4 to fully utilize CPU/GPU cores without memory issues)
+        const BATCH_SIZE = 4;
+        
+        for (let i = 1; i <= thumbCount; i += BATCH_SIZE) {
           if (cancelled) break;
-          const p = await nextPdf.getPage(i);
-          const baseViewport = p.getViewport({ scale: 1 });
-          const vp = p.getViewport({ scale: getThumbnailScale(baseViewport.width) });
-          const c = document.createElement("canvas");
-          const ctx = c.getContext("2d");
-          if (!ctx) continue;
-          c.width = Math.max(1, Math.floor(vp.width));
-          c.height = Math.max(1, Math.floor(vp.height));
-          await p.render({ canvasContext: ctx, viewport: vp }).promise;
-          drawAnnotationsToCanvas(ctx, annotations, i, c.width, c.height);
-          const blob = await canvasToBlob(c, "image/jpeg", THUMBNAIL_JPEG_QUALITY);
-          if (!blob) continue;
-          const url = URL.createObjectURL(blob);
-          thumbnailUrlsRef.current.push(url);
-          thumbs.push({ page: i, url, blob });
-          p.cleanup();
+          
+          const batchPageNums: number[] = [];
+          for (let j = 0; j < BATCH_SIZE && i + j <= thumbCount; j++) {
+            batchPageNums.push(i + j);
+          }
+          
+          const batchResults = await Promise.all(
+            batchPageNums.map(async (pNum) => {
+              if (cancelled) return null;
+              try {
+                const p = await nextPdf.getPage(pNum);
+                const baseViewport = p.getViewport({ scale: 1 });
+                const vp = p.getViewport({ scale: getThumbnailScale(baseViewport.width) });
+                const c = document.createElement("canvas");
+                const ctx = c.getContext("2d");
+                if (!ctx) return null;
+                
+                c.width = Math.max(1, Math.floor(vp.width));
+                c.height = Math.max(1, Math.floor(vp.height));
+                
+                await p.render({ canvasContext: ctx, viewport: vp }).promise;
+                drawAnnotationsToCanvas(ctx, annotations, pNum, c.width, c.height);
+                
+                const blob = await canvasToBlob(c, "image/jpeg", THUMBNAIL_JPEG_QUALITY);
+                p.cleanup();
+                
+                if (!blob) return null;
+                const url = URL.createObjectURL(blob);
+                return { page: pNum, url, blob };
+              } catch (err) {
+                console.error(`Failed to render thumbnail for page ${pNum}:`, err);
+                return null;
+              }
+            })
+          );
+          
+          if (cancelled) break;
+          
+          for (const res of batchResults) {
+            if (res) {
+              thumbnailUrlsRef.current.push(res.url);
+              thumbs.push(res);
+            }
+          }
         }
+        
         if (!cancelled) onThumbsLoadedRef.current?.(thumbs);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to load PDF";

@@ -85,7 +85,7 @@ export function DocumentMarkupModal({ tool, fileName, totalPages, onClose, onApp
         </div>
 
         <div className="premium-modal-body">
-          <div className="flex items-center justify-between rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex items-center justify-between rounded-lg border border-dashed p-3" style={{ background: 'var(--ui-muted-bg)', borderColor: 'var(--border-color)' }}>
             <div className="min-w-0">
               <p className="m-0 text-[10px] font-bold uppercase tracking-[0.08em] text-gray-500">Source Document</p>
               <p className="m-0 truncate text-sm font-semibold text-[var(--text-primary)]">{baseName}</p>
@@ -173,7 +173,7 @@ export function DocumentMarkupModal({ tool, fileName, totalPages, onClose, onApp
             </div>
           ) : null}
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-[var(--text-secondary)] dark:border-gray-700 dark:bg-gray-800">
+          <div className="rounded-lg border p-3 text-xs text-[var(--text-secondary)]" style={{ background: 'var(--ui-muted-bg)', borderColor: 'var(--border-color)' }}>
             Preview: {isHeaderFooter ? text || baseName : `${prefix}${String(startNumber).padStart(isBates ? 6 : 1, "0")}${suffix}`}
           </div>
         </div>

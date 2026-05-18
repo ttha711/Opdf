@@ -67,10 +67,12 @@ export function usePageRendering(params: {
       for (const pNum of pagesToRender) {
         if (cancelled) break;
         const p = await pdf.getPage(pNum);
-        const vp = p.getViewport({ scale, rotation });
+        const pageRotation = p.rotate || 0;
+        const combinedRotation = (pageRotation + rotation) % 360;
+        const vp = p.getViewport({ scale, rotation: combinedRotation });
         const cssWidth = Math.max(1, Math.round(vp.width));
         const renderScale = cssWidth / vp.width;
-        const renderViewport = p.getViewport({ scale: scale * renderScale, rotation });
+        const renderViewport = p.getViewport({ scale: scale * renderScale, rotation: combinedRotation });
         const cssHeight = Math.max(1, Math.round(renderViewport.height));
         const c = document.createElement("canvas");
         const ctx = c.getContext("2d");

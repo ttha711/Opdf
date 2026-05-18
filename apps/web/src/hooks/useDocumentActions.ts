@@ -55,6 +55,7 @@ export function useDocumentActions({
   setViewerError,
   setShowSplitModal,
   setShowMergeModal,
+  setShowInsertModal,
 }: {
   bridge: ReturnType<typeof useOpdfBridge>;
   hasDocument: boolean;
@@ -73,6 +74,7 @@ export function useDocumentActions({
   setViewerError: Dispatch<SetStateAction<string | null>>;
   setShowSplitModal?: (v: boolean) => void;
   setShowMergeModal?: (v: boolean) => void;
+  setShowInsertModal?: (v: boolean) => void;
 }) {
   async function runOcr() {
     if (!fileName) return;
@@ -221,21 +223,9 @@ export function useDocumentActions({
         return;
       }
       if (activeTool === "insert-pdf") {
-        const targetInput = prompt("Insert at page number:", String(page));
-        if (!targetInput) return;
-        const targetPage = Number(targetInput);
-        if (!Number.isInteger(targetPage) || targetPage < 1 || targetPage > Math.max(totalPages, 1)) throw new Error("Invalid target page");
-        const position = confirm("Insert after this page? Choose Cancel to insert before.") ? "after" : "before";
-        let bytes: Uint8Array | null = null;
-        if (hasDesktopBridge) {
-          const picked = await bridge.pickAndOpenDocument();
-          bytes = picked?.bytes ?? null;
-        } else {
-          bytes = await pickBrowserPdfBytes();
+        if (setShowInsertModal) {
+          setShowInsertModal(true);
         }
-        if (!bytes) return;
-        const next = await bridge.insertPages(docBytes, { targetPage, position, bytes });
-        replaceDocumentBytes(next, targetPage);
         return;
       }
       if (activeTool === "crop-current") {

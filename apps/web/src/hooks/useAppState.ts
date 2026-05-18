@@ -23,6 +23,7 @@ export function useAppState() {
   const [signatureStyle, setSignatureStyle] = useState("User Signature");
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
+  const [showInsertModal, setShowInsertModal] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("continuous");
   const [documentTool, setDocumentTool] = useState<DocumentTool>("delete-pages");
@@ -308,7 +309,7 @@ export function useAppState() {
     fileName, setFileName, docBytes, setDocBytes, page, setPage, totalPages, setTotalPages, scale, setScale, rotation, setRotation,
     annotations, setAnnotations, ocrJobs, setOcrJobs, pageSearch, setPageSearch, searchResult, setSearchResult, activeTool, setActiveTool,
     zoomPreset, setZoomPreset, pendingNote, setPendingNote, noteText, setNoteText, showSignModal, setShowSignModal,
-    signatureStyle, setSignatureStyle, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
+    signatureStyle, setSignatureStyle, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
     transitionTick, setTransitionTick, transitionDirection, setTransitionDirection, thumbnails, setThumbnails, bookmarks, setBookmarks, openMenu, setOpenMenu,
     showFindBar, setShowFindBar, theme, setTheme, fileInputRef, findInputRef, lastWheelFlipAtRef, hasDocument, highlightMode, hasDesktopBridge,
     showDashboard, setShowDashboard, activeDashboardTool, setActiveDashboardTool,

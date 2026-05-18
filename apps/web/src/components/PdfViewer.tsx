@@ -96,15 +96,23 @@ export function PdfViewer({
     onSearchResultRef,
   });
 
+  // Clean up PDF Document memory when pdf object changes or component unmounts
+  useEffect(
+    () => () => {
+      pdf?.destroy();
+    },
+    [pdf]
+  );
+
+  // Clean up Blob URLs ONLY when the viewer is completely unmounted
   useEffect(
     () => () => {
       renderedUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       renderedUrlsRef.current = [];
       thumbnailUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       thumbnailUrlsRef.current = [];
-      pdf?.destroy();
     },
-    [pdf]
+    []
   );
 
   useThumbnailRefresh({ pdf, annotations, page, initialThumbnails, onThumbsLoaded });

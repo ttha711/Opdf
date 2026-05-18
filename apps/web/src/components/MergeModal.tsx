@@ -286,7 +286,7 @@ export function MergeModal({
           </div>
 
           {/* Merge stack stats */}
-          <div className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between rounded-lg p-3 border" style={{ background: 'var(--ui-muted-bg)', borderColor: 'var(--border-color)' }}>
             <span className="text-xs text-[var(--text-secondary)]">
               Output Stack: <strong>{files.length}</strong> {files.length === 1 ? "file" : "files"}
             </span>

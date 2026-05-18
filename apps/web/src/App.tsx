@@ -7,6 +7,7 @@ import { RightInfoPanel } from "./components/RightInfoPanel";
 import { OverlayEditors } from "./components/OverlayEditors";
 import { SplitModal } from "./components/SplitModal";
 import { MergeModal } from "./components/MergeModal";
+import { InsertPdfModal } from "./components/InsertPdfModal";
 import { DocumentMarkupModal } from "./components/DocumentMarkupModal";
 import { StatusBar } from "./components/StatusBar";
 import { FindBar } from "./components/FindBar";
@@ -127,6 +128,7 @@ export function App() {
     setViewerError: state.setViewerError,
     setShowSplitModal: state.setShowSplitModal,
     setShowMergeModal: state.setShowMergeModal,
+    setShowInsertModal: state.setShowInsertModal,
   });
 
   const onLoaded = useCallback((pages: number) => {
@@ -625,6 +627,21 @@ export function App() {
               state.setPage(1);
             }}
             setViewerError={state.setViewerError}
+          />
+
+          <InsertPdfModal
+            isOpen={state.showInsertModal}
+            onClose={() => state.setShowInsertModal(false)}
+            fileName={state.fileName}
+            docBytes={state.docBytes}
+            totalPages={state.totalPages}
+            currentPage={state.page}
+            onInsertComplete={(insertedBytes, nextPage) => {
+              replaceDocumentBytes(insertedBytes, nextPage);
+            }}
+            setViewerError={state.setViewerError}
+            hasDesktopBridge={state.hasDesktopBridge}
+            bridge={bridge}
           />
 
           <DocumentMarkupModal

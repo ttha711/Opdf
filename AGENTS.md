@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **Opdf** (834 symbols, 1313 relationships, 31 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **Opdf** (1589 symbols, 2391 relationships, 59 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -39,5 +39,10 @@ This project is indexed by GitNexus as **Opdf** (834 symbols, 1313 relationships
 | Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Work in the Components area (89 symbols) | `.claude/skills/generated/components/SKILL.md` |
+| Work in the Hooks area (67 symbols) | `.claude/skills/generated/hooks/SKILL.md` |
+| Work in the Services area (46 symbols) | `.claude/skills/generated/services/SKILL.md` |
+| Work in the Document-tool-panel area (18 symbols) | `.claude/skills/generated/document-tool-panel/SKILL.md` |
+| Work in the Agent area (14 symbols) | `.claude/skills/generated/agent/SKILL.md` |
 
 <!-- gitnexus:end -->

@@ -125,15 +125,51 @@ function createMockBridge(): OpdfBridge {
     },
     async watermarkPdf(bytes, text) {
       console.log("[MockBridge] watermarkPdf", bytes.length, text);
-      return bytes;
+      const pdfLib = await loadPdfLib();
+      const doc = await pdfLib.PDFDocument.load(bytes);
+      const pages = doc.getPages();
+
+      for (const page of pages) {
+        const { width, height } = page.getSize();
+        page.drawText(text, {
+          x: width / 4,
+          y: height / 2,
+          size: 48,
+          color: pdfLib.rgb(0.5, 0.5, 0.5),
+          opacity: 0.3,
+          rotate: pdfLib.degrees(45),
+        });
+      }
+
+      return doc.save();
     },
     async mergePdfs(bytesList) {
       console.log("[MockBridge] mergePdfs", bytesList.length);
-      return bytesList[0];
+      const pdfLib = await loadPdfLib();
+      const outDoc = await pdfLib.PDFDocument.create();
+
+      for (const bytes of bytesList) {
+        const source = await pdfLib.PDFDocument.load(bytes);
+        const copiedPages = await outDoc.copyPages(source, source.getPageIndices());
+        copiedPages.forEach((page) => outDoc.addPage(page));
+      }
+
+      return outDoc.save();
     },
     async splitPdf(bytes, pages) {
       console.log("[MockBridge] splitPdf", bytes.length, pages);
-      return [bytes];
+      const pdfLib = await loadPdfLib();
+      const source = await pdfLib.PDFDocument.load(bytes);
+      const out: Uint8Array[] = [];
+
+      for (const index of pages) {
+        const child = await pdfLib.PDFDocument.create();
+        const [copiedPage] = await child.copyPages(source, [index]);
+        child.addPage(copiedPage);
+        out.push(await child.save());
+      }
+
+      return out;
     },
     async saveDocumentAs() { return null; },
     async getRecent() { return recents; },

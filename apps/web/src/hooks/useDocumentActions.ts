@@ -4,6 +4,39 @@ import type { DocumentTool } from "../lib/document-tools";
 import { parsePageList, pickBrowserPdfBytes } from "../lib/document-tools";
 import { useOpdfBridge } from "./useOpdfBridge";
 
+export type MarkupTool = "page-numbers" | "header" | "footer" | "bates";
+
+export type MarkupOptions = {
+  position?: "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right";
+  align?: "left" | "center" | "right";
+  text?: string;
+  prefix?: string;
+  suffix?: string;
+  startNumber?: number;
+  digits?: number;
+  fontSize?: number;
+  fontColor?: string;
+  pageStart?: number;
+  pageEnd?: number;
+};
+
+export type DocumentToolOptions = {
+  pages?: string | number[];
+  marginPercent?: number;
+  password?: string;
+  targetPage?: number;
+  position?: "before" | "after";
+  bytes?: Uint8Array;
+};
+
+export type WatermarkOptions = {
+  text: string;
+  fontSize?: number;
+  color?: string;
+  opacity?: number;
+  rotation?: number;
+};
+
 export function useDocumentActions({
   bridge,
   hasDocument,
@@ -20,6 +53,8 @@ export function useDocumentActions({
   setPage,
   setOcrJobs,
   setViewerError,
+  setShowSplitModal,
+  setShowMergeModal,
 }: {
   bridge: ReturnType<typeof useOpdfBridge>;
   hasDocument: boolean;
@@ -36,12 +71,21 @@ export function useDocumentActions({
   setPage: Dispatch<SetStateAction<number>>;
   setOcrJobs: Dispatch<SetStateAction<OcrJob[]>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
+  setShowSplitModal?: (v: boolean) => void;
+  setShowMergeModal?: (v: boolean) => void;
 }) {
   async function runOcr() {
     if (!fileName) return;
-    const job = await bridge.enqueueOcr(fileName, "eng+vie");
-    await bridge.runOcr(job.id);
-    setOcrJobs(await bridge.listOcrJobs());
+    try {
+      setViewerError("Running OCR...");
+      const job = await bridge.enqueueOcr(fileName, "eng+vie");
+      await bridge.runOcr(job.id);
+      setOcrJobs(await bridge.listOcrJobs());
+      setViewerError("OCR complete. Result is listed in the OCR panel.");
+      setTimeout(() => setViewerError(null), 3000);
+    } catch (error) {
+      setViewerError(error instanceof Error ? error.message : "OCR failed");
+    }
   }
 
   async function exportPdf() {
@@ -123,50 +167,16 @@ export function useDocumentActions({
   }
 
   async function mergeDocuments() {
-    if (!hasDesktopBridge || !docBytes) {
-      alert("Merge currently requires the Desktop App for native file selection.");
-      return;
-    }
-    alert("Select a second PDF to append to the current one.");
-    const file2 = await bridge.pickAndOpenDocument();
-    if (!file2) return;
-    try {
-      const merged = await bridge.mergePdfs([docBytes, file2.bytes]);
-      setDocBytes(merged);
-      setPage(1);
-    } catch (err) {
-      setViewerError("Merge failed: " + err);
+    if (!docBytes) return;
+    if (setShowMergeModal) {
+      setShowMergeModal(true);
     }
   }
 
   async function splitDocument() {
     if (!docBytes || !fileName) return;
-    const pageStr = prompt("Enter the exact page number you want to extract as a standalone PDF:", "1");
-    if (!pageStr) return;
-    const p = parseInt(pageStr, 10);
-    if (isNaN(p) || p < 1 || p > totalPages) return;
-    try {
-      const splitDocs = await bridge.splitPdf(docBytes, [p - 1]);
-      if (splitDocs.length) {
-        if (hasDesktopBridge) {
-          await bridge.saveDocumentAs(splitDocs[0]);
-        } else {
-          const blob = new Blob([splitDocs[0] as unknown as BlobPart], { type: "application/pdf" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.style.display = "none";
-          a.href = url;
-          const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
-          const finalName = baseName.toLowerCase().endsWith(".pdf") ? baseName : `${baseName}.pdf`;
-          a.download = `page-${p}-${finalName}`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }
-      }
-    } catch {
-      setViewerError("Split failed");
+    if (setShowSplitModal) {
+      setShowSplitModal(true);
     }
   }
 
@@ -180,8 +190,7 @@ export function useDocumentActions({
       const { zipSync } = await import("fflate");
       const zipData: Record<string, Uint8Array> = {};
       for (const thumb of thumbnails) {
-        const res = await fetch(thumb.url);
-        const buf = await res.arrayBuffer();
+        const buf = await thumb.blob.arrayBuffer();
         zipData[`page-${thumb.page}.jpg`] = new Uint8Array(buf);
       }
       const zipped = zipSync(zipData);
@@ -198,10 +207,11 @@ export function useDocumentActions({
     }
   }
 
-  async function runDocumentTool() {
+  async function runDocumentTool(tool?: DocumentTool) {
     if (!docBytes || !fileName) return;
+    const activeTool = tool || documentTool;
     try {
-      if (documentTool === "delete-pages") {
+      if (activeTool === "delete-pages") {
         const input = prompt("Pages to delete (example: 2,4-6):", String(page));
         if (!input) return;
         const pages = parsePageList(input, totalPages);
@@ -210,7 +220,7 @@ export function useDocumentActions({
         replaceDocumentBytes(next, Math.min(page, totalPages - pages.length));
         return;
       }
-      if (documentTool === "insert-pdf") {
+      if (activeTool === "insert-pdf") {
         const targetInput = prompt("Insert at page number:", String(page));
         if (!targetInput) return;
         const targetPage = Number(targetInput);
@@ -228,7 +238,7 @@ export function useDocumentActions({
         replaceDocumentBytes(next, targetPage);
         return;
       }
-      if (documentTool === "crop-current") {
+      if (activeTool === "crop-current") {
         const marginInput = prompt("Crop margin percent from each edge (0-45):", "5");
         if (!marginInput) return;
         const margin = Math.min(45, Math.max(0, Number(marginInput))) / 100;
@@ -236,21 +246,21 @@ export function useDocumentActions({
         replaceDocumentBytes(next, page);
         return;
       }
-      if (documentTool === "page-numbers") {
+      if (activeTool === "page-numbers") {
         const prefix = prompt("Page number prefix:", "Page ");
         if (prefix === null) return;
         const next = await bridge.addPageNumbers(docBytes, { position: "bottom-center", startNumber: 1, fontSize: 11, fontColor: "#111827", prefix });
         replaceDocumentBytes(next, page);
         return;
       }
-      if (documentTool === "header" || documentTool === "footer") {
-        const text = prompt(documentTool === "header" ? "Header text:" : "Footer text:", fileName);
+      if (activeTool === "header" || activeTool === "footer") {
+        const text = prompt(activeTool === "header" ? "Header text:" : "Footer text:", fileName);
         if (!text) return;
-        const next = await bridge.addHeaderFooter(docBytes, [{ align: "center", text, fontSize: 10, fontColor: "#374151" }], documentTool === "header");
+        const next = await bridge.addHeaderFooter(docBytes, [{ align: "center", text, fontSize: 10, fontColor: "#374151" }], activeTool === "header");
         replaceDocumentBytes(next, page);
         return;
       }
-      if (documentTool === "bates") {
+      if (activeTool === "bates") {
         const prefix = prompt("Bates prefix:", "OPDF-");
         if (prefix === null) return;
         const startInput = prompt("Start number:", "1");
@@ -261,26 +271,26 @@ export function useDocumentActions({
         replaceDocumentBytes(next, page);
         return;
       }
-      if (documentTool === "encrypt") {
+      if (activeTool === "encrypt") {
         const password = prompt("New PDF password:");
         if (!password) return;
         const next = await bridge.encryptPdf(docBytes, { userPassword: password, ownerPassword: password });
         replaceDocumentBytes(next, page);
         return;
       }
-      if (documentTool === "decrypt") {
+      if (activeTool === "decrypt") {
         const password = prompt("Current PDF password:");
         if (!password) return;
         const next = await bridge.decryptPdf(docBytes, password);
         replaceDocumentBytes(next, page);
         return;
       }
-      if (documentTool === "normalize") {
+      if (activeTool === "normalize") {
         const next = await bridge.convertToPdfA(docBytes);
         replaceDocumentBytes(next, page);
         return;
       }
-      const degrees = documentTool === "rotate-all-left" ? -90 : 90;
+      const degrees = activeTool === "rotate-all-left" ? -90 : 90;
       const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
       const next = await bridge.rotatePages(docBytes, pages, degrees);
       replaceDocumentBytes(next, page);
@@ -289,5 +299,128 @@ export function useDocumentActions({
     }
   }
 
-  return { runOcr, exportPdf, compressDocument, addWatermark, mergeDocuments, splitDocument, convertToImages, runDocumentTool };
+  async function runConfiguredDocumentTool(tool: DocumentTool, options: DocumentToolOptions = {}) {
+    if (!docBytes || !fileName) return;
+    try {
+      if (tool === "delete-pages") {
+        const pages = Array.isArray(options.pages)
+          ? options.pages.filter((pageNumber) => Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= totalPages)
+          : parsePageList(String(options.pages || ""), totalPages);
+        if (pages.length === 0) throw new Error("No valid pages selected");
+        const next = await bridge.deletePages(docBytes, pages);
+        replaceDocumentBytes(next, Math.min(page, totalPages - pages.length));
+        return;
+      }
+      if (tool === "insert-pdf") {
+        const targetPage = Number(options.targetPage);
+        if (!Number.isInteger(targetPage) || targetPage < 1 || targetPage > Math.max(totalPages, 1)) throw new Error("Invalid target page");
+        if (!options.bytes) throw new Error("Insert PDF requires source bytes");
+        const next = await bridge.insertPages(docBytes, { targetPage, position: options.position || "after", bytes: options.bytes });
+        replaceDocumentBytes(next, targetPage);
+        return;
+      }
+      if (tool === "crop-current") {
+        const margin = Math.min(45, Math.max(0, Number(options.marginPercent ?? 5))) / 100;
+        const next = await bridge.cropPage(docBytes, { page, x: margin, y: margin, width: 1 - margin * 2, height: 1 - margin * 2 });
+        replaceDocumentBytes(next, page);
+        return;
+      }
+      if (tool === "encrypt") {
+        if (!options.password) throw new Error("Encrypt PDF requires a password");
+        const next = await bridge.encryptPdf(docBytes, { userPassword: options.password, ownerPassword: options.password });
+        replaceDocumentBytes(next, page);
+        return;
+      }
+      if (tool === "decrypt") {
+        if (!options.password) throw new Error("Decrypt PDF requires a password");
+        const next = await bridge.decryptPdf(docBytes, options.password);
+        replaceDocumentBytes(next, page);
+        return;
+      }
+      if (tool === "normalize") {
+        const next = await bridge.convertToPdfA(docBytes);
+        replaceDocumentBytes(next, page);
+        return;
+      }
+      if (tool === "page-numbers" || tool === "header" || tool === "footer" || tool === "bates") {
+        await runConfiguredMarkupTool(tool, {});
+        return;
+      }
+      const degrees = tool === "rotate-all-left" ? -90 : 90;
+      const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
+      const next = await bridge.rotatePages(docBytes, pages, degrees);
+      replaceDocumentBytes(next, page);
+    } catch (error) {
+      setViewerError(error instanceof Error ? error.message : "Document tool failed");
+      throw error;
+    }
+  }
+
+  async function runConfiguredWatermark(options: WatermarkOptions) {
+    if (!docBytes) return;
+    if (!options.text?.trim()) throw new Error("Watermark text is required");
+    try {
+      const watermarked = await bridge.watermarkPdf(docBytes, options.text.trim());
+      replaceDocumentBytes(watermarked, page);
+      setViewerError("Watermark applied.");
+      setTimeout(() => setViewerError(null), 3000);
+    } catch (err) {
+      setViewerError("Watermark failed: " + err);
+      throw err;
+    }
+  }
+
+  async function runConfiguredMarkupTool(tool: MarkupTool, options: MarkupOptions) {
+    if (!docBytes || !fileName) return;
+    const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
+    try {
+      setViewerError("Applying document markup...");
+      let next: Uint8Array;
+      if (tool === "page-numbers") {
+        next = await bridge.addPageNumbers(docBytes, {
+          position: options.position || "bottom-center",
+          startNumber: options.startNumber ?? 1,
+          fontSize: options.fontSize || 11,
+          fontColor: options.fontColor || "#111827",
+          prefix: options.prefix ?? "Page ",
+          suffix: options.suffix ?? "",
+          pages: { start: options.pageStart || 1, end: options.pageEnd || totalPages },
+        });
+      } else if (tool === "header") {
+        next = await bridge.addHeaderFooter(docBytes, [{
+          align: options.align || "center",
+          text: options.text?.trim() || baseName,
+          fontSize: options.fontSize || 10,
+          fontColor: options.fontColor || "#374151",
+        }], true);
+      } else if (tool === "footer") {
+        next = await bridge.addHeaderFooter(docBytes, [{
+          align: options.align || "center",
+          text: options.text?.trim() || baseName,
+          fontSize: options.fontSize || 10,
+          fontColor: options.fontColor || "#374151",
+        }], false);
+      } else {
+        next = await bridge.addBatesNumbering(
+          docBytes,
+          options.prefix ?? "OPDF-",
+          options.startNumber ?? 1,
+          options.suffix ?? ""
+        );
+      }
+      replaceDocumentBytes(next, page);
+      const labels = {
+        "page-numbers": "Page numbers added.",
+        header: "Header added.",
+        footer: "Footer added.",
+        bates: "Bates numbering added.",
+      };
+      window.setTimeout(() => setViewerError(labels[tool]), 250);
+      setTimeout(() => setViewerError(null), 3000);
+    } catch (error) {
+      setViewerError(error instanceof Error ? error.message : "Document markup failed");
+    }
+  }
+
+  return { runOcr, exportPdf, compressDocument, addWatermark, mergeDocuments, splitDocument, convertToImages, runDocumentTool, runConfiguredDocumentTool, runConfiguredMarkupTool, runConfiguredWatermark };
 }

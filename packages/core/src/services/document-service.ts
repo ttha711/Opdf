@@ -244,28 +244,28 @@ export class DocumentService {
     const fontSize = opts.fontSize || 12;
     const color = this._parseColor(opts.fontColor || "#000000", module);
     
-    const pageStart = opts.pages?.start ?? 1;
-    const pageEnd = opts.pages?.end ?? pages.length;
+    const pageStart = Math.max(1, opts.pages?.start ?? 1);
+    const pageEnd = Math.min(pages.length, opts.pages?.end ?? pages.length);
     let counter = opts.startNumber ?? 1;
 
-    for (let i = pageStart - 1; i < Math.min(pageEnd, pages.length); i++) {
+    for (let i = pageStart - 1; i < pageEnd; i++) {
       const page = pages[i];
-      const { width } = page.getSize();
+      const { width, height } = page.getSize();
       const text = `${opts.prefix || ""}${counter}${opts.suffix || ""}`;
-      counter++;
-
-      let x = width / 2;
-      const y = opts.position.startsWith("top") ? 20 : (page.getSize().height - 20);
       
+      const textWidth = fontSize * text.length * 0.45;
+      let x = width / 2 - textWidth / 2;
       if (opts.position.includes("left")) x = 40;
-      else if (opts.position.includes("right")) x = width - 40;
-      // center is default
+      else if (opts.position.includes("right")) x = width - 40 - textWidth;
+      
+      const y = opts.position.startsWith("top") ? height - 28 : 20;
 
       page.drawText(text, {
         x, y,
         size: fontSize,
         color,
       });
+      counter++;
     }
     return doc.save();
   }
@@ -275,17 +275,23 @@ export class DocumentService {
     const module = await import("pdf-lib");
     const doc = await module.PDFDocument.load(pdfBytes);
     const pages = doc.getPages();
-    const fontSize = lines[0]?.fontSize || 10;
-    const color = this._parseColor(lines[0]?.fontColor || "#888888", module);
 
     for (const page of pages) {
       const { width, height } = page.getSize();
-      const y = isHeader ? height - 12 : 12;
-
-      for (const line of lines) {
-        let x = width / 2;
+      
+      for (let index = 0; index < lines.length; index++) {
+        const line = lines[index];
+        const fontSize = line.fontSize || 10;
+        const color = this._parseColor(line.fontColor || "#555555", module);
+        
+        const textWidth = fontSize * line.text.length * 0.45;
+        let x = width / 2 - textWidth / 2;
         if (line.align === "left") x = 40;
-        else if (line.align === "right") x = width - 40;
+        else if (line.align === "right") x = width - 40 - textWidth;
+
+        const y = isHeader 
+          ? height - 24 - index * (fontSize + 3) 
+          : 18 + index * (fontSize + 3);
 
         page.drawText(line.text, { x, y, size: fontSize, color });
       }

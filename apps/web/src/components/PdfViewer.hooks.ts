@@ -4,6 +4,15 @@ import type { Annotation } from "@opdf/core";
 import { canvasToBlob, drawAnnotationsToCanvas } from "./PdfViewer.utils";
 import { CONTINUOUS_BATCH_SIZE, WINDOW_RADIUS, type RenderedPage, type ViewMode } from "./PdfViewer.types";
 
+const THUMBNAIL_CSS_WIDTH = 188;
+const THUMBNAIL_MAX_DEVICE_SCALE = 2;
+const THUMBNAIL_JPEG_QUALITY = 0.72;
+
+function getThumbnailScale(pageWidth: number) {
+  const deviceScale = Math.min(window.devicePixelRatio || 1, THUMBNAIL_MAX_DEVICE_SCALE);
+  return Math.max(0.1, (THUMBNAIL_CSS_WIDTH * deviceScale) / Math.max(1, pageWidth));
+}
+
 export function usePdfDataLoader(params: {
   data: Uint8Array | null;
   annotations: Annotation[];
@@ -13,11 +22,13 @@ export function usePdfDataLoader(params: {
   onErrorRef: MutableRefObject<((message: string | null) => void) | undefined>;
   onThumbsLoadedRef: MutableRefObject<((thumbs: Array<{ page: number; url: string; blob: Blob }>) => void) | undefined>;
   thumbnailUrlsRef: MutableRefObject<string[]>;
+  renderedPagesRef: MutableRefObject<RenderedPage[]>;
   renderedUrlsRef: MutableRefObject<string[]>;
   setPdf: Dispatch<SetStateAction<PDFDocumentProxy | null>>;
   setRenderedPages: Dispatch<SetStateAction<RenderedPage[]>>;
+  setContinuousLoadedUntil: Dispatch<SetStateAction<number>>;
 }) {
-  const { data, annotations, initialThumbnails, onThumbsLoaded, onDocumentLoadedRef, onErrorRef, onThumbsLoadedRef, thumbnailUrlsRef, renderedUrlsRef, setPdf, setRenderedPages } = params;
+  const { data, annotations, initialThumbnails, onThumbsLoaded, onDocumentLoadedRef, onErrorRef, onThumbsLoadedRef, thumbnailUrlsRef, renderedPagesRef, renderedUrlsRef, setPdf, setRenderedPages, setContinuousLoadedUntil } = params;
 
   useEffect(() => {
     if (!data) {
@@ -26,7 +37,9 @@ export function usePdfDataLoader(params: {
       thumbnailUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       thumbnailUrlsRef.current = [];
       setPdf(null);
+      renderedPagesRef.current = [];
       setRenderedPages([]);
+      setContinuousLoadedUntil(0);
       onThumbsLoaded?.([]);
       return;
     }
@@ -45,6 +58,9 @@ export function usePdfDataLoader(params: {
           prev?.destroy();
           return nextPdf;
         });
+        renderedPagesRef.current = [];
+        setRenderedPages([]);
+        setContinuousLoadedUntil(Math.min(CONTINUOUS_BATCH_SIZE, nextPdf.numPages));
         onDocumentLoadedRef.current?.(nextPdf.numPages);
         onErrorRef.current?.(null);
 
@@ -62,7 +78,8 @@ export function usePdfDataLoader(params: {
         for (let i = 1; i <= thumbCount; i += 1) {
           if (cancelled) break;
           const p = await nextPdf.getPage(i);
-          const vp = p.getViewport({ scale: 0.1 });
+          const baseViewport = p.getViewport({ scale: 1 });
+          const vp = p.getViewport({ scale: getThumbnailScale(baseViewport.width) });
           const c = document.createElement("canvas");
           const ctx = c.getContext("2d");
           if (!ctx) continue;
@@ -70,7 +87,7 @@ export function usePdfDataLoader(params: {
           c.height = Math.max(1, Math.floor(vp.height));
           await p.render({ canvasContext: ctx, viewport: vp }).promise;
           drawAnnotationsToCanvas(ctx, annotations, i, c.width, c.height);
-          const blob = await canvasToBlob(c, "image/jpeg", 0.4);
+          const blob = await canvasToBlob(c, "image/jpeg", THUMBNAIL_JPEG_QUALITY);
           if (!blob) continue;
           const url = URL.createObjectURL(blob);
           thumbnailUrlsRef.current.push(url);
@@ -83,6 +100,7 @@ export function usePdfDataLoader(params: {
         onDocumentLoadedRef.current?.(0);
         onErrorRef.current?.(message);
         setPdf(null);
+        renderedPagesRef.current = [];
         setRenderedPages([]);
       }
     })();
@@ -144,7 +162,8 @@ export function useThumbnailRefresh(params: {
     const timeout = setTimeout(async () => {
       try {
         const p = await pdf.getPage(page);
-        const vp = p.getViewport({ scale: 0.1 });
+        const baseViewport = p.getViewport({ scale: 1 });
+        const vp = p.getViewport({ scale: getThumbnailScale(baseViewport.width) });
         const c = document.createElement("canvas");
         const ctx = c.getContext("2d");
         if (!ctx) return;
@@ -152,7 +171,7 @@ export function useThumbnailRefresh(params: {
         c.height = Math.max(1, Math.floor(vp.height));
         await p.render({ canvasContext: ctx, viewport: vp }).promise;
         drawAnnotationsToCanvas(ctx, annotations, page, c.width, c.height);
-        const blob = await canvasToBlob(c, "image/jpeg", 0.4);
+        const blob = await canvasToBlob(c, "image/jpeg", THUMBNAIL_JPEG_QUALITY);
         if (!blob) return;
         const url = URL.createObjectURL(blob);
         const nextThumbs = (initialThumbnails || []).map((t) => {

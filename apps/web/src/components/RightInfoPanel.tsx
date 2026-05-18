@@ -11,6 +11,8 @@ export function RightInfoPanel({
   annotations,
   ocrJobs,
   onRemoveAnnotation,
+  isCollapsed = false,
+  setIsCollapsed,
 }: {
   hasDocument: boolean;
   fileName: string;
@@ -22,9 +24,11 @@ export function RightInfoPanel({
   annotations: Annotation[];
   ocrJobs: OcrJob[];
   onRemoveAnnotation: (id: string) => void;
+  isCollapsed?: boolean;
+  setIsCollapsed?: (collapsed: boolean) => void;
 }) {
   return (
-    <aside className="overflow-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)]">
+    <aside className="overflow-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] h-full flex flex-col">
       <div className="border-b border-[var(--border-color)]">
         <div className="flex cursor-default items-center gap-[var(--ui-gap-md)] border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] py-2.5 text-xs font-semibold uppercase tracking-[0.02em] text-[var(--text-primary)]">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
@@ -32,6 +36,19 @@ export function RightInfoPanel({
             <polyline points="14 2 14 8 20 8" />
           </svg>
           Document
+          {setIsCollapsed && (
+            <button
+              className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded hover:bg-[var(--ui-subtle-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+              onClick={() => setIsCollapsed(true)}
+              title="Collapse Right Sidebar"
+              type="button"
+            >
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="13 17 18 12 13 7" />
+                <polyline points="6 17 11 12 6 7" />
+              </svg>
+            </button>
+          )}
         </div>
         <div className="px-[14px] py-2.5">
           {hasDocument ? (

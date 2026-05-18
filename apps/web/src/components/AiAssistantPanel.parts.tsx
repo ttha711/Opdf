@@ -1,0 +1,394 @@
+import React, { useEffect, useRef } from "react";
+import type { Message, EngineMode } from "./AiAssistantPanel.types";
+import type { AgentCommand } from "../agent/agentCommands";
+
+// --- MARKDOWN MESSAGE COMPONENT ---
+interface MarkdownMessageProps {
+  text: string;
+}
+
+export function MarkdownMessage({ text }: MarkdownMessageProps) {
+  if (!text) return null;
+
+  // Helper to parse inline formatting like bold text and inline code tags
+  const formatInline = (str: string) => {
+    // Bold **text** parser
+    const splitBold = str.split(/\*\*(.*?)\*\*/g);
+    return splitBold.map((part, index) => {
+      if (index % 2 === 1) {
+        return <strong key={index}>{part}</strong>;
+      }
+      
+      // Inline code `code` parser
+      const splitCode = part.split(/`(.*?)`/g);
+      return splitCode.map((subPart, subIndex) => {
+        if (subIndex % 2 === 1) {
+          return <code key={subIndex} className="ai-inline-code">{subPart}</code>;
+        }
+        return subPart;
+      });
+    });
+  };
+
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  
+  let inTable = false;
+  let tableHeaders: string[] = [];
+  let tableRows: string[][] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Check if it's a table row
+    if (line.startsWith("|")) {
+      inTable = true;
+      const cells = line.split("|").map(c => c.trim()).filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
+      
+      if (line.includes("---")) {
+        // Divider line, skip
+        continue;
+      }
+      
+      if (tableHeaders.length === 0) {
+        tableHeaders = cells;
+      } else {
+        tableRows.push(cells);
+      }
+      continue;
+    } else if (inTable) {
+      // Table block ended, render it
+      if (tableHeaders.length > 0) {
+        elements.push(
+          <div key={`table-${i}`} className="ai-table-container">
+            <table className="ai-markdown-table">
+              <thead>
+                <tr>
+                  {tableHeaders.map((h, idx) => (
+                    <th key={idx}>{formatInline(h)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {tableRows.map((row, rIdx) => (
+                  <tr key={rIdx}>
+                    {row.map((cell, cIdx) => (
+                      <td key={cIdx}>{formatInline(cell)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+      // Reset table state
+      inTable = false;
+      tableHeaders = [];
+      tableRows = [];
+    }
+
+    // Headings
+    if (line.startsWith("###")) {
+      elements.push(<h4 key={i} className="ai-markdown-h4">{formatInline(line.replace(/^###\s*/, ""))}</h4>);
+    } else if (line.startsWith("##")) {
+      elements.push(<h2 key={i} className="ai-markdown-h2">{formatInline(line.replace(/^##\s*/, ""))}</h2>);
+    } else if (line.startsWith("#")) {
+      elements.push(<h2 key={i} className="ai-markdown-h2">{formatInline(line.replace(/^#\s*/, ""))}</h2>);
+    }
+    // Bullet lists
+    else if (line.startsWith("-") || line.startsWith("•") || line.startsWith("*")) {
+      elements.push(
+        <li key={i} className="ai-markdown-li">
+          {formatInline(line.replace(/^[-•*]\s*/, ""))}
+        </li>
+      );
+    }
+    // Empty spacing lines
+    else if (line === "") {
+      elements.push(<div key={i} style={{ height: "4px" }} />);
+    }
+    // Normal paragraph text
+    else {
+      elements.push(<p key={i} className="ai-markdown-p">{formatInline(line)}</p>);
+    }
+  }
+
+  // Render remaining table if still active at the end
+  if (inTable && tableHeaders.length > 0) {
+    elements.push(
+      <div key="table-end" className="ai-table-container">
+        <table className="ai-markdown-table">
+          <thead>
+            <tr>
+              {tableHeaders.map((h, idx) => (
+                <th key={idx}>{formatInline(h)}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tableRows.map((row, rIdx) => (
+              <tr key={rIdx}>
+                {row.map((cell, cIdx) => (
+                  <td key={cIdx}>{formatInline(cell)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return <div className="ai-markdown-body">{elements}</div>;
+}
+
+// --- SETTINGS PANEL COMPONENT ---
+interface SettingsPanelProps {
+  engineMode: EngineMode;
+  setEngineMode: (mode: EngineMode) => void;
+  difyUrl: string;
+  setDifyUrl: (url: string) => void;
+  difyKey: string;
+  setDifyKey: (key: string) => void;
+  iframeUrl: string;
+  setIframeUrl: (url: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}
+
+export function SettingsPanel({
+  engineMode,
+  setEngineMode,
+  difyUrl,
+  setDifyUrl,
+  difyKey,
+  setDifyKey,
+  iframeUrl,
+  setIframeUrl,
+  onCancel,
+  onSave,
+}: SettingsPanelProps) {
+  return (
+    <div className="ai-settings-panel">
+      <h4>AI Engine Configuration</h4>
+      <div className="form-group">
+        <label className="form-label">Chọn động cơ (Engine)</label>
+        <div className="ai-radio-group">
+          <div 
+            className={`ai-radio-option ${engineMode === "local" ? "active" : ""}`}
+            onClick={() => setEngineMode("local")}
+          >
+            <strong>Trợ lý Cục bộ (Offline NLP)</strong>
+            <p>Khớp từ khóa tiếng Việt/Anh trực tiếp với 57 tool của OPDF.</p>
+          </div>
+          <div 
+            className={`ai-radio-option ${engineMode === "dify" ? "active" : ""}`}
+            onClick={() => setEngineMode("dify")}
+          >
+            <strong>Dify API Chatbot</strong>
+            <p>Gửi câu hỏi lên chatbot Dify của công ty (qua API Key).</p>
+          </div>
+          <div 
+            className={`ai-radio-option ${engineMode === "iframe" ? "active" : ""}`}
+            onClick={() => setEngineMode("iframe")}
+          >
+            <strong>Nhúng Iframe AI-WEB-CHAT</strong>
+            <p>Nhúng trực tiếp giao diện AI-WEB-CHAT (Next.js) và dùng postMessage bridge.</p>
+          </div>
+        </div>
+      </div>
+
+      {engineMode === "dify" && (
+        <>
+          <div className="form-group">
+            <label className="form-label">Dify Endpoint URL</label>
+            <input 
+              className="form-control"
+              type="text" 
+              value={difyUrl} 
+              onChange={(e) => setDifyUrl(e.target.value)} 
+              placeholder="https://api.dify.ai/v1"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Dify API Key</label>
+            <input 
+              className="form-control"
+              type="password" 
+              value={difyKey} 
+              onChange={(e) => setDifyKey(e.target.value)} 
+              placeholder="Nhập app-xxx key..."
+            />
+          </div>
+        </>
+      )}
+
+      {engineMode === "iframe" && (
+        <div className="form-group">
+          <label className="form-label">AI-WEB-CHAT Client URL</label>
+          <input 
+            className="form-control"
+            type="text" 
+            value={iframeUrl} 
+            onChange={(e) => setIframeUrl(e.target.value)} 
+            placeholder="http://localhost:3005"
+          />
+        </div>
+      )}
+
+      <div className="ai-settings-actions">
+        <button className="btn-premium btn-premium-secondary" onClick={onCancel} type="button">
+          Hủy
+        </button>
+        <button className="btn-premium btn-premium-primary" onClick={onSave} type="button">
+          Lưu & Áp dụng
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- CHAT MESSAGE BUBBLE COMPONENT ---
+interface ChatMessageBubbleProps {
+  message: Message;
+  onConfirmInline: (cmd: AgentCommand, confirm: boolean) => void;
+}
+
+export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbleProps) {
+  const { sender, isPending, text, toolLogs, confirmation } = message;
+  
+  return (
+    <div className={`ai-message-bubble-wrapper ${sender}`}>
+      <div className="ai-message-avatar">
+        {sender === "user" ? (
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5z" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <path d="M12 2c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 20.4a1 1 0 0 0 1.25 1.25l3.79-1.62A8.95 8.95 0 0 0 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm3 10H9v-2h6v2z" />
+          </svg>
+        )}
+      </div>
+      <div className="ai-message-bubble">
+        {isPending ? (
+          <div className="ai-typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        ) : (
+          <div className="ai-message-text">
+            <MarkdownMessage text={text} />
+          </div>
+        )}
+
+        {toolLogs && (
+          <details className="ai-tool-logs">
+            <summary>Xem nhật ký gọi Agent Bridge</summary>
+            <pre>{toolLogs}</pre>
+          </details>
+        )}
+
+        {confirmation && (
+          <div className="ai-confirmation-box">
+            <button 
+              className="ai-confirm-btn cancel"
+              onClick={() => onConfirmInline(confirmation, false)}
+              type="button"
+            >
+              Hủy
+            </button>
+            <button 
+              className="ai-confirm-btn confirm"
+              onClick={() => onConfirmInline(confirmation, true)}
+              type="button"
+            >
+              Xác nhận thực hiện
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- SUGGESTION CHIPS COMPONENT ---
+interface SuggestionChipsProps {
+  onSuggestionClick: (text: string) => void;
+}
+
+export function SuggestionChips({ onSuggestionClick }: SuggestionChipsProps) {
+  return (
+    <div className="ai-suggestions-container">
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("nén tài liệu")} type="button">
+        🗜️ Nén PDF
+      </button>
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("xoay tất cả trang qua phải")} type="button">
+        🔄 Xoay Phải Tất Cả
+      </button>
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("thêm số trang")} type="button">
+        🔢 Đánh số trang
+      </button>
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("xóa trang 2")} type="button">
+        🗑️ Xóa trang 2
+      </button>
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("chạy ocr")} type="button">
+        🔍 Chạy OCR
+      </button>
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("trợ giúp")} type="button">
+        📚 Trợ giúp
+      </button>
+    </div>
+  );
+}
+
+// --- CHAT INPUT FORM COMPONENT ---
+interface ChatInputFormProps {
+  inputValue: string;
+  setInputValue: (val: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  engineMode: EngineMode;
+}
+
+export function ChatInputForm({ inputValue, setInputValue, onSubmit, engineMode }: ChatInputFormProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Handle textarea autogrow inside the component for better encapsulation
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(100, textareaRef.current.scrollHeight)}px`;
+    }
+  }, [inputValue]);
+
+  return (
+    <form className="ai-chat-input-form" onSubmit={onSubmit}>
+      <textarea
+        ref={textareaRef}
+        className="ai-chat-textarea"
+        rows={1}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            onSubmit(e);
+          }
+        }}
+        placeholder={engineMode === "local" ? "Gõ lệnh (ví dụ: 'nén file', 'xoay trái')..." : "Trò chuyện với Dify AI..."}
+      />
+      <button 
+        className="ai-chat-send-btn" 
+        disabled={!inputValue.trim()} 
+        type="submit"
+        title="Gửi câu lệnh"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+        </svg>
+      </button>
+    </form>
+  );
+}

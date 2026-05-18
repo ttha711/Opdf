@@ -30,7 +30,20 @@ export interface RenderedPage {
   pageNumber: number;
   width: number;
   height: number;
+  scale: number;
+  rotation: number;
   imageUrl: string;
+  textItems: RenderedTextItem[];
+}
+
+export interface RenderedTextItem {
+  str: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  fontSize: number;
+  transform: string;
 }
 
 export const WINDOW_RADIUS = 2;

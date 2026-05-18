@@ -51,11 +51,14 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     documentTool: state.documentTool,
     setDocumentTool: state.setDocumentTool,
     runDocumentTool: actions.runDocumentTool,
+    openDocumentMarkupTool: actions.openDocumentMarkupTool,
     onSelectLocalFile: actions.onSelectLocalFile,
     showFindBar: state.showFindBar,
     onToggleFindBar: callbacks.onToggleFindBar,
     theme: state.theme,
     toggleTheme: callbacks.toggleTheme,
+    showDashboard: state.showDashboard,
+    setShowDashboard: state.setShowDashboard,
   };
 
   const viewerProps = {

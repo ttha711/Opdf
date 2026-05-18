@@ -1,7 +1,7 @@
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import type { PDFDocumentProxy } from "pdfjs-dist";
+import { Util, type PDFDocumentProxy } from "pdfjs-dist";
 import { canvasToBlob, isRenderingCancelled } from "./PdfViewer.utils";
-import { CONTINUOUS_BATCH_SIZE, type RenderedPage, type ViewMode } from "./PdfViewer.types";
+import { CONTINUOUS_BATCH_SIZE, type RenderedPage, type RenderedTextItem, type ViewMode } from "./PdfViewer.types";
 
 export function usePageRendering(params: {
   pdf: PDFDocumentProxy | null;
@@ -32,22 +32,22 @@ export function usePageRendering(params: {
         lastParamsRef.current.viewMode !== viewMode;
 
       if (paramsChanged) {
-        renderedPagesRef.current.forEach((p) => URL.revokeObjectURL(p.imageUrl));
-        renderedPagesRef.current = [];
-        setRenderedPages([]);
         lastParamsRef.current = { pdf, scale, rotation, viewMode };
       }
 
       const targetPages: number[] = [];
       if (viewMode === "continuous") {
-        const endPage = Math.max(1, Math.min(pdf.numPages, continuousLoadedUntil || Math.min(CONTINUOUS_BATCH_SIZE, pdf.numPages)));
+        const initialBatchEnd = Math.min(CONTINUOUS_BATCH_SIZE, pdf.numPages);
+        const endPage = paramsChanged
+          ? initialBatchEnd
+          : Math.max(1, Math.min(pdf.numPages, continuousLoadedUntil || initialBatchEnd));
         for (let i = 1; i <= endPage; i += 1) targetPages.push(i);
       } else {
         targetPages.push(Math.min(Math.max(1, page), pdf.numPages));
       }
 
       const renderedPageNums = new Set(renderedPagesRef.current.map((p) => p.pageNumber));
-      const pagesToRender = targetPages.filter((pNum) => !renderedPageNums.has(pNum));
+      const pagesToRender = paramsChanged ? targetPages : targetPages.filter((pNum) => !renderedPageNums.has(pNum));
 
       if (pagesToRender.length === 0) {
         if (searchText && searchText.trim().length > 0) {
@@ -63,17 +63,26 @@ export function usePageRendering(params: {
         return;
       }
 
-      const newlyRendered: RenderedPage[] = [];
+      let replacedExistingPages = false;
       for (const pNum of pagesToRender) {
         if (cancelled) break;
         const p = await pdf.getPage(pNum);
         const vp = p.getViewport({ scale, rotation });
+        const cssWidth = Math.max(1, Math.round(vp.width));
+        const renderScale = cssWidth / vp.width;
+        const renderViewport = p.getViewport({ scale: scale * renderScale, rotation });
+        const cssHeight = Math.max(1, Math.round(renderViewport.height));
         const c = document.createElement("canvas");
         const ctx = c.getContext("2d");
         if (!ctx) { p.cleanup(); continue; }
-        c.width = Math.floor(vp.width);
-        c.height = Math.floor(vp.height);
-        const renderTask = p.render({ canvasContext: ctx, viewport: vp });
+        const outputScale = Math.max(1, window.devicePixelRatio || 1);
+        c.width = Math.max(1, Math.round(cssWidth * outputScale));
+        c.height = Math.max(1, Math.round(cssHeight * outputScale));
+        const renderTask = p.render({
+          canvasContext: ctx,
+          viewport: renderViewport,
+          transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0],
+        });
         activeRenderTasks.push(renderTask);
         try {
           await renderTask.promise;
@@ -86,26 +95,55 @@ export function usePageRendering(params: {
           p.cleanup();
           return;
         }
-        const blob = await canvasToBlob(c, "image/jpeg", 0.85);
+        // Keep main viewer crisp: JPEG introduces visible artifacts on text-heavy PDF pages.
+        const blob = await canvasToBlob(c, "image/png", 1);
         if (!blob) {
           p.cleanup();
           continue;
         }
         const url = URL.createObjectURL(blob);
-        newlyRendered.push({ pageNumber: pNum, width: vp.width, height: vp.height, imageUrl: url });
+        const textContent = await p.getTextContent();
+        const textItems: RenderedTextItem[] = textContent.items
+          .filter((item): item is typeof item & { str: string; width: number; height: number; transform: number[] } => "str" in item && item.str.trim().length > 0)
+          .map((item) => {
+            const tx = Util.transform(renderViewport.transform, item.transform);
+            const fontHeight = Math.max(1, Math.hypot(tx[2], tx[3]));
+            const width = Math.max(1, item.width * renderViewport.scale);
+            return {
+              str: item.str,
+              left: tx[4],
+              top: tx[5] - fontHeight,
+              width,
+              height: Math.max(fontHeight, item.height * renderViewport.scale),
+              fontSize: fontHeight,
+              transform: "none",
+            };
+          });
+        const renderedPage = { pageNumber: pNum, width: cssWidth, height: cssHeight, scale, rotation, imageUrl: url, textItems };
         p.cleanup();
-      }
-
-      if (!cancelled) {
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        const replacingPages = paramsChanged || viewMode !== "continuous";
+        const previousUrls = replacingPages && !replacedExistingPages ? renderedPagesRef.current.map((pageData) => pageData.imageUrl) : [];
         setRenderedPages((prev) => {
-          const combined = [...prev, ...newlyRendered].sort((a, b) => a.pageNumber - b.pageNumber);
-          const next = viewMode === "continuous" ? combined : newlyRendered;
+          const base = replacingPages && !replacedExistingPages ? [] : prev;
+          const withoutCurrent = base.filter((pageData) => pageData.pageNumber !== renderedPage.pageNumber);
+          const next = [...withoutCurrent, renderedPage].sort((a, b) => a.pageNumber - b.pageNumber);
           renderedPagesRef.current = next;
           renderedUrlsRef.current = next.map((p) => p.imageUrl);
           return next;
         });
-      } else {
-        newlyRendered.forEach((p) => URL.revokeObjectURL(p.imageUrl));
+        if (previousUrls.length > 0) {
+          window.setTimeout(() => {
+            const activeUrls = new Set(renderedUrlsRef.current);
+            previousUrls.forEach((urlToRevoke) => {
+              if (!activeUrls.has(urlToRevoke)) URL.revokeObjectURL(urlToRevoke);
+            });
+          }, 0);
+        }
+        replacedExistingPages = replacedExistingPages || replacingPages;
       }
 
       if (searchText && searchText.trim().length > 0) {

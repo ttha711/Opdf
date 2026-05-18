@@ -9,3 +9,10 @@ coverage/
 .playwright-mcp/
 annotation-after-fix.png
 structure.txt
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.test

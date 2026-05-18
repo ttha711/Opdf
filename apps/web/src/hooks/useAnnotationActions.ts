@@ -44,7 +44,7 @@ export function useAnnotationActions({
     }
   }
 
-  async function createToolAnnotation(kind: "note" | "shape" | "signature" | "redact", pageNumber: number, rect: PendingRect) {
+  async function createToolAnnotation(kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike", pageNumber: number, rect: PendingRect) {
     if (!fileName) return;
     const tempId = crypto.randomUUID();
     const payload =
@@ -54,7 +54,9 @@ export function useAnnotationActions({
           ? { shape: "rectangle", stroke: "#ef4444", ...rect }
           : kind === "redact"
             ? { shape: "rectangle", ...rect }
-            : { signer: signatureStyle, ...rect };
+            : kind === "underline" || kind === "strike"
+              ? { color: "#ef4444", opacity: 1, ...rect }
+              : { signer: signatureStyle, ...rect };
     const optimistic: Annotation = { id: tempId, page: pageNumber, kind, payload, createdAt: Date.now(), updatedAt: Date.now() };
     setAnnotations((prev) => [...prev, optimistic]);
     try {

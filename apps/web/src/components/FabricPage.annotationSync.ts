@@ -44,6 +44,18 @@ export function syncAnnotationsToCanvas(params: {
         hasBorders: true,
         lockRotation: true,
       });
+    } else if (ann.kind === "underline" || ann.kind === "strike") {
+      const lineY = ann.kind === "underline" ? absY + absH - 2 : absY + absH / 2;
+      obj = new fabric.Line([absX, lineY, absX + absW, lineY], {
+        stroke: color || "#ef4444",
+        strokeWidth: Math.max(2, Math.min(4, absH * 0.12)),
+        opacity: annOpacity,
+        selectable,
+        evented: selectable,
+        hasControls: true,
+        hasBorders: true,
+        lockRotation: true,
+      });
     } else if (ann.kind === "note") {
       obj = new fabric.IText(text || "Note", {
         left: absX, top: absY,

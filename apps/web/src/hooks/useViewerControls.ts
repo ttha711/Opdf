@@ -32,7 +32,7 @@ export function useViewerControls({
   lastWheelFlipAtRef: MutableRefObject<number>;
   activeTool: ActiveTool;
   addHighlight: (pageNumber: number, rect: PendingRect) => Promise<void>;
-  createToolAnnotation: (kind: "note" | "shape" | "signature" | "redact", pageNumber: number, rect: PendingRect) => Promise<void>;
+  createToolAnnotation: (kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike", pageNumber: number, rect: PendingRect) => Promise<void>;
   setPendingNote: Dispatch<SetStateAction<{ page: number; rect: PendingRect } | null>>;
   setShowSignModal: Dispatch<SetStateAction<boolean>>;
 }) {
@@ -90,13 +90,13 @@ export function useViewerControls({
       setShowSignModal(true);
       return;
     }
-    if (kind === "shape" || kind === "redact") {
+    if (kind === "shape" || kind === "redact" || kind === "underline" || kind === "strike") {
       return createToolAnnotation(kind, pageNumber, rect);
     }
   }
 
   function onViewerWheel(event: WheelEvent<HTMLElement>) {
-    if (!hasDocument || highlightMode || viewMode === "continuous") return;
+    if (!hasDocument || highlightMode || event.ctrlKey || viewMode === "continuous") return;
     const now = Date.now();
     if (now - lastWheelFlipAtRef.current < 180 || Math.abs(event.deltaY) < 10) return;
     if (event.deltaY > 0) goNextPage();

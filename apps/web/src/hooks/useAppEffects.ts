@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { Annotation } from "@opdf/core";
-import { loadFullDraft, savePdfBytes, saveWebState } from "../lib/web-storage";
+import { loadFullDraft, saveTabsList, loadTabsList, saveActiveTabId, loadActiveTabId, type OpdfTab } from "../lib/web-storage";
 import type { ActiveTool } from "../lib/app-types";
 
 type AppEffectsArgs = {
@@ -12,6 +12,7 @@ type AppEffectsArgs = {
   fileName: string;
   annotations: Annotation[];
   thumbnails: Array<{ page: number; url: string; blob: Blob }>;
+  bookmarks: Array<{ id: string; page: number; title: string; createdAt: number }>;
   page: number;
   theme: "light" | "dark";
   setFileName: (v: string) => void;
@@ -19,6 +20,7 @@ type AppEffectsArgs = {
   setAnnotations: (v: Annotation[]) => void;
   setPage: (v: number) => void;
   setThumbnails: (v: Array<{ page: number; url: string; blob: Blob }>) => void;
+  setBookmarks: (v: Array<{ id: string; page: number; title: string; createdAt: number }>) => void;
   setShowFindBar: Dispatch<SetStateAction<boolean>>;
   setOpenMenu: Dispatch<SetStateAction<string | null>>;
   setActiveTool: (v: ActiveTool) => void;
@@ -32,48 +34,135 @@ type AppEffectsArgs = {
   zoomOut: () => void;
   goPrevPage: () => void;
   goNextPage: () => void;
+
+  // NEW TABS ARGS
+  tabs: OpdfTab[];
+  setTabs: (v: OpdfTab[]) => void;
+  activeTabId: string | null;
+  setActiveTabId: (v: string | null) => void;
+  isSwitchingRef: RefObject<boolean>;
+  setShowDashboard: (v: boolean) => void;
 };
 
 export function useAppEffects(args: AppEffectsArgs) {
   const {
-    bridge, hasDesktopBridge, docBytes, hasDocument, fileName, annotations, thumbnails, page, theme,
-    setFileName, setDocBytes, setAnnotations, setPage, setThumbnails, setShowFindBar, setOpenMenu, setActiveTool, setTheme, findInputRef,
+    bridge, hasDesktopBridge, docBytes, hasDocument, fileName, annotations, thumbnails, bookmarks, page, theme,
+    setFileName, setDocBytes, setAnnotations, setPage, setThumbnails, setBookmarks, setShowFindBar, setOpenMenu, setActiveTool, setTheme, findInputRef,
     openFile, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage,
+
+    // NEW TABS PROPS
+    tabs, setTabs, activeTabId, setActiveTabId, isSwitchingRef, setShowDashboard,
   } = args;
 
+  // 1. Initial Tabs Restore on startup
   useEffect(() => {
     if (hasDesktopBridge) return;
-    async function initDraft() {
-      const draft = await loadFullDraft();
-      if (draft && draft.bytes && draft.state) {
-        setFileName(draft.state.fileName);
-        setDocBytes(draft.bytes);
-        setAnnotations(draft.state.annotations || []);
-        setPage(draft.state.page || 1);
-        if (draft.state.thumbnails && draft.state.thumbnails.length > 0) {
-          const restored = draft.state.thumbnails.map(t => ({ ...t, url: URL.createObjectURL(t.blob) }));
-          setThumbnails(restored);
+    if (new URLSearchParams(window.location.search).has("open")) return;
+    
+    async function initTabs() {
+      const loadedTabs = await loadTabsList();
+      const loadedActiveId = await loadActiveTabId();
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const groupFilter = urlParams.get("group") || null;
+
+      if (loadedTabs && loadedTabs.length > 0) {
+        const tabsWithUrls = loadedTabs.map(tab => {
+          if (tab.thumbnails && tab.thumbnails.length > 0) {
+            return {
+              ...tab,
+              thumbnails: tab.thumbnails.map(t => ({
+                ...t,
+                url: URL.createObjectURL(t.blob)
+              }))
+            };
+          }
+          return tab;
+        });
+        setTabs(tabsWithUrls);
+        
+        let targetTab = tabsWithUrls.find(t => t.id === loadedActiveId);
+        
+        if (groupFilter) {
+          const groupTabs = tabsWithUrls.filter(t => t.group === groupFilter);
+          if (groupTabs.length > 0) {
+            if (!targetTab || targetTab.group !== groupFilter) {
+              targetTab = groupTabs[0];
+            }
+          } else {
+            targetTab = undefined;
+          }
         }
-        if (bridge.replaceAnnotations) {
-          await bridge.replaceAnnotations(draft.state.fileName, draft.state.annotations || []);
+        
+        if (targetTab) {
+          if (isSwitchingRef) {
+            (isSwitchingRef as any).current = true;
+          }
+          setActiveTabId(targetTab.id);
+          setFileName(targetTab.fileName);
+          setDocBytes(targetTab.docBytes);
+          setPage(targetTab.page || 1);
+          setAnnotations(targetTab.annotations || []);
+          setBookmarks(targetTab.bookmarks || []);
+          setThumbnails(targetTab.thumbnails || []);
+          
+          if (bridge.replaceAnnotations) {
+            await bridge.replaceAnnotations(targetTab.fileName, targetTab.annotations || []);
+          }
+          
+          setTimeout(() => {
+            if (isSwitchingRef) {
+              (isSwitchingRef as any).current = false;
+            }
+          }, 100);
+        } else {
+          setShowDashboard(true);
+        }
+      } else {
+        // Legacy draft loading fallback
+        const draft = await loadFullDraft();
+        if (draft && draft.bytes && draft.state) {
+          const newTabId = "tab_initial";
+          const newTab: OpdfTab = {
+            id: newTabId,
+            fileName: draft.state.fileName,
+            docBytes: draft.bytes,
+            page: draft.state.page || 1,
+            totalPages: 0,
+            annotations: draft.state.annotations || [],
+            bookmarks: draft.state.bookmarks || [],
+            group: null,
+            groupColor: null
+          };
+          
+          setTabs([newTab]);
+          setActiveTabId(newTabId);
+          setFileName(newTab.fileName);
+          setDocBytes(newTab.docBytes);
+          setPage(newTab.page);
+          setAnnotations(newTab.annotations);
+          setBookmarks(newTab.bookmarks);
+          
+          if (bridge.replaceAnnotations) {
+            await bridge.replaceAnnotations(newTab.fileName, newTab.annotations || []);
+          }
+        } else {
+          setShowDashboard(true);
         }
       }
     }
-    void initDraft();
-  }, [bridge, hasDesktopBridge, setAnnotations, setDocBytes, setFileName, setPage, setThumbnails]);
+    void initTabs();
+  }, [bridge, hasDesktopBridge]);
 
+  // 2. Tabs Auto-Save effect
   useEffect(() => {
-    if (hasDesktopBridge || !docBytes) return;
-    void savePdfBytes(docBytes);
-  }, [hasDesktopBridge, docBytes]);
-
-  useEffect(() => {
-    if (hasDesktopBridge || !hasDocument) return;
+    if (hasDesktopBridge || tabs.length === 0) return;
     const timeout = setTimeout(() => {
-      saveWebState({ fileName, annotations, thumbnails, page });
-    }, 1500);
+      void saveTabsList(tabs);
+      void saveActiveTabId(activeTabId);
+    }, 2000);
     return () => clearTimeout(timeout);
-  }, [hasDesktopBridge, hasDocument, fileName, annotations, thumbnails, page]);
+  }, [hasDesktopBridge, tabs, activeTabId]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

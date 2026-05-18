@@ -50,7 +50,7 @@ export function useAppMenus({
   rotateRight: () => void;
   runOcr: () => void;
   setDocumentTool: Dispatch<SetStateAction<DocumentTool>>;
-  runDocumentTool: () => void;
+  runDocumentTool: (tool?: DocumentTool) => void;
 }) {
   const fileMenuItems: MenuItemDef[] = [
     { kind: "action", label: "Open...", shortcut: "Ctrl+O", onClick: openFile },
@@ -93,18 +93,18 @@ export function useAppMenus({
   const toolsMenuItems: MenuItemDef[] = [
     { kind: "action", label: "Run OCR", disabled: !hasDocument, onClick: runOcr },
     { kind: "separator" },
-    { kind: "action", label: "Delete Pages...", disabled: !hasDocument, onClick: () => { setDocumentTool("delete-pages"); runDocumentTool(); } },
-    { kind: "action", label: "Insert PDF...", disabled: !hasDocument, onClick: () => { setDocumentTool("insert-pdf"); runDocumentTool(); } },
-    { kind: "action", label: "Crop Page...", disabled: !hasDocument, onClick: () => { setDocumentTool("crop-current"); runDocumentTool(); } },
+    { kind: "action", label: "Delete Pages...", disabled: !hasDocument, onClick: () => { runDocumentTool("delete-pages"); } },
+    { kind: "action", label: "Insert PDF...", disabled: !hasDocument, onClick: () => { runDocumentTool("insert-pdf"); } },
+    { kind: "action", label: "Crop Page...", disabled: !hasDocument, onClick: () => { runDocumentTool("crop-current"); } },
     { kind: "separator" },
-    { kind: "action", label: "Add Page Numbers", disabled: !hasDocument, onClick: () => { setDocumentTool("page-numbers"); runDocumentTool(); } },
-    { kind: "action", label: "Add Header", disabled: !hasDocument, onClick: () => { setDocumentTool("header"); runDocumentTool(); } },
-    { kind: "action", label: "Add Footer", disabled: !hasDocument, onClick: () => { setDocumentTool("footer"); runDocumentTool(); } },
-    { kind: "action", label: "Add Bates Numbering", disabled: !hasDocument, onClick: () => { setDocumentTool("bates"); runDocumentTool(); } },
+    { kind: "action", label: "Add Page Numbers", disabled: !hasDocument, onClick: () => { runDocumentTool("page-numbers"); } },
+    { kind: "action", label: "Add Header", disabled: !hasDocument, onClick: () => { runDocumentTool("header"); } },
+    { kind: "action", label: "Add Footer", disabled: !hasDocument, onClick: () => { runDocumentTool("footer"); } },
+    { kind: "action", label: "Add Bates Numbering", disabled: !hasDocument, onClick: () => { runDocumentTool("bates"); } },
     { kind: "separator" },
-    { kind: "action", label: "Encrypt PDF", disabled: !hasDocument, onClick: () => { setDocumentTool("encrypt"); runDocumentTool(); } },
-    { kind: "action", label: "Decrypt PDF", disabled: !hasDocument, onClick: () => { setDocumentTool("decrypt"); runDocumentTool(); } },
-    { kind: "action", label: "Convert to PDF/A", disabled: !hasDocument, onClick: () => { setDocumentTool("normalize"); runDocumentTool(); } },
+    { kind: "action", label: "Encrypt PDF", disabled: !hasDocument, onClick: () => { runDocumentTool("encrypt"); } },
+    { kind: "action", label: "Decrypt PDF", disabled: !hasDocument, onClick: () => { runDocumentTool("decrypt"); } },
+    { kind: "action", label: "Convert to PDF/A", disabled: !hasDocument, onClick: () => { runDocumentTool("normalize"); } },
   ];
 
   return { fileMenuItems, editMenuItems, viewMenuItems, toolsMenuItems };

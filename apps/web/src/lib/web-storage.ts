@@ -1,14 +1,27 @@
-
 const DB_NAME = "OpdfWebStorage";
 const STORE_NAME = "drafts";
 const PDF_KEY = "current_pdf_bytes";
 const STATE_KEY = "current_session_state";
+
+export interface OpdfTab {
+  id: string;
+  fileName: string;
+  docBytes: Uint8Array | null;
+  page: number;
+  totalPages: number;
+  annotations: any[];
+  bookmarks: Array<{ id: string; page: number; title: string; createdAt: number }>;
+  group: string | null;
+  groupColor: string | null;
+  thumbnails?: Array<{ page: number; url: string; blob: Blob }>;
+}
 
 export interface WebState {
   fileName: string;
   annotations: any[];
   thumbnails: Array<{ page: number; blob: Blob }>;
   page: number;
+  bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
 }
 
 async function getDB(): Promise<IDBDatabase> {
@@ -20,6 +33,58 @@ async function getDB(): Promise<IDBDatabase> {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+export async function saveTabsList(tabs: OpdfTab[]) {
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put(tabs, "opdf_tabs");
+  } catch (err) {
+    console.error("Failed to save tabs list:", err);
+  }
+}
+
+export async function loadTabsList(): Promise<OpdfTab[] | null> {
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.get("opdf_tabs");
+    return new Promise((resolve) => {
+      req.onsuccess = () => resolve(req.result || null);
+      tx.onerror = () => resolve(null);
+    });
+  } catch (err) {
+    console.error("Failed to load tabs list:", err);
+    return null;
+  }
+}
+
+export async function saveActiveTabId(id: string | null) {
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put(id, "opdf_active_tab_id");
+  } catch (err) {
+    console.error("Failed to save active tab ID:", err);
+  }
+}
+
+export async function loadActiveTabId(): Promise<string | null> {
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.get("opdf_active_tab_id");
+    return new Promise((resolve) => {
+      req.onsuccess = () => resolve(req.result || null);
+      tx.onerror = () => resolve(null);
+    });
+  } catch (err) {
+    console.error("Failed to load active tab ID:", err);
+    return null;
+  }
 }
 
 export async function savePdfBytes(bytes: Uint8Array) {

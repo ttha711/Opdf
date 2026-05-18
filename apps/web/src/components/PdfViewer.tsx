@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { type PdfViewerProps, type RenderedPage, type ViewMode } from "./PdfViewer.types";
@@ -36,6 +36,7 @@ export function PdfViewer({
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [renderedPages, setRenderedPages] = useState<RenderedPage[]>([]);
   const [continuousLoadedUntil, setContinuousLoadedUntil] = useState(0);
+  const renderScale = useDeferredValue(scale);
   const renderedPagesRef = useRef<RenderedPage[]>([]);
   const lastParamsRef = useRef<{ pdf: PDFDocumentProxy | null; scale: number; rotation: number; viewMode: ViewMode }>({ pdf: null, scale, rotation, viewMode });
   const pageElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -63,9 +64,11 @@ export function PdfViewer({
     onErrorRef,
     onThumbsLoadedRef,
     thumbnailUrlsRef,
+    renderedPagesRef,
     renderedUrlsRef,
     setPdf,
     setRenderedPages,
+    setContinuousLoadedUntil,
   });
 
   useContinuousLoading({
@@ -81,7 +84,7 @@ export function PdfViewer({
   usePageRendering({
     pdf,
     page,
-    scale,
+    scale: renderScale,
     rotation,
     searchText,
     viewMode,
@@ -137,6 +140,8 @@ export function PdfViewer({
             <PdfPageStage
               key={`${p.pageNumber}-${transitionDirection}-${viewMode}`}
               pageData={p}
+              targetScale={scale}
+              targetRotation={rotation}
               transitionDirection={transitionDirection}
               viewMode={viewMode}
               highlightMode={highlightMode}

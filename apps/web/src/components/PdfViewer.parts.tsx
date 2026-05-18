@@ -16,6 +16,8 @@ export function PdfViewerEmpty() {
 
 interface PdfPageStageProps {
   pageData: RenderedPage;
+  targetScale: number;
+  targetRotation: number;
   transitionDirection: "next" | "prev";
   viewMode: "continuous" | "page";
   highlightMode: boolean;
@@ -33,11 +35,14 @@ interface PdfPageStageProps {
 
 import React from "react";
 import { FabricPage } from "./FabricPage";
+import { PdfTextLayer } from "./PdfTextSelection";
 import { getNormalizedRect } from "./PdfViewer.utils";
 
 export function PdfPageStage(props: PdfPageStageProps) {
   const {
     pageData,
+    targetScale,
+    targetRotation,
     transitionDirection,
     viewMode,
     highlightMode,
@@ -53,6 +58,12 @@ export function PdfPageStage(props: PdfPageStageProps) {
     onAnnotationDeleted,
   } = props;
 
+  const canPreviewZoom = pageData.rotation === targetRotation && pageData.scale > 0;
+  const previewScale = canPreviewZoom ? targetScale / pageData.scale : 1;
+  const stageWidth = canPreviewZoom ? pageData.width * previewScale : pageData.width;
+  const stageHeight = canPreviewZoom ? pageData.height * previewScale : pageData.height;
+  const isPreviewingZoom = Math.abs(previewScale - 1) > 0.001;
+
   return (
     <div
       key={`${pageData.pageNumber}-${transitionDirection}-${viewMode}`}
@@ -61,7 +72,8 @@ export function PdfPageStage(props: PdfPageStageProps) {
         if (el) pageElementsRef.current.set(pageData.pageNumber, el);
       }}
       className={`page-stage page-transition ${transitionDirection} ${highlightMode ? "highlight-mode" : ""} ${shapeMode ? "shape-mode" : ""} ${redactMode ? "redact-mode" : ""}`}
-      style={{ width: `${pageData.width}px`, height: `${pageData.height}px` }}
+      data-zoom-preview={isPreviewingZoom ? "true" : undefined}
+      style={{ width: `${stageWidth}px`, height: `${stageHeight}px` }}
       onClick={(event) => {
         onActivePageChange?.(pageData.pageNumber);
         if (!shapeMode && !highlightMode && !redactMode && !measureMode) {
@@ -77,22 +89,34 @@ export function PdfPageStage(props: PdfPageStageProps) {
         }
       }}
     >
-      <FabricPage
-        pageNumber={pageData.pageNumber}
-        width={pageData.width}
-        height={pageData.height}
-        imageUrl={pageData.imageUrl}
-        annotations={annotations}
-        highlightMode={highlightMode || false}
-        shapeMode={shapeMode || false}
-        redactMode={redactMode || false}
-        measureMode={measureMode || false}
-        onAnnotationCreated={(pageNum, kind, rect) => {
-          onPageToolAction?.(pageNum, kind, rect as any);
-        }}
-        onAnnotationUpdated={onAnnotationUpdated}
-        onAnnotationDeleted={onAnnotationDeleted}
-      />
+      <div className="page-zoom-layer" style={{ width: pageData.width, height: pageData.height, transform: `scale(${previewScale})` }}>
+        <FabricPage
+          pageNumber={pageData.pageNumber}
+          width={pageData.width}
+          height={pageData.height}
+          imageUrl={pageData.imageUrl}
+          annotations={annotations}
+          highlightMode={highlightMode || false}
+          shapeMode={shapeMode || false}
+          redactMode={redactMode || false}
+          measureMode={measureMode || false}
+          onAnnotationCreated={(pageNum, kind, rect) => {
+            onPageToolAction?.(pageNum, kind, rect as any);
+          }}
+          onAnnotationUpdated={onAnnotationUpdated}
+          onAnnotationDeleted={onAnnotationDeleted}
+        />
+        <PdfTextLayer
+          pageNumber={pageData.pageNumber}
+          width={pageData.width}
+          height={pageData.height}
+          textItems={pageData.textItems}
+          selectionEnabled={!highlightMode && !shapeMode && !redactMode && !measureMode}
+          onAction={(pageNum, kind, rect) => {
+            onPageToolAction?.(pageNum, kind, rect);
+          }}
+        />
+      </div>
     </div>
   );
 }

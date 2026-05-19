@@ -105,6 +105,7 @@ export interface AgentActionContext {
   state: AgentStateSnapshot;
   actions: {
     openFile?: () => void | Promise<void>;
+    openFileWithPath?: (filePath: string) => void | Promise<void>;
     closeDocument?: () => void | Promise<void>;
     exportPdf?: () => void | Promise<void>;
     compressDocument?: () => void | Promise<void>;
@@ -112,7 +113,7 @@ export interface AgentActionContext {
     convertToImages?: () => void | Promise<void>;
     goPrevPage?: () => void;
     goNextPage?: () => void;
-    zoomIn?: () => void;
+    zoomIn?: (scale?: number) => void;
     zoomOut?: () => void;
     resetZoom?: () => void;
     rotateLeft?: () => void;
@@ -155,7 +156,7 @@ const conversionPanelTools: AgentToolDefinition[] = [
 ];
 
 export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
-  { id: "open-file", title: "Open File", description: "Open a PDF or supported local file.", risk: "needs-input" },
+  { id: "open-file", title: "Open File", description: "Open a PDF or supported local file.", risk: "needs-input", optionalArgs: ["filePath"] },
   { id: "close-document", title: "Close Document", description: "Close the current document.", risk: "destructive", requiresDocument: true },
   { id: "export-pdf", title: "Export PDF", description: "Export the current edited PDF.", risk: "safe", requiresDocument: true },
   { id: "save-pdf", title: "Save PDF", description: "Alias for exporting the current edited PDF.", risk: "safe", requiresDocument: true },
@@ -165,7 +166,7 @@ export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
   { id: "go-prev-page", title: "Previous Page", description: "Navigate to the previous page.", risk: "safe", requiresDocument: true },
   { id: "go-next-page", title: "Next Page", description: "Navigate to the next page.", risk: "safe", requiresDocument: true },
   { id: "go-to-page", title: "Go to Page", description: "Navigate to a specific page.", risk: "safe", requiresDocument: true, requiredArgs: ["page"] },
-  { id: "zoom-in", title: "Zoom In", description: "Increase viewer zoom.", risk: "safe", requiresDocument: true },
+  { id: "zoom-in", title: "Zoom In", description: "Increase viewer zoom.", risk: "safe", requiresDocument: true, optionalArgs: ["zoom", "scale"] },
   { id: "zoom-out", title: "Zoom Out", description: "Decrease viewer zoom.", risk: "safe", requiresDocument: true },
   { id: "reset-zoom", title: "Reset Zoom", description: "Reset viewer zoom.", risk: "safe", requiresDocument: true },
   { id: "set-view-mode", title: "Set View Mode", description: "Switch viewer layout mode.", risk: "safe", requiresDocument: true, requiredArgs: ["mode"] },
@@ -290,7 +291,13 @@ function buildConfirmationPrompt(definition: AgentToolDefinition, args: Record<s
 async function runAgentAction(definition: AgentToolDefinition, args: Record<string, unknown>, context: AgentActionContext) {
   const { actions, state } = context;
   switch (definition.id) {
-    case "open-file": return actions.openFile?.();
+    case "open-file": {
+      const filePath = typeof args.filePath === "string" ? args.filePath : undefined;
+      if (filePath && actions.openFileWithPath) {
+        return actions.openFileWithPath(filePath);
+      }
+      return actions.openFile?.();
+    }
     case "close-document": return actions.closeDocument?.();
     case "export-pdf":
     case "save-pdf": return actions.exportPdf?.();
@@ -303,7 +310,19 @@ async function runAgentAction(definition: AgentToolDefinition, args: Record<stri
       const page = clampPage(Number(args.page), state.totalPages);
       return actions.setPage?.(page);
     }
-    case "zoom-in": return actions.zoomIn?.();
+    case "zoom-in": {
+      const zoomVal = args.zoom ?? args.scale;
+      let scale: number | undefined;
+      if (typeof zoomVal === "number") {
+        scale = zoomVal;
+      } else if (typeof zoomVal === "string") {
+        const parsed = parseFloat(zoomVal);
+        if (!isNaN(parsed)) {
+          scale = zoomVal.includes("%") ? parsed / 100 : parsed;
+        }
+      }
+      return actions.zoomIn?.(scale);
+    }
     case "zoom-out": return actions.zoomOut?.();
     case "reset-zoom": return actions.resetZoom?.();
     case "set-view-mode": return actions.setViewMode?.(normalizeViewMode(args.mode));

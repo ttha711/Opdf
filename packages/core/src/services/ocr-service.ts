@@ -62,13 +62,16 @@ export class OcrService {
       // Here we assume filePath is an image or tesseract can handle it.
       const ret = await worker.recognize(job.filePath);
       
+      // OCR text recognition may succeed, but this pipeline still does not
+      // generate a new searchable PDF with a text layer.
       job.progress = 100;
-      job.status = "done";
-      job.outputPath = job.filePath; // Placeholder for actual PDF generation with text layer
+      job.status = "failed";
+      job.error = "OCR text recognized, but searchable PDF output is not implemented yet.";
       
       await worker.terminate();
     } catch (error) {
       job.status = "failed";
+      job.error = error instanceof Error ? error.message : "OCR failed";
     }
 
     return job;

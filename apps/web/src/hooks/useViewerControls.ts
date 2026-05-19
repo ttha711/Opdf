@@ -8,10 +8,12 @@ export function useViewerControls({
   totalPages,
   setTransitionDirection,
   setTransitionTick,
+  page,
   setPage,
   setZoomPreset,
   setScale,
   setRotation,
+  setPageRotations,
   lastWheelFlipAtRef,
   activeTool,
   addHighlight,
@@ -25,10 +27,12 @@ export function useViewerControls({
   totalPages: number;
   setTransitionDirection: Dispatch<SetStateAction<"next" | "prev">>;
   setTransitionTick: Dispatch<SetStateAction<number>>;
+  page: number;
   setPage: Dispatch<SetStateAction<number>>;
   setZoomPreset: Dispatch<SetStateAction<ZoomPreset>>;
   setScale: Dispatch<SetStateAction<number>>;
   setRotation: Dispatch<SetStateAction<number>>;
+  setPageRotations: Dispatch<SetStateAction<Record<number, number>>>;
   lastWheelFlipAtRef: MutableRefObject<number>;
   activeTool: ActiveTool;
   addHighlight: (pageNumber: number, rect: PendingRect) => Promise<void>;
@@ -48,9 +52,13 @@ export function useViewerControls({
     setPage((p) => (totalPages > 0 ? Math.min(totalPages, p + 1) : p + 1));
   }
 
-  function zoomIn() {
+  function zoomIn(customScale?: number) {
     setZoomPreset("actual");
-    setScale((s) => Math.min(3, Number((s + 0.1).toFixed(2))));
+    if (typeof customScale === "number" && !isNaN(customScale)) {
+      setScale(Math.max(0.5, Math.min(3, customScale)));
+    } else {
+      setScale((s) => Math.min(3, Number((s + 0.1).toFixed(2))));
+    }
   }
 
   function zoomOut() {
@@ -71,11 +79,19 @@ export function useViewerControls({
   }
 
   function rotateLeft() {
-    setRotation((r) => (r - 90 + 360) % 360);
+    setPageRotations((prev) => {
+      const currentRotation = prev[page] || 0;
+      const nextRotation = (currentRotation - 90 + 360) % 360;
+      return { ...prev, [page]: nextRotation };
+    });
   }
 
   function rotateRight() {
-    setRotation((r) => (r + 90) % 360);
+    setPageRotations((prev) => {
+      const currentRotation = prev[page] || 0;
+      const nextRotation = (currentRotation + 90) % 360;
+      return { ...prev, [page]: nextRotation };
+    });
   }
 
   async function onPageToolAction(pageNumber: number, kind: string, rect: PendingRect) {

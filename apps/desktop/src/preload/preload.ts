@@ -34,8 +34,11 @@ const api = {
   addBatesNumbering: (bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => ipcRenderer.invoke("opdf:add-bates-numbering", bytes, prefix, startNumber, suffix) as Promise<Uint8Array>,
   convertToPdfA: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:convert-to-pdfa", bytes) as Promise<Uint8Array>,
   rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => ipcRenderer.invoke("opdf:rotate-pages", bytes, pageNumbers, degrees) as Promise<Uint8Array>,
+  convertPdfOffice: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => ipcRenderer.invoke("opdf:convert-pdf-office", bytes, format) as Promise<Uint8Array>,
   saveDocumentAs: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:save-as", bytes) as Promise<string | null>,
-
+  saveFile: (bytes: Uint8Array, defaultName: string, extensions: string[]) => ipcRenderer.invoke("opdf:save-file", bytes, defaultName, extensions) as Promise<string | null>,
+  setAiConfig: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => ipcRenderer.invoke("opdf:ai-config:set", config) as Promise<boolean>,
+  getAiConfig: () => ipcRenderer.invoke("opdf:ai-config:get") as Promise<{ mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }>,
   getRecent: () => ipcRenderer.invoke("opdf:storage:get-recent") as Promise<RecentDocument[]>,
   pushRecent: (filePath: string) => ipcRenderer.invoke("opdf:storage:push-recent", filePath) as Promise<void>,
   restoreSession: () => ipcRenderer.invoke("opdf:storage:restore-session") as Promise<SessionSnapshot>,
@@ -49,8 +52,9 @@ const api = {
   redoAnnotation: (documentId: string) => ipcRenderer.invoke("opdf:annotation:redo", documentId) as Promise<Annotation[]>,
 
   enqueueOcr: (filePath: string, language?: string) => ipcRenderer.invoke("opdf:ocr:enqueue", filePath, language) as Promise<OcrJob>,
-  runOcr: (jobId: string) => ipcRenderer.invoke("opdf:ocr:run", jobId) as Promise<OcrJob | null>,
+  runOcr: (jobId: string, inputBytes?: Uint8Array) => ipcRenderer.invoke("opdf:ocr:run", jobId, inputBytes) as Promise<OcrJob | null>,
   listOcrJobs: () => ipcRenderer.invoke("opdf:ocr:list") as Promise<OcrJob[]>,
 };
 
 contextBridge.exposeInMainWorld("opdf", api);
+

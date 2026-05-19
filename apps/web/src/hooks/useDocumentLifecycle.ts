@@ -73,6 +73,39 @@ export function useDocumentLifecycle({
     } catch {}
   }
 
+  async function openFileWithPath(filePath: string) {
+    if (hasDesktopBridge) {
+      try {
+        const result = await bridge.pickAndOpenDocument();
+        if (result) {
+          setFileName(result.filePath);
+          setDocBytes(result.bytes);
+          setPage(1);
+          setViewerError(null);
+          setThumbnails([]);
+          await bridge.pushRecent(result.filePath);
+          setAnnotations(await bridge.listAnnotations(result.filePath));
+        }
+      } catch {}
+      return;
+    }
+
+    try {
+      setViewerError("Loading file...");
+      const response = await fetch(`/@fs/${filePath.replaceAll("\\", "/")}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status} when trying to load file`);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      setFileName(filePath.split(/[\\/]/).pop() || filePath);
+      setDocBytes(bytes);
+      setPage(1);
+      setViewerError(null);
+      setThumbnails([]);
+      setAnnotations([]);
+    } catch (error) {
+      setViewerError(error instanceof Error ? error.message : "Unable to open file");
+    }
+  }
+
   async function onSelectLocalFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -129,5 +162,5 @@ export function useDocumentLifecycle({
     };
   }, [hasDesktopBridge, setAnnotations, setDocBytes, setFileName, setPage, setThumbnails, setViewerError]);
 
-  return { openFile, onSelectLocalFile, replaceDocumentBytes, closeDocument };
+  return { openFile, openFileWithPath, onSelectLocalFile, replaceDocumentBytes, closeDocument };
 }

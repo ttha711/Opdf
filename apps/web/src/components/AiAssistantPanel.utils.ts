@@ -20,6 +20,13 @@ export const checkAndParseCommand = (queryText: string): ParseResult => {
     return "help";
   }
 
+  // Check if it's a question or general inquiry rather than a direct command
+  const questionWords = ["nào", "gì", "sao", "thế nào", "như thế nào", "đâu", "hỏi", "nhỉ", "không", "chưa", "làm thế nào", "giải thích"];
+  const isQuestion = questionWords.some(word => text.includes(word));
+  if (isQuestion) {
+    return null;
+  }
+
   // 2. COMPRESS
   if (text.includes("nén") || text.includes("compress")) {
     return { tool: "compress-pdf" };
@@ -111,7 +118,11 @@ export const checkAndParseCommand = (queryText: string): ParseResult => {
   }
 
   // 13. ZOOM
-  if (text.includes("phóng to") || text.includes("zoom in")) {
+  if (text.includes("phóng to") || text.includes("zoom in") || text.includes("zoom")) {
+    const match = text.match(/(\d+(?:\.\d+)?%?)/);
+    if (match) {
+      return { tool: "zoom-in", args: { zoom: match[0] } };
+    }
     return { tool: "zoom-in" };
   } 
   if (text.includes("thu nhỏ") || text.includes("zoom out")) {

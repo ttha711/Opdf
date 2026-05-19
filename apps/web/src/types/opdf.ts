@@ -23,6 +23,7 @@ export interface OpdfBridge {
   mergePdfs: (bytesList: Uint8Array[]) => Promise<Uint8Array>;
   splitPdf: (bytes: Uint8Array, pages: number[]) => Promise<Uint8Array[]>;
   saveDocumentAs: (bytes: Uint8Array) => Promise<string | null>;
+  saveFile: (bytes: Uint8Array, defaultName: string, extensions: string[]) => Promise<string | null>;
   getRecent: () => Promise<RecentDocument[]>;
   pushRecent: (filePath: string) => Promise<void>;
   restoreSession: () => Promise<SessionSnapshot>;
@@ -35,7 +36,7 @@ export interface OpdfBridge {
   undoAnnotation: (documentId: string) => Promise<Annotation[]>;
   redoAnnotation: (documentId: string) => Promise<Annotation[]>;
   enqueueOcr: (filePath: string, language?: string) => Promise<OcrJob>;
-  runOcr: (jobId: string) => Promise<OcrJob | null>;
+  runOcr: (jobId: string, inputBytes?: Uint8Array) => Promise<OcrJob | null>;
   listOcrJobs: () => Promise<OcrJob[]>;
 
   /* ----- NEW FEATURES ----- */
@@ -50,6 +51,7 @@ export interface OpdfBridge {
   addBatesNumbering: (bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => Promise<Uint8Array>;
   convertToPdfA: (bytes: Uint8Array) => Promise<Uint8Array>;
   rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => Promise<Uint8Array>;
+  convertPdfOffice?: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => Promise<Uint8Array>;`r`n  setAiConfig?: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => Promise<boolean>;`r`n  getAiConfig?: () => Promise<{ mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }>;
 }
 
 declare global {
@@ -57,3 +59,4 @@ declare global {
     opdf?: OpdfBridge;
   }
 }
+

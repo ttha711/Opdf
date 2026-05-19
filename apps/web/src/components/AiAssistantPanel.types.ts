@@ -13,6 +13,7 @@ export interface Message {
 export interface AiAssistantPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  align?: "left" | "right";
 }
 
 export type EngineMode = "local" | "dify" | "iframe";

@@ -26,6 +26,7 @@ import { usePdfDrop } from "./hooks/usePdfDrop";
 import { useAppViewModel } from "./hooks/useAppViewModel";
 import { createAgentStateSnapshot, useAgentBridge } from "./hooks/useAgentBridge";
 import { AiAssistantPanel } from "./components/AiAssistantPanel";
+import aiAvatar from "./assets/ai-avatar.jpg";
 import "./types/opdf";
 
 export function App() {
@@ -42,6 +43,131 @@ export function App() {
   const [isDraggingRight, setIsDraggingRight] = useState(false);
   const [activeMarkupTool, setActiveMarkupTool] = useState<MarkupTool | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
+
+  // --- DRAGGABLE FAB LOGIC ---
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const dragStartMouse = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const hasMovedRef = useRef(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [panelAlign, setPanelAlign] = useState<"left" | "right">("right");
+
+  const startDrag = useCallback((clientX: number, clientY: number) => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const currentX = position ? position.x : rect.left;
+    const currentY = position ? position.y : rect.top;
+    
+    dragStartOffset.current = {
+      x: clientX - currentX,
+      y: clientY - currentY,
+    };
+    dragStartMouse.current = { x: clientX, y: clientY };
+    setIsDragging(true);
+    hasMovedRef.current = false;
+  }, [position]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return; // Only left click
+    startDrag(e.clientX, e.clientY);
+  }, [startDrag]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLButtonElement>) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      startDrag(touch.clientX, touch.clientY);
+    }
+  }, [startDrag]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      moveDrag(e.clientX, e.clientY);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    const moveDrag = (clientX: number, clientY: number) => {
+      const deltaX = clientX - dragStartMouse.current.x;
+      const deltaY = clientY - dragStartMouse.current.y;
+      
+      if (Math.sqrt(deltaX * deltaX + deltaY * deltaY) > 5) {
+        hasMovedRef.current = true;
+      }
+      
+      let newX = clientX - dragStartOffset.current.x;
+      let newY = clientY - dragStartOffset.current.y;
+
+      const btnSize = 48;
+      newX = Math.max(10, Math.min(window.innerWidth - btnSize - 10, newX));
+      newY = Math.max(10, Math.min(window.innerHeight - btnSize - 10, newY));
+
+      setPosition({ x: newX, y: newY });
+    };
+
+    const handleMouseUp = () => {
+      endDrag();
+    };
+
+    const handleTouchEnd = () => {
+      endDrag();
+    };
+
+    const endDrag = () => {
+      setIsDragging(false);
+      if (!position) return;
+
+      const btnSize = 48;
+      const currentX = position.x;
+      const distToLeft = currentX;
+      const distToRight = window.innerWidth - (currentX + btnSize);
+      
+      let finalX = 24;
+      let alignSide: "left" | "right" = "left";
+      
+      if (distToRight < distToLeft) {
+        finalX = window.innerWidth - btnSize - 24;
+        alignSide = "right";
+      }
+      
+      setPanelAlign(alignSide);
+      const finalY = Math.max(50, Math.min(window.innerHeight - btnSize - 50, position.y));
+      setPosition({ x: finalX, y: finalY });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isDragging, position]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (!position) return;
+      const btnSize = 48;
+      let finalX = 24;
+      if (panelAlign === "right") {
+        finalX = window.innerWidth - btnSize - 24;
+      }
+      const finalY = Math.max(50, Math.min(window.innerHeight - btnSize - 50, position.y));
+      setPosition({ x: finalX, y: finalY });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [position, panelAlign]);
 
   useEffect(() => {
     if (!isDraggingLeft && !isDraggingRight) return;
@@ -86,7 +212,7 @@ export function App() {
     }
   }, [state.hasDocument, state.setShowDashboard]);
 
-  const { openFile, onSelectLocalFile, replaceDocumentBytes, closeDocument } = useDocumentLifecycle({
+  const { openFile, openFileWithPath, onSelectLocalFile, replaceDocumentBytes, closeDocument } = useDocumentLifecycle({
     bridge,
     hasDesktopBridge: state.hasDesktopBridge,
     fileInputRef: state.fileInputRef,
@@ -159,10 +285,12 @@ export function App() {
     totalPages: state.totalPages,
     setTransitionDirection: state.setTransitionDirection,
     setTransitionTick: state.setTransitionTick,
+    page: state.page,
     setPage: state.setPage,
     setZoomPreset: state.setZoomPreset,
     setScale: state.setScale,
     setRotation: state.setRotation,
+    setPageRotations: state.setPageRotations,
     lastWheelFlipAtRef: state.lastWheelFlipAtRef,
     activeTool: state.activeTool,
     addHighlight,
@@ -323,6 +451,7 @@ export function App() {
     }),
     actions: {
       openFile,
+      openFileWithPath,
       closeDocument,
       exportPdf,
       compressDocument,
@@ -584,9 +713,10 @@ export function App() {
                   )}
                   <PdfViewer
                     {...viewerProps}
-                    data={tab.docBytes}
+                    data={state.activeTabId === tab.id ? state.docBytes : tab.docBytes}
                     page={state.activeTabId === tab.id ? state.page : tab.page}
                     annotations={state.activeTabId === tab.id ? state.annotations : tab.annotations}
+                    pageRotations={state.activeTabId === tab.id ? state.pageRotations : tab.pageRotations}
                     initialThumbnails={tab.thumbnails}
                   />
                 </section>
@@ -740,8 +870,21 @@ export function App() {
       
       {/* Floating AI Chat Assistant Trigger FAB */}
       <button
-        className={`ai-float-toggle-btn pulse-aura ${isAiPanelOpen ? "panel-open" : ""}`}
-        onClick={() => setIsAiPanelOpen(!isAiPanelOpen)}
+        ref={buttonRef}
+        className={`ai-float-toggle-btn pulse-aura ${isAiPanelOpen ? "panel-open" : ""} ${isDragging ? "dragging" : ""}`}
+        style={position ? {
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          right: "auto",
+          bottom: "auto"
+        } : undefined}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onClick={() => {
+          if (!hasMovedRef.current) {
+            setIsAiPanelOpen(!isAiPanelOpen);
+          }
+        }}
         title={isAiPanelOpen ? "Đóng trợ lý AI" : "Mở trợ lý AI"}
         type="button"
       >
@@ -750,14 +893,12 @@ export function App() {
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         ) : (
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-            <path d="M12 2c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 20.4a1 1 0 0 0 1.25 1.25l3.79-1.62A8.95 8.95 0 0 0 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm3 10H9v-2h6v2z" />
-          </svg>
+          <img src={aiAvatar} alt="AI" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
         )}
       </button>
 
       {/* AI Assistant Chat Panel */}
-      <AiAssistantPanel isOpen={isAiPanelOpen} onClose={() => setIsAiPanelOpen(false)} />
+      <AiAssistantPanel isOpen={isAiPanelOpen} onClose={() => setIsAiPanelOpen(false)} align={panelAlign} />
     </div>
   );
 }

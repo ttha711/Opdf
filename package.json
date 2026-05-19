@@ -17,6 +17,7 @@
     "desktop-package": "npm run package -w @opdf/desktop"
   },
   "devDependencies": {
+    "playwright": "^1.60.0",
     "typescript": "^5.8.3"
   }
 }

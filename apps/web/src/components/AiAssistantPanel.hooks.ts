@@ -4,11 +4,47 @@ import type { AgentCommand, AgentCommandResult } from "../agent/agentCommands";
 import { checkAndParseCommand } from "./AiAssistantPanel.utils";
 // window.opdfAgent type is declared globally in useAgentBridge.ts — no re-declaration needed.
 
+function extractBalancedJson(text: string): string | null {
+  const startIndex = text.indexOf("{");
+  if (startIndex === -1) return null;
+  
+  let braceCount = 0;
+  let inString = false;
+  let escaping = false;
+  
+  for (let i = startIndex; i < text.length; i++) {
+    const char = text[i];
+    if (escaping) {
+      escaping = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaping = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (char === "{") {
+        braceCount++;
+      } else if (char === "}") {
+        braceCount--;
+        if (braceCount === 0) {
+          return text.substring(startIndex, i + 1);
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export function useAiAssistant() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [showSettings, setShowSettings] = useState(false);
-  const [engineMode, setEngineMode] = useState<EngineMode>("local");
+  const [engineMode, setEngineMode] = useState<EngineMode>("dify");
   
   // Dify API Settings (Defaults pre-populated from environment variables or safe fallbacks)
   const [difyUrl, setDifyUrl] = useState(import.meta.env.VITE_DIFY_API_URL || "https://api.dify.ai/v1");
@@ -19,10 +55,18 @@ export function useAiAssistant() {
   const [iframeUrl, setIframeUrl] = useState("http://localhost:3005");
   
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const syncAiConfigToDesktop = async (nextMode: EngineMode, nextUrl: string, nextKey: string) => {
+    if (!window.opdf?.setAiConfig) return;
+    try {
+      await window.opdf.setAiConfig({ mode: nextMode, difyUrl: nextUrl, difyKey: nextKey });
+    } catch (error) {
+      console.warn("Failed to sync AI config to desktop main process:", error);
+    }
+  };
 
   // Load settings from localStorage on mount & Register postMessage bridge
   useEffect(() => {
-    const savedMode = localStorage.getItem("opdf_ai_mode");
+    let savedMode = localStorage.getItem("opdf_ai_mode");
     let savedUrl = localStorage.getItem("opdf_dify_url") || "";
     let savedKey = localStorage.getItem("opdf_dify_key") || "";
     const savedConvId = localStorage.getItem("opdf_dify_conv_id");
@@ -42,13 +86,18 @@ export function useAiAssistant() {
       localStorage.setItem("opdf_dify_key", savedKey);
     }
 
+    if (!savedMode || savedMode === "local") {
+      savedMode = "dify";
+      localStorage.setItem("opdf_ai_mode", "dify");
+    }
+
     if (savedMode === "local" || savedMode === "dify" || savedMode === "iframe") {
       setEngineMode(savedMode as EngineMode);
     }
     setDifyUrl(savedUrl);
     setDifyKey(savedKey);
     if (savedConvId) setConversationId(savedConvId);
-    if (savedIframeUrl) setIframeUrl(savedIframeUrl);
+    if (savedIframeUrl) setIframeUrl(savedIframeUrl);`r`n    void syncAiConfigToDesktop(savedMode as EngineMode, savedUrl, savedKey);
 
     // Initial welcome message
     setMessages([
@@ -108,7 +157,7 @@ export function useAiAssistant() {
     localStorage.setItem("opdf_dify_url", difyUrl);
     localStorage.setItem("opdf_dify_key", difyKey);
     localStorage.setItem("opdf_iframe_url", iframeUrl);
-    setShowSettings(false);
+    setShowSettings(false);`r`n    void syncAiConfigToDesktop(engineMode, difyUrl, difyKey);
     
     // Add assistant feedback message
     let modeText = "Trợ lý Cục bộ (Offline NLP)";
@@ -151,14 +200,30 @@ export function useAiAssistant() {
       return null;
     }
 
+    // Normalize and alias common chatbot guess tools
+    const toolAlias = String(command.tool);
+    let normalizedTool: AgentCommand["tool"] = command.tool;
+    if (toolAlias === "convert-to-word") normalizedTool = "pdf-to-word";
+    else if (toolAlias === "convert-to-excel") normalizedTool = "pdf-to-excel";
+    else if (toolAlias === "convert-to-ppt" || toolAlias === "convert-to-powerpoint") normalizedTool = "pdf-to-ppt";
+    else if (toolAlias === "convert-to-png") normalizedTool = "pdf-to-png";
+    else if (toolAlias === "convert-to-jpeg") normalizedTool = "pdf-to-jpeg";
+    else if (toolAlias === "convert-to-text" || toolAlias === "convert-to-txt") normalizedTool = "pdf-to-txt";
+    else if (toolAlias === "convert-to-html") normalizedTool = "pdf-to-html";
+
+    const normalizedCommand = {
+      ...command,
+      tool: normalizedTool
+    };
+
     try {
-      const result = await window.opdfAgent.execute(command);
+      const result = await window.opdfAgent.execute(normalizedCommand);
       return result;
     } catch (err) {
       console.error("Error executing command via bridge:", err);
       return {
         status: "failed",
-        tool: command.tool,
+        tool: normalizedCommand.tool,
         message: err instanceof Error ? err.message : String(err),
       };
     }
@@ -210,11 +275,32 @@ export function useAiAssistant() {
 
     const tempId = addMessage("assistant", "AI đang suy nghĩ...", { isPending: true });
 
+    let documentStateContext = "";
+    if (window.opdfAgent) {
+      try {
+        const state = window.opdfAgent.getState();
+        if (state && state.hasDocument) {
+          documentStateContext = `\n[DOCUMENT CONTEXT: Hiện tại, người dùng đang mở file: "${state.fileName}".
+- Tổng số trang: ${state.totalPages}
+- Trang hiện tại đang xem: ${state.currentPage}
+- Công cụ đang kích hoạt: ${state.activeTool}
+- Chế độ hiển thị: ${state.viewMode}
+- Môi trường chạy: ${state.runtime}
+Vui lòng sử dụng thông tin này nếu người dùng yêu cầu xoay trang, xóa trang, zoom, hoặc thực hiện bất kỳ hành động nào trên tài liệu đang mở này.]\n`;
+        } else {
+          documentStateContext = `\n[DOCUMENT CONTEXT: Hiện tại không có tài liệu nào được mở. Nếu người dùng yêu cầu các thao tác xử lý PDF, hãy nhắc họ mở file trước.]\n`;
+        }
+      } catch (e) {
+        console.warn("Failed to get agent state:", e);
+      }
+    }
+
     // Invisible system-context wrapped prompt so the AI chatbot knows it is in OPDF Web Viewer
     const richQuery = 
 `[SYSTEM CONTEXT: Bạn đang hỗ trợ trực tiếp bên trong ứng dụng OPDF Web Viewer (hệ thống xử lý tài liệu PDF trực tuyến của Ong & Ong). KHÔNG phải ứng dụng NextJS Project Control cũ nữa. Hãy quên menu công cụ của dự án cũ (Image Generator, Corporate Services, Our Projects...).
 
 Ngay bây giờ, người dùng đang mở trang web OPDF và đang thao tác với tài liệu PDF. Họ có thể thực hiện 57 tính năng xử lý PDF chất lượng cao bao gồm:
+- Chuyển đổi định dạng (pdf-to-word, pdf-to-excel, pdf-to-ppt, pdf-to-png, pdf-to-jpeg, pdf-to-txt)
 - Nén PDF (compress-pdf)
 - Xoay trang (rotate-view-left, rotate-view-right, rotate-all-left, rotate-all-right)
 - Xóa trang (delete-pages, tham số ví dụ: "2" hoặc "1-3")
@@ -224,7 +310,7 @@ Ngay bây giờ, người dùng đang mở trang web OPDF và đang thao tác v�
 - Thêm tiêu đề đầu trang/cuối trang (header, footer)
 - Mã hóa mật khẩu file (encrypt, decrypt)
 - Phóng to/thu nhỏ/reset zoom, cuộn liên tục (zoom-in, zoom-out, reset-zoom, set-view-mode)...
-
+${documentStateContext}
 Nhiệm vụ của bạn:
 1. Luôn hỗ trợ người dùng với vai trò là Trợ lý OPDF PDF Copilot. Giới thiệu các tính năng PDF của OPDF bằng bảng Markdown hoặc danh sách nếu họ hỏi về công cụ.
 2. CHÚ Ý CỰC KỲ QUAN TRỌNG VỀ ĐỊNH DẠNG:
@@ -283,11 +369,11 @@ User: ${queryText}`;
         textResponse = textResponse.split("<think>")[0].trim();
       }
       
-      // Robust Regex JSON Command Extractor (extracts JSON even if wrapped in markdown code blocks)
+      // Robust Balanced Brace JSON Command Extractor
       try {
-        const jsonMatch = textResponse.match(/(\{[\s\S]*?"tool"[\s\S]*?\})/i);
+        const jsonMatch = extractBalancedJson(textResponse);
         if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[1]);
+          const parsed = JSON.parse(jsonMatch);
           if (parsed.tool || parsed.execute) {
             const cmd: AgentCommand = {
               tool: parsed.tool || parsed.execute,
@@ -300,7 +386,7 @@ User: ${queryText}`;
             if (res) handleAgentResult(res, cmd);
 
             // Clean the JSON string and markdown codeblocks from the Dify text response
-            const cleanText = textResponse.replace(jsonMatch[0], "").replace(/```json|```/g, "").trim();
+            const cleanText = textResponse.replace(jsonMatch, "").replace(/```json|```/g, "").trim();
             if (cleanText) {
               addMessage("assistant", cleanText);
             }
@@ -447,3 +533,5 @@ User: ${queryText}`;
     handleSuggestionClick,
   };
 }
+
+

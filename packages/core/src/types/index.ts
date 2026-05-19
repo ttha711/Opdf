@@ -30,6 +30,7 @@ export interface OcrJob {
   status: "queued" | "running" | "done" | "failed" | "cancelled";
   progress: number;
   outputPath?: string;
+  outputBytes?: Uint8Array;
   error?: string;
 }
 

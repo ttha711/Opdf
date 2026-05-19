@@ -59,6 +59,64 @@ export function useConversionActions(args: UseConversionActionsArgs) {
     watermarkRotation,
   } = args;
 
+  const extractPageLines = (textContent: any): string[] => {
+    const rawItems = Array.isArray(textContent?.items) ? textContent.items : [];
+    const positioned = rawItems
+      .map((item: any) => {
+        const text = typeof item?.str === "string" ? item.str.trim() : "";
+        if (!text) return null;
+        const t = Array.isArray(item?.transform) ? item.transform : null;
+        const x = t && typeof t[4] === "number" ? t[4] : 0;
+        const y = t && typeof t[5] === "number" ? t[5] : 0;
+        return { text, x, y };
+      })
+      .filter(Boolean) as Array<{ text: string; x: number; y: number }>;
+
+    if (positioned.length === 0) return [];
+    positioned.sort((a, b) => (Math.abs(b.y - a.y) > 0.5 ? b.y - a.y : a.x - b.x));
+
+    const rows: Array<{ y: number; items: Array<{ text: string; x: number }> }> = [];
+    const yTolerance = 2.5;
+    for (const item of positioned) {
+      const row = rows.find((r) => Math.abs(r.y - item.y) <= yTolerance);
+      if (row) {
+        row.items.push({ text: item.text, x: item.x });
+      } else {
+        rows.push({ y: item.y, items: [{ text: item.text, x: item.x }] });
+      }
+    }
+
+    const lines = rows
+      .sort((a, b) => b.y - a.y)
+      .map((row) => row.items.sort((a, b) => a.x - b.x).map((i) => i.text).join(" ").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    return lines;
+  };
+
+  const downloadFile = async (data: Uint8Array | string, defaultName: string, extensions: string[]) => {
+    const rawBytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
+    const bytes = new Uint8Array(rawBytes.byteLength);
+    bytes.set(rawBytes);
+    if (window.opdf && typeof window.opdf.saveFile === "function") {
+      try {
+        await window.opdf.saveFile(bytes, defaultName, extensions);
+        return;
+      } catch (err) {
+        console.error("Native save failed, falling back to browser download:", err);
+      }
+    }
+    
+    const blob = new Blob([bytes], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = defaultName;
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 20000);
+  };
+
   const convertBlobToGrayscale = async (blob: Blob, isPng: boolean): Promise<Blob> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -124,12 +182,9 @@ export function useConversionActions(args: UseConversionActionsArgs) {
 
           canvas.toBlob((blob) => {
             if (blob) {
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `${fileBase}-full-pages.${imgFormat}`;
-              a.click();
-              URL.revokeObjectURL(url);
+              blob.arrayBuffer().then((buf) => {
+                downloadFile(new Uint8Array(buf), `${fileBase}-full-pages.${imgFormat}`, [imgFormat]);
+              });
             }
           }, isPng ? "image/png" : "image/jpeg");
         }
@@ -162,13 +217,7 @@ export function useConversionActions(args: UseConversionActionsArgs) {
           zipData[`page-${thumb.page}.${imgFormat}`] = new Uint8Array(buf);
         }
         const zipped = zipSync(zipData);
-        const blob = new Blob([zipped as any], { type: "application/zip" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${fileName}-images.zip`;
-        a.click();
-        URL.revokeObjectURL(url);
+        await downloadFile(zipped, `${fileName}-images.zip`, ["zip"]);
       }
 
       setViewerError(null);
@@ -201,17 +250,89 @@ export function useConversionActions(args: UseConversionActionsArgs) {
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          const pageText = textContent.items.map((item: any) => item.str).join(" ");
+          const pageText = extractPageLines(textContent).join("\n");
           fullText += `--- Page ${i} ---\n${pageText}\n\n`;
         }
 
-        const blob = new Blob([fullText], { type: "text/plain;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${fileBase}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
+        await downloadFile(fullText, `${fileBase}.txt`, ["txt"]);
+      } else if (formatSuffix === "word") {
+        if (window.opdf?.convertPdfOffice) {
+          const converted = await window.opdf.convertPdfOffice(docBytes, "docx");
+          await downloadFile(converted, `${fileBase}.docx`, ["docx"]);
+          setViewerError(null);
+          return;
+        }
+        const pdfjs = await import("pdfjs-dist");
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import("docx");
+        const pdf = await pdfjs.getDocument({ data: docBytes }).promise;
+        const children: Array<InstanceType<typeof Paragraph>> = [
+          new Paragraph({ text: `OPDF Export: ${fileName}`, heading: HeadingLevel.HEADING_1 }),
+          new Paragraph(`Layout Mode: ${officeLayout === "flow" ? "Dynamic Flow" : "Fixed Layout"}`),
+          new Paragraph(""),
+        ];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const lines = extractPageLines(textContent);
+          const pageText = lines.join("\n").trim() || "(empty)";
+          children.push(new Paragraph({ children: [new TextRun({ text: `Page ${i}`, bold: true })] }));
+          children.push(new Paragraph(pageText));
+          children.push(new Paragraph(""));
+        }
+        const doc = new Document({ sections: [{ children }] });
+        const blob = await Packer.toBlob(doc);
+        const arrayBuffer = await blob.arrayBuffer();
+        await downloadFile(new Uint8Array(arrayBuffer), `${fileBase}.docx`, ["docx"]);
+      } else if (formatSuffix === "ppt") {
+        if (window.opdf?.convertPdfOffice) {
+          const converted = await window.opdf.convertPdfOffice(docBytes, "pptx");
+          await downloadFile(converted, `${fileBase}.pptx`, ["pptx"]);
+          setViewerError(null);
+          return;
+        }
+        const pdfjs = await import("pdfjs-dist");
+        const pptxgen = (await import("pptxgenjs")).default;
+        const ppt = new pptxgen();
+        if (officeOrientation === "landscape") {
+          ppt.layout = "LAYOUT_WIDE";
+        }
+        const pdf = await pdfjs.getDocument({ data: docBytes }).promise;
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const slide = ppt.addSlide();
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const lines = extractPageLines(textContent);
+          const pageText = lines.join("\n").trim() || "(empty)";
+          slide.addText(`Page ${i}`, { x: 0.5, y: 0.4, w: 9, h: 0.4, bold: true, fontSize: 18 });
+          slide.addText(pageText, { x: 0.5, y: 1.0, w: 9, h: 4.8, fontSize: 12, valign: "top" });
+        }
+        const buffer = await ppt.write({ outputType: "arraybuffer" });
+        if (!(buffer instanceof ArrayBuffer)) {
+          throw new Error("PPT export did not return ArrayBuffer payload.");
+        }
+        await downloadFile(new Uint8Array(buffer), `${fileBase}.pptx`, ["pptx"]);
+      } else if (formatSuffix === "excel") {
+        if (window.opdf?.convertPdfOffice) {
+          const converted = await window.opdf.convertPdfOffice(docBytes, "xlsx");
+          await downloadFile(converted, `${fileBase}.xlsx`, ["xlsx"]);
+          setViewerError(null);
+          return;
+        }
+        const pdfjs = await import("pdfjs-dist");
+        const XLSX = await import("xlsx");
+        const pdf = await pdfjs.getDocument({ data: docBytes }).promise;
+        const rows: Array<{ Page: number; Text: string }> = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const lines = extractPageLines(textContent);
+          rows.push({ Page: i, Text: lines.join("\n") });
+        }
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, "PDF Text");
+        const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        await downloadFile(new Uint8Array(out), `${fileBase}.xlsx`, ["xlsx"]);
       } else {
         const text = `OPDF Integrated Office Converter (Acrobat-like)\n` +
           `==========================================\n` +
@@ -223,13 +344,7 @@ export function useConversionActions(args: UseConversionActionsArgs) {
           `Status: Successfully processed offline.\n\n` +
           `Note: All structural tables, vectors, and font layers have been reconstructed into an offline office file representation.`;
 
-        const blob = new Blob([text], { type: "application/octet-stream" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${fileBase}.${extension}`;
-        a.click();
-        URL.revokeObjectURL(url);
+        await downloadFile(text, `${fileBase}.${extension}`, [extension]);
       }
       setViewerError(null);
     } catch (err) {

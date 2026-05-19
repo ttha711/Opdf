@@ -387,32 +387,34 @@ export function AppHeader({
               </svg>
             </ToolIconButton>
             <div className="mx-0.5 h-4 w-px bg-[var(--border-color)]" />
-            <ToolIconButton label="Rotate Left" disabled={!hasDocument} onClick={rotateLeft}>
+            <ToolIconButton label="Rotate Current Page Left" disabled={!hasDocument} onClick={rotateLeft}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 15a6 6 0 1 0-6-6" />
-                <path d="M9 14V9h5" />
-                <rect x="5" y="5" width="14" height="14" rx="2" />
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <rect x="9" y="9" width="6" height="8" rx="1" />
               </svg>
             </ToolIconButton>
-            <ToolIconButton label="Rotate Right" disabled={!hasDocument} onClick={rotateRight}>
+            <ToolIconButton label="Rotate Current Page Right" disabled={!hasDocument} onClick={rotateRight}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 15a6 6 0 1 1 6-6" />
-                <path d="M15 14V9h-5" />
-                <rect x="5" y="5" width="14" height="14" rx="2" />
+                <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                <rect x="9" y="9" width="6" height="8" rx="1" />
               </svg>
             </ToolIconButton>
-            <ToolIconButton label="Rotate All Left" disabled={!hasDocument} onClick={() => runDocumentTool("rotate-all-left")}>
+            <ToolIconButton label="Rotate All Pages Left" disabled={!hasDocument} onClick={() => runDocumentTool("rotate-all-left")}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 14a8 8 0 1 1 8 8" />
-                <path d="M4 9v5h5" />
-                <rect x="10" y="6" width="8" height="10" rx="1" />
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M7 13V8a1 1 0 0 1 1-1h5" />
+                <rect x="10" y="10" width="6" height="8" rx="1" />
               </svg>
             </ToolIconButton>
-            <ToolIconButton label="Rotate All Right" disabled={!hasDocument} onClick={() => runDocumentTool("rotate-all-right")}>
+            <ToolIconButton label="Rotate All Pages Right" disabled={!hasDocument} onClick={() => runDocumentTool("rotate-all-right")}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 14a8 8 0 1 0-8 8" />
-                <path d="M20 9v5h-5" />
-                <rect x="6" y="6" width="8" height="10" rx="1" />
+                <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M7 13V8a1 1 0 0 1 1-1h5" />
+                <rect x="10" y="10" width="6" height="8" rx="1" />
               </svg>
             </ToolIconButton>
           </div>

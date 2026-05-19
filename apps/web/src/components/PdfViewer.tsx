@@ -32,13 +32,14 @@ export function PdfViewer({
   initialThumbnails,
   onAnnotationUpdated,
   onAnnotationDeleted,
-}: PdfViewerProps) {
+  pageRotations = {},
+}: PdfViewerProps & { pageRotations?: Record<number, number> }) {
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [renderedPages, setRenderedPages] = useState<RenderedPage[]>([]);
   const [continuousLoadedUntil, setContinuousLoadedUntil] = useState(0);
   const renderScale = useDeferredValue(scale);
   const renderedPagesRef = useRef<RenderedPage[]>([]);
-  const lastParamsRef = useRef<{ pdf: PDFDocumentProxy | null; scale: number; rotation: number; viewMode: ViewMode }>({ pdf: null, scale, rotation, viewMode });
+  const lastParamsRef = useRef<{ pdf: PDFDocumentProxy | null; scale: number; rotation: number; pageRotations?: Record<number, number>; viewMode: ViewMode }>({ pdf: null, scale, rotation, pageRotations, viewMode });
   const pageElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const renderedUrlsRef = useRef<string[]>([]);
@@ -86,6 +87,7 @@ export function PdfViewer({
     page,
     scale: renderScale,
     rotation,
+    pageRotations,
     searchText,
     viewMode,
     continuousLoadedUntil,
@@ -149,7 +151,7 @@ export function PdfViewer({
               key={`${p.pageNumber}-${transitionDirection}-${viewMode}`}
               pageData={p}
               targetScale={scale}
-              targetRotation={rotation}
+              targetRotation={p.rotation}
               transitionDirection={transitionDirection}
               viewMode={viewMode}
               highlightMode={highlightMode}

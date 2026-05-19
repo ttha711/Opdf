@@ -5,12 +5,21 @@ import type { DocumentTool } from "../lib/document-tools";
 import type { OpdfTab } from "../lib/web-storage";
 
 export function useAppState() {
+  const cloneBytes = (bytes: Uint8Array | null): Uint8Array | null => {
+    if (!bytes) return null;
+    try {
+      return new Uint8Array(bytes);
+    } catch {
+      return null;
+    }
+  };
   const [fileName, setFileName] = useState("");
   const [docBytes, setDocBytes] = useState<Uint8Array | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [pageRotations, setPageRotations] = useState<Record<number, number>>({});
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [ocrJobs, setOcrJobs] = useState<OcrJob[]>([]);
   const [pageSearch, setPageSearch] = useState("");
@@ -78,12 +87,13 @@ export function useAppState() {
     isSwitchingRef.current = true;
     setActiveTabId(tabId);
     setFileName(targetTab.fileName);
-    setDocBytes(targetTab.docBytes);
+    setDocBytes(cloneBytes(targetTab.docBytes));
     setPage(targetTab.page || 1);
     setTotalPages(targetTab.totalPages || 0);
     setAnnotations(targetTab.annotations || []);
     setBookmarks(targetTab.bookmarks || []);
     setThumbnails(targetTab.thumbnails || []);
+    setPageRotations(targetTab.pageRotations || {});
     
     setTimeout(() => {
       isSwitchingRef.current = false;
@@ -92,6 +102,20 @@ export function useAppState() {
 
   const closeTab = useCallback((tabId: string) => {
     setTabs(prevTabs => {
+      // Free up Blob URLs of thumbnails to prevent memory leaks
+      const tabToClose = prevTabs.find(t => t.id === tabId);
+      if (tabToClose && tabToClose.thumbnails) {
+        tabToClose.thumbnails.forEach(thumb => {
+          if (thumb.url && thumb.url.startsWith("blob:")) {
+            try {
+              URL.revokeObjectURL(thumb.url);
+            } catch (err) {
+              console.error("Failed to revoke blob URL:", err);
+            }
+          }
+        });
+      }
+
       const remainingTabs = prevTabs.filter(t => t.id !== tabId);
       
       if (activeTabId === tabId) {
@@ -109,6 +133,7 @@ export function useAppState() {
           setAnnotations([]);
           setBookmarks([]);
           setThumbnails([]);
+          setPageRotations({});
           setShowDashboard(true);
           setTimeout(() => {
             isSwitchingRef.current = false;
@@ -188,6 +213,22 @@ export function useAppState() {
     setTabs(prevTabs => {
       const remainingTabs = prevTabs.filter(t => t.group !== groupName);
       const tabsToClose = prevTabs.filter(t => t.group === groupName);
+      
+      // Free up Blob URLs of thumbnails in the closed group
+      tabsToClose.forEach(tabToClose => {
+        if (tabToClose.thumbnails) {
+          tabToClose.thumbnails.forEach(thumb => {
+            if (thumb.url && thumb.url.startsWith("blob:")) {
+              try {
+                URL.revokeObjectURL(thumb.url);
+              } catch (err) {
+                console.error("Failed to revoke blob URL:", err);
+              }
+            }
+          });
+        }
+      });
+
       const isActiveInClosedGroup = tabsToClose.some(t => t.id === activeTabId);
       
       if (isActiveInClosedGroup) {
@@ -205,6 +246,7 @@ export function useAppState() {
           setAnnotations([]);
           setBookmarks([]);
           setThumbnails([]);
+          setPageRotations({});
           setShowDashboard(true);
           setTimeout(() => {
             isSwitchingRef.current = false;
@@ -250,16 +292,18 @@ export function useAppState() {
               t.totalPages !== totalPages ||
               t.annotations !== annotations ||
               t.bookmarks !== bookmarks ||
-              t.thumbnails !== thumbnails
+              t.thumbnails !== thumbnails ||
+              t.pageRotations !== pageRotations
             ) {
               return {
                 ...t,
-                docBytes,
+                docBytes: cloneBytes(docBytes),
                 page,
                 totalPages,
                 annotations,
                 bookmarks,
-                thumbnails
+                thumbnails,
+                pageRotations
               };
             }
           }
@@ -273,12 +317,13 @@ export function useAppState() {
         isSwitchingRef.current = true;
         setActiveTabId(alreadyOpenTab.id);
         setFileName(alreadyOpenTab.fileName);
-        setDocBytes(alreadyOpenTab.docBytes);
+        setDocBytes(cloneBytes(alreadyOpenTab.docBytes));
         setPage(alreadyOpenTab.page || 1);
         setTotalPages(alreadyOpenTab.totalPages || 0);
         setAnnotations(alreadyOpenTab.annotations || []);
         setBookmarks(alreadyOpenTab.bookmarks || []);
         setThumbnails(alreadyOpenTab.thumbnails || []);
+        setPageRotations(alreadyOpenTab.pageRotations || {});
         setTimeout(() => { isSwitchingRef.current = false; }, 50);
       } else {
         // Create a new tab
@@ -289,24 +334,25 @@ export function useAppState() {
         const newTab: OpdfTab = {
           id: newTabId,
           fileName,
-          docBytes,
+          docBytes: cloneBytes(docBytes),
           page,
           totalPages,
           annotations,
           bookmarks,
           group: activeGroupFilter,
           groupColor: activeGroupFilter ? randomColor : null,
-          thumbnails: []
+          thumbnails: [],
+          pageRotations: {}
         };
         
         setTabs(prev => [...prev, newTab]);
         setActiveTabId(newTabId);
       }
     }
-  }, [fileName, docBytes, page, totalPages, annotations, bookmarks, thumbnails, activeTabId, activeGroupFilter]);
+  }, [fileName, docBytes, page, totalPages, annotations, bookmarks, thumbnails, pageRotations, activeTabId, activeGroupFilter]);
 
   return {
-    fileName, setFileName, docBytes, setDocBytes, page, setPage, totalPages, setTotalPages, scale, setScale, rotation, setRotation,
+    fileName, setFileName, docBytes, setDocBytes, page, setPage, totalPages, setTotalPages, scale, setScale, rotation, setRotation, pageRotations, setPageRotations,
     annotations, setAnnotations, ocrJobs, setOcrJobs, pageSearch, setPageSearch, searchResult, setSearchResult, activeTool, setActiveTool,
     zoomPreset, setZoomPreset, pendingNote, setPendingNote, noteText, setNoteText, showSignModal, setShowSignModal,
     signatureStyle, setSignatureStyle, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,

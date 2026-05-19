@@ -76,14 +76,88 @@ export function useDocumentActions({
   setShowMergeModal?: (v: boolean) => void;
   setShowInsertModal?: (v: boolean) => void;
 }) {
+  function isLikelyPdf(bytes: Uint8Array): boolean {
+    if (!bytes || bytes.length < 5) return false;
+    return (
+      bytes[0] === 0x25 && // %
+      bytes[1] === 0x50 && // P
+      bytes[2] === 0x44 && // D
+      bytes[3] === 0x46 && // F
+      bytes[4] === 0x2d // -
+    );
+  }
+
+  function clonePdfBytes(bytes: Uint8Array): Uint8Array {
+    return new Uint8Array(bytes);
+  }
+
+  async function isParseablePdf(bytes: Uint8Array): Promise<boolean> {
+    try {
+      const pdfjs = await import("pdfjs-dist");
+      const workerSrc = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
+      pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+      const doc = await pdfjs.getDocument({ data: clonePdfBytes(bytes) }).promise;
+      const ok = doc.numPages > 0;
+      doc.destroy();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
   async function runOcr() {
     if (!fileName) return;
     try {
+      let sourceBytes = docBytes;
+      if (!sourceBytes || sourceBytes.length === 0) {
+        const picked = await pickBrowserPdfBytes();
+        if (!picked || picked.length === 0) {
+          throw new Error("No document bytes loaded for OCR.");
+        }
+        sourceBytes = picked;
+        setDocBytes(picked);
+      }
+      if (!isLikelyPdf(sourceBytes) || !(await isParseablePdf(sourceBytes))) {
+        throw new Error("Current document bytes are not a valid PDF input for OCR.");
+      }
       setViewerError("Running OCR...");
-      const job = await bridge.enqueueOcr(fileName, "eng+vie");
-      await bridge.runOcr(job.id);
+      const job = await bridge.enqueueOcr(fileName, "eng");
+      const ocrInput = clonePdfBytes(sourceBytes);
+      const result = await bridge.runOcr(job.id, ocrInput);
       setOcrJobs(await bridge.listOcrJobs());
-      setViewerError("OCR complete. Result is listed in the OCR panel.");
+      if (!result) {
+        throw new Error("OCR job not found");
+      }
+      if (result.status === "failed") {
+        throw new Error(result.error || "OCR failed");
+      }
+      if (result.outputBytes && result.outputBytes.length > 0) {
+        if (!isLikelyPdf(result.outputBytes)) {
+          throw new Error("OCR output is invalid (not a PDF).");
+        }
+        if (!(await isParseablePdf(result.outputBytes))) {
+          throw new Error("OCR output PDF is corrupted and cannot be opened.");
+        }
+        const outputBytes = clonePdfBytes(result.outputBytes);
+        replaceDocumentBytes(outputBytes, page);
+        if (hasDesktopBridge) {
+          await bridge.saveDocumentAs(outputBytes);
+        } else {
+          const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
+          const finalName = baseName.toLowerCase().endsWith(".pdf") ? baseName : `${baseName}.pdf`;
+          const blob = new Blob([clonePdfBytes(outputBytes) as unknown as BlobPart], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = `ocr-${finalName}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      }
+      setViewerError("OCR complete. Searchable PDF has been created.");
       setTimeout(() => setViewerError(null), 3000);
     } catch (error) {
       setViewerError(error instanceof Error ? error.message : "OCR failed");

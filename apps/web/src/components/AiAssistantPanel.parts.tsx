@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import type { Message, EngineMode } from "./AiAssistantPanel.types";
 import type { AgentCommand } from "../agent/agentCommands";
+import aiAvatar from "../assets/ai-avatar.jpg";
 
 // --- MARKDOWN MESSAGE COMPONENT ---
 interface MarkdownMessageProps {
@@ -266,9 +267,7 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
             <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5z" />
           </svg>
         ) : (
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <path d="M12 2c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 20.4a1 1 0 0 0 1.25 1.25l3.79-1.62A8.95 8.95 0 0 0 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm3 10H9v-2h6v2z" />
-          </svg>
+          <img src={aiAvatar} alt="AI" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
         )}
       </div>
       <div className="ai-message-bubble">
@@ -320,8 +319,15 @@ interface SuggestionChipsProps {
 }
 
 export function SuggestionChips({ onSuggestionClick }: SuggestionChipsProps) {
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaY !== 0) {
+      e.preventDefault();
+      e.currentTarget.scrollLeft += e.deltaY;
+    }
+  };
+
   return (
-    <div className="ai-suggestions-container">
+    <div className="ai-suggestions-container" onWheel={handleWheel}>
       <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("nén tài liệu")} type="button">
         🗜️ Nén PDF
       </button>

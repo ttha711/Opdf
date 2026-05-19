@@ -7,6 +7,7 @@ export interface PdfViewerProps {
   page: number;
   scale: number;
   rotation?: number;
+  pageRotations?: Record<number, number>;
   viewMode?: ViewMode;
   annotations?: import("@opdf/core").Annotation[];
   highlightMode?: boolean;

@@ -8,6 +8,27 @@ const THUMBNAIL_CSS_WIDTH = 188;
 const THUMBNAIL_MAX_DEVICE_SCALE = 2;
 const THUMBNAIL_JPEG_QUALITY = 0.72;
 
+async function createFallbackThumbnail(pageNumber: number) {
+  const fallbackCanvas = document.createElement("canvas");
+  fallbackCanvas.width = 180;
+  fallbackCanvas.height = 240;
+  const context = fallbackCanvas.getContext("2d");
+  if (!context) return null;
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, fallbackCanvas.width, fallbackCanvas.height);
+  context.strokeStyle = "#d1d5db";
+  context.strokeRect(0.5, 0.5, fallbackCanvas.width - 1, fallbackCanvas.height - 1);
+
+  context.fillStyle = "#6b7280";
+  context.font = "600 18px Segoe UI, Arial, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(`Page ${pageNumber}`, fallbackCanvas.width / 2, fallbackCanvas.height / 2);
+
+  return canvasToBlob(fallbackCanvas, "image/jpeg", THUMBNAIL_JPEG_QUALITY);
+}
+
 function getThumbnailScale(pageWidth: number) {
   const deviceScale = Math.min(window.devicePixelRatio || 1, THUMBNAIL_MAX_DEVICE_SCALE);
   return Math.max(0.1, (THUMBNAIL_CSS_WIDTH * deviceScale) / Math.max(1, pageWidth));
@@ -34,8 +55,6 @@ export function usePdfDataLoader(params: {
     if (!data) {
       renderedUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       renderedUrlsRef.current = [];
-      thumbnailUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      thumbnailUrlsRef.current = [];
       setPdf(null);
       renderedPagesRef.current = [];
       setRenderedPages([]);
@@ -64,7 +83,6 @@ export function usePdfDataLoader(params: {
         onDocumentLoadedRef.current?.(nextPdf.numPages);
         onErrorRef.current?.(null);
 
-        thumbnailUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
         thumbnailUrlsRef.current = [];
 
         if (initialThumbnails && initialThumbnails.length > 0) {
@@ -90,13 +108,19 @@ export function usePdfDataLoader(params: {
           const batchResults = await Promise.all(
             batchPageNums.map(async (pNum) => {
               if (cancelled) return null;
+              let p: Awaited<ReturnType<PDFDocumentProxy["getPage"]>> | null = null;
               try {
-                const p = await nextPdf.getPage(pNum);
+                p = await nextPdf.getPage(pNum);
                 const baseViewport = p.getViewport({ scale: 1 });
                 const vp = p.getViewport({ scale: getThumbnailScale(baseViewport.width) });
                 const c = document.createElement("canvas");
                 const ctx = c.getContext("2d");
-                if (!ctx) return null;
+                if (!ctx) {
+                  const fallbackBlob = await createFallbackThumbnail(pNum);
+                  if (!fallbackBlob) return null;
+                  const fallbackUrl = URL.createObjectURL(fallbackBlob);
+                  return { page: pNum, url: fallbackUrl, blob: fallbackBlob };
+                }
                 
                 c.width = Math.max(1, Math.floor(vp.width));
                 c.height = Math.max(1, Math.floor(vp.height));
@@ -105,14 +129,22 @@ export function usePdfDataLoader(params: {
                 drawAnnotationsToCanvas(ctx, annotations, pNum, c.width, c.height);
                 
                 const blob = await canvasToBlob(c, "image/jpeg", THUMBNAIL_JPEG_QUALITY);
-                p.cleanup();
-                
-                if (!blob) return null;
+                if (!blob) {
+                  const fallbackBlob = await createFallbackThumbnail(pNum);
+                  if (!fallbackBlob) return null;
+                  const fallbackUrl = URL.createObjectURL(fallbackBlob);
+                  return { page: pNum, url: fallbackUrl, blob: fallbackBlob };
+                }
                 const url = URL.createObjectURL(blob);
                 return { page: pNum, url, blob };
               } catch (err) {
                 console.error(`Failed to render thumbnail for page ${pNum}:`, err);
-                return null;
+                const fallbackBlob = await createFallbackThumbnail(pNum);
+                if (!fallbackBlob) return null;
+                const fallbackUrl = URL.createObjectURL(fallbackBlob);
+                return { page: pNum, url: fallbackUrl, blob: fallbackBlob };
+              } finally {
+                p?.cleanup();
               }
             })
           );

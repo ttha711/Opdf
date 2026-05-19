@@ -8,16 +8,17 @@ export function usePageRendering(params: {
   page: number;
   scale: number;
   rotation: number;
+  pageRotations?: Record<number, number>;
   searchText?: string;
   viewMode: ViewMode;
   continuousLoadedUntil: number;
   setRenderedPages: Dispatch<SetStateAction<RenderedPage[]>>;
   renderedPagesRef: MutableRefObject<RenderedPage[]>;
   renderedUrlsRef: MutableRefObject<string[]>;
-  lastParamsRef: MutableRefObject<{ pdf: PDFDocumentProxy | null; scale: number; rotation: number; viewMode: ViewMode }>;
+  lastParamsRef: MutableRefObject<{ pdf: PDFDocumentProxy | null; scale: number; rotation: number; pageRotations?: Record<number, number>; viewMode: ViewMode }>;
   onSearchResultRef: MutableRefObject<((found: boolean, message: string) => void) | undefined>;
 }) {
-  const { pdf, page, scale, rotation, searchText, viewMode, continuousLoadedUntil, setRenderedPages, renderedPagesRef, renderedUrlsRef, lastParamsRef, onSearchResultRef } = params;
+  const { pdf, page, scale, rotation, pageRotations = {}, searchText, viewMode, continuousLoadedUntil, setRenderedPages, renderedPagesRef, renderedUrlsRef, lastParamsRef, onSearchResultRef } = params;
 
   useEffect(() => {
     if (!pdf) return;
@@ -29,10 +30,11 @@ export function usePageRendering(params: {
         lastParamsRef.current.pdf !== pdf ||
         lastParamsRef.current.scale !== scale ||
         lastParamsRef.current.rotation !== rotation ||
+        JSON.stringify(lastParamsRef.current.pageRotations) !== JSON.stringify(pageRotations) ||
         lastParamsRef.current.viewMode !== viewMode;
 
       if (paramsChanged) {
-        lastParamsRef.current = { pdf, scale, rotation, viewMode };
+        lastParamsRef.current = { pdf, scale, rotation, pageRotations, viewMode };
       }
 
       const targetPages: number[] = [];
@@ -68,7 +70,8 @@ export function usePageRendering(params: {
         if (cancelled) break;
         const p = await pdf.getPage(pNum);
         const pageRotation = p.rotate || 0;
-        const combinedRotation = (pageRotation + rotation) % 360;
+        const specificRotation = pageRotations[pNum] || 0;
+        const combinedRotation = (pageRotation + specificRotation + rotation) % 360;
         const vp = p.getViewport({ scale, rotation: combinedRotation });
         const cssWidth = Math.max(1, Math.round(vp.width));
         const renderScale = cssWidth / vp.width;
@@ -121,7 +124,7 @@ export function usePageRendering(params: {
               transform: "none",
             };
           });
-        const renderedPage = { pageNumber: pNum, width: cssWidth, height: cssHeight, scale, rotation, imageUrl: url, textItems };
+        const renderedPage = { pageNumber: pNum, width: cssWidth, height: cssHeight, scale, rotation: combinedRotation, imageUrl: url, textItems };
         p.cleanup();
         if (cancelled) {
           URL.revokeObjectURL(url);
@@ -164,5 +167,5 @@ export function usePageRendering(params: {
       cancelled = true;
       activeRenderTasks.forEach((task) => task.cancel());
     };
-  }, [pdf, page, scale, rotation, searchText, viewMode, continuousLoadedUntil]);
+  }, [pdf, page, scale, rotation, pageRotations, searchText, viewMode, continuousLoadedUntil]);
 }

@@ -14,6 +14,7 @@ export interface OpdfTab {
   group: string | null;
   groupColor: string | null;
   thumbnails?: Array<{ page: number; url: string; blob: Blob }>;
+  pageRotations?: Record<number, number>;
 }
 
 export interface WebState {
@@ -37,9 +38,23 @@ async function getDB(): Promise<IDBDatabase> {
 
 export async function saveTabsList(tabs: OpdfTab[]) {
   try {
+    const safeTabs: OpdfTab[] = tabs.map((tab) => {
+      let safeDocBytes: Uint8Array | null = null;
+      if (tab.docBytes) {
+        try {
+          safeDocBytes = new Uint8Array(tab.docBytes);
+        } catch {
+          safeDocBytes = null;
+        }
+      }
+      return {
+        ...tab,
+        docBytes: safeDocBytes,
+      };
+    });
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(tabs, "opdf_tabs");
+    tx.objectStore(STORE_NAME).put(safeTabs, "opdf_tabs");
   } catch (err) {
     console.error("Failed to save tabs list:", err);
   }

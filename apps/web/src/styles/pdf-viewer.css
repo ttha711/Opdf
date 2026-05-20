@@ -1,0 +1,116 @@
+@layer components {
+  .pdf-text-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 12;
+    overflow: hidden;
+    line-height: 1;
+    pointer-events: none;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  .pdf-text-layer span {
+    position: absolute;
+    display: block;
+    color: rgba(0, 0, 0, 0.01);
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0 0;
+    user-select: text;
+    -webkit-user-select: text;
+    pointer-events: auto;
+  }
+
+  .pdf-text-layer.disabled {
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .pdf-text-layer.disabled span {
+    pointer-events: none;
+  }
+
+  .pdf-text-layer ::selection {
+    background: rgba(65, 132, 199, 0.32);
+  }
+
+  .text-selection-menu {
+    position: fixed;
+    z-index: 80;
+    min-width: 170px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.16);
+    border-radius: 7px;
+    background: #fff;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+    transform: translate(-50%, -100%);
+    user-select: none;
+  }
+
+  .text-selection-menu.at-selection {
+    transform: translate(-50%, -100%);
+  }
+
+  .text-selection-menu.at-cursor {
+    transform: translate(0, 0);
+  }
+
+  .text-selection-menu button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    border: 0;
+    background: transparent;
+    padding: 9px 12px;
+    color: #111827;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .text-selection-menu button:hover {
+    background: #f3f4f6;
+  }
+
+  .menu-swatch {
+    margin-left: auto;
+    order: 2;
+    width: 18px;
+    height: 18px;
+    border: 1px solid rgba(0, 0, 0, 0.55);
+    border-radius: 999px;
+  }
+
+  .menu-swatch.yellow { background: #facc15; }
+  .menu-swatch.red { background: #ef4444; }
+  .annotation-shape { border: 2px solid #ef4444; background: rgba(239,68,68,.08); }
+  .annotation-note { @apply min-h-[42px] min-w-[80px] rounded-[2px] border bg-[#fff8d6] p-2 text-[13px] leading-[1.4] text-[#333] shadow; border-color: #f5c71a; }
+  .annotation-signature {
+    @apply flex items-end border-b-2 border-gray-900 px-1.5 pb-1 text-gray-900;
+    font-family: "Brush Script MT", "Segoe Script", cursive;
+    font-size: 24px;
+    line-height: 1.2;
+  }
+
+  .find-bar {
+    @apply absolute top-4 right-8 z-30 flex items-center gap-2 rounded-lg border p-2 shadow-xl;
+    background: var(--bg-toolbar);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+  }
+  .find-bar-input {
+    @apply border-none bg-transparent text-sm focus:outline-none;
+    color: var(--text-primary);
+    width: 180px;
+  }
+  .find-bar-result {
+    @apply border-l px-2 text-xs text-[var(--text-secondary)];
+    border-color: var(--border-color);
+  }
+  .find-bar-close {
+    @apply flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[var(--ui-hover-bg)];
+    color: var(--text-secondary);
+  }
+}

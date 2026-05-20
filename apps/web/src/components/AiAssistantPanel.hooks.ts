@@ -1,155 +1,39 @@
-import { useState, useEffect, useRef, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import type { Message, EngineMode } from "./AiAssistantPanel.types";
 import type { AgentCommand, AgentCommandResult } from "../agent/agentCommands";
-import { checkAndParseCommand } from "./AiAssistantPanel.utils";
-// window.opdfAgent type is declared globally in useAgentBridge.ts — no re-declaration needed.
-
-function extractBalancedJson(text: string): string | null {
-  const startIndex = text.indexOf("{");
-  if (startIndex === -1) return null;
-  
-  let braceCount = 0;
-  let inString = false;
-  let escaping = false;
-  
-  for (let i = startIndex; i < text.length; i++) {
-    const char = text[i];
-    if (escaping) {
-      escaping = false;
-      continue;
-    }
-    if (char === "\\") {
-      escaping = true;
-      continue;
-    }
-    if (char === '"') {
-      inString = !inString;
-      continue;
-    }
-    if (!inString) {
-      if (char === "{") {
-        braceCount++;
-      } else if (char === "}") {
-        braceCount--;
-        if (braceCount === 0) {
-          return text.substring(startIndex, i + 1);
-        }
-      }
-    }
-  }
-  return null;
-}
+import { checkAndParseCommand, extractBalancedJson } from "./AiAssistantPanel.utils";
+import { useAiAssistantSettings } from "./useAiAssistantSettings";
+import { useAiAssistantMessages } from "./useAiAssistantMessages";
+import { useAiAssistantIframeBridge } from "./useAiAssistantIframeBridge";
 
 export function useAiAssistant() {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
-  const [showSettings, setShowSettings] = useState(false);
-  const [engineMode, setEngineMode] = useState<EngineMode>("dify");
-  
-  // Dify API Settings (Defaults pre-populated from environment variables or safe fallbacks)
-  const [difyUrl, setDifyUrl] = useState(import.meta.env.VITE_DIFY_API_URL || "https://api.dify.ai/v1");
-  const [difyKey, setDifyKey] = useState(import.meta.env.VITE_DIFY_API_KEY || "");
-  const [conversationId, setConversationId] = useState("");
-  
-  // Iframe Integration Settings (Defaults pointing to http://localhost:3005)
-  const [iframeUrl, setIframeUrl] = useState("http://localhost:3005");
-  
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const syncAiConfigToDesktop = async (nextMode: EngineMode, nextUrl: string, nextKey: string) => {
-    if (!window.opdf?.setAiConfig) return;
-    try {
-      await window.opdf.setAiConfig({ mode: nextMode, difyUrl: nextUrl, difyKey: nextKey });
-    } catch (error) {
-      console.warn("Failed to sync AI config to desktop main process:", error);
-    }
-  };
 
-  // Load settings from localStorage on mount & Register postMessage bridge
-  useEffect(() => {
-    let savedMode = localStorage.getItem("opdf_ai_mode");
-    let savedUrl = localStorage.getItem("opdf_dify_url") || "";
-    let savedKey = localStorage.getItem("opdf_dify_key") || "";
-    const savedConvId = localStorage.getItem("opdf_dify_conv_id");
-    const savedIframeUrl = localStorage.getItem("opdf_iframe_url");
+  const {
+    showSettings,
+    setShowSettings,
+    engineMode,
+    setEngineMode,
+    difyUrl,
+    setDifyUrl,
+    difyKey,
+    setDifyKey,
+    conversationId,
+    setConversationId,
+    iframeUrl,
+    setIframeUrl,
+    syncAiConfigToDesktop,
+  } = useAiAssistantSettings();
 
-    // Resolve default environment variables or safe fallback values
-    const defaultUrl = import.meta.env.VITE_DIFY_API_URL || "https://ong-ongai.duckdns.org/v1";
-    const defaultKey = import.meta.env.VITE_DIFY_API_KEY || "REDACTED_DIFY_API_KEY";
+  const {
+    messages,
+    setMessages,
+    chatEndRef,
+    addMessage,
+  } = useAiAssistantMessages();
 
-    // Self-healing migration from public Dify to company's self-hosted Dify host
-    if (!savedUrl || savedUrl === "https://api.dify.ai/v1") {
-      savedUrl = defaultUrl;
-      localStorage.setItem("opdf_dify_url", savedUrl);
-    }
-    if (!savedKey || savedKey === "REDACTED_DIFY_API_KEY") {
-      savedKey = defaultKey;
-      localStorage.setItem("opdf_dify_key", savedKey);
-    }
-
-    if (!savedMode || savedMode === "local") {
-      savedMode = "dify";
-      localStorage.setItem("opdf_ai_mode", "dify");
-    }
-
-    if (savedMode === "local" || savedMode === "dify" || savedMode === "iframe") {
-      setEngineMode(savedMode as EngineMode);
-    }
-    setDifyUrl(savedUrl);
-    setDifyKey(savedKey);
-    if (savedConvId) setConversationId(savedConvId);
-    if (savedIframeUrl) setIframeUrl(savedIframeUrl);`r`n    void syncAiConfigToDesktop(savedMode as EngineMode, savedUrl, savedKey);
-
-    // Initial welcome message
-    setMessages([
-      {
-        id: "welcome",
-        sender: "assistant",
-        text: "Xin chào! Tôi là Trợ lý AI của OPDF. 🚀\n\nTôi có thể giúp bạn thao tác nhanh tài liệu PDF bằng câu lệnh tự nhiên cục bộ (NLP) hoặc kết nối trực tiếp với chatbot AI (Dify) của bạn.\n\nHãy thử các nút gợi ý nhanh bên dưới hoặc gõ 'trợ giúp' để xem danh sách câu lệnh!",
-        timestamp: new Date(),
-      },
-    ]);
-
-    // postMessage bidirectional bridge listener
-    const handleIframeMessage = async (event: MessageEvent) => {
-      // Validate that the message is meant for OPDF Agent execution
-      if (event.data && event.data.type === "OPDF_AGENT_COMMAND") {
-        const { command, callbackId } = event.data;
-        console.log("[AiAssistantPanel] Received iframe command:", command);
-
-        if (window.opdfAgent) {
-          try {
-            // Execute command locally
-            const result = await window.opdfAgent.execute(command);
-            
-            // Post result back to the iframe source window
-            if (event.source) {
-              (event.source as WindowProxy).postMessage({
-                type: "OPDF_AGENT_RESULT",
-                callbackId,
-                result
-              }, event.origin || "*");
-            }
-          } catch (err) {
-            if (event.source) {
-              (event.source as WindowProxy).postMessage({
-                type: "OPDF_AGENT_RESULT",
-                callbackId,
-                result: {
-                  status: "failed",
-                  message: err instanceof Error ? err.message : String(err)
-                }
-              }, event.origin || "*");
-            }
-          }
-        }
-      }
-    };
-
-    window.addEventListener("message", handleIframeMessage);
-    return () => {
-      window.removeEventListener("message", handleIframeMessage);
-    };
-  }, []);
+  // Set up bilateral postMessage listener for embedded iframe
+  useAiAssistantIframeBridge();
 
   // Save settings helper
   const handleSaveSettings = () => {
@@ -157,7 +41,8 @@ export function useAiAssistant() {
     localStorage.setItem("opdf_dify_url", difyUrl);
     localStorage.setItem("opdf_dify_key", difyKey);
     localStorage.setItem("opdf_iframe_url", iframeUrl);
-    setShowSettings(false);`r`n    void syncAiConfigToDesktop(engineMode, difyUrl, difyKey);
+    setShowSettings(false);
+    void syncAiConfigToDesktop("dify", difyUrl, difyKey);
     
     // Add assistant feedback message
     let modeText = "Trợ lý Cục bộ (Offline NLP)";
@@ -173,24 +58,6 @@ export function useAiAssistant() {
         timestamp: new Date(),
       },
     ]);
-  };
-
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Helper to append a message
-  const addMessage = (sender: "user" | "assistant", text: string, extra?: Partial<Message>) => {
-    const newMessage: Message = {
-      id: Math.random().toString(),
-      sender,
-      text,
-      timestamp: new Date(),
-      ...extra,
-    };
-    setMessages((prev) => [...prev, newMessage]);
-    return newMessage.id;
   };
 
   // Execute Agent Command and handle response
@@ -533,5 +400,3 @@ User: ${queryText}`;
     handleSuggestionClick,
   };
 }
-
-

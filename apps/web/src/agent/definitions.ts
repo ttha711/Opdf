@@ -1,0 +1,71 @@
+import type { AgentToolDefinition, AgentToolId } from "./types";
+
+const conversionPanelTools: AgentToolDefinition[] = [
+  { id: "pdf-to-word", title: "PDF to Word", description: "Open the PDF to Word export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-word" },
+  { id: "pdf-to-excel", title: "PDF to Excel", description: "Open the PDF to Excel export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-excel" },
+  { id: "pdf-to-ppt", title: "PDF to PowerPoint", description: "Open the PDF to PowerPoint export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-ppt" },
+  { id: "pdf-to-png", title: "PDF to PNG", description: "Open the PDF image export tool with PNG output.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-png" },
+  { id: "pdf-to-jpeg", title: "PDF to JPEG", description: "Open the PDF image export tool with JPEG output.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-jpeg" },
+  { id: "pdf-to-txt", title: "PDF to TXT", description: "Open the PDF text export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-txt" },
+  { id: "pdf-to-html", title: "PDF to HTML", description: "Open the PDF to HTML export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-html" },
+  { id: "pdf-to-xml", title: "PDF to XML", description: "Open the PDF to XML export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-xml" },
+  { id: "pdf-to-rtf", title: "PDF to RTF", description: "Open the PDF to RTF export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-rtf" },
+  { id: "word-to-pdf", title: "Word to PDF", description: "Open the Word to PDF converter and ask for a source file.", risk: "needs-input", panelTool: "word-to-pdf" },
+  { id: "excel-to-pdf", title: "Excel to PDF", description: "Open the Excel to PDF converter and ask for a source file.", risk: "needs-input", panelTool: "excel-to-pdf" },
+  { id: "ppt-to-pdf", title: "PowerPoint to PDF", description: "Open the PowerPoint to PDF converter and ask for a source file.", risk: "needs-input", panelTool: "ppt-to-pdf" },
+  { id: "image-to-pdf", title: "Image to PDF", description: "Open the Image to PDF converter and ask for source images.", risk: "needs-input", panelTool: "image-to-pdf" },
+  { id: "rtf-to-pdf", title: "RTF to PDF", description: "Open the RTF to PDF converter and ask for a source file.", risk: "needs-input", panelTool: "rtf-to-pdf" },
+  { id: "txt-to-pdf", title: "TXT to PDF", description: "Open the TXT to PDF converter and ask for a source file.", risk: "needs-input", panelTool: "txt-to-pdf" },
+  { id: "merge-pdf", title: "Merge PDF", description: "Open merge workflow. Requires additional PDF files.", risk: "needs-input", panelTool: "merge-pdf" },
+  { id: "split-pdf", title: "Split PDF", description: "Open split workflow for page ranges or extraction.", risk: "needs-input", requiresDocument: true, panelTool: "split-pdf" },
+  { id: "watermark-pdf", title: "Watermark PDF", description: "Add a text watermark to the current PDF.", risk: "safe", requiresDocument: true, requiredArgs: ["text"], optionalArgs: ["fontSize", "color", "opacity", "rotation"], panelTool: "watermark-pdf" },
+  { id: "fill-form", title: "Fill Form", description: "Enable form filling and annotation tools.", risk: "needs-input", requiresDocument: true, panelTool: "fill-form" },
+];
+
+export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
+  { id: "open-file", title: "Open File", description: "Open a PDF or supported local file.", risk: "needs-input", optionalArgs: ["filePath"] },
+  { id: "close-document", title: "Close Document", description: "Close the current document.", risk: "destructive", requiresDocument: true },
+  { id: "export-pdf", title: "Export PDF", description: "Export the current edited PDF.", risk: "safe", requiresDocument: true },
+  { id: "save-pdf", title: "Save PDF", description: "Alias for exporting the current edited PDF.", risk: "safe", requiresDocument: true },
+  { id: "compress-pdf", title: "Compress PDF", description: "Compress the current PDF.", risk: "safe", requiresDocument: true },
+  { id: "run-ocr", title: "Run OCR", description: "Run OCR on the current PDF.", risk: "safe", requiresDocument: true },
+  { id: "convert-to-images", title: "Convert to Images", description: "Export rendered pages as image files.", risk: "safe", requiresDocument: true },
+  { id: "go-prev-page", title: "Previous Page", description: "Navigate to the previous page.", risk: "safe", requiresDocument: true },
+  { id: "go-next-page", title: "Next Page", description: "Navigate to the next page.", risk: "safe", requiresDocument: true },
+  { id: "go-to-page", title: "Go to Page", description: "Navigate to a specific page.", risk: "safe", requiresDocument: true, requiredArgs: ["page"] },
+  { id: "zoom-in", title: "Zoom In", description: "Increase viewer zoom.", risk: "safe", requiresDocument: true, optionalArgs: ["zoom", "scale"] },
+  { id: "zoom-out", title: "Zoom Out", description: "Decrease viewer zoom.", risk: "safe", requiresDocument: true },
+  { id: "reset-zoom", title: "Reset Zoom", description: "Reset viewer zoom.", risk: "safe", requiresDocument: true },
+  { id: "set-view-mode", title: "Set View Mode", description: "Switch viewer layout mode.", risk: "safe", requiresDocument: true, requiredArgs: ["mode"] },
+  { id: "rotate-view-left", title: "Rotate View Left", description: "Rotate the viewer left without changing the file.", risk: "safe", requiresDocument: true },
+  { id: "rotate-view-right", title: "Rotate View Right", description: "Rotate the viewer right without changing the file.", risk: "safe", requiresDocument: true },
+  { id: "undo-annotations", title: "Undo Annotation", description: "Undo the latest annotation change.", risk: "safe", requiresDocument: true },
+  { id: "redo-annotations", title: "Redo Annotation", description: "Redo the latest annotation change.", risk: "safe", requiresDocument: true },
+  { id: "select-tool", title: "Select Tool", description: "Switch to select mode.", risk: "safe", requiresDocument: true },
+  { id: "highlight-tool", title: "Highlight Tool", description: "Switch to highlight annotation mode.", risk: "safe", requiresDocument: true },
+  { id: "note-tool", title: "Note Tool", description: "Switch to note annotation mode.", risk: "safe", requiresDocument: true },
+  { id: "shape-tool", title: "Shape Tool", description: "Switch to shape annotation mode.", risk: "safe", requiresDocument: true },
+  { id: "redact-tool", title: "Redact Tool", description: "Switch to redaction annotation mode.", risk: "safe", requiresDocument: true },
+  { id: "signature-tool", title: "Signature Tool", description: "Switch to signature annotation mode.", risk: "safe", requiresDocument: true },
+  { id: "rotate-all-left", title: "Rotate All Pages Left", description: "Persistently rotate every PDF page left.", risk: "safe", requiresDocument: true, documentTool: "rotate-all-left" },
+  { id: "rotate-all-right", title: "Rotate All Pages Right", description: "Persistently rotate every PDF page right.", risk: "safe", requiresDocument: true, documentTool: "rotate-all-right" },
+  { id: "delete-pages", title: "Delete Pages", description: "Delete one or more pages from the PDF.", risk: "destructive", requiresDocument: true, requiredArgs: ["pages"], documentTool: "delete-pages" },
+  { id: "insert-pdf", title: "Insert PDF", description: "Insert pages from another PDF.", risk: "needs-input", requiresDocument: true, requiredArgs: ["targetPage", "position"], documentTool: "insert-pdf" },
+  { id: "crop-current", title: "Crop Current Page", description: "Crop the current page.", risk: "destructive", requiresDocument: true, requiredArgs: ["marginPercent"], documentTool: "crop-current" },
+  { id: "page-numbers", title: "Add Page Numbers", description: "Add page numbers with optional prefix/suffix and range.", risk: "safe", requiresDocument: true, markupTool: "page-numbers" },
+  { id: "header", title: "Add Header", description: "Add a header to pages.", risk: "safe", requiresDocument: true, requiredArgs: ["text"], markupTool: "header" },
+  { id: "footer", title: "Add Footer", description: "Add a footer to pages.", risk: "safe", requiresDocument: true, requiredArgs: ["text"], markupTool: "footer" },
+  { id: "bates", title: "Add Bates Numbering", description: "Add Bates numbering to pages.", risk: "safe", requiresDocument: true, markupTool: "bates" },
+  { id: "encrypt", title: "Encrypt PDF", description: "Encrypt the PDF with a password.", risk: "destructive", requiresDocument: true, requiredArgs: ["password"], documentTool: "encrypt" },
+  { id: "decrypt", title: "Decrypt PDF", description: "Decrypt the PDF with a password.", risk: "destructive", requiresDocument: true, requiredArgs: ["password"], documentTool: "decrypt" },
+  { id: "normalize", title: "Convert to PDF/A", description: "Normalize the PDF to PDF/A where supported.", risk: "safe", requiresDocument: true, documentTool: "normalize" },
+  { id: "open-tools-dashboard", title: "Open Tools Dashboard", description: "Open the all-tools dashboard.", risk: "safe" },
+  { id: "open-tool-panel", title: "Open Tool Panel", description: "Open a specific tool panel by id.", risk: "safe", requiredArgs: ["toolId"] },
+  ...conversionPanelTools,
+];
+
+const definitionById = new Map(AGENT_TOOL_DEFINITIONS.map((definition) => [definition.id, definition]));
+
+export function getAgentToolDefinition(tool: AgentToolId): AgentToolDefinition | undefined {
+  return definitionById.get(tool);
+}

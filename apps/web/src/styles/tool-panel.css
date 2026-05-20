@@ -1,0 +1,127 @@
+/* ==========================================================================
+   Acrobat Power Tools CSS System
+   ========================================================================== */
+
+/* 1. Contextual Right Sidebar Panel */
+.acrobat-tool-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom scrollbar for premium panels */
+.acrobat-tool-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.acrobat-tool-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.acrobat-tool-panel::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+.acrobat-tool-panel::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Sliders custom range styling */
+.acrobat-tool-panel input[type="range"] {
+  -webkit-appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-color);
+  outline: none;
+}
+.acrobat-tool-panel input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--acrobat-blue);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.acrobat-tool-panel input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  background: var(--acrobat-blue-hover);
+}
+
+/* Dropdown cogs & selects customization */
+.acrobat-tool-panel select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+}
+
+/* Dark mode select overrides */
+[data-theme="dark"] .acrobat-tool-panel select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23bbbbbb' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+/* 2. Drag & Drop Upload Canvas animations */
+.upload-workspace {
+  animation: fadeInWorkspace 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInWorkspace {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulsing animated border for active dropzone drag-over state */
+@keyframes borderPulse {
+  0% {
+    border-color: var(--border-color);
+  }
+  50% {
+    border-color: var(--acrobat-blue);
+    box-shadow: 0 0 10px rgba(27, 110, 194, 0.15);
+  }
+  100% {
+    border-color: var(--border-color);
+  }
+}
+
+/* Custom resizer handle styling */
+.sidebar-resizer {
+  position: relative;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  flex-shrink: 0;
+}
+.sidebar-resizer:hover, .sidebar-resizer.dragging {
+  background-color: var(--acrobat-blue);
+}
+.sidebar-resizer::after {
+  content: "";
+  width: 2px;
+  height: 24px;
+  background-color: var(--border-color);
+  border-radius: 1px;
+  transition: background-color 0.2s;
+}
+.sidebar-resizer:hover::after, .sidebar-resizer.dragging::after {
+  background-color: rgba(255, 255, 255, 0.9);
+}

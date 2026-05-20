@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 import type { Message, EngineMode } from "./AiAssistantPanel.types";
 import type { AgentCommand } from "../agent/agentCommands";
 import aiAvatar from "../assets/ai-avatar.jpg";
@@ -147,13 +147,13 @@ export function MarkdownMessage({ text }: MarkdownMessageProps) {
 // --- SETTINGS PANEL COMPONENT ---
 interface SettingsPanelProps {
   engineMode: EngineMode;
-  setEngineMode: (mode: EngineMode) => void;
+  setEngineMode: (value: EngineMode) => void;
   difyUrl: string;
-  setDifyUrl: (url: string) => void;
+  setDifyUrl: (value: string) => void;
   difyKey: string;
-  setDifyKey: (key: string) => void;
+  setDifyKey: (value: string) => void;
   iframeUrl: string;
-  setIframeUrl: (url: string) => void;
+  setIframeUrl: (value: string) => void;
   onCancel: () => void;
   onSave: () => void;
 }
@@ -174,76 +174,49 @@ export function SettingsPanel({
     <div className="ai-settings-panel">
       <h4>AI Engine Configuration</h4>
       <div className="form-group">
-        <label className="form-label">Chọn động cơ (Engine)</label>
-        <div className="ai-radio-group">
-          <div 
-            className={`ai-radio-option ${engineMode === "local" ? "active" : ""}`}
-            onClick={() => setEngineMode("local")}
-          >
-            <strong>Trợ lý Cục bộ (Offline NLP)</strong>
-            <p>Khớp từ khóa tiếng Việt/Anh trực tiếp với 57 tool của OPDF.</p>
-          </div>
-          <div 
-            className={`ai-radio-option ${engineMode === "dify" ? "active" : ""}`}
-            onClick={() => setEngineMode("dify")}
-          >
-            <strong>Dify API Chatbot</strong>
-            <p>Gửi câu hỏi lên chatbot Dify của công ty (qua API Key).</p>
-          </div>
-          <div 
-            className={`ai-radio-option ${engineMode === "iframe" ? "active" : ""}`}
-            onClick={() => setEngineMode("iframe")}
-          >
-            <strong>Nhúng Iframe AI-WEB-CHAT</strong>
-            <p>Nhúng trực tiếp giao diện AI-WEB-CHAT (Next.js) và dùng postMessage bridge.</p>
-          </div>
-        </div>
+        <label className="form-label">AI Mode</label>
+        <select className="ai-engine-select" value={engineMode} onChange={(e) => setEngineMode(e.target.value as EngineMode)}>
+          <option value="local">Local</option>
+          <option value="dify">Dify API</option>
+          <option value="iframe">Iframe</option>
+        </select>
       </div>
 
-      {engineMode === "dify" && (
+      {engineMode === "dify" ? (
         <>
           <div className="form-group">
-            <label className="form-label">Dify Endpoint URL</label>
-            <input 
-              className="form-control"
-              type="text" 
-              value={difyUrl} 
-              onChange={(e) => setDifyUrl(e.target.value)} 
-              placeholder="https://api.dify.ai/v1"
-            />
+            <label className="form-label">Dify URL</label>
+            <input className="ai-settings-input" value={difyUrl} onChange={(e) => setDifyUrl(e.target.value)} placeholder="https://.../v1" />
           </div>
           <div className="form-group">
             <label className="form-label">Dify API Key</label>
-            <input 
-              className="form-control"
-              type="password" 
-              value={difyKey} 
-              onChange={(e) => setDifyKey(e.target.value)} 
-              placeholder="Nhập app-xxx key..."
-            />
+            <input className="ai-settings-input" value={difyKey} onChange={(e) => setDifyKey(e.target.value)} placeholder="app-..." />
           </div>
         </>
-      )}
+      ) : null}
 
-      {engineMode === "iframe" && (
+      {engineMode === "iframe" ? (
         <div className="form-group">
-          <label className="form-label">AI-WEB-CHAT Client URL</label>
-          <input 
-            className="form-control"
-            type="text" 
-            value={iframeUrl} 
-            onChange={(e) => setIframeUrl(e.target.value)} 
-            placeholder="http://localhost:3005"
-          />
+          <label className="form-label">Iframe URL</label>
+          <input className="ai-settings-input" value={iframeUrl} onChange={(e) => setIframeUrl(e.target.value)} placeholder="http://localhost:3000" />
         </div>
-      )}
+      ) : null}
+
+      {engineMode === "local" ? (
+        <div className="ai-radio-group">
+          <div className="ai-radio-option active">
+            <strong>Local Agent Bridge</strong>
+            <p>Runs through OPDF desktop bridge without external chat endpoint.</p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="ai-settings-actions">
         <button className="btn-premium btn-premium-secondary" onClick={onCancel} type="button">
-          Hủy
+          Đóng
         </button>
         <button className="btn-premium btn-premium-primary" onClick={onSave} type="button">
-          Lưu & Áp dụng
+          Áp dụng
         </button>
       </div>
     </div>
@@ -332,7 +305,7 @@ export function SuggestionChips({ onSuggestionClick }: SuggestionChipsProps) {
         🗜️ Nén PDF
       </button>
       <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("xoay tất cả trang qua phải")} type="button">
-        🔄 Xoay Phải Tất Cả
+        🔄 Xoay phải tất cả
       </button>
       <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("thêm số trang")} type="button">
         🔢 Đánh số trang
@@ -398,3 +371,6 @@ export function ChatInputForm({ inputValue, setInputValue, onSubmit, engineMode 
     </form>
   );
 }
+
+
+

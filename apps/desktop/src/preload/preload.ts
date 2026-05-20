@@ -35,6 +35,8 @@ const api = {
   convertToPdfA: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:convert-to-pdfa", bytes) as Promise<Uint8Array>,
   rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => ipcRenderer.invoke("opdf:rotate-pages", bytes, pageNumbers, degrees) as Promise<Uint8Array>,
   convertPdfOffice: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => ipcRenderer.invoke("opdf:convert-pdf-office", bytes, format) as Promise<Uint8Array>,
+  applyAiPatch: (payload: { prompt: string; selectedBlocks: unknown[]; allBlocks: unknown[]; referenceImage: string | null }) =>
+    ipcRenderer.invoke("opdf:ai-patch", payload) as Promise<{ updates: Array<Record<string, unknown> & { id: string }> }>,
   saveDocumentAs: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:save-as", bytes) as Promise<string | null>,
   saveFile: (bytes: Uint8Array, defaultName: string, extensions: string[]) => ipcRenderer.invoke("opdf:save-file", bytes, defaultName, extensions) as Promise<string | null>,
   setAiConfig: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => ipcRenderer.invoke("opdf:ai-config:set", config) as Promise<boolean>,

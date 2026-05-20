@@ -3,7 +3,7 @@ import { useAiAssistant } from "./AiAssistantPanel.hooks";
 import { SettingsPanel, ChatMessageBubble, SuggestionChips, ChatInputForm } from "./AiAssistantPanel.parts";
 import aiAvatar from "../assets/ai-avatar.jpg";
 
-export function AiAssistantPanel({ isOpen, onClose, align = "right" }: AiAssistantPanelProps) {
+export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveEditor }: AiAssistantPanelProps) {
   const {
     messages,
     inputValue,
@@ -37,6 +37,11 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right" }: AiAssista
           <span className="ai-status-badge pulse" title="OPDF Agent Bridge Connected">Sync</span>
         </div>
         <div className="ai-header-actions">
+          {onOpenLiveEditor ? (
+            <button className="ai-header-live-editor" onClick={onOpenLiveEditor} title="Open Live HTML Editor" type="button">
+              Live Editor
+            </button>
+          ) : null}
           <button className="ai-header-close" onClick={onClose} title="Hide AI Copilot" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M18 6 6 18M6 6l12 12" />
@@ -81,6 +86,13 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right" }: AiAssista
 
           {/* Suggestions */}
           <SuggestionChips onSuggestionClick={handleSuggestionClick} />
+          {onOpenLiveEditor ? (
+            <div style={{ padding: "0 12px 8px" }}>
+              <button className="ai-header-live-editor" onClick={onOpenLiveEditor} type="button" style={{ width: "100%" }}>
+                Mở Live Editor
+              </button>
+            </div>
+          ) : null}
 
           {/* Form Input */}
           <ChatInputForm

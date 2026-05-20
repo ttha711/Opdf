@@ -11,6 +11,14 @@ import type {
   CropOptions,
   InsertOptions,
 } from "@opdf/core";
+import type { EditorBlock, LivePatch } from "../components/live-editor/types";
+
+export type AiPatchRequest = {
+  prompt: string;
+  selectedBlocks: EditorBlock[];
+  allBlocks: EditorBlock[];
+  referenceImage: string | null;
+};
 
 export interface OpdfBridge {
   openProjectFolder: () => Promise<boolean>;
@@ -51,12 +59,24 @@ export interface OpdfBridge {
   addBatesNumbering: (bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => Promise<Uint8Array>;
   convertToPdfA: (bytes: Uint8Array) => Promise<Uint8Array>;
   rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => Promise<Uint8Array>;
-  convertPdfOffice?: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => Promise<Uint8Array>;`r`n  setAiConfig?: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => Promise<boolean>;`r`n  getAiConfig?: () => Promise<{ mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }>;
+  convertPdfOffice?: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => Promise<Uint8Array>;
+  setAiConfig?: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => Promise<boolean>;
+  getAiConfig?: () => Promise<{ mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }>;
+  applyAiPatch?: (payload: AiPatchRequest) => Promise<LivePatch>;
 }
 
 declare global {
   interface Window {
     opdf?: OpdfBridge;
+    __opdfAiEditorBootstrap?: {
+      fileName?: string;
+      docBytes?: number[];
+    };
+    __opdfAiEditorGetBootstrap?: () => {
+      fileName?: string;
+      docBytes?: number[];
+    };
   }
 }
+
 

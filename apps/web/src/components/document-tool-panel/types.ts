@@ -7,6 +7,7 @@ export interface DocumentToolPanelProps {
   annotations: any[];
   onClose: () => void;
   onLoadConvertedPdf: (bytes: Uint8Array, fileName: string) => void;
+  onOpenHtmlEditor?: (html: string) => void;
   setViewerError: (msg: string | null) => void;
   replaceDocumentBytes: (bytes: Uint8Array, nextPage?: number) => void;
   bridge: any;

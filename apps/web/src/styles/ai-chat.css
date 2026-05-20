@@ -1,0 +1,701 @@
+/* ==========================================================================
+   AI Chat Panel - Variables & Base Utilities
+   ========================================================================== */
+
+.glassmorphism {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+}
+
+:root[data-theme="dark"] .glassmorphism {
+  background: rgba(30, 30, 30, 0.85);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Animations */
+@keyframes chatSlideIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(0, 97, 213, 0.4); }
+  70% { box-shadow: 0 0 0 5px rgba(0, 97, 213, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 97, 213, 0); }
+}
+
+@keyframes messageSlide {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes typing-bounce {
+  from { transform: translateY(0); opacity: 0.4; }
+  to { transform: translateY(-4px); opacity: 1; }
+}
+
+@keyframes floatPulse {
+  0% { box-shadow: 0 0 0 0 rgba(0, 97, 213, 0.45); }
+  70% { box-shadow: 0 0 0 10px rgba(0, 97, 213, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 97, 213, 0); }
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Layout & Container
+   ========================================================================== */
+
+.ai-chat-panel {
+  position: fixed;
+  bottom: 94px;
+  right: 24px;
+  width: 360px;
+  height: 560px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--ui-radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  animation: chatSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.ai-chat-panel.align-left {
+  left: 24px;
+  right: auto;
+}
+
+.ai-chat-panel.align-right {
+  right: 24px;
+  left: auto;
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Header Section
+   ========================================================================== */
+
+.ai-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(135deg, rgba(0, 97, 213, 0.08), rgba(0, 97, 213, 0.12));
+}
+
+.ai-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--acrobat-blue);
+}
+
+.ai-status-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--acrobat-blue);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 999px;
+  margin-left: 6px;
+  letter-spacing: 0.05em;
+}
+
+.ai-status-badge.pulse {
+  animation: pulse 1.8s infinite;
+}
+
+.ai-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-header-btn, .ai-header-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ai-header-btn:hover, .ai-header-close:hover, .ai-header-btn.active {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] .ai-header-btn:hover,
+:root[data-theme="dark"] .ai-header-close:hover,
+:root[data-theme="dark"] .ai-header-btn.active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ai-header-live-editor {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Settings Panel
+   ========================================================================== */
+
+.ai-settings-panel {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg-panel);
+}
+
+.ai-settings-panel h4 {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ai-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-radio-option {
+  border: 1px solid var(--border-color);
+  border-radius: var(--ui-radius-md);
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg-toolbar);
+}
+
+.ai-radio-option:hover {
+  background: var(--ui-hover-bg);
+}
+
+.ai-radio-option.active {
+  border-color: var(--acrobat-blue);
+  background: var(--ui-accent-bg);
+}
+
+.ai-radio-option strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.ai-radio-option p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.ai-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Messages Container & Bubbles
+   ========================================================================== */
+
+.ai-messages-container {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Custom Scrollbar for Chat Thread */
+.ai-messages-container::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ai-messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-messages-container::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.ai-message-bubble-wrapper {
+  display: flex;
+  gap: 10px;
+  max-width: 85%;
+  animation: messageSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.ai-message-bubble-wrapper.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.ai-message-bubble-wrapper.assistant {
+  align-self: flex-start;
+}
+
+.ai-message-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  color: white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+}
+
+.ai-message-bubble-wrapper.user .ai-message-avatar {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+}
+
+.ai-message-bubble-wrapper.assistant .ai-message-avatar {
+  background: linear-gradient(135deg, var(--acrobat-blue), #0284c7);
+}
+
+.ai-message-bubble {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: var(--ui-font-sm);
+  line-height: 1.45;
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.ai-message-bubble-wrapper.user .ai-message-bubble {
+  background: var(--ui-accent-bg);
+  border-top-right-radius: 2px;
+  color: var(--text-primary);
+}
+
+.ai-message-bubble-wrapper.assistant .ai-message-bubble {
+  background: var(--bg-toolbar);
+  border-top-left-radius: 2px;
+  border: 1px solid var(--border-color);
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Markdown Body Styling
+   ========================================================================== */
+
+.ai-markdown-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.ai-markdown-p {
+  margin: 0 0 6px 0;
+}
+
+.ai-markdown-p strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ai-markdown-h2 {
+  font-size: 15px;
+  font-weight: 650;
+  margin: 12px 0 6px 0;
+  color: var(--text-primary);
+  border-left: 3px solid var(--acrobat-blue);
+  padding-left: 8px;
+}
+
+.ai-markdown-h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 10px 0 4px 0;
+  color: var(--text-primary);
+}
+
+.ai-markdown-h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 8px 0 4px 0;
+  color: var(--text-secondary);
+}
+
+.ai-markdown-li {
+  margin-left: 14px;
+  list-style-type: disc;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.ai-inline-code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 11px;
+  color: #ef4444;
+}
+
+:root[data-theme="dark"] .ai-inline-code {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f87171;
+}
+
+/* Premium Tables */
+.ai-table-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid var(--ui-divider);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ai-markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12px;
+}
+
+.ai-markdown-table th {
+  background: rgba(0, 0, 0, 0.02);
+  font-weight: 600;
+  padding: 6px 10px;
+  border-bottom: 2px solid var(--ui-divider);
+  color: var(--text-secondary);
+}
+
+.ai-markdown-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--ui-divider);
+  color: var(--text-primary);
+}
+
+.ai-markdown-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ai-markdown-table tr:hover {
+  background: rgba(0, 0, 0, 0.01);
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Typing Indicator
+   ========================================================================== */
+
+.ai-typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 6px 0;
+  align-items: center;
+}
+
+.ai-typing-indicator span {
+  width: 6px;
+  height: 6px;
+  background-color: var(--text-secondary);
+  border-radius: 50%;
+  opacity: 0.4;
+  animation: typing-bounce 1s infinite alternate;
+}
+
+.ai-typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.ai-typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Tool Execution Logs
+   ========================================================================== */
+
+.ai-tool-logs {
+  margin-top: 8px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.ai-tool-logs summary {
+  cursor: pointer;
+  font-weight: 600;
+  outline: none;
+  margin-bottom: 4px;
+}
+
+.ai-tool-logs pre {
+  margin: 4px 0 0 0;
+  background: var(--ui-muted-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--ui-radius-sm);
+  padding: 8px;
+  overflow-x: auto;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 10px;
+  color: var(--text-primary);
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Inline Confirmations
+   ========================================================================== */
+
+.ai-confirmation-box {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+}
+
+.ai-confirm-btn {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--ui-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.ai-confirm-btn.confirm {
+  background: var(--ui-danger);
+  color: white;
+}
+
+.ai-confirm-btn.confirm:hover {
+  background: #bd2a2a;
+}
+
+.ai-confirm-btn.cancel {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.ai-confirm-btn.cancel:hover {
+  background: var(--ui-hover-bg);
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Suggestion Chips (Merged & Unified)
+   ========================================================================== */
+
+.ai-suggestions-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.01);
+  border-top: 1px solid var(--ui-divider);
+  flex-shrink: 0;
+  scrollbar-width: none; /* Hide scrollbar for Firefox */
+  -ms-overflow-style: none;  /* Hide scrollbar for IE/Edge */
+}
+
+.ai-suggestions-container::-webkit-scrollbar {
+  display: none; /* Hide scrollbar for Chrome, Safari, and Opera */
+}
+
+.ai-suggestion-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  background: white;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ai-suggestion-chip:hover {
+  background: #f0fdf4;
+  border-color: #22c55e;
+  color: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+}
+
+.ai-suggestion-chip:active {
+  transform: translateY(0);
+}
+
+:root[data-theme="dark"] .ai-suggestion-chip {
+  background: #1f2937;
+  border-color: #374151;
+  color: #f3f4f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="dark"] .ai-suggestion-chip:hover {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: #22c55e;
+  color: #4ade80;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Input Form
+   ========================================================================== */
+
+.ai-chat-input-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-toolbar);
+}
+
+.ai-chat-textarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--ui-radius-md);
+  padding: 8px 12px;
+  font-size: var(--ui-font-sm);
+  background: var(--ui-muted-bg);
+  color: var(--text-primary);
+  min-height: 34px;
+  max-height: 100px;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+
+.ai-chat-textarea:focus {
+  border-color: var(--acrobat-blue);
+  background: var(--bg-toolbar);
+}
+
+.ai-chat-send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--ui-radius-md);
+  border: none;
+  background: var(--acrobat-blue);
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.ai-chat-send-btn:hover {
+  background: var(--acrobat-blue-hover);
+}
+
+.ai-chat-send-btn:disabled {
+  background: var(--border-color);
+  color: var(--text-secondary);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+/* ==========================================================================
+   AI Chat Panel - Floating Action Button (FAB)
+   ========================================================================== */
+
+.ai-float-toggle-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 24px;
+  z-index: 101;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--acrobat-blue), #0284c7);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 97, 213, 0.35);
+  transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ai-float-toggle-btn.dragging {
+  transition: none !important;
+  cursor: grabbing !important;
+}
+
+.ai-float-toggle-btn:hover {
+  transform: scale(1.08) translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 97, 213, 0.45);
+}
+
+.ai-float-toggle-btn.panel-open {
+  transform: rotate(90deg);
+  background: #374151;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="dark"] .ai-float-toggle-btn.panel-open {
+  background: #4b5563;
+}
+
+.ai-float-toggle-btn.pulse-aura::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  animation: floatPulse 2.4s infinite;
+  pointer-events: none;
+}

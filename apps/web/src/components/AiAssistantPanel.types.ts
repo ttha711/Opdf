@@ -14,6 +14,7 @@ export interface AiAssistantPanelProps {
   isOpen: boolean;
   onClose: () => void;
   align?: "left" | "right";
+  onOpenLiveEditor?: () => void;
 }
 
 export type EngineMode = "local" | "dify" | "iframe";

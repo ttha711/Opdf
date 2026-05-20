@@ -1,0 +1,84 @@
+:root {
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+  --acrobat-blue: #0061d5;
+  --acrobat-blue-hover: #0050b3;
+  --bg-app: #e1e3e6;
+  --bg-panel: #f4f4f4;
+  --bg-toolbar: #ffffff;
+  --border-color: #d1d5db;
+  --text-primary: #2c2c2c;
+  --text-secondary: #5e5e5e;
+  --icon-color: #4b4b4b;
+  --ui-muted-bg: #f8f8f8;
+  --ui-hover-bg: #eaeaea;
+  --ui-divider: #eeeeee;
+  --ui-subtle-hover: #e0e0e0;
+  --ui-accent-bg: #e8f0fe;
+  --ui-danger: #d32f2f;
+  --ui-radius-sm: 4px;
+  --ui-radius-md: 6px;
+  --ui-radius-lg: 8px;
+  --ui-gap-xs: 4px;
+  --ui-gap-sm: 6px;
+  --ui-gap-md: 8px;
+  --ui-gap-lg: 12px;
+  --ui-pad-sm: 8px;
+  --ui-pad-md: 12px;
+  --ui-pad-lg: 16px;
+  --ui-font-xs: 12px;
+  --ui-font-sm: 13px;
+  --ui-success-bg: #f0fdf4;
+  --ui-success-text: #166534;
+  --ui-error-bg: #fef2f2;
+  --ui-error-text: #991b1b;
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] {
+  --bg-app: #121212;
+  --bg-panel: #1e1e1e;
+  --bg-toolbar: #262626;
+  --border-color: #333333;
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --icon-color: #d1d5db;
+  --ui-muted-bg: #1a1a1a;
+  --ui-hover-bg: #374151;
+  --ui-divider: #262626;
+  --ui-subtle-hover: #2d3748;
+  --ui-accent-bg: #1e293b;
+  --ui-success-bg: #064e3b;
+  --ui-success-text: #6ee7b7;
+  --ui-error-bg: #450a0a;
+  --ui-error-text: #fca5a5;
+}
+
+:root[data-density="comfortable"] {
+  --ui-radius-sm: 4px;
+  --ui-radius-md: 6px;
+  --ui-radius-lg: 8px;
+  --ui-gap-xs: 4px;
+  --ui-gap-sm: 6px;
+  --ui-gap-md: 8px;
+  --ui-gap-lg: 12px;
+  --ui-pad-sm: 8px;
+  --ui-pad-md: 12px;
+  --ui-pad-lg: 16px;
+  --ui-font-xs: 12px;
+  --ui-font-sm: 13px;
+}
+
+:root[data-density="compact"] {
+  --ui-radius-sm: 3px;
+  --ui-radius-md: 5px;
+  --ui-radius-lg: 7px;
+  --ui-gap-xs: 2px;
+  --ui-gap-sm: 4px;
+  --ui-gap-md: 6px;
+  --ui-gap-lg: 10px;
+  --ui-pad-sm: 6px;
+  --ui-pad-md: 10px;
+  --ui-pad-lg: 12px;
+  --ui-font-xs: 11px;
+  --ui-font-sm: 12px;
+}

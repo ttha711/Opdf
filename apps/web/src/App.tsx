@@ -26,10 +26,17 @@ import { usePdfDrop } from "./hooks/usePdfDrop";
 import { useAppViewModel } from "./hooks/useAppViewModel";
 import { createAgentStateSnapshot, useAgentBridge } from "./hooks/useAgentBridge";
 import { AiAssistantPanel } from "./components/AiAssistantPanel";
+import { LiveHtmlEditor } from "./components/LiveHtmlEditor";
+import { AiRewriteEditorWindow } from "./components/AiRewriteEditorWindow";
 import aiAvatar from "./assets/ai-avatar.jpg";
 import "./types/opdf";
 
 export function App() {
+  const isAiEditorWindow = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("ai-editor") === "1";
+  if (isAiEditorWindow) {
+    return <AiRewriteEditorWindow />;
+  }
+
   const bridge = useOpdfBridge();
   const state = useAppState();
   const viewerAreaRef = useRef<HTMLDivElement>(null);
@@ -43,6 +50,8 @@ export function App() {
   const [isDraggingRight, setIsDraggingRight] = useState(false);
   const [activeMarkupTool, setActiveMarkupTool] = useState<MarkupTool | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
+  const [isLiveEditorOpen, setIsLiveEditorOpen] = useState(false);
+  const [liveEditorHtml, setLiveEditorHtml] = useState<string | null>(null);
 
   // --- DRAGGABLE FAB LOGIC ---
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
@@ -600,6 +609,18 @@ export function App() {
   const leftResizerWidth = showLeft && !isLeftCollapsed ? "4px" : "0px";
   const rightResizerWidth = !isRightCollapsed ? "4px" : "0px";
   const rightColWidth = !isRightCollapsed ? `${rightWidth}px` : "0px";
+  const openAiEditorWindow = useCallback(() => {
+    const payload = {
+      fileName: state.fileName,
+      docBytes: state.docBytes ? Array.from(state.docBytes) : undefined,
+    };
+    window.__opdfAiEditorBootstrap = payload;
+    window.__opdfAiEditorGetBootstrap = () => payload;
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("ai-editor", "1");
+    const popup = window.open(nextUrl.toString(), "opdf-ai-editor", "width=1440,height=920");
+    if (popup) popup.focus();
+  }, [state.fileName, state.docBytes]);
 
   return (
     <div className="app acrobat-shell">
@@ -616,6 +637,7 @@ export function App() {
         changeTabGroupColor={state.changeTabGroupColor}
         closeTabGroup={state.closeTabGroup}
         ungroupGroup={state.ungroupGroup}
+        onOpenAiEditorWindow={openAiEditorWindow}
       />
 
       {state.showDashboard ? (
@@ -816,6 +838,10 @@ export function App() {
                   state.setFileName(name);
                   state.setPage(1);
                 }}
+                onOpenHtmlEditor={(html) => {
+                  setLiveEditorHtml(html);
+                  setIsLiveEditorOpen(true);
+                }}
                 setViewerError={state.setViewerError}
                 replaceDocumentBytes={replaceDocumentBytes}
                 bridge={bridge}
@@ -898,7 +924,13 @@ export function App() {
       </button>
 
       {/* AI Assistant Chat Panel */}
-      <AiAssistantPanel isOpen={isAiPanelOpen} onClose={() => setIsAiPanelOpen(false)} align={panelAlign} />
+      <AiAssistantPanel
+        isOpen={isAiPanelOpen}
+        onClose={() => setIsAiPanelOpen(false)}
+        align={panelAlign}
+        onOpenLiveEditor={() => setIsLiveEditorOpen(true)}
+      />
+      <LiveHtmlEditor isOpen={isLiveEditorOpen} onClose={() => setIsLiveEditorOpen(false)} initialHtml={liveEditorHtml} />
     </div>
   );
 }

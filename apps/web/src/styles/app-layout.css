@@ -1,0 +1,57 @@
+@layer components {
+  .app { @apply h-screen overflow-hidden grid; grid-template-rows: auto minmax(0, 1fr) 26px; background: var(--bg-app); }
+  .top-menu-btn { @apply inline-flex cursor-pointer items-center gap-1.5 rounded px-2.5 py-1.5 text-[13px] font-medium transition-colors; color: var(--text-primary); }
+  .top-menu-btn:hover { @apply bg-[#eaeaea]; }
+
+  .top-menu-btn.menu-open { @apply bg-[#e8e8e8]; }
+
+  .workspace.acrobat-body { @apply grid min-h-0 overflow-hidden; grid-template-columns: 240px 1fr 240px; }
+  .left-panel { @apply z-[2] overflow-hidden border-r p-0 shadow-[1px_0_3px_rgba(0,0,0,.02)]; background: var(--bg-panel); border-color: var(--border-color); }
+
+  .viewer-area { @apply flex justify-center overflow-auto py-6 outline-none; background: var(--bg-app); scroll-behavior: smooth; }
+  .viewer-area:focus { box-shadow: inset 0 0 0 1px var(--acrobat-blue); }
+  .viewer-shell { @apply flex min-h-[calc(100vh-120px)] w-full items-start justify-center; }
+  .doc-column { @apply flex w-full flex-col items-center; }
+
+  .empty-viewer { @apply flex flex-col items-center justify-center gap-3 px-5 py-[60px] text-[var(--text-secondary)]; }
+  .empty-viewer svg { @apply opacity-30; }
+  .empty-viewer p { @apply m-0 text-base; }
+  .empty-viewer small { @apply text-[13px] opacity-70; }
+
+  .hidden-file-input { @apply fixed left-[-9999px] top-[-9999px] h-px w-px opacity-0; }
+  .floating-editor { @apply fixed bottom-[30px] right-[300px] z-20 w-[300px] rounded-lg border p-4 shadow-lg; background: var(--bg-toolbar); border-color: var(--border-color); }
+  .floating-editor h4 { @apply mb-3 mt-0 text-sm; color: var(--text-primary); }
+  .floating-editor textarea { @apply mb-3 h-[100px] w-full resize-none rounded border p-2; background: var(--ui-muted-bg); color: var(--text-primary); border-color: var(--border-color); font-family: inherit; }
+  .floating-editor textarea:focus { @apply outline-none; border-color: var(--acrobat-blue); }
+  .floating-actions { @apply flex justify-end gap-2; }
+  .floating-actions button { @apply cursor-pointer rounded px-4 py-1.5 text-[13px] font-medium; }
+  .floating-actions button:first-child { @apply border bg-transparent; border-color: var(--border-color); color: var(--text-primary); }
+  .floating-actions button:first-child:hover { @apply bg-[#f0f0f0]; }
+  .floating-actions button:last-child { border-color: var(--acrobat-blue); background: var(--acrobat-blue); @apply border text-white; }
+  .floating-actions button:last-child:hover { background: var(--acrobat-blue-hover); }
+
+  .modal-backdrop { @apply fixed inset-0 z-30 grid place-items-center bg-black/40; }
+  .sign-modal { @apply w-[360px] rounded-lg p-6 shadow-xl; background: var(--bg-toolbar); }
+  .sign-modal h4 { @apply mb-4 mt-0 text-lg font-semibold; color: var(--text-primary); }
+  .sign-modal select { @apply mb-6 w-full rounded border p-2 text-sm; background: var(--bg-toolbar); color: var(--text-primary); border-color: var(--border-color); }
+
+  .page-stage { @apply relative mb-4 inline-block bg-white shadow-[0_2px_5px_rgba(0,0,0,.2),0_0_1px_rgba(0,0,0,.1)]; }
+  .page-zoom-layer { transform-origin: 0 0; will-change: transform; }
+  .page-stage[data-zoom-preview="true"] { overflow: hidden; }
+  .page-transition.next { animation: pageInNext .16s ease-out; }
+  .page-transition.prev { animation: pageInPrev .16s ease-out; }
+  .page-stage.highlight-mode, .page-stage.shape-mode, .page-stage.redact-mode { @apply cursor-crosshair; }
+  .overlay-layer { @apply pointer-events-none absolute inset-0; }
+  .annotation-box { @apply absolute overflow-hidden; }
+  .annotation-highlight { border: 1px solid rgba(202,138,4,.8); background: rgba(250,204,21,.35); }
+}
+
+@keyframes pageInNext {
+  from { opacity: .75; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pageInPrev {
+  from { opacity: .75; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

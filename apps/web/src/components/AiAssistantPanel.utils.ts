@@ -178,3 +178,40 @@ export const checkAndParseCommand = (queryText: string): ParseResult => {
 
   return null;
 };
+
+export function extractBalancedJson(text: string): string | null {
+  const startIndex = text.indexOf("{");
+  if (startIndex === -1) return null;
+  
+  let braceCount = 0;
+  let inString = false;
+  let escaping = false;
+  
+  for (let i = startIndex; i < text.length; i++) {
+    const char = text[i];
+    if (escaping) {
+      escaping = false;
+      continue;
+    }
+    if (char === "\\") {
+      escaping = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (char === "{") {
+        braceCount++;
+      } else if (char === "}") {
+        braceCount--;
+        if (braceCount === 0) {
+          return text.substring(startIndex, i + 1);
+        }
+      }
+    }
+  }
+  return null;
+}
+

@@ -34,6 +34,102 @@ let aiProviderConfig: AiProviderConfig = {
   mode: "local",
 };
 
+type LiveEditorBlock = {
+  id: string;
+  type: "paragraph" | "heading" | "list" | "image" | "table";
+  content: string;
+  html: string;
+  style: {
+    font: string;
+    size: number;
+    color: string;
+    lineHeight?: number;
+  };
+};
+
+type LiveEditorPatchRequest = {
+  prompt: string;
+  selectedBlocks: LiveEditorBlock[];
+  allBlocks: LiveEditorBlock[];
+  referenceImage: string | null;
+};
+
+type LiveEditorPatchResponse = {
+  updates: Array<Partial<LiveEditorBlock> & { id: string }>;
+};
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function extractTextLoose(value: unknown, depth = 0): string | null {
+  if (depth > 4 || value == null) return null;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const got = extractTextLoose(item, depth + 1);
+      if (got) return got;
+    }
+    return null;
+  }
+  if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    const preferred = ["html", "content", "answer", "output", "message", "text", "result", "data"];
+    for (const key of preferred) {
+      const got = extractTextLoose(obj[key], depth + 1);
+      if (got) return got;
+    }
+    for (const key of Object.keys(obj)) {
+      const got = extractTextLoose(obj[key], depth + 1);
+      if (got) return got;
+    }
+  }
+  return null;
+}
+
+function normalizePatchResponse(value: unknown, payload: LiveEditorPatchRequest): LiveEditorPatchResponse {
+  try {
+    return validatePatchResponse(value);
+  } catch {
+    const targets = payload.selectedBlocks.length > 0 ? payload.selectedBlocks : payload.allBlocks.slice(0, 1);
+    const first = targets[0];
+    if (!first) {
+      throw new Error("Invalid AI patch payload and no target block to map fallback.");
+    }
+    const text = extractTextLoose(value);
+    if (!text) throw new Error("Invalid AI patch payload: unable to extract text/html fallback.");
+    const html = text.includes("<") ? text : `<p>${escapeHtml(text)}</p>`;
+    return { updates: [{ id: first.id, html, content: text }] };
+  }
+}
+
+function validatePatchResponse(value: unknown): LiveEditorPatchResponse {
+  if (!value || typeof value !== "object") throw new Error("Invalid AI patch payload.");
+  const updates = (value as { updates?: unknown }).updates;
+  if (!Array.isArray(updates)) throw new Error("Invalid AI patch payload: updates[] missing.");
+  const sanitized = updates
+    .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
+    .map((item) => {
+      const id = typeof item.id === "string" ? item.id : "";
+      if (!id) throw new Error("Invalid AI patch payload: missing id.");
+      const next: Partial<LiveEditorBlock> & { id: string } = { id };
+      if (typeof item.type === "string") next.type = item.type as LiveEditorBlock["type"];
+      if (typeof item.content === "string") next.content = item.content;
+      if (typeof item.html === "string") next.html = item.html;
+      if (item.style && typeof item.style === "object") {
+        const rawStyle = item.style as Record<string, unknown>;
+        next.style = {
+          font: typeof rawStyle.font === "string" ? rawStyle.font : "Noto Sans",
+          size: typeof rawStyle.size === "number" ? rawStyle.size : 12,
+          color: typeof rawStyle.color === "string" ? rawStyle.color : "#111827",
+          ...(typeof rawStyle.lineHeight === "number" ? { lineHeight: rawStyle.lineHeight } : {}),
+        };
+      }
+      return next;
+    });
+  return { updates: sanitized };
+}
+
 
 function toNodeBuffer(bytes: unknown): Buffer {
   if (bytes instanceof Uint8Array) {
@@ -280,6 +376,33 @@ function registerIpcHandlers(): void {
   ipcMain.handle("opdf:ocr:enqueue", async (_event, filePath: string, language?: string) => ocrService.enqueue(filePath, language));
   ipcMain.handle("opdf:ocr:run", async (_event, jobId: string) => ocrService.run(jobId));
   ipcMain.handle("opdf:ocr:list", async () => ocrService.list());
+
+  ipcMain.handle("opdf:ai-patch", async (_event, payload: LiveEditorPatchRequest) => {
+    const endpoint = process.env.OPDF_LIVE_EDITOR_AI_ENDPOINT || aiProviderConfig.difyUrl;
+    const apiKey = process.env.OPDF_LIVE_EDITOR_AI_KEY || aiProviderConfig.difyKey;
+    if (!endpoint) {
+      throw new Error("AI patch endpoint is not configured in desktop backend.");
+    }
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        prompt: payload.prompt,
+        selectedBlocks: payload.selectedBlocks,
+        allBlocks: payload.allBlocks,
+        referenceImage: payload.referenceImage,
+        output: "json_patch",
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`AI patch endpoint failed with ${res.status}.`);
+    }
+    const raw: unknown = await res.json();
+    return normalizePatchResponse(raw, payload);
+  });
 
   ipcMain.handle("opdf:ai-config:set", async (_event, cfg: AiProviderConfig) => {
     aiProviderConfig = { ...aiProviderConfig, ...cfg };

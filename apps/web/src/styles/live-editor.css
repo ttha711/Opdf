@@ -1,0 +1,119 @@
+.live-editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(5, 10, 22, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.live-editor-modal {
+  width: min(1200px, 100%);
+  height: min(760px, 92vh);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.live-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  padding: 12px 16px;
+}
+
+.live-editor-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.live-editor-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.live-editor-actions button,
+.live-editor-sidebar button {
+  border: 1px solid var(--border-color);
+  background: var(--bg-toolbar);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.live-editor-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  min-height: 0;
+}
+
+.live-editor-canvas {
+  overflow: auto;
+  padding: 24px;
+  background: #f3f5f9;
+}
+
+.live-editor-block {
+  background: #fff;
+  border: 1px solid #dbe1ea;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.live-editor-block.selected {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.live-editor-content:focus {
+  outline: none;
+}
+
+.live-editor-debug {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  background: #0f172a;
+  color: #e2e8f0;
+  overflow: auto;
+}
+
+.live-editor-sidebar {
+  border-left: 1px solid var(--border-color);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.live-editor-sidebar h4 {
+  margin: 0;
+}
+
+.live-editor-sidebar textarea {
+  min-height: 120px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  resize: vertical;
+  padding: 10px;
+  background: var(--ui-muted-bg);
+  color: var(--text-primary);
+}
+
+.live-editor-upload-label {
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

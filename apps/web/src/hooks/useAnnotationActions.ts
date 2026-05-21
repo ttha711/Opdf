@@ -1,6 +1,6 @@
 import type { Annotation } from "@opdf/core";
 import type { Dispatch, SetStateAction } from "react";
-import type { PendingRect } from "../lib/app-types";
+import type { AnnotationToolDefaults, PendingRect } from "../lib/app-types";
 import { useOpdfBridge } from "./useOpdfBridge";
 
 export function useAnnotationActions({
@@ -8,6 +8,7 @@ export function useAnnotationActions({
   fileName,
   noteText,
   signatureStyle,
+  annotationToolDefaults,
   setAnnotations,
   setViewerError,
 }: {
@@ -15,13 +16,15 @@ export function useAnnotationActions({
   fileName: string;
   noteText: string;
   signatureStyle: string;
+  annotationToolDefaults: AnnotationToolDefaults;
   setAnnotations: Dispatch<SetStateAction<Annotation[]>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
 }) {
   async function addHighlight(pageNumber: number, rect: PendingRect) {
     if (!fileName) return;
     const tempId = crypto.randomUUID();
-    const payload = { color: "#facc15", opacity: 0.4, ...rect };
+    const defaults = annotationToolDefaults.highlight;
+    const payload = { color: defaults.color, opacity: defaults.opacity, strokeWidth: defaults.size, ...rect };
     const optimistic: Annotation = {
       id: tempId,
       page: pageNumber,
@@ -49,11 +52,11 @@ export function useAnnotationActions({
     const tempId = crypto.randomUUID();
     const payload =
       kind === "note"
-        ? { text: noteText || "New note", x: rect.x, y: rect.y }
+        ? { text: noteText || "New note", color: annotationToolDefaults.note.color, opacity: annotationToolDefaults.note.opacity, fontSize: annotationToolDefaults.note.size, x: rect.x, y: rect.y }
         : kind === "shape"
-          ? { shape: "rectangle", stroke: "#ef4444", ...rect }
+          ? { shape: "rectangle", stroke: annotationToolDefaults.shape.color, opacity: annotationToolDefaults.shape.opacity, strokeWidth: annotationToolDefaults.shape.size, ...rect }
           : kind === "redact"
-            ? { shape: "rectangle", ...rect }
+            ? { shape: "rectangle", color: annotationToolDefaults.redact.color, opacity: annotationToolDefaults.redact.opacity, ...rect }
             : kind === "underline" || kind === "strike"
               ? { color: "#ef4444", opacity: 1, ...rect }
               : { signer: signatureStyle, ...rect };

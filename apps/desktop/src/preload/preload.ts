@@ -41,6 +41,15 @@ const api = {
   saveFile: (bytes: Uint8Array, defaultName: string, extensions: string[]) => ipcRenderer.invoke("opdf:save-file", bytes, defaultName, extensions) as Promise<string | null>,
   setAiConfig: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => ipcRenderer.invoke("opdf:ai-config:set", config) as Promise<boolean>,
   getAiConfig: () => ipcRenderer.invoke("opdf:ai-config:get") as Promise<{ mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }>,
+  getAiAccessToken: () => ipcRenderer.invoke("opdf:ai:token:get") as Promise<string | null>,
+  getAiDeviceStatus: () =>
+    ipcRenderer.invoke("opdf:ai:device-status:get") as Promise<{
+      deviceId: string;
+      hasToken: boolean;
+      expiresAt: string | null;
+      lastError: string | null;
+      gatewayBaseUrl: string | null;
+    }>,
   getRecent: () => ipcRenderer.invoke("opdf:storage:get-recent") as Promise<RecentDocument[]>,
   pushRecent: (filePath: string) => ipcRenderer.invoke("opdf:storage:push-recent", filePath) as Promise<void>,
   restoreSession: () => ipcRenderer.invoke("opdf:storage:restore-session") as Promise<SessionSnapshot>,

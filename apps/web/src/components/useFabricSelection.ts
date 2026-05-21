@@ -57,6 +57,7 @@ export function useFabricSelection({
 
       if (kind === "shape") {
         payload.stroke = (obj as fabric.Rect).stroke;
+        payload.strokeWidth = (obj as fabric.Rect).strokeWidth;
       }
 
       onAnnotationUpdated?.(id, payload);

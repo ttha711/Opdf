@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import * as fabric from "fabric";
 import type { MutableRefObject } from "react";
+import type { AnnotationToolDefaults } from "../lib/app-types";
 
 interface UseFabricDrawingParams {
   fabricRef: MutableRefObject<fabric.Canvas | null>;
@@ -9,6 +10,7 @@ interface UseFabricDrawingParams {
   shapeMode: boolean;
   redactMode: boolean;
   measureMode: boolean;
+  annotationToolDefaults: AnnotationToolDefaults;
   pageNumber: number;
   onAnnotationCreated?: (page: number, kind: string, payload: Record<string, unknown>) => void;
   setMeasureResult: (value: string | null) => void;
@@ -21,6 +23,7 @@ export function useFabricDrawing({
   shapeMode,
   redactMode,
   measureMode,
+  annotationToolDefaults,
   pageNumber,
   onAnnotationCreated,
   setMeasureResult,
@@ -42,6 +45,13 @@ export function useFabricDrawing({
     const drawingRedact = redactMode;
     const drawingMeasure = measureMode;
     const isAnyDraw = drawingHighlight || drawingShape || drawingRedact || drawingMeasure;
+    const activeDefaults = drawingHighlight
+      ? annotationToolDefaults.highlight
+      : drawingShape
+        ? annotationToolDefaults.shape
+        : drawingRedact
+          ? annotationToolDefaults.redact
+          : null;
 
     const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
@@ -137,6 +147,14 @@ export function useFabricDrawing({
           y: Math.min(Math.max(bounds.top / canvasH, 0), 1),
           width: Math.min(Math.max(bounds.width / canvasW, 0), 1),
           height: Math.min(Math.max(bounds.height / canvasH, 0), 1),
+          ...(activeDefaults
+            ? {
+                color: activeDefaults.color,
+                stroke: activeDefaults.color,
+                opacity: activeDefaults.opacity,
+                strokeWidth: activeDefaults.size,
+              }
+            : {}),
         });
       }
 
@@ -188,12 +206,13 @@ export function useFabricDrawing({
         width: 0,
         height: 0,
         fill: drawingHighlight
-          ? "rgba(250, 204, 21, 0.4)"
+          ? activeDefaults?.color ?? "rgba(250, 204, 21, 0.4)"
           : drawingRedact
-          ? "rgba(0, 0, 0, 0.6)"
+          ? activeDefaults?.color ?? "rgba(0, 0, 0, 0.6)"
           : "transparent",
-        stroke: drawingShape ? "#ef4444" : drawingRedact ? "#000000" : undefined,
-        strokeWidth: drawingShape || drawingRedact ? 2 : 0,
+        opacity: activeDefaults?.opacity ?? 1,
+        stroke: drawingShape ? activeDefaults?.color ?? "#ef4444" : drawingRedact ? activeDefaults?.color ?? "#000000" : undefined,
+        strokeWidth: drawingShape || drawingRedact ? activeDefaults?.size ?? 2 : 0,
         strokeDashArray: drawingShape || drawingRedact ? [5, 5] : undefined,
         selectable: false,
         evented: false,
@@ -248,5 +267,5 @@ export function useFabricDrawing({
         isDrawingRef.current = false;
       }
     };
-  }, [highlightMode, shapeMode, redactMode, measureMode, onAnnotationCreated, pageNumber, setMeasureResult, fabricRef, canvasRef]);
+  }, [highlightMode, shapeMode, redactMode, measureMode, annotationToolDefaults, onAnnotationCreated, pageNumber, setMeasureResult, fabricRef, canvasRef]);
 }

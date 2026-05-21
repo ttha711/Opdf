@@ -22,6 +22,7 @@ export function FabricPage({
   shapeMode,
   redactMode,
   measureMode,
+  annotationToolDefaults,
   onAnnotationCreated,
   onAnnotationUpdated,
   onAnnotationDeleted,
@@ -105,12 +106,17 @@ export function FabricPage({
       const kind = (obj as any)[ANN_KIND_KEY] as string | undefined;
       if (!id || !kind) return;
 
-      const rawFill = kind === "note" ? (obj as fabric.IText).backgroundColor ?? "" : (obj.fill as string) ?? "";
+      const rawFill = kind === "note"
+        ? (obj as fabric.IText).backgroundColor ?? ""
+        : kind === "shape"
+          ? ((obj as fabric.Rect).stroke as string) ?? ""
+          : (obj.fill as string) ?? "";
       const rawOpacity = obj.opacity ?? 1;
       const rawFontSize = kind === "note" ? (obj as fabric.IText).fontSize : undefined;
+      const rawSize = kind === "shape" || kind === "redact" ? (obj as fabric.Rect).strokeWidth : undefined;
       const { anchorX, anchorY } = computeAnchor(obj);
 
-      setSelectedAnn({ id, kind, color: rawFill, opacity: rawOpacity, fontSize: rawFontSize, anchorX, anchorY });
+      setSelectedAnn({ id, kind, color: rawFill, opacity: rawOpacity, fontSize: rawFontSize, size: rawSize, anchorX, anchorY });
     },
     [computeAnchor]
   );
@@ -149,6 +155,7 @@ export function FabricPage({
     shapeMode,
     redactMode,
     measureMode,
+    annotationToolDefaults,
     pageNumber,
     onAnnotationCreated,
     setMeasureResult,
@@ -158,6 +165,7 @@ export function FabricPage({
     handleToolbarColor,
     handleToolbarOpacity,
     handleToolbarFontSize,
+    handleToolbarSize,
     handleToolbarDelete,
   } = useFabricAnnotationToolbar({
     fabricRef,
@@ -196,6 +204,8 @@ export function FabricPage({
           kind={selectedAnn.kind}
           fontSize={selectedAnn.fontSize}
           onFontSizeChange={handleToolbarFontSize}
+          size={selectedAnn.size}
+          onSizeChange={handleToolbarSize}
         />
       )}
     </div>

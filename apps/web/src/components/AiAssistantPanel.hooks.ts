@@ -188,20 +188,45 @@ Nhiệm vụ của bạn:
 User: ${queryText}`;
 
     try {
-      const response = await fetch(`${difyUrl}/chat-messages`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${difyKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          inputs: {},
-          query: richQuery,
-          response_mode: "blocking",
-          user: "opdf-web-client",
-          conversation_id: conversationId || undefined,
-        }),
-      });
+      const configuredGateway = (import.meta.env.VITE_OPDF_AI_GATEWAY_URL || "").trim().replace(/\/+$/, "");
+      const isDesktopRuntime = typeof window !== "undefined" && Boolean(window.opdf?.getAiAccessToken);
+      let gatewayBase = isDesktopRuntime ? configuredGateway : "";
+      if (isDesktopRuntime && !gatewayBase) {
+        const status = await window.opdf?.getAiDeviceStatus?.();
+        gatewayBase = (status?.gatewayBaseUrl || "").replace(/\/+$/, "");
+      }
+
+      let response: Response;
+      if (gatewayBase) {
+        const deviceToken = await window.opdf?.getAiAccessToken?.();
+        response = await fetch(`${gatewayBase}/ai/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(deviceToken ? { "Authorization": `Bearer ${deviceToken}` } : {}),
+          },
+          body: JSON.stringify({
+            query: richQuery,
+            user: "opdf-desktop-client",
+            conversation_id: conversationId || undefined,
+          }),
+        });
+      } else {
+        response = await fetch(`${difyUrl}/chat-messages`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${difyKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            inputs: {},
+            query: richQuery,
+            response_mode: "blocking",
+            user: "opdf-web-client",
+            conversation_id: conversationId || undefined,
+          }),
+        });
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -228,7 +253,7 @@ User: ${queryText}`;
         localStorage.setItem("opdf_dify_conv_id", data.conversation_id);
       }
 
-      let textResponse = data.answer || "";
+      let textResponse = data.answer || data.output || data.message || "";
       
       // Clean up <think>...</think> reasoning block (e.g. for DeepSeek-R1 models)
       textResponse = textResponse.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();

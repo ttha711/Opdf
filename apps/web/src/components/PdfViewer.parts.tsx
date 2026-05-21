@@ -25,6 +25,7 @@ interface PdfPageStageProps {
   redactMode: boolean;
   measureMode: boolean;
   activeTool: string;
+  annotationToolDefaults: import("../lib/app-types").AnnotationToolDefaults;
   annotations: any[];
   pageElementsRef: React.MutableRefObject<Map<number, HTMLDivElement>>;
   onActivePageChange?: (page: number) => void;
@@ -50,6 +51,7 @@ export function PdfPageStage(props: PdfPageStageProps) {
     redactMode,
     measureMode,
     activeTool,
+    annotationToolDefaults,
     annotations,
     pageElementsRef,
     onActivePageChange,
@@ -100,6 +102,7 @@ export function PdfPageStage(props: PdfPageStageProps) {
           shapeMode={shapeMode || false}
           redactMode={redactMode || false}
           measureMode={measureMode || false}
+          annotationToolDefaults={annotationToolDefaults}
           onAnnotationCreated={(pageNum, kind, rect) => {
             onPageToolAction?.(pageNum, kind, rect as any);
           }}

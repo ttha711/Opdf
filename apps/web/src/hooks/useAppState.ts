@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation, OcrJob } from "@opdf/core";
-import type { ActiveTool, PendingNote, ViewMode, ZoomPreset } from "../lib/app-types";
+import type { ActiveTool, AnnotationToolDefaults, PendingNote, ViewMode, ZoomPreset } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
 import type { OpdfTab } from "../lib/web-storage";
 
@@ -25,6 +25,12 @@ export function useAppState() {
   const [pageSearch, setPageSearch] = useState("");
   const [searchResult, setSearchResult] = useState("");
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
+  const [annotationToolDefaults, setAnnotationToolDefaults] = useState<AnnotationToolDefaults>({
+    highlight: { color: "#facc15", opacity: 0.4, size: 2 },
+    note: { color: "#fff8d6", opacity: 1, size: 16 },
+    shape: { color: "#ef4444", opacity: 1, size: 2 },
+    redact: { color: "#000000", opacity: 0.85, size: 2 },
+  });
   const [zoomPreset, setZoomPreset] = useState<ZoomPreset>("actual");
   const [pendingNote, setPendingNote] = useState<PendingNote>(null);
   const [noteText, setNoteText] = useState("New note");
@@ -353,7 +359,7 @@ export function useAppState() {
 
   return {
     fileName, setFileName, docBytes, setDocBytes, page, setPage, totalPages, setTotalPages, scale, setScale, rotation, setRotation, pageRotations, setPageRotations,
-    annotations, setAnnotations, ocrJobs, setOcrJobs, pageSearch, setPageSearch, searchResult, setSearchResult, activeTool, setActiveTool,
+    annotations, setAnnotations, ocrJobs, setOcrJobs, pageSearch, setPageSearch, searchResult, setSearchResult, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, pendingNote, setPendingNote, noteText, setNoteText, showSignModal, setShowSignModal,
     signatureStyle, setSignatureStyle, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
     transitionTick, setTransitionTick, transitionDirection, setTransitionDirection, thumbnails, setThumbnails, bookmarks, setBookmarks, openMenu, setOpenMenu,

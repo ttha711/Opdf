@@ -32,8 +32,26 @@ import aiAvatar from "./assets/ai-avatar.jpg";
 import "./types/opdf";
 
 export function App() {
+  const isLocal = typeof window !== "undefined" && (
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "[::1]" ||
+    window.location.hostname === "::1" ||
+    window.location.hostname.startsWith("192.168.") ||
+    window.location.hostname.startsWith("10.") ||
+    window.location.hostname.startsWith("172.")
+  );
+  const isPublic = !isLocal;
+
   const isAiEditorWindow = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("ai-editor") === "1";
   if (isAiEditorWindow) {
+    if (isPublic) {
+      return (
+        <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", color: "#666" }}>
+          <h2>This feature is only available on Local or Desktop App versions.</h2>
+        </div>
+      );
+    }
     return <AiRewriteEditorWindow />;
   }
 
@@ -206,6 +224,7 @@ export function App() {
   }, [isDraggingLeft, isDraggingRight]);
 
   useEffect(() => {
+    if (isPublic) return; // Public view does not auto-open dashboard
     // Delay slightly to allow draft loading to restore the session if any
     const timeout = setTimeout(() => {
       if (!state.hasDocument) {
@@ -213,7 +232,7 @@ export function App() {
       }
     }, 150);
     return () => clearTimeout(timeout);
-  }, [state.hasDocument, state.setShowDashboard]);
+  }, [state.hasDocument, state.setShowDashboard, isPublic]);
 
   useEffect(() => {
     if (state.hasDocument) {
@@ -241,6 +260,7 @@ export function App() {
     fileName: state.fileName,
     noteText: state.noteText,
     signatureStyle: state.signatureStyle,
+    annotationToolDefaults: state.annotationToolDefaults,
     setAnnotations: state.setAnnotations,
     setViewerError: state.setViewerError,
   });
@@ -610,6 +630,10 @@ export function App() {
   const rightResizerWidth = !isRightCollapsed ? "4px" : "0px";
   const rightColWidth = !isRightCollapsed ? `${rightWidth}px` : "0px";
   const openAiEditorWindow = useCallback(() => {
+    if (isPublic) {
+      alert("This feature is only available on Local or Desktop App versions.");
+      return;
+    }
     const payload = {
       fileName: state.fileName,
       docBytes: state.docBytes ? Array.from(state.docBytes) : undefined,
@@ -620,7 +644,7 @@ export function App() {
     nextUrl.searchParams.set("ai-editor", "1");
     const popup = window.open(nextUrl.toString(), "opdf-ai-editor", "width=1440,height=920");
     if (popup) popup.focus();
-  }, [state.fileName, state.docBytes]);
+  }, [state.fileName, state.docBytes, isPublic]);
 
   return (
     <div className="app acrobat-shell">
@@ -640,7 +664,7 @@ export function App() {
         onOpenAiEditorWindow={openAiEditorWindow}
       />
 
-      {state.showDashboard ? (
+      {state.showDashboard && !isPublic ? (
         <AllToolsDashboard
           hasDocument={state.hasDocument}
           fileName={state.fileName}

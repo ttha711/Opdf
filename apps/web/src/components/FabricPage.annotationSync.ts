@@ -20,7 +20,7 @@ export function syncAnnotationsToCanvas(params: {
   pageAnnotations.forEach((ann) => {
     if (!ann.payload) return;
     const payload = ann.payload as Record<string, unknown>;
-    const { x, y, width: w, height: h, text, signer, color, stroke, opacity, fontSize } = payload as any;
+    const { x, y, width: w, height: h, text, signer, color, stroke, opacity, fontSize, strokeWidth } = payload as any;
 
     const absX = (x ?? 0) * width;
     const absY = (y ?? 0) * height;
@@ -82,7 +82,7 @@ export function syncAnnotationsToCanvas(params: {
         originX: "left", originY: "top",
         fill: "transparent",
         stroke: stroke || color || "#ef4444",
-        strokeWidth: 2,
+        strokeWidth: strokeWidth || 2,
         opacity: annOpacity,
         selectable,
         evented: selectable,
@@ -107,7 +107,7 @@ export function syncAnnotationsToCanvas(params: {
         originX: "left", originY: "top",
         fill: color || "black",
         opacity: annOpacity,
-        strokeWidth: 0,
+        strokeWidth: strokeWidth || 0,
         selectable,
         evented: selectable,
         hasControls: true,

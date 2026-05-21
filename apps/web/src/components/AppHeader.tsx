@@ -1,6 +1,6 @@
-import type { ChangeEvent, Ref } from "react";
+import type { ChangeEvent, Dispatch, Ref, SetStateAction } from "react";
 import { MenuDropdown, type MenuItemDef } from "./MenuDropdown";
-import type { ActiveTool, ViewMode, ZoomPreset } from "../lib/app-types";
+import type { ActiveTool, AnnotationToolDefaults, ViewMode, ZoomPreset } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
 import { TabBar } from "./TabBar";
 import {
@@ -29,6 +29,8 @@ export function AppHeader({
   closeMenu,
   activeTool,
   setActiveTool,
+  annotationToolDefaults,
+  setAnnotationToolDefaults,
   exportPdf,
   page,
   totalPages,
@@ -96,6 +98,8 @@ export function AppHeader({
   closeMenu: () => void;
   activeTool: ActiveTool;
   setActiveTool: (tool: ActiveTool) => void;
+  annotationToolDefaults: AnnotationToolDefaults;
+  setAnnotationToolDefaults: Dispatch<SetStateAction<AnnotationToolDefaults>>;
   exportPdf: () => void;
   page: number;
   totalPages: number;
@@ -172,24 +176,49 @@ export function AppHeader({
         <MenuDropdown label="Edit" items={editMenuItems} isOpen={openMenu === "Edit"} onToggle={() => toggleMenu("Edit")} onClose={closeMenu} />
         <MenuDropdown label="View" items={viewMenuItems} isOpen={openMenu === "View"} onToggle={() => toggleMenu("View")} onClose={closeMenu} />
         <MenuDropdown label="Tools" items={toolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
-        <button
-          className={`px-3 py-1.5 rounded-md text-[var(--ui-font-sm)] font-semibold transition-all cursor-pointer ${
-            showDashboard
-              ? "border border-red-500 text-red-500 bg-red-500/10"
-              : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)]"
-          }`}
-          onClick={() => setShowDashboard(!showDashboard)}
-          type="button"
-        >
-          All Tools Dashboard
-        </button>
-        <button
-          className="px-3 py-1.5 rounded-md text-[var(--ui-font-sm)] font-semibold transition-all cursor-pointer border border-blue-500 text-blue-600 bg-blue-50 hover:bg-blue-100"
-          onClick={onOpenAiEditorWindow}
-          type="button"
-        >
-          AI Editor
-        </button>
+        {(() => {
+          const isLocal = typeof window !== "undefined" && (
+            window.location.hostname === "localhost" ||
+            window.location.hostname === "127.0.0.1" ||
+            window.location.hostname === "[::1]" ||
+            window.location.hostname === "::1" ||
+            window.location.hostname.startsWith("192.168.") ||
+            window.location.hostname.startsWith("10.") ||
+            window.location.hostname.startsWith("172.")
+          );
+          const isPublic = !isLocal;
+
+          return (
+            <>
+              <button
+                className={`px-3 py-1.5 rounded-md text-[var(--ui-font-sm)] font-semibold transition-all ${
+                  isPublic
+                    ? "border border-dashed border-gray-300 text-gray-400 bg-gray-50/50 opacity-60 cursor-not-allowed"
+                    : showDashboard
+                    ? "border border-red-500 text-red-500 bg-red-500/10 cursor-pointer"
+                    : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] cursor-pointer"
+                }`}
+                onClick={isPublic ? () => alert("This feature is only available on Local or Desktop App versions.") : () => setShowDashboard(!showDashboard)}
+                title={isPublic ? "Feature locked in public view" : "All Tools Dashboard"}
+                type="button"
+              >
+                {isPublic ? "🔒 All Tools Dashboard" : "All Tools Dashboard"}
+              </button>
+              <button
+                className={`px-3 py-1.5 rounded-md text-[var(--ui-font-sm)] font-semibold transition-all ${
+                  isPublic
+                    ? "border border-dashed border-gray-300 text-gray-400 bg-gray-50/50 opacity-60 cursor-not-allowed"
+                    : "border border-blue-500 text-blue-600 bg-blue-50 hover:bg-blue-100 cursor-pointer"
+                }`}
+                onClick={isPublic ? () => alert("This feature is only available on Local or Desktop App versions.") : onOpenAiEditorWindow}
+                title={isPublic ? "Feature locked in public view" : "AI Editor"}
+                type="button"
+              >
+                {isPublic ? "🔒 AI Editor" : "AI Editor"}
+              </button>
+            </>
+          );
+        })()}
         <div className="mx-1 h-4 w-px bg-[var(--border-color)]" />
         {!hasDesktopBridge ? (
           <input ref={fileInputRef} className="hidden-file-input" type="file" accept="application/pdf" onClick={(e) => { e.currentTarget.value = ""; }} onChange={onSelectLocalFile} />
@@ -248,6 +277,8 @@ export function AppHeader({
           activeTool={activeTool}
           hasDocument={hasDocument}
           setActiveTool={setActiveTool}
+          annotationToolDefaults={annotationToolDefaults}
+          setAnnotationToolDefaults={setAnnotationToolDefaults}
           undoAnnotations={undoAnnotations}
           redoAnnotations={redoAnnotations}
         />

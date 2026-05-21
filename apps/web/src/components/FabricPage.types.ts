@@ -8,6 +8,7 @@ export interface FabricPageProps {
   shapeMode: boolean;
   redactMode: boolean;
   measureMode: boolean;
+  annotationToolDefaults: import("../lib/app-types").AnnotationToolDefaults;
   onAnnotationCreated?: (page: number, kind: string, payload: Record<string, unknown>) => void;
   onAnnotationUpdated?: (id: string, payload: Record<string, unknown>) => void;
   onAnnotationDeleted?: (id: string) => void;
@@ -19,6 +20,7 @@ export interface SelectedAnnotationState {
   color: string;
   opacity: number;
   fontSize?: number;
+  size?: number;
   anchorX: number;
   anchorY: number;
 }

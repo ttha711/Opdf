@@ -17,6 +17,8 @@ interface AnnotationToolbarProps {
   kind?: string;
   fontSize?: number;
   onFontSizeChange?: (id: string, size: number) => void;
+  size?: number;
+  onSizeChange?: (id: string, size: number) => void;
 }
 
 /**
@@ -39,6 +41,8 @@ export function AnnotationToolbar({
   kind,
   fontSize,
   onFontSizeChange,
+  size,
+  onSizeChange,
 }: AnnotationToolbarProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -105,23 +109,49 @@ export function AnnotationToolbar({
           />
         </label>
       ) : (
-        <label className="ann-toolbar-item ann-toolbar-opacity" title="Opacity">
-          <span className="ann-toolbar-label">
-            <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor">
-              <circle cx="8" cy="8" r="7" fillOpacity="0.5" />
-            </svg>
-          </span>
-          <input
-            type="range"
-            min={0.1}
-            max={1}
-            step={0.05}
-            value={opacity}
-            onChange={(e) => onOpacityChange(annotationId, parseFloat(e.target.value))}
-            className="ann-toolbar-slider"
-          />
-          <span className="ann-toolbar-pct">{Math.round(opacity * 100)}%</span>
-        </label>
+        <>
+          <label className="ann-toolbar-item ann-toolbar-opacity" title="Opacity">
+            <span className="ann-toolbar-label">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor">
+                <circle cx="8" cy="8" r="7" fillOpacity="0.5" />
+              </svg>
+            </span>
+            <input
+              type="range"
+              min={0.1}
+              max={1}
+              step={0.05}
+              value={opacity}
+              onChange={(e) => onOpacityChange(annotationId, parseFloat(e.target.value))}
+              className="ann-toolbar-slider"
+            />
+            <span className="ann-toolbar-pct">{Math.round(opacity * 100)}%</span>
+          </label>
+          {(kind === "shape" || kind === "redact") && (
+            <label className="ann-toolbar-item ann-toolbar-font-size" title="Stroke size (px)" style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px" }}>
+              <span style={{ fontWeight: "bold", color: "var(--ui-muted-text)" }}>W</span>
+              <input
+                type="number"
+                min={1}
+                max={12}
+                step={1}
+                value={size || 2}
+                onChange={(e) => onSizeChange?.(annotationId, parseInt(e.target.value, 10) || 2)}
+                style={{
+                  width: "40px",
+                  height: "24px",
+                  padding: "0 4px",
+                  textAlign: "center",
+                  borderRadius: "4px",
+                  border: "1px solid var(--border-color)",
+                  background: "rgba(0,0,0,0.05)",
+                  color: "inherit",
+                  outline: "none",
+                }}
+              />
+            </label>
+          )}
+        </>
       )}
 
       <div className="ann-toolbar-divider" />

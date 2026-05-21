@@ -11,7 +11,7 @@ export function useAiAssistantMessages() {
       {
         id: "welcome",
         sender: "assistant",
-        text: "Xin chào! Tôi là Trợ lý AI của OPDF. 🚀\n\nTôi có thể giúp bạn thao tác nhanh tài liệu PDF bằng câu lệnh tự nhiên cục bộ (NLP) hoặc kết nối trực tiếp với chatbot AI (Dify) của bạn.\n\nHãy thử các nút gợi ý nhanh bên dưới hoặc gõ 'trợ giúp' để xem danh sách câu lệnh!",
+        text: "Xin chào! Tôi là Trợ lý AI của OPDF. 🚀\n\nTôi có thể giúp bạn thao tác nhanh tài liệu PDF bằng câu lệnh tự nhiên .\n\nHãy thử các nút gợi ý nhanh bên dưới hoặc gõ 'trợ giúp' để xem danh sách câu lệnh!",
         timestamp: new Date(),
       },
     ]);

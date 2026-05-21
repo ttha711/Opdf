@@ -15,6 +15,38 @@ const cloneBytes = (bytes: Uint8Array) => new Uint8Array(bytes);
 const escapeHtml = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+const formatStructuredHtml = (raw: string): { type: EditorBlock["type"]; html: string; content: string } => {
+  const lines = raw
+    .split(/\r?\n/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return { type: "paragraph", html: "<p></p>", content: "" };
+
+  const isBullet = (s: string) => /^([\-*•]\s+|\d+[\.\)]\s+)/.test(s);
+  const stripBullet = (s: string) => s.replace(/^([\-*•]\s+|\d+[\.\)]\s+)/, "").trim();
+  const isHeading = (s: string) =>
+    s.length <= 90 &&
+    (/^[A-Z0-9][A-Z0-9\s:().,\-]+$/.test(s) || /^(chapter|section|heading|title)\b/i.test(s));
+
+  if (lines.every(isBullet) && lines.length >= 2) {
+    const items = lines.map((line) => `<li>${escapeHtml(stripBullet(line))}</li>`).join("");
+    const content = lines.map(stripBullet).join(" ");
+    return { type: "list", html: `<ul>${items}</ul>`, content };
+  }
+
+  const first = lines[0];
+  if (isHeading(first)) {
+    const rest = lines.slice(1);
+    const heading = `<h3>${escapeHtml(first)}</h3>`;
+    if (rest.length === 0) return { type: "heading", html: heading, content: first };
+    const body = rest.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+    return { type: "heading", html: `${heading}${body}`, content: [first, ...rest].join(" ") };
+  }
+
+  const paragraphs = lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+  return { type: "paragraph", html: paragraphs, content: lines.join(" ") };
+};
+
 const extractLooseText = (value: unknown, depth = 0): string | null => {
   if (depth > 3 || value == null) return null;
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -77,15 +109,56 @@ export function AiRewriteEditorWindow() {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
-      const raw = (Array.isArray(textContent.items) ? textContent.items : []).map((it: any) => String(it?.str || "").trim()).filter(Boolean).join(" ");
-      if (!raw) continue;
-      next.push({
-        id: `block_${next.length + 1}`,
-        type: i === 1 ? "heading" : "paragraph",
-        content: raw,
-        html: i === 1 ? `<h2>${raw}</h2>` : `<p>${raw}</p>`,
-        style: { font: "Noto Sans", size: i === 1 ? 16 : 12, color: "#111827", lineHeight: 1.5 },
-      });
+      const items = Array.isArray(textContent.items) ? textContent.items : [];
+      const positioned = items
+        .map((it: any) => ({
+          text: String(it?.str || "").trim(),
+          x: Number(it?.transform?.[4] ?? 0),
+          y: Number(it?.transform?.[5] ?? 0),
+        }))
+        .filter((it) => it.text.length > 0)
+        .sort((a, b) => (Math.abs(b.y - a.y) > 1 ? b.y - a.y : a.x - b.x));
+      if (positioned.length === 0) continue;
+
+      const lines: string[] = [];
+      let currentY = positioned[0].y;
+      let current: string[] = [];
+      for (const token of positioned) {
+        if (Math.abs(token.y - currentY) > 3) {
+          if (current.length > 0) lines.push(current.join(" ").replace(/\s+/g, " ").trim());
+          current = [token.text];
+          currentY = token.y;
+        } else {
+          current.push(token.text);
+        }
+      }
+      if (current.length > 0) lines.push(current.join(" ").replace(/\s+/g, " ").trim());
+
+      const paragraphBreak = /^\s*$|^[•\-–]\s+|^\d+[\.\)]\s+/;
+      let para: string[] = [];
+      const flushPara = () => {
+        const text = para.join(" ").replace(/\s+/g, " ").trim();
+        para = [];
+        if (!text) return;
+        const isHeading = text.length < 90 && /^[A-Z0-9][A-Z0-9\s:.\-()]+$/.test(text);
+        next.push({
+          id: `block_${next.length + 1}`,
+          type: isHeading ? "heading" : "paragraph",
+          content: text,
+          html: isHeading ? `<h3>${text}</h3>` : `<p>${text}</p>`,
+          style: { font: "Noto Sans", size: isHeading ? 16 : 12, color: "#111827", lineHeight: 1.5 },
+        });
+      };
+
+      for (const line of lines) {
+        if (!line) {
+          flushPara();
+          continue;
+        }
+        if (paragraphBreak.test(line) && para.length > 0) flushPara();
+        para.push(line);
+      }
+      flushPara();
     }
     return next;
   };
@@ -131,7 +204,9 @@ export function AiRewriteEditorWindow() {
         working = working.map((b) => {
           const u = patch.updates.find((x) => x.id === b.id);
           if (!u) return b;
-          return { ...b, ...u, content: u.content ?? toContent(u.html ?? b.html) };
+          const sourceText = (u.content ?? toContent(u.html ?? b.html)).trim();
+          const structured = formatStructuredHtml(sourceText);
+          return { ...b, ...u, type: u.type ?? structured.type, html: u.html ?? structured.html, content: u.content ?? structured.content };
         });
         setBlocks([...working]);
         const done = Math.min(i + batchSize, source.length);
@@ -183,7 +258,9 @@ export function AiRewriteEditorWindow() {
               : loose
                 ? (loose.includes("<") ? loose : `<p>${escapeHtml(loose)}</p>`)
                 : b.html;
-          return { ...b, ...u, html: nextHtml, content: u.content ?? toContent(nextHtml) };
+          const sourceText = (u.content ?? toContent(nextHtml)).trim();
+          const structured = formatStructuredHtml(sourceText);
+          return { ...b, ...u, type: u.type ?? structured.type, html: (u.html && u.html.trim()) ? u.html : structured.html, content: u.content ?? structured.content };
         });
         if (!directUpdate || (!directUpdate.html && !directUpdate.content)) {
           setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Trang ${img.page}: AI trả response rỗng hoặc sai format, giữ nguyên placeholder.` }]);
@@ -301,7 +378,9 @@ export function AiRewriteEditorWindow() {
     setBlocks((prev) => prev.map((b) => {
       const u = patch.updates.find((x) => x.id === b.id);
       if (!u) return b;
-      return { ...b, ...u, content: u.content ?? toContent(u.html ?? b.html) };
+      const sourceText = (u.content ?? toContent(u.html ?? b.html)).trim();
+      const structured = formatStructuredHtml(sourceText);
+      return { ...b, ...u, type: u.type ?? structured.type, html: u.html ?? structured.html, content: u.content ?? structured.content };
     }));
     setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "user", text: contextPrompt }, { id: crypto.randomUUID(), sender: "assistant", text: "Đã áp dụng chỉnh sửa vào đoạn được chọn." }]);
     setContextPrompt("");
@@ -318,7 +397,9 @@ export function AiRewriteEditorWindow() {
     setBlocks((prev) => prev.map((b) => {
       const u = patch.updates.find((x) => x.id === b.id);
       if (!u) return b;
-      return { ...b, ...u, content: u.content ?? toContent(u.html ?? b.html) };
+      const sourceText = (u.content ?? toContent(u.html ?? b.html)).trim();
+      const structured = formatStructuredHtml(sourceText);
+      return { ...b, ...u, type: u.type ?? structured.type, html: u.html ?? structured.html, content: u.content ?? structured.content };
     }));
     setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: "Đã cập nhật nội dung theo yêu cầu." }]);
   };

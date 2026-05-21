@@ -62,6 +62,14 @@ export interface OpdfBridge {
   convertPdfOffice?: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => Promise<Uint8Array>;
   setAiConfig?: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => Promise<boolean>;
   getAiConfig?: () => Promise<{ mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }>;
+  getAiAccessToken?: () => Promise<string | null>;
+  getAiDeviceStatus?: () => Promise<{
+    deviceId: string;
+    hasToken: boolean;
+    expiresAt: string | null;
+    lastError: string | null;
+    gatewayBaseUrl: string | null;
+  }>;
   applyAiPatch?: (payload: AiPatchRequest) => Promise<LivePatch>;
 }
 

@@ -70,6 +70,23 @@ export function useFabricAnnotationToolbar({
     [fabricRef, onAnnotationUpdated, setSelectedAnn]
   );
 
+  const handleToolbarSize = useCallback(
+    (id: string, newSize: number) => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      const obj = canvas.getObjects().find((o) => (o as any)[ANN_ID_KEY] === id);
+      if (!obj) return;
+      const kind = (obj as any)[ANN_KIND_KEY] as string;
+      if (kind === "shape" || kind === "redact") {
+        (obj as fabric.Rect).set({ strokeWidth: newSize });
+        canvas.renderAll();
+        setSelectedAnn((prev) => (prev?.id === id ? { ...prev, size: newSize } : prev));
+        onAnnotationUpdated?.(id, { strokeWidth: newSize });
+      }
+    },
+    [fabricRef, onAnnotationUpdated, setSelectedAnn]
+  );
+
   const handleToolbarDelete = useCallback(
     (id: string) => {
       const canvas = fabricRef.current;
@@ -89,6 +106,7 @@ export function useFabricAnnotationToolbar({
     handleToolbarColor,
     handleToolbarOpacity,
     handleToolbarFontSize,
+    handleToolbarSize,
     handleToolbarDelete,
   };
 }

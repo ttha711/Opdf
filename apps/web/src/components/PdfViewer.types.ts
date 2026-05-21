@@ -13,6 +13,7 @@ export interface PdfViewerProps {
   highlightMode?: boolean;
   searchText?: string;
   activeTool?: string;
+  annotationToolDefaults?: import("../lib/app-types").AnnotationToolDefaults;
   onPageToolAction?: (page: number, kind: string, rect: { x: number; y: number; width: number; height: number }) => void;
   shapeMode?: boolean;
   redactMode?: boolean;

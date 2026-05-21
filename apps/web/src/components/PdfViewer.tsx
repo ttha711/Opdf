@@ -20,6 +20,12 @@ export function PdfViewer({
   highlightMode = false,
   searchText,
   activeTool = "select",
+  annotationToolDefaults = {
+    highlight: { color: "#facc15", opacity: 0.4, size: 2 },
+    note: { color: "#fff8d6", opacity: 1, size: 16 },
+    shape: { color: "#ef4444", opacity: 1, size: 2 },
+    redact: { color: "#000000", opacity: 0.85, size: 2 },
+  },
   onPageToolAction,
   shapeMode = false,
   redactMode = false,
@@ -159,6 +165,7 @@ export function PdfViewer({
               redactMode={redactMode}
               measureMode={measureMode}
               activeTool={activeTool}
+              annotationToolDefaults={annotationToolDefaults}
               annotations={annotations}
               pageElementsRef={pageElementsRef}
               onActivePageChange={onActivePageChange}

@@ -1,5 +1,6 @@
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { ToolIconButton } from "./ToolIconButton";
-import type { ActiveTool, ViewMode, ZoomPreset } from "../lib/app-types";
+import type { ActiveTool, AnnotationStyleTool, AnnotationToolDefaults, ViewMode, ZoomPreset } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
 
 // --- FILE & VIEW GROUP ---
@@ -164,35 +165,80 @@ interface AnnotationsHistoryGroupProps {
   activeTool: ActiveTool;
   hasDocument: boolean;
   setActiveTool: (tool: ActiveTool) => void;
+  annotationToolDefaults: AnnotationToolDefaults;
+  setAnnotationToolDefaults: Dispatch<SetStateAction<AnnotationToolDefaults>>;
   undoAnnotations: () => void;
   redoAnnotations: () => void;
+}
+
+const STYLE_TOOLS: AnnotationStyleTool[] = ["highlight", "note", "shape", "redact"];
+
+function toolLabel(tool: AnnotationStyleTool) {
+  return tool === "highlight" ? "Highlight" : tool === "note" ? "Text" : tool === "shape" ? "Rectangle" : "Redact";
+}
+
+function toolShortLabel(tool: AnnotationStyleTool) {
+  return tool === "highlight" ? "Hi" : tool === "note" ? "Tx" : tool === "shape" ? "Box" : "Blk";
 }
 
 export function AnnotationsHistoryGroup({
   activeTool,
   hasDocument,
   setActiveTool,
+  annotationToolDefaults,
+  setAnnotationToolDefaults,
   undoAnnotations,
   redoAnnotations,
 }: AnnotationsHistoryGroupProps) {
+  const [settingsTool, setSettingsTool] = useState<AnnotationStyleTool | null>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const currentSettings = settingsTool ? annotationToolDefaults[settingsTool] : null;
+
+  useEffect(() => {
+    function onPointerDown(event: PointerEvent) {
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setSettingsTool(null);
+      }
+    }
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, []);
+
+  const pickTool = (tool: AnnotationStyleTool) => {
+    setActiveTool(tool);
+    setSettingsTool((prev) => (prev === tool ? null : tool));
+  };
+
+  const updateSetting = (key: keyof AnnotationToolDefaults[AnnotationStyleTool], value: string | number) => {
+    if (!settingsTool) return;
+    setAnnotationToolDefaults((prev) => ({
+      ...prev,
+      [settingsTool]: {
+        ...prev[settingsTool],
+        [key]: value,
+      },
+    }));
+  };
+
   return (
     <div className="flex flex-col items-center gap-1 rounded-[var(--ui-radius-md)] border border-[var(--border-color)] bg-[var(--bg-toolbar)] p-[var(--ui-pad-sm)] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
       <span className="text-center text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--text-secondary)] opacity-70">Annotations & History</span>
-      <div className="flex flex-1 items-center gap-[var(--ui-gap-xs)]">
-        <ToolIconButton label="Highlight" active={activeTool === "highlight"} disabled={!hasDocument} onClick={() => setActiveTool("highlight")}>
+      <div ref={settingsRef} className="relative flex flex-1 items-center gap-[var(--ui-gap-xs)]">
+        <ToolIconButton label="Highlight" active={activeTool === "highlight"} disabled={!hasDocument} onClick={() => pickTool("highlight")}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m14 4 6 6-11 11H4v-5z" />
             <line x1="12" y1="6" x2="18" y2="12" />
           </svg>
         </ToolIconButton>
-        <ToolIconButton label="Add / Edit Text (T)" active={activeTool === "note"} disabled={!hasDocument} onClick={() => setActiveTool("note")}>
+        <ToolIconButton label="Add / Edit Text (T)" active={activeTool === "note"} disabled={!hasDocument} onClick={() => pickTool("note")}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="4 7 4 4 20 4 20 7" />
             <line x1="9" y1="20" x2="15" y2="20" />
             <line x1="12" y1="4" x2="12" y2="20" />
           </svg>
         </ToolIconButton>
-        <ToolIconButton label="Rectangle" active={activeTool === "shape"} disabled={!hasDocument} onClick={() => setActiveTool("shape")}>
+        <ToolIconButton label="Rectangle" active={activeTool === "shape"} disabled={!hasDocument} onClick={() => pickTool("shape")}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="4" y="5" width="16" height="14" rx="2" />
           </svg>
@@ -213,13 +259,73 @@ export function AnnotationsHistoryGroup({
             <path d="M5 16l3 3" />
           </svg>
         </ToolIconButton>
-        <ToolIconButton label="Redact" active={activeTool === "redact"} disabled={!hasDocument} onClick={() => setActiveTool("redact")}>
+        <ToolIconButton label="Redact" active={activeTool === "redact"} disabled={!hasDocument} onClick={() => pickTool("redact")}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="5" width="18" height="14" rx="2" />
             <line x1="3" y1="12" x2="21" y2="12" />
             <line x1="7" y1="9" x2="17" y2="9" strokeWidth="3" />
           </svg>
         </ToolIconButton>
+        {settingsTool && currentSettings ? (
+          <div
+            className="absolute left-0 top-[calc(100%+8px)] z-50 w-[230px] rounded-[var(--ui-radius-md)] border border-[var(--border-color)] bg-[var(--bg-toolbar)] p-3 text-[var(--text-primary)] shadow-xl"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-[var(--text-secondary)]">{toolLabel(settingsTool)}</span>
+              <span className="h-5 w-5 rounded border border-[var(--border-color)]" style={{ background: currentSettings.color }} />
+            </div>
+            <label className="mb-2 flex items-center justify-between gap-3 text-[12px] font-semibold">
+              <span>Color</span>
+              <input
+                type="color"
+                value={currentSettings.color}
+                onChange={(event) => updateSetting("color", event.target.value)}
+                className="h-7 w-10 cursor-pointer rounded border border-[var(--border-color)] bg-transparent p-0.5"
+              />
+            </label>
+            <label className="mb-2 block text-[12px] font-semibold">
+              <div className="mb-1 flex justify-between"><span>Opacity</span><span>{Math.round(currentSettings.opacity * 100)}%</span></div>
+              <input
+                type="range"
+                min={0.05}
+                max={1}
+                step={0.05}
+                value={currentSettings.opacity}
+                onChange={(event) => updateSetting("opacity", Number(event.target.value))}
+                className="w-full accent-[var(--acrobat-blue)]"
+              />
+            </label>
+            <label className="block text-[12px] font-semibold">
+              <div className="mb-1 flex justify-between"><span>{settingsTool === "note" ? "Font size" : "Stroke size"}</span><span>{currentSettings.size}px</span></div>
+              <input
+                type="range"
+                min={settingsTool === "note" ? 8 : 1}
+                max={settingsTool === "note" ? 48 : 12}
+                step={1}
+                value={currentSettings.size}
+                onChange={(event) => updateSetting("size", Number(event.target.value))}
+                className="w-full accent-[var(--acrobat-blue)]"
+              />
+            </label>
+            <div className="mt-3 flex gap-1">
+              {STYLE_TOOLS.map((tool) => (
+                <button
+                  key={tool}
+                  type="button"
+                  title={toolLabel(tool)}
+                  className={`h-6 flex-1 rounded border text-[10px] font-bold uppercase ${settingsTool === tool ? "border-[var(--acrobat-blue)] bg-[var(--ui-accent-bg)] text-[var(--acrobat-blue)]" : "border-[var(--border-color)] text-[var(--text-secondary)]"}`}
+                  onClick={() => {
+                    setActiveTool(tool);
+                    setSettingsTool(tool);
+                  }}
+                >
+                  {toolShortLabel(tool)}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="mx-0.5 h-4 w-px bg-[var(--border-color)]" />
         <ToolIconButton label="Undo (Ctrl+Z)" disabled={!hasDocument} onClick={undoAnnotations}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

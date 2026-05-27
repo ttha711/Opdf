@@ -22,10 +22,12 @@ export function FabricPage({
   shapeMode,
   redactMode,
   measureMode,
+  aiPatchMode,
   annotationToolDefaults,
   onAnnotationCreated,
   onAnnotationUpdated,
   onAnnotationDeleted,
+  onPatchApplied,
 }: FabricPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,7 +36,7 @@ export function FabricPage({
   const [selectedAnn, setSelectedAnn] = useState<SelectedAnnotationState | null>(null);
   const [measureResult, setMeasureResult] = useState<string | null>(null);
 
-  const isAnyDrawMode = highlightMode || shapeMode || redactMode || measureMode;
+  const isAnyDrawMode = highlightMode || shapeMode || redactMode || measureMode || aiPatchMode;
 
   // ─── Init Fabric Canvas ────────────────────────────────────────────────
   useEffect(() => {
@@ -46,6 +48,7 @@ export function FabricPage({
       selection: false,
       // Prevent the default browser selection behavior
       preserveObjectStacking: true,
+      enableRetinaScaling: true,
     });
     fabricRef.current = canvas;
 
@@ -155,10 +158,12 @@ export function FabricPage({
     shapeMode,
     redactMode,
     measureMode,
+    aiPatchMode,
     annotationToolDefaults,
     pageNumber,
     onAnnotationCreated,
     setMeasureResult,
+    onPatchApplied,
   });
 
   const {

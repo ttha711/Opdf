@@ -47,19 +47,34 @@ export function useAnnotationActions({
     }
   }
 
-  async function createToolAnnotation(kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike", pageNumber: number, rect: PendingRect) {
+  async function createToolAnnotation(kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image", pageNumber: number, rect: PendingRect & { image?: string; imageType?: string }) {
     if (!fileName) return;
     const tempId = crypto.randomUUID();
     const payload =
-      kind === "note"
-        ? { text: noteText || "New note", color: annotationToolDefaults.note.color, opacity: annotationToolDefaults.note.opacity, fontSize: annotationToolDefaults.note.size, x: rect.x, y: rect.y }
-        : kind === "shape"
-          ? { shape: "rectangle", stroke: annotationToolDefaults.shape.color, opacity: annotationToolDefaults.shape.opacity, strokeWidth: annotationToolDefaults.shape.size, ...rect }
-          : kind === "redact"
-            ? { shape: "rectangle", color: annotationToolDefaults.redact.color, opacity: annotationToolDefaults.redact.opacity, ...rect }
-            : kind === "underline" || kind === "strike"
-              ? { color: "#ef4444", opacity: 1, ...rect }
-              : { signer: signatureStyle, ...rect };
+      kind === "image"
+        ? { image: rect.image, imageType: rect.imageType, x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        : kind === "note"
+          ? ((rect as any).isPatch
+            ? {
+                isPatch: true,
+                text: (rect as any).text,
+                color: (rect as any).color,
+                textColor: (rect as any).textColor,
+                fontSize: (rect as any).fontSize,
+                fontFamily: (rect as any).fontFamily,
+                x: rect.x,
+                y: rect.y,
+                width: rect.width,
+                height: rect.height,
+              }
+            : { text: noteText || "New note", color: annotationToolDefaults.note.color, opacity: annotationToolDefaults.note.opacity, fontSize: annotationToolDefaults.note.size, x: rect.x, y: rect.y })
+          : kind === "shape"
+            ? { shape: "rectangle", stroke: annotationToolDefaults.shape.color, opacity: annotationToolDefaults.shape.opacity, strokeWidth: annotationToolDefaults.shape.size, ...rect }
+            : kind === "redact"
+              ? { shape: "rectangle", color: annotationToolDefaults.redact.color, opacity: annotationToolDefaults.redact.opacity, ...rect }
+              : kind === "underline" || kind === "strike"
+                ? { color: "#ef4444", opacity: 1, ...rect }
+                : { signer: signatureStyle, ...rect };
     const optimistic: Annotation = { id: tempId, page: pageNumber, kind, payload, createdAt: Date.now(), updatedAt: Date.now() };
     setAnnotations((prev) => [...prev, optimistic]);
     try {

@@ -49,7 +49,12 @@ export function useDocumentLifecycle({
       input.value = "";
       try {
         if (typeof input.showPicker === "function") {
-          input.showPicker();
+          try {
+            input.showPicker();
+          } catch {
+            // Fallback for browsers that restrict showPicker in async context
+            input.click();
+          }
         } else {
           input.click();
         }

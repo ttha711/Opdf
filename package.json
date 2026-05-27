@@ -8,10 +8,12 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @opdf/core && npm run build -w @opdf/web && npm run build -w @opdf/desktop",
-    "typecheck": "npm run build -w @opdf/core && npm run typecheck -w @opdf/web && npm run typecheck -w @opdf/desktop",
+    "build": "npm run build -w @opdf/core && npm run build -w @opdf/web && npm run build -w @opdf/desktop && npm run build -w @opdf/editor",
+    "typecheck": "npm run build -w @opdf/core && npm run typecheck -w @opdf/web && npm run typecheck -w @opdf/desktop && npm run typecheck -w @opdf/editor",
     "lint": "npm run typecheck",
     "web-dev": "npm run dev -w @opdf/web",
+    "editor-dev": "npm run dev -w @opdf/editor",
+    "editor-build": "npm run build -w @opdf/editor",
     "desktop-dev": "npm run dev -w @opdf/desktop",
     "desktop-build": "npm run build -w @opdf/desktop",
     "desktop-package": "npm run package -w @opdf/desktop",

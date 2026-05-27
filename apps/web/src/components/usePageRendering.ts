@@ -122,6 +122,7 @@ export function usePageRendering(params: {
               height: Math.max(fontHeight, item.height * renderViewport.scale),
               fontSize: fontHeight,
               transform: "none",
+              fontName: (item as any).fontName,
             };
           });
         const renderedPage = { pageNumber: pNum, width: cssWidth, height: cssHeight, scale, rotation: combinedRotation, imageUrl: url, textItems };

@@ -188,8 +188,11 @@ export function AllToolsDashboard({
         const arrayBuffer = await file.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
         
-        if (activeAction === "pdf-to-txt") {
-          await runPdfToTxt(bytes, file.name);
+        const targetFormat = getTargetFormat(activeAction);
+        if (targetFormat) {
+          launchPdfToHtmlEditorWithBytes(bytes, file.name, targetFormat);
+          onClose();
+          return;
         } else if (activeAction === "pdf-to-png" || activeAction === "pdf-to-jpg") {
           alert("To convert PDF to images, please open it in Opdf first and click the 'To Images' utility button to export rendered high-res pages.");
         } else {
@@ -207,10 +210,24 @@ export function AllToolsDashboard({
     }
   };
 
+  const getTargetFormat = (actionId: string): string => {
+    switch (actionId) {
+      case "pdf-to-word": return "word";
+      case "pdf-to-excel": return "excel";
+      case "pdf-to-ppt": return "powerpoint";
+      case "pdf-to-rtf": return "rtf";
+      case "pdf-to-txt": return "txt";
+      case "pdf-to-html": return "html";
+      case "pdf-to-xml": return "xml";
+      default: return "";
+    }
+  };
+
   // Convert currently loaded or selected PDF to Text
-  const convertPdfToTxt = async () => {
+  const convertPdfToTxt = () => {
     if (hasDocument && docBytes) {
-      await runPdfToTxt(docBytes, fileName);
+      launchPdfToHtmlEditorWithBytes(docBytes, fileName, "txt");
+      onClose();
     } else {
       triggerFileInput("pdf-to-txt");
     }
@@ -271,10 +288,12 @@ export function AllToolsDashboard({
     }
   };
 
-  // Convert PDF to Office files (Word, Excel, PPT, XML, HTML, RTF) Mock downloader
+  // Convert PDF to Office files (Word, Excel, PPT, XML, HTML, RTF) via Web Editor
   const convertPdfToOffice = (actionId: string) => {
-    if (hasDocument) {
-      runPdfToOfficeMock(actionId, fileName);
+    const targetFormat = getTargetFormat(actionId);
+    if (hasDocument && docBytes) {
+      launchPdfToHtmlEditorWithBytes(docBytes, fileName, targetFormat);
+      onClose();
     } else {
       triggerFileInput(actionId);
     }
@@ -295,6 +314,29 @@ export function AllToolsDashboard({
     URL.revokeObjectURL(url);
   };
 
+  const launchPdfToHtmlEditorWithBytes = (bytes: Uint8Array, name: string, targetFormat?: string) => {
+    const editorUrl = localStorage.getItem("opdf-editor-url") || "http://localhost:5175";
+    const editorWin = window.open(editorUrl, "_blank");
+    if (!editorWin) {
+      alert("Popup blocker prevented opening the PDF to Web editor. Please allow popups.");
+      return;
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data === "opdf-editor-ready") {
+        editorWin.postMessage({
+          type: "opdf-load-pdf",
+          fileName: name,
+          docBytes: bytes,
+          targetFormat
+        }, "*");
+        window.removeEventListener("message", handleMessage);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+  };
+
   // Define tools mapping
   const tools: ToolDef[] = [
     // ROW 1: PDF to X (Convert from PDF)
@@ -304,7 +346,14 @@ export function AllToolsDashboard({
     { id: "pdf-to-jpeg", name: "PDF to JPEG", icon: "🌄", color: "#862e9c", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => convertPdfToImages(false) },
     { id: "pdf-to-ppt", name: "PDF to PPT", icon: "📉", color: "#e8590c", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => convertPdfToOffice("pdf-to-ppt") },
     { id: "pdf-to-txt", name: "PDF to TXT", icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: convertPdfToTxt },
-    { id: "pdf-to-html", name: "PDF to Web", icon: "🌐", color: "#1098ad", bgColor: "#e3fafc", borderColor: "#99e9f2", action: () => convertPdfToOffice("pdf-to-html") },
+    { id: "pdf-to-html", name: "PDF to Web", icon: "🌐", color: "#1098ad", bgColor: "#e3fafc", borderColor: "#99e9f2", action: () => {
+      if (hasDocument && docBytes) {
+        launchPdfToHtmlEditorWithBytes(docBytes, fileName, "html");
+        onClose();
+      } else {
+        triggerFileInput("pdf-to-html");
+      }
+    } },
     { id: "pdf-to-xml", name: "PDF to XML", icon: "👾", color: "#0ca678", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: () => convertPdfToOffice("pdf-to-xml") },
     { id: "pdf-to-rtf", name: "PDF to RTF", icon: "🖋️", color: "#3b5bdb", bgColor: "#edf2ff", borderColor: "#bac8ff", action: () => convertPdfToOffice("pdf-to-rtf") },
 
@@ -393,7 +442,15 @@ export function AllToolsDashboard({
         {getFilteredTools().map((tool) => (
           <button
             key={tool.id}
-            onClick={() => onSelectTool ? onSelectTool(tool.id) : tool.action()}
+            onClick={() => {
+              if (hasDocument) {
+                tool.action();
+              } else if (onSelectTool) {
+                onSelectTool(tool.id);
+              } else {
+                tool.action();
+              }
+            }}
             style={{
               borderColor: tool.borderColor,
             }}

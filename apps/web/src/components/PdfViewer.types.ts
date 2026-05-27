@@ -26,6 +26,8 @@ export interface PdfViewerProps {
   initialThumbnails?: Array<{ page: number; url: string; blob: Blob }>;
   onAnnotationUpdated?: (id: string, payload: Record<string, unknown>) => void;
   onAnnotationDeleted?: (id: string) => void;
+  /** Called when an ai-patch image overlay is placed, so the viewer parent can switch tool */
+  onPatchApplied?: () => void;
 }
 
 export interface RenderedPage {
@@ -46,6 +48,7 @@ export interface RenderedTextItem {
   height: number;
   fontSize: number;
   transform: string;
+  fontName?: string;
 }
 
 export const WINDOW_RADIUS = 2;

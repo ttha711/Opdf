@@ -266,6 +266,13 @@ export function AnnotationsHistoryGroup({
             <line x1="7" y1="9" x2="17" y2="9" strokeWidth="3" />
           </svg>
         </ToolIconButton>
+        <ToolIconButton label="AI Patch" active={activeTool === "ai-patch"} disabled={!hasDocument} onClick={() => setActiveTool("ai-patch")}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m15 4-2 2L5 14v4h4l8-8-2-2Z" />
+            <path d="m19 11-1.5 1.5M19 15h-3M22 6h-3M16 2h-3M19 3v4M22 13.5l-2.5 1" />
+            <path d="M2 22h20" strokeWidth="1.5" />
+          </svg>
+        </ToolIconButton>
         {settingsTool && currentSettings ? (
           <div
             className="absolute left-0 top-[calc(100%+8px)] z-50 w-[230px] rounded-[var(--ui-radius-md)] border border-[var(--border-color)] bg-[var(--bg-toolbar)] p-3 text-[var(--text-primary)] shadow-xl"

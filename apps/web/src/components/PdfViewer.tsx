@@ -38,8 +38,10 @@ export function PdfViewer({
   initialThumbnails,
   onAnnotationUpdated,
   onAnnotationDeleted,
+  onPatchApplied,
+  createToolAnnotation,
   pageRotations = {},
-}: PdfViewerProps & { pageRotations?: Record<number, number> }) {
+}: PdfViewerProps & { pageRotations?: Record<number, number>; createToolAnnotation?: (kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image", pageNumber: number, rect: any) => Promise<void> }) {
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [renderedPages, setRenderedPages] = useState<RenderedPage[]>([]);
   const [continuousLoadedUntil, setContinuousLoadedUntil] = useState(0);
@@ -172,6 +174,8 @@ export function PdfViewer({
               onPageToolAction={onPageToolAction}
               onAnnotationUpdated={onAnnotationUpdated}
               onAnnotationDeleted={onAnnotationDeleted}
+              onPatchApplied={onPatchApplied}
+              createToolAnnotation={createToolAnnotation}
             />
           ))}
           {viewMode === "continuous" ? <div ref={loadMoreRef} style={{ height: "1px" }} aria-hidden="true" /> : null}

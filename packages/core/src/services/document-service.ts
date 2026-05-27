@@ -111,6 +111,21 @@ export class DocumentService {
           color: module.rgb(0, 0, 0),
           opacity: 1
         });
+      } else if (ann.kind === "image" && payload.image) {
+        let base64Data = payload.image as string;
+        if (base64Data.startsWith("data:")) {
+          base64Data = base64Data.split(",")[1];
+        }
+        const imgBytes = Buffer.from(base64Data, "base64");
+        let embeddedImage;
+        if (payload.imageType === "jpg" || payload.imageType === "jpeg") {
+          embeddedImage = await doc.embedJpg(imgBytes);
+        } else {
+          embeddedImage = await doc.embedPng(imgBytes);
+        }
+        page.drawImage(embeddedImage, {
+          x, y, width: objW, height: objH
+        });
       }
     }
 

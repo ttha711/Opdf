@@ -8,10 +8,13 @@ export interface FabricPageProps {
   shapeMode: boolean;
   redactMode: boolean;
   measureMode: boolean;
+  aiPatchMode: boolean;
   annotationToolDefaults: import("../lib/app-types").AnnotationToolDefaults;
   onAnnotationCreated?: (page: number, kind: string, payload: Record<string, unknown>) => void;
   onAnnotationUpdated?: (id: string, payload: Record<string, unknown>) => void;
   onAnnotationDeleted?: (id: string) => void;
+  /** Called after an ai-patch image overlay is placed — use this to auto-switch back to 'select' mode */
+  onPatchApplied?: () => void;
 }
 
 export interface SelectedAnnotationState {

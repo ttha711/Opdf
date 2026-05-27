@@ -22,9 +22,9 @@ export function OverlayEditors({
   setShowSignModal: (value: boolean) => void;
   setPendingNote: (value: PendingNote) => void;
   createToolAnnotation: (
-    kind: "note" | "shape" | "signature" | "redact",
+    kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image",
     pageNumber: number,
-    rect: { x: number; y: number; width: number; height: number },
+    rect: { x: number; y: number; width: number; height: number; image?: string; imageType?: string },
   ) => Promise<void>;
 }) {
   return (

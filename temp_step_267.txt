@@ -1,0 +1,86 @@
+Created At: 2026-05-27T07:32:25Z
+Completed At: 2026-05-27T07:32:25Z
+File Path: `file:///c:/mymy/Opdf/apps/web/src/components/PdfTextSelection.tsx`
+Total Lines: 1131
+Total Bytes: 48198
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import { useCallback, useEffect, useRef, useState } from "react";
+2: import { createPortal } from "react-dom";
+3: import type { RenderedTextItem } from "./PdfViewer.types";
+4: import { normalizeSelectionRects } from "./PdfTextSelection.utils";
+5: 
+6: type TextSelectionAction = "copy" | "highlight" | "underline" | "strike" | "translate" | "redact" | "edit-text" | "ai-rewrite";
+7: 
+8: interface PdfTextLayerProps {
+9:   pageNumber: number;
+10:   width: number;
+11:   height: number;
+12:   textItems: RenderedTextItem[];
+13:   selectionEnabled: boolean;
+14:   onAction: (pageNumber: number, kind: string, rect: { x: number; y: number; width: number; height: number }) => void;
+15:   createToolAnnotation?: (kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image", pageNumber: number, rect: any) => Promise<void>;
+16: }
+17: 
+18: interface SelectionMenuState {
+19:   text: string;
+20:   rects: Array<{ x: number; y: number; width: number; height: number }>;
+21:   x: number;
+22:   y: number;
+23:   anchor: "selection" | "cursor";
+24: }
+25: 
+26: // Thuật toán gom nhóm dòng kiểu Stirling-PDF
+27: interface GroupedLine {
+28:   str: string;
+29:   left: number;
+30:   top: number;
+31:   width: number;
+32:   height: number;
+33:   fontSize: number;
+34:   items: RenderedTextItem[];
+35: }
+36: 
+37: // Gom nhóm các dòng thành đoạn văn để chỉnh sửa khối lớn
+38: interface GroupedParagraph {
+39:   str: string;
+40:   left: number;
+41:   top: number;
+42:   width: number;
+43:   height: number;
+44:   fontSize: number;
+45:   lines: GroupedLine[];
+46: }
+47:
+<truncated 31417 bytes>
+                   <strong>💾 Save</strong>
+772:                   </button>
+773:                   <button
+774:                     type="button"
+775:                     onClick={() => setEditTextState(null)}
+776:                     className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[10px] font-bold px-2 py-1 rounded transition-colors cursor-pointer"
+777:                   >
+778:                     ✕ Cancel
+779:                   </button>
+780: 
+781:                   <div className="w-px h-3 bg-slate-200" />
+782: 
+783:                   <div className="text-[9px] font-semibold text-slate-400">Mask:</div>
+784:                   <div className="flex items-center gap-1">
+785:                     <button
+786:                       type="button"
+787:                       onClick={() => setMaskColor("white")}
+788:                       className={`w-3.5 h-3.5 rounded border ${maskColor === "white" ? "border-indigo-600 ring-1 ring-indigo-600" : "border-slate-300"} bg-white`}
+789:                       title="White background mask"
+790:                     />
+791:                     <button
+792:                       type="button"
+793:                       onClick={() => setMaskColor("black")}
+794:                       className={`w-3.5 h-3.5 rounded border ${maskColor === "black" ? "border-indigo-600 ring-1 ring-indigo-600" : "border-slate-300"} bg-black`}
+795:                       title="Black background mask"
+796:                     />
+797:                     <button
+798:                       type="button"
+799:                       onClick={() => setMaskColor("custom")}
+800:                       className={`w-3.5 h-3.5 rounded border ${maskColor === "custom" ? "border-indigo-600 ring-1 ring-indigo-600" : "border-slate-300"} bg-gradient-to-tr from-yellow-400 via-pink-500 to-indigo-500`}
+The above content does NOT show the entire file contents. If you need to view any lines of the file which were not shown to complete your task, call this tool again to view those lines.

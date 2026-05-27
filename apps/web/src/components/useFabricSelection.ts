@@ -27,10 +27,18 @@ export function useFabricSelection({
     const canvas = fabricRef.current;
     if (!canvas) return;
 
+    // Make the fabric wrapper focusable so arrow keys are captured locally
+    // instead of scrolling the PDF viewer container.
+    if (canvas.wrapperEl) {
+      canvas.wrapperEl.tabIndex = 0;
+      canvas.wrapperEl.style.outline = "none";
+    }
+
     const onSelected = (e: any) => {
       const obj = e.selected?.[0] ?? canvas.getActiveObject();
       if (!obj) return;
       selectFabricObject(obj);
+      canvas.wrapperEl?.focus();
     };
 
     const onDeselected = () => {
@@ -81,7 +89,6 @@ export function useFabricSelection({
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
 
@@ -92,16 +99,60 @@ export function useFabricSelection({
       const id = (active as any)[ANN_ID_KEY] as string | undefined;
       if (!id) return;
 
-      e.preventDefault();
-      canvas.remove(active);
-      canvas.renderAll();
-      setSelectedAnn(null);
-      onAnnotationDeleted?.(id);
+      // Delete / Backspace
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        canvas.remove(active);
+        canvas.renderAll();
+        setSelectedAnn(null);
+        onAnnotationDeleted?.(id);
+        return;
+      }
+
+      // Arrow-key nudging
+      if (e.key.startsWith("Arrow")) {
+        if (isAnyDrawMode) return;
+
+        const step = e.shiftKey ? 10 : 1;
+        let dx = 0;
+        let dy = 0;
+        if (e.key === "ArrowLeft") dx = -step;
+        else if (e.key === "ArrowRight") dx = step;
+        else if (e.key === "ArrowUp") dy = -step;
+        else if (e.key === "ArrowDown") dy = step;
+        if (dx === 0 && dy === 0) return;
+
+        e.preventDefault();
+        active.set({ left: (active.left ?? 0) + dx, top: (active.top ?? 0) + dy });
+        active.setCoords();
+        canvas.renderAll();
+
+        // Persist new position
+        const canvasW = canvas.getWidth();
+        const canvasH = canvas.getHeight();
+        const br = active.getBoundingRect();
+        const kind = (active as any)[ANN_KIND_KEY] as string | undefined;
+        const payload: Record<string, unknown> = {
+          x: br.left / canvasW,
+          y: br.top / canvasH,
+          width: br.width / canvasW,
+          height: br.height / canvasH,
+        };
+        if (kind === "shape") {
+          payload.stroke = (active as fabric.Rect).stroke;
+          payload.strokeWidth = (active as fabric.Rect).strokeWidth;
+        }
+        onAnnotationUpdated?.(id, payload);
+
+        const { anchorX, anchorY } = computeAnchor(active);
+        setSelectedAnn((prev) => (prev?.id === id ? { ...prev, anchorX, anchorY } : prev));
+      }
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onAnnotationDeleted, fabricRef, setSelectedAnn]);
+    const wrapperEl = fabricRef.current?.wrapperEl as HTMLElement | undefined;
+    wrapperEl?.addEventListener("keydown", onKeyDown);
+    return () => wrapperEl?.removeEventListener("keydown", onKeyDown);
+  }, [isAnyDrawMode, onAnnotationUpdated, onAnnotationDeleted, computeAnchor, fabricRef, setSelectedAnn]);
 
   useEffect(() => {
     if (!isAnyDrawMode) return;

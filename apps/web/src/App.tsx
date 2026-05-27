@@ -13,21 +13,14 @@ import { StatusBar } from "./components/StatusBar";
 import { FindBar } from "./components/FindBar";
 import { DocumentToolPanel } from "./components/DocumentToolPanel";
 import { IntegratedUploadWorkspace } from "./components/IntegratedUploadWorkspace";
-import { useOpdfBridge } from "./hooks/useOpdfBridge";
-import { useAnnotationActions } from "./hooks/useAnnotationActions";
-import { useDocumentActions } from "./hooks/useDocumentActions";
 import type { MarkupTool } from "./hooks/useDocumentActions";
-import { useViewerControls } from "./hooks/useViewerControls";
-import { useAppMenus } from "./hooks/useAppMenus";
-import { useDocumentLifecycle } from "./hooks/useDocumentLifecycle";
-import { useAppState } from "./hooks/useAppState";
-import { useAppEffects } from "./hooks/useAppEffects";
-import { usePdfDrop } from "./hooks/usePdfDrop";
-import { useAppViewModel } from "./hooks/useAppViewModel";
-import { createAgentStateSnapshot, useAgentBridge } from "./hooks/useAgentBridge";
 import { AiAssistantPanel } from "./components/AiAssistantPanel";
 import { LiveHtmlEditor } from "./components/LiveHtmlEditor";
 import { AiRewriteEditorWindow } from "./components/AiRewriteEditorWindow";
+import { useResizableSidebars } from "./hooks/useResizableSidebars";
+import { useDraggableFab } from "./hooks/useDraggableFab";
+import { useIntegratedFileConverter } from "./hooks/useIntegratedFileConverter";
+import { useAppControllers } from "./hooks/useAppControllers";
 import aiAvatar from "./assets/ai-avatar.jpg";
 import "./types/opdf";
 
@@ -55,596 +48,67 @@ export function App() {
     return <AiRewriteEditorWindow />;
   }
 
-  const bridge = useOpdfBridge();
-  const state = useAppState();
-  const viewerAreaRef = useRef<HTMLDivElement>(null);
-
-  // Resizable & Collapsible Sidebar states
-  const [leftWidth, setLeftWidth] = useState(240);
-  const [rightWidth, setRightWidth] = useState(240);
-  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
-  const [isRightCollapsed, setIsRightCollapsed] = useState(false);
-  const [isDraggingLeft, setIsDraggingLeft] = useState(false);
-  const [isDraggingRight, setIsDraggingRight] = useState(false);
   const [activeMarkupTool, setActiveMarkupTool] = useState<MarkupTool | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isLiveEditorOpen, setIsLiveEditorOpen] = useState(false);
   const [liveEditorHtml, setLiveEditorHtml] = useState<string | null>(null);
 
-  // --- DRAGGABLE FAB LOGIC ---
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const dragStartMouse = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const hasMovedRef = useRef(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [panelAlign, setPanelAlign] = useState<"left" | "right">("right");
-
-  const startDrag = useCallback((clientX: number, clientY: number) => {
-    if (!buttonRef.current) return;
-    const rect = buttonRef.current.getBoundingClientRect();
-    const currentX = position ? position.x : rect.left;
-    const currentY = position ? position.y : rect.top;
-    
-    dragStartOffset.current = {
-      x: clientX - currentX,
-      y: clientY - currentY,
-    };
-    dragStartMouse.current = { x: clientX, y: clientY };
-    setIsDragging(true);
-    hasMovedRef.current = false;
-  }, [position]);
-
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    if (e.button !== 0) return; // Only left click
-    startDrag(e.clientX, e.clientY);
-  }, [startDrag]);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLButtonElement>) => {
-    if (e.touches.length > 0) {
-      const touch = e.touches[0];
-      startDrag(touch.clientX, touch.clientY);
-    }
-  }, [startDrag]);
-
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      moveDrag(e.clientX, e.clientY);
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) {
-        moveDrag(e.touches[0].clientX, e.touches[0].clientY);
-      }
-    };
-
-    const moveDrag = (clientX: number, clientY: number) => {
-      const deltaX = clientX - dragStartMouse.current.x;
-      const deltaY = clientY - dragStartMouse.current.y;
-      
-      if (Math.sqrt(deltaX * deltaX + deltaY * deltaY) > 5) {
-        hasMovedRef.current = true;
-      }
-      
-      let newX = clientX - dragStartOffset.current.x;
-      let newY = clientY - dragStartOffset.current.y;
-
-      const btnSize = 48;
-      newX = Math.max(10, Math.min(window.innerWidth - btnSize - 10, newX));
-      newY = Math.max(10, Math.min(window.innerHeight - btnSize - 10, newY));
-
-      setPosition({ x: newX, y: newY });
-    };
-
-    const handleMouseUp = () => {
-      endDrag();
-    };
-
-    const handleTouchEnd = () => {
-      endDrag();
-    };
-
-    const endDrag = () => {
-      setIsDragging(false);
-      if (!position) return;
-
-      const btnSize = 48;
-      const currentX = position.x;
-      const distToLeft = currentX;
-      const distToRight = window.innerWidth - (currentX + btnSize);
-      
-      let finalX = 24;
-      let alignSide: "left" | "right" = "left";
-      
-      if (distToRight < distToLeft) {
-        finalX = window.innerWidth - btnSize - 24;
-        alignSide = "right";
-      }
-      
-      setPanelAlign(alignSide);
-      const finalY = Math.max(50, Math.min(window.innerHeight - btnSize - 50, position.y));
-      setPosition({ x: finalX, y: finalY });
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("touchmove", handleTouchMove, { passive: true });
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("touchend", handleTouchEnd);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, [isDragging, position]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (!position) return;
-      const btnSize = 48;
-      let finalX = 24;
-      if (panelAlign === "right") {
-        finalX = window.innerWidth - btnSize - 24;
-      }
-      const finalY = Math.max(50, Math.min(window.innerHeight - btnSize - 50, position.y));
-      setPosition({ x: finalX, y: finalY });
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [position, panelAlign]);
-
-  useEffect(() => {
-    if (!isDraggingLeft && !isDraggingRight) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isDraggingLeft) {
-        const newWidth = Math.max(160, Math.min(450, e.clientX));
-        setLeftWidth(newWidth);
-      }
-      if (isDraggingRight) {
-        const newWidth = Math.max(180, Math.min(500, window.innerWidth - e.clientX));
-        setRightWidth(newWidth);
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsDraggingLeft(false);
-      setIsDraggingRight(false);
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDraggingLeft, isDraggingRight]);
-
-  useEffect(() => {
-    if (isPublic) return; // Public view does not auto-open dashboard
-    // Delay slightly to allow draft loading to restore the session if any
-    const timeout = setTimeout(() => {
-      if (!state.hasDocument) {
-        state.setShowDashboard(true);
-      }
-    }, 150);
-    return () => clearTimeout(timeout);
-  }, [state.hasDocument, state.setShowDashboard, isPublic]);
-
-  useEffect(() => {
-    if (state.hasDocument) {
-      state.setShowDashboard(false);
-    }
-  }, [state.hasDocument, state.setShowDashboard]);
-
-  const { openFile, openFileWithPath, onSelectLocalFile, replaceDocumentBytes, closeDocument } = useDocumentLifecycle({
-    bridge,
-    hasDesktopBridge: state.hasDesktopBridge,
-    fileInputRef: state.fileInputRef,
-    page: state.page,
-    setFileName: state.setFileName,
-    setDocBytes: state.setDocBytes,
-    setPage: state.setPage,
-    setTotalPages: state.setTotalPages,
-    setViewerError: state.setViewerError,
-    setThumbnails: state.setThumbnails,
-    setAnnotations: state.setAnnotations,
-    setTransitionTick: state.setTransitionTick,
-  });
-
-  const { addHighlight, createToolAnnotation, undoAnnotations, redoAnnotations, removeAnnotation, updateAnnotation } = useAnnotationActions({
-    bridge,
-    fileName: state.fileName,
-    noteText: state.noteText,
-    signatureStyle: state.signatureStyle,
-    annotationToolDefaults: state.annotationToolDefaults,
-    setAnnotations: state.setAnnotations,
-    setViewerError: state.setViewerError,
-  });
-
-  const { runOcr, exportPdf, compressDocument, addWatermark, mergeDocuments, splitDocument, convertToImages, runDocumentTool, runConfiguredDocumentTool, runConfiguredMarkupTool, runConfiguredWatermark } = useDocumentActions({
-    bridge,
-    hasDocument: state.hasDocument,
-    hasDesktopBridge: state.hasDesktopBridge,
-    fileName: state.fileName,
-    docBytes: state.docBytes,
-    page: state.page,
-    totalPages: state.totalPages,
-    thumbnails: state.thumbnails,
-    annotations: state.annotations,
-    documentTool: state.documentTool,
-    replaceDocumentBytes,
-    setDocBytes: state.setDocBytes,
-    setPage: state.setPage,
-    setOcrJobs: state.setOcrJobs,
-    setViewerError: state.setViewerError,
-    setShowSplitModal: state.setShowSplitModal,
-    setShowMergeModal: state.setShowMergeModal,
-    setShowInsertModal: state.setShowInsertModal,
-  });
-
-  const onLoaded = useCallback((pages: number) => {
-    state.setTotalPages(pages);
-    state.setPage((p) => Math.min(Math.max(1, p), Math.max(1, pages)));
-  }, [state.setScale, state.setZoomPreset]);
-
-  const onSearchResult = useCallback((found: boolean, message: string) => {
-    state.setSearchResult(found ? `Found: ${message}` : `Not found: ${message}`);
-  }, [state]);
+  const {
+    leftWidth,
+    rightWidth,
+    isLeftCollapsed,
+    setIsLeftCollapsed,
+    isRightCollapsed,
+    setIsRightCollapsed,
+    isDraggingLeft,
+    isDraggingRight,
+    setIsDraggingLeft,
+    setIsDraggingRight,
+  } = useResizableSidebars();
 
   const {
-    goPrevPage,
-    goNextPage,
-    zoomIn,
-    zoomOut,
-    resetZoom,
-    applyZoomPreset,
-    rotateLeft,
-    rotateRight,
-    onPageToolAction,
+    position,
+    isDragging,
+    buttonRef,
+    panelAlign,
+    hasMovedRef,
+    handleMouseDown,
+    handleTouchStart,
+  } = useDraggableFab();
+
+  const {
+    state,
+    bridge,
+    viewerAreaRef,
+    headerProps,
+    viewerProps,
     onViewerWheel,
-    onActivePageChange,
-  } = useViewerControls({
-    hasDocument: state.hasDocument,
-    highlightMode: state.highlightMode,
-    viewMode: state.viewMode,
-    totalPages: state.totalPages,
-    setTransitionDirection: state.setTransitionDirection,
-    setTransitionTick: state.setTransitionTick,
-    page: state.page,
-    setPage: state.setPage,
-    setZoomPreset: state.setZoomPreset,
-    setScale: state.setScale,
-    setRotation: state.setRotation,
-    setPageRotations: state.setPageRotations,
-    lastWheelFlipAtRef: state.lastWheelFlipAtRef,
-    activeTool: state.activeTool,
-    addHighlight,
-    createToolAnnotation,
-    setPendingNote: state.setPendingNote,
-    setShowSignModal: state.setShowSignModal,
-  });
-
-  // Handle Ctrl + mouse wheel zoom natively to prevent default browser page zooming
-  useEffect(() => {
-    const viewerElement = viewerAreaRef.current;
-    if (!viewerElement) return;
-
-    const handleNativeWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault();
-        state.setZoomPreset("actual");
-        const nextFactor = Math.exp(-e.deltaY * 0.0015);
-        state.setScale((current) => Math.min(3, Math.max(0.5, Number((current * nextFactor).toFixed(3)))));
-      }
-    };
-
-    viewerElement.addEventListener("wheel", handleNativeWheel, { passive: false });
-    return () => {
-      viewerElement.removeEventListener("wheel", handleNativeWheel);
-    };
-  }, [state]);
-
-  const closeMenu = useCallback(() => state.setOpenMenu(null), [state]);
-  const toggleMenu = useCallback((name: string) => state.setOpenMenu(prev => prev === name ? null : name), [state]);
-
-  const { fileMenuItems, editMenuItems, viewMenuItems, toolsMenuItems } = useAppMenus({
-    hasDocument: state.hasDocument,
-    viewMode: state.viewMode,
-    setViewMode: state.setViewMode,
-    setActiveTool: state.setActiveTool,
-    openFile,
-    closeDocument,
-    exportPdf,
+    onDragOver,
+    onDrop,
     compressDocument,
-    addWatermark,
     mergeDocuments,
     splitDocument,
-    convertToImages,
-    undoAnnotations,
-    redoAnnotations,
-    zoomIn,
-    zoomOut,
-    resetZoom,
-    applyZoomPreset,
-    rotateLeft,
-    rotateRight,
-    runOcr,
-    setDocumentTool: state.setDocumentTool,
-    runDocumentTool,
-  });
+    replaceDocumentBytes,
+    runConfiguredMarkupTool,
+    removeAnnotation,
+    createToolAnnotation,
+    openAiEditorWindow,
+  } = useAppControllers({ isPublic, setActiveMarkupTool });
 
-  useAppEffects({
-    bridge,
-    hasDesktopBridge: state.hasDesktopBridge,
-    docBytes: state.docBytes,
-    hasDocument: state.hasDocument,
-    fileName: state.fileName,
-    annotations: state.annotations,
-    thumbnails: state.thumbnails,
-    bookmarks: state.bookmarks,
-    page: state.page,
-    theme: state.theme,
-    setFileName: state.setFileName,
+  const { handleIntegratedFileSelected } = useIntegratedFileConverter({
+    activeDashboardTool: state.activeDashboardTool,
+    setActiveDashboardTool: state.setActiveDashboardTool,
     setDocBytes: state.setDocBytes,
-    setAnnotations: state.setAnnotations,
-    setPage: state.setPage,
-    setThumbnails: state.setThumbnails,
-    setBookmarks: state.setBookmarks,
-    setShowFindBar: state.setShowFindBar,
-    setOpenMenu: state.setOpenMenu,
-    setActiveTool: state.setActiveTool,
-    setTheme: state.setTheme,
-    findInputRef: state.findInputRef,
-    openFile,
-    exportPdf,
-    undoAnnotations,
-    redoAnnotations,
-    zoomIn,
-    zoomOut,
-    goPrevPage,
-    goNextPage,
-
-    // NEW TABS PROPS
-    tabs: state.tabs,
-    setTabs: state.setTabs,
-    activeTabId: state.activeTabId,
-    setActiveTabId: state.setActiveTabId,
-    isSwitchingRef: state.isSwitchingRef,
-    setShowDashboard: state.setShowDashboard,
-  });
-
-  const toggleTheme = useCallback(() => state.setTheme(t => (t === "light" ? "dark" : "light")), [state]);
-  const { onDragOver, onDrop } = usePdfDrop({
     setFileName: state.setFileName,
-    setDocBytes: state.setDocBytes,
     setPage: state.setPage,
     setViewerError: state.setViewerError,
-    setThumbnails: state.setThumbnails,
-    setAnnotations: state.setAnnotations,
   });
 
-  const { headerProps, viewerProps } = useAppViewModel({
-    state,
-    actions: {
-      openFile,
-      closeDocument,
-      exportPdf,
-      goPrevPage,
-      goNextPage,
-      zoomOut,
-      zoomIn,
-      resetZoom,
-      applyZoomPreset,
-      undoAnnotations,
-      redoAnnotations,
-      runOcr,
-      rotateLeft,
-      rotateRight,
-      compressDocument,
-      addWatermark,
-      splitDocument,
-      mergeDocuments,
-      convertToImages,
-      runDocumentTool,
-      openDocumentMarkupTool: setActiveMarkupTool,
-      onSelectLocalFile,
-      onPageToolAction,
-      onActivePageChange,
-      updateAnnotation,
-      removeAnnotation,
-    },
-    menuItems: { fileMenuItems, editMenuItems, viewMenuItems, toolsMenuItems },
-    callbacks: {
-      closeMenu,
-      toggleMenu,
-      onToggleFindBar: () => state.setShowFindBar(p => !p),
-      toggleTheme,
-      onLoaded,
-      onSearchResult,
-    },
-  });
-
-  useAgentBridge({
-    state: createAgentStateSnapshot({
-      hasDocument: state.hasDocument,
-      fileName: state.fileName,
-      currentPage: state.page,
-      totalPages: state.totalPages,
-      activeTool: state.activeTool,
-      viewMode: state.viewMode,
-      hasDesktopBridge: state.hasDesktopBridge,
-    }),
-    actions: {
-      openFile,
-      openFileWithPath,
-      closeDocument,
-      exportPdf,
-      compressDocument,
-      runOcr,
-      convertToImages,
-      goPrevPage,
-      goNextPage,
-      zoomIn,
-      zoomOut,
-      resetZoom,
-      rotateLeft,
-      rotateRight,
-      undoAnnotations,
-      redoAnnotations,
-      runDocumentTool,
-      runConfiguredDocumentTool,
-      runConfiguredMarkupTool,
-      runConfiguredWatermark,
-      setPage: state.setPage,
-      setViewMode: state.setViewMode,
-      setActiveTool: state.setActiveTool,
-      setShowDashboard: state.setShowDashboard,
-      setActiveDashboardTool: state.setActiveDashboardTool,
-      setViewerError: state.setViewerError,
-    },
-  });
-
-  const handleIntegratedFileSelected = useCallback(async (file: File) => {
-    state.setViewerError("Analyzing document nodes...");
-    try {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "";
-      if (ext === "pdf") {
-        const buffer = await file.arrayBuffer();
-        state.setDocBytes(new Uint8Array(buffer));
-        state.setFileName(file.name);
-        state.setPage(1);
-        state.setViewerError(null);
-        return;
-      }
-
-      // Non-PDF conversion client-side using pdf-lib
-      const pdfLib = await import("pdf-lib");
-      const doc = await pdfLib.PDFDocument.create();
-      const fontBold = await doc.embedFont(pdfLib.StandardFonts.HelveticaBold);
-      const fontOblique = await doc.embedFont(pdfLib.StandardFonts.HelveticaOblique);
-      const fontNormal = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
-
-      let pageWidth = 595.276;
-      let pageHeight = 841.890;
-      let margin = 50;
-
-      if (ext === "txt") {
-        const text = await file.text();
-        const fontSize = 11;
-        const contentWidth = pageWidth - margin * 2;
-        const lines: string[] = [];
-
-        const rawLines = text.split(/\r?\n/);
-        for (const rawLine of rawLines) {
-          if (!rawLine.trim()) {
-            lines.push("");
-            continue;
-          }
-          let currentLine = "";
-          const words = rawLine.split(/\s+/);
-          for (const word of words) {
-            const testLine = currentLine ? `${currentLine} ${word}` : word;
-            const textWidth = fontNormal.widthOfTextAtSize(testLine, fontSize);
-            if (textWidth > contentWidth) {
-              lines.push(currentLine);
-              currentLine = word;
-            } else {
-              currentLine = testLine;
-            }
-          }
-          if (currentLine) lines.push(currentLine);
-        }
-
-        const linesPerPage = Math.floor((pageHeight - margin * 2) / (fontSize * 1.5));
-        for (let i = 0; i < lines.length; i += linesPerPage) {
-          const pageLines = lines.slice(i, i + linesPerPage);
-          const page = doc.addPage([pageWidth, pageHeight]);
-          let y = pageHeight - margin;
-          for (const line of pageLines) {
-            page.drawText(line, { x: margin, y, size: fontSize, font: fontNormal });
-            y -= fontSize * 1.5;
-          }
-        }
-      } else if (["png", "jpg", "jpeg"].includes(ext)) {
-        const arrayBuffer = await file.arrayBuffer();
-        const isPng = ext === "png";
-        let image;
-        if (isPng) {
-          image = await doc.embedPng(new Uint8Array(arrayBuffer));
-        } else {
-          image = await doc.embedJpg(new Uint8Array(arrayBuffer));
-        }
-
-        const { width: imgW, height: imgH } = image.scale(1.0);
-        const availableW = pageWidth - margin * 2;
-        const scaleFactor = Math.min(availableW / imgW, (pageHeight - margin * 2) / imgH);
-        const drawW = imgW * scaleFactor;
-        const drawH = imgH * scaleFactor;
-
-        const page = doc.addPage([pageWidth, pageHeight]);
-        page.drawImage(image, {
-          x: margin + (availableW - drawW) / 2,
-          y: margin + (pageHeight - margin * 2 - drawH) / 2,
-          width: drawW,
-          height: drawH,
-        });
-      } else {
-        // Office Conversion mock
-        const page = doc.addPage([pageWidth, pageHeight]);
-        page.drawText(`OPDF Premium Office Reconstruction`, { x: margin, y: pageHeight - margin - 30, size: 16, font: fontBold, color: pdfLib.rgb(0.87, 0.24, 0.18) });
-        page.drawText(`Layout Compiled Successfully Offline`, { x: margin, y: pageHeight - margin - 60, size: 12, font: fontBold });
-
-        page.drawText(`Document Settings Used:`, { x: margin, y: pageHeight - margin - 110, size: 11, font: fontBold });
-        page.drawText(`• Uploaded File: ${file.name}`, { x: margin + 20, y: pageHeight - margin - 130, size: 10, font: fontNormal });
-        page.drawText(`• Page Setup: A4 Size, Portrait Mode`, { x: margin + 20, y: pageHeight - margin - 150, size: 10, font: fontNormal });
-
-        page.drawText(`Conversion Integrity Report:`, { x: margin, y: pageHeight - margin - 200, size: 11, font: fontBold });
-        page.drawText(`This target file accurately retains vector drawings, paragraph alignments,`, { x: margin, y: pageHeight - margin - 220, size: 10, font: fontOblique });
-        page.drawText(`and tabular properties extracted from the office payload.`, { x: margin, y: pageHeight - margin - 235, size: 10, font: fontOblique });
-
-        page.drawRectangle({
-          x: margin,
-          y: margin + 20,
-          width: pageWidth - margin * 2,
-          height: 8,
-          color: pdfLib.rgb(0.87, 0.24, 0.18),
-        });
-      }
-
-      const pdfBytes = await doc.save();
-      state.setDocBytes(pdfBytes);
-      state.setFileName(file.name.replace(/\.[^/.]+$/, "") + ".pdf");
-      state.setPage(1);
-      state.setViewerError(null);
-    } catch (err: any) {
-      state.setViewerError("Failed to convert file: " + err.message);
-    }
-  }, [state]);
   const showLeft = state.hasDocument || !state.activeDashboardTool;
   const leftColWidth = showLeft && !isLeftCollapsed ? `${leftWidth}px` : "0px";
   const leftResizerWidth = showLeft && !isLeftCollapsed ? "4px" : "0px";
   const rightResizerWidth = !isRightCollapsed ? "4px" : "0px";
   const rightColWidth = !isRightCollapsed ? `${rightWidth}px` : "0px";
-  const openAiEditorWindow = useCallback(() => {
-    if (isPublic) {
-      alert("This feature is only available on Local or Desktop App versions.");
-      return;
-    }
-    const payload = {
-      fileName: state.fileName,
-      docBytes: state.docBytes ? Array.from(state.docBytes) : undefined,
-    };
-    window.__opdfAiEditorBootstrap = payload;
-    window.__opdfAiEditorGetBootstrap = () => payload;
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.set("ai-editor", "1");
-    const popup = window.open(nextUrl.toString(), "opdf-ai-editor", "width=1440,height=920");
-    if (popup) popup.focus();
-  }, [state.fileName, state.docBytes, isPublic]);
 
   return (
     <div className="app acrobat-shell">

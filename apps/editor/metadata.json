@@ -1,0 +1,6 @@
+{
+  "name": "PDF to HTML AI Converter",
+  "description": "Minimalist, high-performance office suite converting PDF files into editable HTML, Word, Excel, and PowerPoint with clean visual previews and inline AI assistant tools.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

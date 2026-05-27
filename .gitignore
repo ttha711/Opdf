@@ -41,3 +41,6 @@ apps/desktop/tools/python/
 # General temporary files
 .tmp/
 .tmp*
+cloudflared-two-apps.yml
+scripts/smoke/run-ai-phase1.ps1
+scripts/smoke/verify-ai-phase1.cjs

@@ -88,6 +88,8 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     initialThumbnails: state.thumbnails,
     onAnnotationUpdated: actions.updateAnnotation,
     onAnnotationDeleted: actions.removeAnnotation,
+    onPatchApplied: () => state.setActiveTool("select"),
+    createToolAnnotation: actions.createToolAnnotation,
   };
 
   return { headerProps, viewerProps };

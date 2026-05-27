@@ -1,4 +1,4 @@
-export type ActiveTool = "select" | "highlight" | "note" | "shape" | "signature" | "redact" | "measure";
+export type ActiveTool = "select" | "highlight" | "note" | "shape" | "signature" | "redact" | "measure" | "ai-patch";
 
 export type AnnotationStyleTool = "highlight" | "note" | "shape" | "redact";
 

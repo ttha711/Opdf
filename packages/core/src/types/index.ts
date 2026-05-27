@@ -6,7 +6,8 @@ export type AnnotationKind =
   | "draw"
   | "shape"
   | "signature"
-  | "redact";
+  | "redact"
+  | "image";
 
 export interface Annotation {
   id: string;

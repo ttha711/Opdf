@@ -22,10 +22,10 @@ export function syncAnnotationsToCanvas(params: {
     const payload = ann.payload as Record<string, unknown>;
     const { x, y, width: w, height: h, text, signer, color, stroke, opacity, fontSize, strokeWidth } = payload as any;
 
-    const absX = (x ?? 0) * width;
-    const absY = (y ?? 0) * height;
-    const absW = (w ?? 0.1) * width;
-    const absH = (h ?? 0.05) * height;
+    const absX = Math.round((x ?? 0) * width);
+    const absY = Math.round((y ?? 0) * height);
+    const absW = Math.round((w ?? 0.1) * width);
+    const absH = Math.round((h ?? 0.05) * height);
     const selectable = !isAnyDrawMode;
     const defaultOpacity = ann.kind === "highlight" ? 0.4 : 1;
     const annOpacity = typeof opacity === "number" ? opacity : defaultOpacity;
@@ -57,11 +57,14 @@ export function syncAnnotationsToCanvas(params: {
         lockRotation: true,
       });
     } else if (ann.kind === "note") {
-      obj = new fabric.IText(text || "Note", {
+      const textColorVal = payload.textColor as string | undefined;
+      const fontFamilyVal = payload.fontFamily as string | undefined;
+      
+      const textOptions = {
         left: absX, top: absY,
-        originX: "left", originY: "top",
-        fontSize: fontSize || 16, fill: "black", backgroundColor: color || "#fff8d6",
-        fontFamily: "Helvetica, Arial, sans-serif",
+        originX: "left" as const, originY: "top" as const,
+        fontSize: fontSize || 16, fill: textColorVal || "black", backgroundColor: color || "#fff8d6",
+        fontFamily: fontFamilyVal || "Helvetica, Arial, sans-serif",
         opacity: annOpacity,
         selectable,
         evented: selectable,
@@ -69,9 +72,22 @@ export function syncAnnotationsToCanvas(params: {
         hasBorders: true,
         lockRotation: true,
         lockUniScaling: true,
-      });
+        scaleX: 1,
+        scaleY: 1,
+      };
+
+      if (payload.isPatch) {
+        // TỐI ƯU: Sử dụng fabric.Textbox thay vì fabric.IText để tự động ngắt xuống dòng (wrapping) khớp hoàn hảo với chiều rộng đoạn văn đã bôi đen
+        obj = new fabric.Textbox(text || "Note", {
+          ...textOptions,
+          width: absW, // Áp dụng chiều rộng chính xác của đoạn văn
+        });
+      } else {
+        obj = new fabric.IText(text || "Note", textOptions);
+      }
+
       canvas.add(obj);
-      if (obj.width > 0) {
+      if (obj.width > 0 && !payload.isPatch) {
         obj.scaleToWidth(absW);
       }
       obj.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
@@ -113,6 +129,25 @@ export function syncAnnotationsToCanvas(params: {
         hasControls: true,
         hasBorders: true,
         lockRotation: true,
+      });
+    } else if (ann.kind === "image" && payload.image) {
+      fabric.Image.fromURL(payload.image as string, { crossOrigin: "anonymous" }).then((img) => {
+        img.set({
+          left: absX, top: absY,
+          originX: "left", originY: "top",
+          opacity: annOpacity,
+          selectable,
+          evented: selectable,
+          hasControls: true,
+          hasBorders: true,
+          lockRotation: true,
+        });
+        if (absW > 0) img.scaleToWidth(absW);
+        if (absH > 0) img.scaleToHeight(absH);
+        (img as any)[ANN_ID_KEY] = ann.id;
+        (img as any)[ANN_KIND_KEY] = ann.kind;
+        canvas.add(img);
+        canvas.renderAll();
       });
     }
 

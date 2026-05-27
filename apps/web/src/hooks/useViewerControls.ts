@@ -36,7 +36,7 @@ export function useViewerControls({
   lastWheelFlipAtRef: MutableRefObject<number>;
   activeTool: ActiveTool;
   addHighlight: (pageNumber: number, rect: PendingRect) => Promise<void>;
-  createToolAnnotation: (kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike", pageNumber: number, rect: PendingRect) => Promise<void>;
+  createToolAnnotation: (kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image", pageNumber: number, rect: PendingRect & { image?: string; imageType?: string }) => Promise<void>;
   setPendingNote: Dispatch<SetStateAction<{ page: number; rect: PendingRect } | null>>;
   setShowSignModal: Dispatch<SetStateAction<boolean>>;
 }) {
@@ -94,7 +94,7 @@ export function useViewerControls({
     });
   }
 
-  async function onPageToolAction(pageNumber: number, kind: string, rect: PendingRect) {
+  async function onPageToolAction(pageNumber: number, kind: string, rect: PendingRect & { image?: string; imageType?: string }) {
     if (!hasDocument) return;
     if (kind === "highlight") return addHighlight(pageNumber, rect);
     if (kind === "note") {
@@ -106,7 +106,7 @@ export function useViewerControls({
       setShowSignModal(true);
       return;
     }
-    if (kind === "shape" || kind === "redact" || kind === "underline" || kind === "strike") {
+    if (kind === "shape" || kind === "redact" || kind === "underline" || kind === "strike" || kind === "image") {
       return createToolAnnotation(kind, pageNumber, rect);
     }
   }
@@ -136,5 +136,6 @@ export function useViewerControls({
     onPageToolAction,
     onViewerWheel,
     onActivePageChange,
+    createToolAnnotation,
   };
 }

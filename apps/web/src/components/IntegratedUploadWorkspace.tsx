@@ -144,6 +144,10 @@ export function IntegratedUploadWorkspace({
         {/* Premium Select Button */}
         <button
           type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            triggerPicker();
+          }}
           className="mt-6 px-5 py-2 text-xs font-bold rounded-lg text-white transition-colors cursor-pointer"
           style={{ backgroundColor: "var(--acrobat-blue)" }}
         >

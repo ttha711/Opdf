@@ -32,6 +32,9 @@ interface PdfPageStageProps {
   onPageToolAction?: (page: number, kind: string, rect: { x: number; y: number; width: number; height: number }) => void;
   onAnnotationUpdated?: (id: string, payload: Record<string, unknown>) => void;
   onAnnotationDeleted?: (id: string) => void;
+  /** Called after an ai-patch is placed so the parent can switch back to 'select' tool */
+  onPatchApplied?: () => void;
+  createToolAnnotation?: (kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image", pageNumber: number, rect: any) => Promise<void>;
 }
 
 import React from "react";
@@ -58,6 +61,8 @@ export function PdfPageStage(props: PdfPageStageProps) {
     onPageToolAction,
     onAnnotationUpdated,
     onAnnotationDeleted,
+    onPatchApplied,
+    createToolAnnotation,
   } = props;
 
   const canPreviewZoom = pageData.rotation === targetRotation && pageData.scale > 0;
@@ -78,7 +83,8 @@ export function PdfPageStage(props: PdfPageStageProps) {
       style={{ width: `${stageWidth}px`, height: `${stageHeight}px` }}
       onClick={(event) => {
         onActivePageChange?.(pageData.pageNumber);
-        if (!shapeMode && !highlightMode && !redactMode && !measureMode) {
+        const aiPatchMode = activeTool === "ai-patch";
+        if (!shapeMode && !highlightMode && !redactMode && !measureMode && !aiPatchMode) {
           const pt = getNormalizedRect(event.currentTarget, event.clientX, event.clientY);
           const jitterX = (Math.random() - 0.5) * 0.02;
           const jitterY = (Math.random() - 0.5) * 0.02;
@@ -102,22 +108,32 @@ export function PdfPageStage(props: PdfPageStageProps) {
           shapeMode={shapeMode || false}
           redactMode={redactMode || false}
           measureMode={measureMode || false}
+          aiPatchMode={activeTool === "ai-patch"}
           annotationToolDefaults={annotationToolDefaults}
           onAnnotationCreated={(pageNum, kind, rect) => {
-            onPageToolAction?.(pageNum, kind, rect as any);
+            if (kind === "note" && (rect as any).isPatch) {
+              // Đối với AI Patch Note, tạo trực tiếp không qua modal nhập tay
+              createToolAnnotation?.("note", pageNum, rect as any);
+            } else {
+              onPageToolAction?.(pageNum, kind, rect as any);
+            }
           }}
           onAnnotationUpdated={onAnnotationUpdated}
           onAnnotationDeleted={onAnnotationDeleted}
+          onPatchApplied={onPatchApplied}
         />
         <PdfTextLayer
           pageNumber={pageData.pageNumber}
           width={pageData.width}
           height={pageData.height}
           textItems={pageData.textItems}
-          selectionEnabled={!highlightMode && !shapeMode && !redactMode && !measureMode}
+          selectionEnabled={!highlightMode && !shapeMode && !redactMode && !measureMode && activeTool !== "ai-patch"}
           onAction={(pageNum, kind, rect) => {
             onPageToolAction?.(pageNum, kind, rect);
           }}
+          createToolAnnotation={createToolAnnotation}
+          annotations={annotations}
+          onAnnotationUpdated={onAnnotationUpdated}
         />
       </div>
     </div>

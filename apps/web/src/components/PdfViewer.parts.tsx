@@ -82,6 +82,9 @@ export function PdfPageStage(props: PdfPageStageProps) {
       data-zoom-preview={isPreviewingZoom ? "true" : undefined}
       style={{ width: `${stageWidth}px`, height: `${stageHeight}px` }}
       onClick={(event) => {
+        if (document.body.dataset.opdfSelecting === "1") {
+          return;
+        }
         onActivePageChange?.(pageData.pageNumber);
         const aiPatchMode = activeTool === "ai-patch";
         if (!shapeMode && !highlightMode && !redactMode && !measureMode && !aiPatchMode) {
@@ -128,6 +131,7 @@ export function PdfPageStage(props: PdfPageStageProps) {
           height={pageData.height}
           textItems={pageData.textItems}
           selectionEnabled={!highlightMode && !shapeMode && !redactMode && !measureMode && activeTool !== "ai-patch"}
+          imageUrl={pageData.imageUrl}
           onAction={(pageNum, kind, rect) => {
             onPageToolAction?.(pageNum, kind, rect);
           }}

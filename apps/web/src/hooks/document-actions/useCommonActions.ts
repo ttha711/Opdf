@@ -8,6 +8,7 @@ export function useCommonActions({
   thumbnails,
   setDocBytes,
   setViewerError,
+  setSaveState,
   setShowSplitModal,
   setShowMergeModal,
 }: {
@@ -17,6 +18,7 @@ export function useCommonActions({
   thumbnails: Array<{ page: number; url: string; blob: Blob }>;
   setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
+  setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
   setShowSplitModal?: (v: boolean) => void;
   setShowMergeModal?: (v: boolean) => void;
 }) {
@@ -26,6 +28,7 @@ export function useCommonActions({
       setViewerError("Compressing... (this may take a few seconds)");
       const compressed = await bridge.compressPdf(docBytes);
       setDocBytes(compressed);
+      setSaveState("idle");
       setViewerError("Compression complete!");
       setTimeout(() => setViewerError(null), 3000);
     } catch (err) {
@@ -40,6 +43,7 @@ export function useCommonActions({
     try {
       const watermarked = await bridge.watermarkPdf(docBytes, text);
       setDocBytes(watermarked);
+      setSaveState("idle");
     } catch (err) {
       setViewerError("Watermark failed: " + err);
     }

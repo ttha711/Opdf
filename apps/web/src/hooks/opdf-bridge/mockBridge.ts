@@ -18,15 +18,75 @@ export function createMockBridge(): OpdfBridge {
   const annotations = new Map<string, Annotation[]>();
   const undoStacks = new Map<string, Annotation[][]>();
   const redoStacks = new Map<string, Annotation[][]>();
+  const lastCommittedGroupKeys = new Map<string, string | null>();
   const ocrJobs = new Map<string, OcrJob>();
 
-  function commitSnapshot(documentId: string) {
+  function getGroupKey(payload: Record<string, unknown> | undefined | null) {
+    const groupId = payload?.groupId;
+    return typeof groupId === "string" && groupId.trim().length > 0 ? groupId : null;
+  }
+
+  function toWinAnsiSafeText(value: unknown) {
+    const raw = String(value ?? "");
+    return raw
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D");
+  }
+
+  function parseCssColor(value: unknown, pdfLib: any) {
+    if (typeof value !== "string") return null;
+    const normalized = value.trim().toLowerCase();
+    if (!normalized || normalized === "transparent" || normalized === "none") return null;
+
+    const named: Record<string, [number, number, number]> = {
+      black: [0, 0, 0],
+      white: [255, 255, 255],
+      red: [255, 0, 0],
+      green: [0, 128, 0],
+      blue: [0, 0, 255],
+      yellow: [255, 255, 0],
+      gray: [128, 128, 128],
+      grey: [128, 128, 128],
+      orange: [255, 165, 0],
+      purple: [128, 0, 128],
+      pink: [255, 192, 203],
+      brown: [165, 42, 42],
+      cyan: [0, 255, 255],
+      magenta: [255, 0, 255],
+    };
+    const namedRgb = named[normalized];
+    if (namedRgb) return pdfLib.rgb(namedRgb[0] / 255, namedRgb[1] / 255, namedRgb[2] / 255);
+
+    const hex = normalized.replace(/^#/, "");
+    if (/^[0-9a-f]{3}$/i.test(hex)) {
+      return pdfLib.rgb(
+        Number.parseInt(hex[0] + hex[0], 16) / 255,
+        Number.parseInt(hex[1] + hex[1], 16) / 255,
+        Number.parseInt(hex[2] + hex[2], 16) / 255,
+      );
+    }
+    if (!/^[0-9a-f]{6}$/i.test(hex)) return null;
+    return pdfLib.rgb(
+      Number.parseInt(hex.slice(0, 2), 16) / 255,
+      Number.parseInt(hex.slice(2, 4), 16) / 255,
+      Number.parseInt(hex.slice(4, 6), 16) / 255,
+    );
+  }
+
+  function commitSnapshot(documentId: string, groupKey?: string | null) {
+    if (groupKey && lastCommittedGroupKeys.get(documentId) === groupKey) {
+      return;
+    }
+
     const current = annotations.get(documentId) ?? [];
     const stack = undoStacks.get(documentId) ?? [];
     stack.push(current.map(a => ({ ...a, payload: { ...(a.payload as object) } })));
     if (stack.length > 50) stack.shift();
     undoStacks.set(documentId, stack);
     redoStacks.set(documentId, []);
+    lastCommittedGroupKeys.set(documentId, groupKey ?? null);
   }
 
   return {
@@ -41,12 +101,21 @@ export function createMockBridge(): OpdfBridge {
       const pdfLib = await loadPdfLib();
       const doc = await pdfLib.PDFDocument.load(bytes);
       const pages = doc.getPages();
+      const orderedAnnotations = [...annotations].sort((a, b) => {
+        const aPatch = Boolean((a?.payload as any)?.isPatch);
+        const bPatch = Boolean((b?.payload as any)?.isPatch);
+        if (a.kind === "redact" && b.kind !== "redact") return -1;
+        if (a.kind !== "redact" && b.kind === "redact") return 1;
+        if (aPatch && !bPatch) return 1;
+        if (!aPatch && bPatch) return -1;
+        return 0;
+      });
 
-      for (const ann of annotations) {
+      for (const ann of orderedAnnotations) {
         if (!ann.payload || ann.page > pages.length) continue;
         const page = pages[ann.page - 1];
         const { width, height } = page.getSize();
-        const { x, y, width: w, height: h, color, stroke, opacity, text, signer, fontSize } = ann.payload as any;
+        const { x, y, width: w, height: h, color, stroke, opacity, text, signer, fontSize } = (ann.payload ?? {}) as any;
 
         const absX = (x || 0) * width;
         const absY = height - (y || 0) * height - (h || 0.05) * height;
@@ -69,30 +138,30 @@ export function createMockBridge(): OpdfBridge {
         } else if (ann.kind === "redact") {
           page.drawRectangle({
             x: absX, y: absY, width: absW, height: absH,
-            color: pdfLib.rgb(0, 0, 0),
-            opacity: 1,
+            color: parseCssColor(color || "#000000", pdfLib) || pdfLib.rgb(0, 0, 0),
+            opacity: opacity !== undefined ? opacity : 1,
           });
         } else if (ann.kind === "note") {
-          const textVal = String(text || "Note");
+          const textVal = toWinAnsiSafeText(text || "Note");
           // 1. Draw solid background mask
           page.drawRectangle({
             x: absX, y: absY, width: absW, height: absH,
-            color: parseColor(color || "#fff8d6", pdfLib),
+            color: parseCssColor(color || "#fff8d6", pdfLib) || parseColor("#fff8d6", pdfLib),
             opacity: opacity !== undefined ? opacity : 1,
           });
           // 2. Overlay the text
           const standardFont = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
-          const fs = Number(fontSize) || 14;
+          const fs = Math.max(8, Math.min(Number(fontSize) || 14, 64));
           page.drawText(textVal, {
             x: absX + 5,
-            y: absY + absH - fs - 5,
+            y: absY + Math.max(2, absH - fs - 4),
             size: fs,
             font: standardFont,
-            color: pdfLib.rgb(0, 0, 0),
+            color: parseCssColor((ann.payload as any)?.textColor, pdfLib) || pdfLib.rgb(0, 0, 0),
             maxWidth: absW - 10,
           });
         } else if (ann.kind === "signature") {
-          const textVal = String(signer || "Signature");
+          const textVal = toWinAnsiSafeText(signer || "Signature");
           const signatureFont = await doc.embedFont(pdfLib.StandardFonts.TimesRomanItalic);
           page.drawText(textVal, {
             x: absX,
@@ -173,10 +242,11 @@ export function createMockBridge(): OpdfBridge {
       annotations.set(documentId, next);
       undoStacks.set(documentId, []);
       redoStacks.set(documentId, []);
+      lastCommittedGroupKeys.set(documentId, null);
       return next;
     },
     async createAnnotation(documentId, input: AnnotationCreateInput) {
-      commitSnapshot(documentId);
+      commitSnapshot(documentId, getGroupKey(input.payload));
       const next: Annotation = {
         id: crypto.randomUUID(),
         kind: input.kind,
@@ -191,9 +261,14 @@ export function createMockBridge(): OpdfBridge {
     },
     async deleteAnnotation(documentId, id) {
       const current = annotations.get(documentId) ?? [];
-      if (!current.some(a => a.id === id)) return false;
-      commitSnapshot(documentId);
-      annotations.set(documentId, current.filter((a) => a.id !== id));
+      const target = current.find((a) => a.id === id);
+      if (!target) return false;
+      const groupKey = getGroupKey(target.payload as Record<string, unknown>);
+      commitSnapshot(documentId, groupKey);
+      annotations.set(
+        documentId,
+        groupKey ? current.filter((a) => getGroupKey(a.payload as Record<string, unknown>) !== groupKey) : current.filter((a) => a.id !== id),
+      );
       return true;
     },
     async updateAnnotation(documentId, id, payload) {
@@ -222,6 +297,7 @@ export function createMockBridge(): OpdfBridge {
       redoStacks.set(documentId, redoStack);
 
       annotations.set(documentId, previous);
+      lastCommittedGroupKeys.set(documentId, null);
       return previous;
     },
     async redoAnnotation(documentId) {
@@ -235,6 +311,7 @@ export function createMockBridge(): OpdfBridge {
       undoStacks.set(documentId, undoStack);
 
       annotations.set(documentId, next);
+      lastCommittedGroupKeys.set(documentId, null);
       return next;
     },
     async enqueueOcr(filePath, language = "eng+vie") {

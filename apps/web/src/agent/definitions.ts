@@ -7,7 +7,7 @@ const conversionPanelTools: AgentToolDefinition[] = [
   { id: "pdf-to-png", title: "PDF to PNG", description: "Open the PDF image export tool with PNG output.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-png" },
   { id: "pdf-to-jpeg", title: "PDF to JPEG", description: "Open the PDF image export tool with JPEG output.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-jpeg" },
   { id: "pdf-to-txt", title: "PDF to TXT", description: "Open the PDF text export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-txt" },
-  { id: "pdf-to-html", title: "PDF to HTML", description: "Open the PDF to HTML export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-html" },
+  { id: "pdf-to-html", title: "Edit Content with AI", description: "Open the AI document editor for deeper content edits.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-html" },
   { id: "pdf-to-xml", title: "PDF to XML", description: "Open the PDF to XML export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-xml" },
   { id: "pdf-to-rtf", title: "PDF to RTF", description: "Open the PDF to RTF export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-rtf" },
   { id: "word-to-pdf", title: "Word to PDF", description: "Open the Word to PDF converter and ask for a source file.", risk: "needs-input", panelTool: "word-to-pdf" },

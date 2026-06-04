@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import base64
@@ -724,7 +723,7 @@ def compose_docx(pages, out_path: Path, source_name: str):
     doc.save(str(out_path))
 
 
-def postformat_docx_for_libreoffice(docx_path: Path):
+def postformat_docx(docx_path: Path):
     doc = Document(str(docx_path))
     title_size = int(os.environ.get("OPDF_DOCX_TITLE_SIZE_PT", "20"))
     h2_size = int(os.environ.get("OPDF_DOCX_H2_SIZE_PT", "14"))
@@ -734,7 +733,7 @@ def postformat_docx_for_libreoffice(docx_path: Path):
         text = p.text.strip()
         if not text:
             continue
-        # Normalize spacing for cleaner LibreOffice reflow.
+        # Normalize spacing for cleaner DOCX output.
         p.paragraph_format.space_after = 0
         p.paragraph_format.space_before = 0
         if i == 0:
@@ -754,31 +753,6 @@ def postformat_docx_for_libreoffice(docx_path: Path):
         for r in p.runs:
             r.font.size = Pt(body_size)
     doc.save(str(docx_path))
-
-
-def resolve_soffice():
-    explicit = os.environ.get("OPDF_SOFFICE_PATH", "").strip()
-    if explicit and Path(explicit).exists():
-        return explicit
-    which = shutil.which("soffice")
-    if which:
-        return which
-    candidates = [
-        r"C:\Program Files\LibreOffice\program\soffice.exe",
-        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
-    ]
-    for c in candidates:
-        if Path(c).exists():
-            return c
-    raise FileNotFoundError("LibreOffice soffice.exe not found. Set OPDF_SOFFICE_PATH.")
-
-
-def export_pdf_via_libreoffice(docx_path: Path, out_pdf: Path):
-    soffice = resolve_soffice()
-    out_dir = out_pdf.parent
-    out_dir.mkdir(parents=True, exist_ok=True)
-    cmd = [soffice, "--headless", "--convert-to", "pdf", "--outdir", str(out_dir), str(docx_path)]
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
 
 
 def main():
@@ -824,16 +798,11 @@ def main():
         t_rewrite_end = time.perf_counter()
         compose_docx(pages, out_path, in_path.name)
         if os.environ.get("OPDF_DOCX_POSTFORMAT_ENABLE", "1").strip() == "1":
-            postformat_docx_for_libreoffice(out_path)
+            postformat_docx(out_path)
         t_compose_end = time.perf_counter()
 
-        pdf_out = out_path.with_suffix(".pdf")
-        libre_pdf = {"ok": False, "path": str(pdf_out), "error": "skipped"}
-        try:
-            export_pdf_via_libreoffice(out_path, pdf_out)
-            libre_pdf = {"ok": True, "path": str(pdf_out)}
-        except Exception as exc:
-            libre_pdf = {"ok": False, "path": str(pdf_out), "error": str(exc)}
+        # Keep output field for backward compatibility with existing callers.
+        office_pdf = {"ok": False, "path": str(out_path.with_suffix(".pdf")), "error": "disabled"}
 
         print(
             json.dumps(
@@ -849,7 +818,7 @@ def main():
                         "rewrite_blocks": round(t_rewrite_end - t_extract_end, 3),
                         "compose_docx": round(t_compose_end - t_rewrite_end, 3),
                     },
-                    "libreoffice_pdf": libre_pdf,
+                    "libreoffice_pdf": office_pdf,
                 }
             )
         )

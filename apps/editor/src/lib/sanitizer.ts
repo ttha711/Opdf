@@ -30,6 +30,32 @@ export const sanitizeHtml = (htmlContent: string): string => {
         }
       });
     }
+
+    // Clean crop-image-placeholders to remove base64 images and temporary style/class attributes
+    const placeholders = Array.from(doc.querySelectorAll(".crop-image-placeholder"));
+    placeholders.forEach((el) => {
+      const x = el.getAttribute("data-crop-x") || el.getAttribute("data-x");
+      const y = el.getAttribute("data-crop-y") || el.getAttribute("data-y");
+      const w = el.getAttribute("data-w");
+      const h = el.getAttribute("data-crop-h") || el.getAttribute("data-h");
+      const cropW = el.getAttribute("data-crop-w") || el.getAttribute("data-w");
+      const cropH = el.getAttribute("data-crop-h") || el.getAttribute("data-h");
+      const label = el.getAttribute("aria-label");
+
+      el.removeAttribute("style");
+      el.removeAttribute("class");
+      el.innerHTML = "";
+      el.className = "crop-image-placeholder";
+
+      if (x) el.setAttribute("data-x", x);
+      if (y) el.setAttribute("data-y", y);
+      if (w) el.setAttribute("data-w", w);
+      if (h) el.setAttribute("data-h", h);
+      if (cropW) el.setAttribute("data-crop-w", cropW);
+      if (cropH) el.setAttribute("data-crop-h", cropH);
+      if (label) el.setAttribute("aria-label", label);
+    });
+
     return doc.body.innerHTML;
   } catch (err) {
     console.error("Sanitation error, using fallback:", err);

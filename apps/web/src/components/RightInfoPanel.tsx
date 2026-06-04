@@ -1,4 +1,5 @@
 import type { Annotation, OcrJob } from "@opdf/core";
+import { buildAnnotationListItems } from "../lib/annotationGroups";
 
 export function RightInfoPanel({
   hasDocument,
@@ -27,6 +28,8 @@ export function RightInfoPanel({
   isCollapsed?: boolean;
   setIsCollapsed?: (collapsed: boolean) => void;
 }) {
+  const annotationItems = buildAnnotationListItems(annotations);
+
   return (
     <aside className="overflow-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] h-full flex flex-col">
       <div className="border-b border-[var(--border-color)]">
@@ -73,21 +76,34 @@ export function RightInfoPanel({
             <path d="m12 8 4 4" />
           </svg>
           Annotations
-          <span className="ml-auto rounded-full bg-[var(--acrobat-blue)] px-1.5 py-[1px] text-[10px] font-bold text-white">{annotations.length}</span>
+          <span className="ml-auto rounded-full bg-[var(--acrobat-blue)] px-1.5 py-[1px] text-[10px] font-bold text-white">{annotationItems.length}</span>
         </div>
-        {annotations.length > 0 ? (
+        {annotationItems.length > 0 ? (
           <ul className="m-0 list-none p-0">
-            {annotations.map((a) => (
-              <li key={a.id} className="flex items-center gap-[var(--ui-gap-sm)] border-b border-[var(--ui-divider)] px-[14px] py-1.5 text-xs">
-                <span className={`shrink-0 rounded px-1.5 py-px text-[10px] font-bold uppercase tracking-[0.03em] ${
-                  a.kind === "highlight" ? "bg-yellow-100 text-yellow-800" :
-                  a.kind === "note" ? "bg-[#fff8d6] text-amber-800" :
-                  a.kind === "shape" ? "bg-red-100 text-red-800" :
-                  a.kind === "signature" ? "bg-violet-100 text-violet-800" :
-                  "bg-gray-800 text-white"
-                }`}>{a.kind}</span>
-                <span className="mr-auto text-[11px] text-[var(--text-secondary)]">p.{a.page}</span>
-                <button onClick={() => onRemoveAnnotation(a.id)} title="Delete annotation" className="ml-auto flex items-center rounded p-0.5 text-[#aaa] transition-colors hover:bg-red-100 hover:text-[var(--ui-danger)]" type="button">
+            {annotationItems.map((item) => (
+              <li key={`${item.id}-${item.groupId ?? "single"}`} className="flex items-start gap-[var(--ui-gap-sm)] border-b border-[var(--ui-divider)] px-[14px] py-1.5 text-xs">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`shrink-0 rounded px-1.5 py-px text-[10px] font-bold tracking-[0.03em] ${
+                      item.groupId
+                        ? "bg-indigo-100 text-indigo-800"
+                        : item.kind === "highlight"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : item.kind === "note"
+                            ? "bg-[#fff8d6] text-amber-800"
+                            : item.kind === "shape"
+                              ? "bg-red-100 text-red-800"
+                              : item.kind === "signature"
+                                ? "bg-violet-100 text-violet-800"
+                                : "bg-gray-800 text-white"
+                    }`}>{item.label}</span>
+                    <span className="text-[11px] text-[var(--text-secondary)]">p.{item.page}</span>
+                  </div>
+                  {item.summary ? (
+                    <p className="mt-0.5 truncate text-[11px] text-[var(--text-primary)]" title={item.summary}>{item.summary}</p>
+                  ) : null}
+                </div>
+                <button onClick={() => onRemoveAnnotation(item.id)} title="Delete annotation" className="ml-auto flex items-center rounded p-0.5 text-[#aaa] transition-colors hover:bg-red-100 hover:text-[var(--ui-danger)]" type="button">
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M18 6 6 18M6 6l12 12" />
                   </svg>

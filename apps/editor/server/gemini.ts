@@ -18,6 +18,26 @@ export interface GeminiParams {
   config?: any;
 }
 
+const MODEL_TIMEOUT_MS = Number(process.env.AI_MODEL_TIMEOUT_MS || 60000);
+
+function timeoutError(provider: string, timeoutMs: number) {
+  return new Error(`${provider} request timed out after ${Math.round(timeoutMs / 1000)}s`);
+}
+
+async function withTimeout<T>(promise: Promise<T>, provider: string, timeoutMs = MODEL_TIMEOUT_MS): Promise<T> {
+  let timer: NodeJS.Timeout | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(timeoutError(provider, timeoutMs)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * Helper to convert Gemini payload structure to OpenAI/Qwen Chat Completions structure
  */
@@ -131,16 +151,25 @@ export async function generateContentWithFallback(params: GeminiParams): Promise
         requestBody.response_format = { type: "json_object" };
       }
 
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${openrouterApiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://github.com/eddyvn98/pdf2html",
-          "X-Title": "PDF to HTML AI Converter",
-        },
-        body: JSON.stringify(requestBody),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), MODEL_TIMEOUT_MS);
+      const response = await (async () => {
+        try {
+          return await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${openrouterApiKey}`,
+              "Content-Type": "application/json",
+              "HTTP-Referer": "https://github.com/eddyvn98/pdf2html",
+              "X-Title": "PDF to HTML AI Converter",
+            },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
+      })();
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -186,14 +215,23 @@ export async function generateContentWithFallback(params: GeminiParams): Promise
         requestBody.response_format = { type: "json_object" };
       }
 
-      const response = await fetch(`${qwenBaseUrl.replace(/\/$/, "")}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${qwenApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), MODEL_TIMEOUT_MS);
+      const response = await (async () => {
+        try {
+          return await fetch(`${qwenBaseUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${qwenApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
+      })();
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -230,10 +268,13 @@ export async function generateContentWithFallback(params: GeminiParams): Promise
     for (const modelName of models) {
       try {
         console.log(`[Gemini API] Invoking model: ${modelName}`);
-        const response = await ai.models.generateContent({
-          ...params,
-          model: modelName,
-        });
+        const response = await withTimeout(
+          ai.models.generateContent({
+            ...params,
+            model: modelName,
+          }),
+          `Gemini (${modelName})`
+        );
         return response;
       } catch (err: any) {
         lastError = err;

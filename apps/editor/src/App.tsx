@@ -55,6 +55,7 @@ export default function App() {
     cancelAllPages,
     capturePageSelection,
     applyAISelectionEdit,
+    applyAISelectionTranslate,
     exportPDFToWord,
     loadPdfFromBytes,
 
@@ -69,6 +70,10 @@ export default function App() {
     setImageEditPrompt,
     isImageEditing,
     applyImageRegionEdit,
+    translateToVietnamese,
+    setTranslateToVietnamese,
+    useTailwindLayout,
+    setUseTailwindLayout,
   } = usePdfToHtml(setErrorMessage);
 
   // ── PostMessage Communication with Opdf ──────────────────
@@ -406,6 +411,7 @@ export default function App() {
             cancelAllPages={cancelAllPages}
             capturePageSelection={capturePageSelection}
             applyAISelectionEdit={applyAISelectionEdit}
+            applyAISelectionTranslate={applyAISelectionTranslate}
             exportPDFToWord={exportPDFToWord}
             handlePrint={handlePrint}
             pageRenderContainerRef={pageRenderContainerRef}
@@ -420,6 +426,10 @@ export default function App() {
             setImageEditPrompt={setImageEditPrompt}
             isImageEditing={isImageEditing}
             applyImageRegionEdit={applyImageRegionEdit}
+            translateToVietnamese={translateToVietnamese}
+            setTranslateToVietnamese={setTranslateToVietnamese}
+            useTailwindLayout={useTailwindLayout}
+            setUseTailwindLayout={setUseTailwindLayout}
             updatePdfPageHtml={(idx, html) => {
               const clean = sanitizeHtml(html);
               setPdfPages(prev =>

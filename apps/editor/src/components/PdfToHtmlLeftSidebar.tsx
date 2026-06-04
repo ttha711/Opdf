@@ -46,6 +46,10 @@ interface PdfToHtmlLeftSidebarProps {
   handleClonePage: (idx: number) => void;
   handleDeletePage: (idx: number) => void;
   handleAddEmptyPage: () => void;
+  translateToVietnamese?: boolean;
+  setTranslateToVietnamese?: (val: boolean) => void;
+  useTailwindLayout?: boolean;
+  setUseTailwindLayout?: (val: boolean) => void;
 }
 
 export default function PdfToHtmlLeftSidebar({
@@ -71,7 +75,11 @@ export default function PdfToHtmlLeftSidebar({
   handleMovePage,
   handleClonePage,
   handleDeletePage,
-  handleAddEmptyPage
+  handleAddEmptyPage,
+  translateToVietnamese,
+  setTranslateToVietnamese,
+  useTailwindLayout,
+  setUseTailwindLayout,
 }: PdfToHtmlLeftSidebarProps) {
   return (
     <aside className={cn(
@@ -175,6 +183,28 @@ export default function PdfToHtmlLeftSidebar({
                       </button>
                     )}
                   </div>
+                </div>
+
+                {/* Toggles for Translation and Layout Options */}
+                <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-3 space-y-2.5 text-xs text-slate-600 select-none">
+                  <label className="flex items-center gap-2.5 cursor-pointer font-medium hover:text-slate-800 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(translateToVietnamese)}
+                      onChange={(e) => setTranslateToVietnamese?.(e.target.checked)}
+                      className="rounded border-slate-350 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span>Dịch sang Tiếng Việt</span>
+                  </label>
+                  <label className="flex items-center gap-2.5 cursor-pointer font-medium hover:text-slate-800 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(useTailwindLayout)}
+                      onChange={(e) => setUseTailwindLayout?.(e.target.checked)}
+                      className="rounded border-slate-350 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span>Bố cục đẹp (Tailwind)</span>
+                  </label>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5 max-h-[45vh] overflow-y-auto pr-1">

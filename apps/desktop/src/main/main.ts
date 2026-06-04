@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { mkdtemp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -345,12 +345,156 @@ function toNodeBuffer(bytes: unknown): Buffer {
   throw new Error("Invalid binary payload: expected Uint8Array or ArrayBuffer");
 }
 
+interface UpdateManifest {
+  version: string;
+  url: string;
+  description?: string;
+}
+
+function extractZip(zipPath: string, destDir: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let child;
+    if (process.platform === "win32") {
+      child = spawn("powershell", [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `Expand-Archive -Path '${zipPath.replace(/'/g, "''")}' -DestinationPath '${destDir.replace(/'/g, "''")}' -Force`
+      ]);
+    } else {
+      child = spawn("unzip", ["-o", zipPath, "-d", destDir]);
+    }
+
+    let stderr = "";
+    child.stderr?.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`Extraction failed with code ${code}: ${stderr}`));
+      }
+    });
+
+    child.on("error", reject);
+  });
+}
+
+let pendingUpdate: { version: string; path: string } | null = null;
+
+async function checkAndDownloadUpdates(win: BrowserWindow) {
+  try {
+    const updateUrl = process.env.OPDF_HOT_UPDATE_URL || "http://localhost:5174/update-manifest.json";
+    console.log(`Checking for hot-updates at: ${updateUrl}`);
+    const res = await fetch(updateUrl);
+    if (!res.ok) {
+      console.log("No hot-updates available or manifest server is offline.");
+      return;
+    }
+    const manifest = (await res.json()) as UpdateManifest;
+    if (!manifest.version || !manifest.url) {
+      console.error("Invalid update manifest received:", manifest);
+      return;
+    }
+
+    // Determine current active version
+    let activeVersion = app.getVersion();
+    const activeConfigPath = join(app.getPath("userData"), "active-version.json");
+    if (existsSync(activeConfigPath)) {
+      try {
+        const config = JSON.parse(readFileSync(activeConfigPath, "utf-8"));
+        if (config.version) activeVersion = config.version;
+      } catch (e) {
+        // no-op
+      }
+    }
+
+    console.log(`Active version: ${activeVersion}, Server version: ${manifest.version}`);
+
+    // If server version is greater than active version, perform update
+    const isNewer = compareVersions(manifest.version, activeVersion) > 0;
+    if (!isNewer) {
+      console.log("App is up-to-date with hot-updates.");
+      return;
+    }
+
+    console.log(`Downloading update version ${manifest.version} from ${manifest.url}...`);
+    const zipRes = await fetch(manifest.url);
+    if (!zipRes.ok) {
+      throw new Error(`Failed to download update ZIP: ${zipRes.statusText}`);
+    }
+    const arrayBuffer = await zipRes.arrayBuffer();
+    const zipBuffer = Buffer.from(arrayBuffer);
+
+    const tempZipPath = join(tmpdir(), `opdf-update-${manifest.version}.zip`);
+    await writeFile(tempZipPath, zipBuffer);
+
+    const destDir = join(app.getPath("userData"), "web-updates", manifest.version);
+    await mkdir(destDir, { recursive: true });
+
+    console.log(`Extracting update to: ${destDir}`);
+    await extractZip(tempZipPath, destDir);
+    await rm(tempZipPath, { force: true });
+
+    const indexPath = join(destDir, "index.html");
+    if (existsSync(indexPath)) {
+      pendingUpdate = { version: manifest.version, path: indexPath };
+      console.log(`Update ${manifest.version} ready. Notifying renderer...`);
+      win.webContents.send("opdf:update-ready", {
+        version: manifest.version,
+        description: manifest.description || "Bug fixes and improvements."
+      });
+    } else {
+      console.error("Downloaded update does not contain index.html");
+    }
+  } catch (error) {
+    console.error("Hot-update check/download failed:", error);
+  }
+}
+
+function compareVersions(v1: string, v2: string): number {
+  const parts1 = v1.split(".").map(Number);
+  const parts2 = v2.split(".").map(Number);
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 > p2) return 1;
+    if (p1 < p2) return -1;
+  }
+  return 0;
+}
+
+function resolveIndexHtmlPath(): string {
+  const activeConfigPath = join(app.getPath("userData"), "active-version.json");
+  if (existsSync(activeConfigPath)) {
+    try {
+      const config = JSON.parse(readFileSync(activeConfigPath, "utf-8"));
+      if (config.version && config.path && existsSync(config.path)) {
+        console.log(`Loading updated web assets from: ${config.path}`);
+        return config.path;
+      }
+    } catch (e) {
+      console.error("Failed to read active-version.json", e);
+    }
+  }
+
+  const basePath = app.getAppPath();
+  const candidates = [
+    join(basePath, "web", "dist", "index.html"),
+    join(basePath, "..", "web", "dist", "index.html"),
+    join(process.resourcesPath, "web", "dist", "index.html"),
+  ];
+  return candidates.find((p) => existsSync(p)) || candidates[0];
+}
+
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
     webPreferences: {
-      preload: join(app.getAppPath(), "dist", "preload", "preload.js"),
+      preload: join(app.getAppPath(), "dist", "preload", "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -361,15 +505,22 @@ function createMainWindow(): BrowserWindow {
   if (devServer) {
     void win.loadURL(devServer);
   } else {
-    const basePath = app.getAppPath();
-    const candidates = [
-      join(basePath, "web", "dist", "index.html"),
-      join(basePath, "..", "web", "dist", "index.html"),
-      join(process.resourcesPath, "web", "dist", "index.html"),
-    ];
-    const indexPath = candidates.find((p) => existsSync(p)) || candidates[0];
+    const indexPath = resolveIndexHtmlPath();
     void win.loadFile(indexPath);
   }
+
+  // Trigger hot-update check shortly after the DOM is ready
+  win.webContents.on("dom-ready", () => {
+    if (pendingUpdate) {
+      win.webContents.send("opdf:update-ready", {
+        version: pendingUpdate.version,
+        description: "Bug fixes and improvements."
+      });
+    }
+    setTimeout(() => {
+      void checkAndDownloadUpdates(win);
+    }, 4000);
+  });
 
   return win;
 }
@@ -624,6 +775,26 @@ function registerIpcHandlers(): void {
     lastError: deviceAuthState.lastError || null,
     gatewayBaseUrl: getAiGatewayBaseUrl() || null,
   }));
+
+  ipcMain.handle("opdf:check-pending-update", async () => {
+    if (pendingUpdate) {
+      return {
+        version: pendingUpdate.version,
+        description: "Bug fixes and improvements."
+      };
+    }
+    return null;
+  });
+
+  ipcMain.handle("opdf:restart-app", async () => {
+    if (pendingUpdate) {
+      const activeConfigPath = join(app.getPath("userData"), "active-version.json");
+      writeFileSync(activeConfigPath, JSON.stringify(pendingUpdate, null, 2), "utf-8");
+      console.log("Saved active-version.json for relaunching:", pendingUpdate);
+    }
+    app.relaunch();
+    app.exit(0);
+  });
 }
 
 const remoteDebugPort = (process.env.OPDF_REMOTE_DEBUG_PORT || "").trim();

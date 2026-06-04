@@ -7,6 +7,8 @@ import type { DocumentTool } from "../lib/document-tools";
 interface FileViewGroupProps {
   openFile: () => void;
   hasDocument: boolean;
+  savePdf: () => void;
+  savePdfAs: () => void;
   exportPdf: () => void;
   activeTool: ActiveTool;
   setActiveTool: (tool: ActiveTool) => void;
@@ -19,6 +21,8 @@ interface FileViewGroupProps {
 export function FileViewGroup({
   openFile,
   hasDocument,
+  savePdf,
+  savePdfAs,
   exportPdf,
   activeTool,
   setActiveTool,
@@ -36,11 +40,18 @@ export function FileViewGroup({
             <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z" />
           </svg>
         </ToolIconButton>
-        <ToolIconButton label="Save / Download (Ctrl+S)" disabled={!hasDocument} onClick={exportPdf}>
+        <ToolIconButton label="Save (Ctrl+S)" disabled={!hasDocument} onClick={savePdf}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
             <polyline points="17 21 17 13 7 13 7 21" />
             <polyline points="7 3 7 8 15 8" />
+          </svg>
+        </ToolIconButton>
+        <ToolIconButton label="Save As (Ctrl+Shift+S)" disabled={!hasDocument} onClick={savePdfAs}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <path d="M12 7v10" />
+            <path d="M7 12h10" />
           </svg>
         </ToolIconButton>
         <div className="mx-0.5 h-4 w-px bg-[var(--border-color)]" />

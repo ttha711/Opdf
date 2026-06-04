@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **Opdf** (4457 symbols, 6468 relationships, 157 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **Opdf** (4604 symbols, 6726 relationships, 165 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -40,4 +40,17 @@ This project is indexed by GitNexus as **Opdf** (4457 symbols, 6468 relationship
 | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
+
 <!-- gitnexus:end -->
+
+# CodeGraph — Alternative Code Intelligence
+
+This project also supports **CodeGraph** for fast, terminal-based symbol relationships and AI context generation.
+
+## When to use CodeGraph
+
+AI Agents or Developers can use `codegraph` CLI directly via shell commands:
+* **Generate Context for a Task:** Run `codegraph context "your task description"` to generate a highly focused markdown context file of the relevant codebase sections before editing code.
+* **Find Callers/Callees:** Use `codegraph callers <symbol>` or `codegraph callees <symbol>`.
+* **Find Affected Tests:** After making modifications, run `codegraph affected` to identify which test files need to be re-run.
+* **Sync Index:** If code is modified, run `codegraph sync` to update the local graph state.

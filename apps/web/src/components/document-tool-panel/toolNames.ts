@@ -1,14 +1,16 @@
+import { getDocumentToolLabel } from "../../lib/documentEditingExperience";
+
 export function getDocumentToolName(activeToolId: string): string {
   switch (activeToolId) {
-    case "pdf-to-word": return "Export PDF to Word";
-    case "pdf-to-excel": return "Export PDF to Excel";
-    case "pdf-to-ppt": return "Export PDF to PowerPoint";
+    case "pdf-to-word": return getDocumentToolLabel("pdf-to-word");
+    case "pdf-to-excel": return getDocumentToolLabel("pdf-to-excel");
+    case "pdf-to-ppt": return getDocumentToolLabel("pdf-to-ppt");
     case "pdf-to-png": return "Export PDF to PNG Image";
     case "pdf-to-jpeg": return "Export PDF to JPEG Image";
-    case "pdf-to-txt": return "Export PDF to Plain Text";
-    case "pdf-to-html": return "Export PDF to HTML Web";
-    case "pdf-to-xml": return "Export PDF to XML Code";
-    case "pdf-to-rtf": return "Export PDF to Rich Text";
+    case "pdf-to-txt": return getDocumentToolLabel("pdf-to-txt");
+    case "pdf-to-html": return getDocumentToolLabel("pdf-to-html");
+    case "pdf-to-xml": return getDocumentToolLabel("pdf-to-xml");
+    case "pdf-to-rtf": return getDocumentToolLabel("pdf-to-rtf");
     case "word-to-pdf": return "Word to PDF Converter";
     case "excel-to-pdf": return "Excel to PDF Converter";
     case "ppt-to-pdf": return "PowerPoint to PDF Converter";

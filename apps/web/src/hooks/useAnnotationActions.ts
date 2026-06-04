@@ -11,6 +11,7 @@ export function useAnnotationActions({
   annotationToolDefaults,
   setAnnotations,
   setViewerError,
+  setSaveState,
 }: {
   bridge: ReturnType<typeof useOpdfBridge>;
   fileName: string;
@@ -19,6 +20,7 @@ export function useAnnotationActions({
   annotationToolDefaults: AnnotationToolDefaults;
   setAnnotations: Dispatch<SetStateAction<Annotation[]>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
+  setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
 }) {
   async function addHighlight(pageNumber: number, rect: PendingRect) {
     if (!fileName) return;
@@ -34,6 +36,7 @@ export function useAnnotationActions({
       updatedAt: Date.now(),
     };
     setAnnotations((prev) => [...prev, optimistic]);
+    setSaveState("idle");
     try {
       const created = await bridge.createAnnotation(fileName, {
         page: pageNumber,
@@ -41,6 +44,7 @@ export function useAnnotationActions({
         payload,
       });
       setAnnotations((prev) => prev.map((a) => (a.id === tempId ? created : a)));
+      setSaveState("idle");
     } catch {
       setAnnotations((prev) => prev.filter((a) => a.id !== tempId));
       setViewerError("Failed to save highlight");
@@ -55,17 +59,16 @@ export function useAnnotationActions({
         ? { image: rect.image, imageType: rect.imageType, x: rect.x, y: rect.y, width: rect.width, height: rect.height }
         : kind === "note"
           ? ((rect as any).isPatch
-            ? {
+              ? {
+                ...rect,
                 isPatch: true,
                 text: (rect as any).text,
                 color: (rect as any).color,
                 textColor: (rect as any).textColor,
                 fontSize: (rect as any).fontSize,
                 fontFamily: (rect as any).fontFamily,
-                x: rect.x,
-                y: rect.y,
-                width: rect.width,
-                height: rect.height,
+                fontWeight: (rect as any).fontWeight,
+                fontStyle: (rect as any).fontStyle,
               }
             : { text: noteText || "New note", color: annotationToolDefaults.note.color, opacity: annotationToolDefaults.note.opacity, fontSize: annotationToolDefaults.note.size, x: rect.x, y: rect.y })
           : kind === "shape"
@@ -77,9 +80,11 @@ export function useAnnotationActions({
                 : { signer: signatureStyle, ...rect };
     const optimistic: Annotation = { id: tempId, page: pageNumber, kind, payload, createdAt: Date.now(), updatedAt: Date.now() };
     setAnnotations((prev) => [...prev, optimistic]);
+    setSaveState("idle");
     try {
       const created = await bridge.createAnnotation(fileName, { page: pageNumber, kind, payload });
       setAnnotations((prev) => prev.map((a) => (a.id === tempId ? created : a)));
+      setSaveState("idle");
     } catch {
       setAnnotations((prev) => prev.filter((a) => a.id !== tempId));
       setViewerError(`Failed to save ${kind}`);
@@ -89,17 +94,20 @@ export function useAnnotationActions({
   async function undoAnnotations() {
     if (!fileName) return;
     setAnnotations(await bridge.undoAnnotation(fileName));
+    setSaveState("idle");
   }
 
   async function redoAnnotations() {
     if (!fileName) return;
     setAnnotations(await bridge.redoAnnotation(fileName));
+    setSaveState("idle");
   }
 
   async function removeAnnotation(id: string) {
     if (!fileName) return;
     await bridge.deleteAnnotation(fileName, id);
     setAnnotations(await bridge.listAnnotations(fileName));
+    setSaveState("idle");
   }
 
   async function updateAnnotation(id: string, payload: Record<string, unknown>) {
@@ -113,6 +121,7 @@ export function useAnnotationActions({
     );
     try {
       await bridge.updateAnnotation(fileName, id, payload);
+      setSaveState("idle");
     } catch {
       setViewerError("Failed to update annotation");
     }

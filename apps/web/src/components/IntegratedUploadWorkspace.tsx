@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from "react";
+import { getDocumentToolLabel } from "../lib/documentEditingExperience";
 
 interface IntegratedUploadWorkspaceProps {
   activeToolId: string;
@@ -36,15 +37,15 @@ export function IntegratedUploadWorkspace({
   // Visual header setup
   const headerText = useMemo(() => {
     switch (activeToolId) {
-      case "pdf-to-word": return "Export PDF to Microsoft Word";
-      case "pdf-to-excel": return "Export PDF to Microsoft Excel";
-      case "pdf-to-ppt": return "Export PDF to PowerPoint Slide";
+      case "pdf-to-word": return getDocumentToolLabel("pdf-to-word");
+      case "pdf-to-excel": return getDocumentToolLabel("pdf-to-excel");
+      case "pdf-to-ppt": return getDocumentToolLabel("pdf-to-ppt");
       case "pdf-to-png": return "Convert PDF to high-fidelity PNG";
       case "pdf-to-jpeg": return "Convert PDF to high-fidelity JPEG";
-      case "pdf-to-txt": return "Extract Text from PDF";
-      case "pdf-to-html": return "Convert PDF to Web Layout (HTML)";
-      case "pdf-to-xml": return "Convert PDF to Structured XML Data";
-      case "pdf-to-rtf": return "Convert PDF to Rich Text (RTF)";
+      case "pdf-to-txt": return getDocumentToolLabel("pdf-to-txt");
+      case "pdf-to-html": return getDocumentToolLabel("pdf-to-html");
+      case "pdf-to-xml": return getDocumentToolLabel("pdf-to-xml");
+      case "pdf-to-rtf": return getDocumentToolLabel("pdf-to-rtf");
       case "word-to-pdf": return "Reconstruct Word doc into PDF";
       case "excel-to-pdf": return "Reconstruct Excel sheet into PDF";
       case "ppt-to-pdf": return "Reconstruct PPT slide into PDF";

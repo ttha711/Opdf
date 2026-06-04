@@ -10,7 +10,8 @@ export function useAppMenus({
   setActiveTool,
   openFile,
   closeDocument,
-  exportPdf,
+  savePdf,
+  savePdfAs,
   compressDocument,
   addWatermark,
   mergeDocuments,
@@ -34,7 +35,8 @@ export function useAppMenus({
   setActiveTool: Dispatch<SetStateAction<ActiveTool>>;
   openFile: () => void;
   closeDocument: () => void;
-  exportPdf: () => void;
+  savePdf: () => void;
+  savePdfAs: () => void;
   compressDocument: () => void;
   addWatermark: () => void;
   mergeDocuments: () => void;
@@ -56,7 +58,8 @@ export function useAppMenus({
     { kind: "action", label: "Open...", shortcut: "Ctrl+O", onClick: openFile },
     { kind: "action", label: "Close", disabled: !hasDocument, onClick: closeDocument },
     { kind: "separator" },
-    { kind: "action", label: "Save / Export PDF", shortcut: "Ctrl+S", disabled: !hasDocument, onClick: exportPdf },
+    { kind: "action", label: "Save", shortcut: "Ctrl+S", disabled: !hasDocument, onClick: savePdf },
+    { kind: "action", label: "Save As...", shortcut: "Ctrl+Shift+S", disabled: !hasDocument, onClick: savePdfAs },
     { kind: "separator" },
     { kind: "action", label: "Compress PDF", disabled: !hasDocument, onClick: compressDocument },
     { kind: "action", label: "Add Watermark", disabled: !hasDocument, onClick: addWatermark },

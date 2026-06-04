@@ -27,6 +27,8 @@ type AppEffectsArgs = {
   setTheme: Dispatch<SetStateAction<"light" | "dark">>;
   findInputRef: RefObject<HTMLInputElement>;
   openFile: () => void;
+  savePdf: () => void;
+  savePdfAs: () => void;
   exportPdf: () => void;
   undoAnnotations: () => Promise<void>;
   redoAnnotations: () => Promise<void>;
@@ -48,7 +50,7 @@ export function useAppEffects(args: AppEffectsArgs) {
   const {
     bridge, hasDesktopBridge, docBytes, hasDocument, fileName, annotations, thumbnails, bookmarks, page, theme,
     setFileName, setDocBytes, setAnnotations, setPage, setThumbnails, setBookmarks, setShowFindBar, setOpenMenu, setActiveTool, setTheme, findInputRef,
-    openFile, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage,
+    openFile, savePdf, savePdfAs, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage,
 
     // NEW TABS PROPS
     tabs, setTabs, activeTabId, setActiveTabId, isSwitchingRef, setShowDashboard,
@@ -176,7 +178,8 @@ export function useAppEffects(args: AppEffectsArgs) {
       const inInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
 
       if (ctrl && e.key === "o") { e.preventDefault(); openFile(); return; }
-      if (ctrl && e.key === "s") { e.preventDefault(); exportPdf(); return; }
+      if (ctrl && e.key === "s" && !e.shiftKey) { e.preventDefault(); savePdf(); return; }
+      if (ctrl && e.shiftKey && e.key.toLowerCase() === "s") { e.preventDefault(); savePdfAs(); return; }
       if (ctrl && e.key === "z") { e.preventDefault(); void undoAnnotations(); return; }
       if (ctrl && (e.key === "y" || (e.shiftKey && e.key === "Z"))) { e.preventDefault(); void redoAnnotations(); return; }
       if (ctrl && e.key === "f") {
@@ -209,5 +212,5 @@ export function useAppEffects(args: AppEffectsArgs) {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [openFile, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage, findInputRef, setActiveTool, setOpenMenu, setShowFindBar, setTheme]);
+  }, [openFile, savePdf, savePdfAs, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage, findInputRef, setActiveTool, setOpenMenu, setShowFindBar, setTheme]);
 }

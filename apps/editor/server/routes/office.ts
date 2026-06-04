@@ -9,6 +9,34 @@ import juice from "juice";
 
 const router = Router();
 
+const normalizeDocxPageSize = (pageSize: unknown) => {
+  if (!pageSize || typeof pageSize !== "object") {
+    return undefined;
+  }
+
+  const { width, height } = pageSize as { width?: unknown; height?: unknown };
+  const normalizeDimension = (value: unknown) => {
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      return `${(value / 72).toFixed(2)}in`;
+    }
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+    return undefined;
+  };
+
+  const normalizedWidth = normalizeDimension(width);
+  const normalizedHeight = normalizeDimension(height);
+  if (!normalizedWidth || !normalizedHeight) {
+    return undefined;
+  }
+
+  return {
+    width: normalizedWidth,
+    height: normalizedHeight,
+  };
+};
+
 // Convert legacy Office document, CSV, TXT, PDF formats into editable multi-format layout blocks using Gemini
 router.post("/convert-office", validate([
   { field: "fileBase64", type: "string", required: true, message: "Không tìm thấy nội dung tệp tin." },
@@ -122,9 +150,12 @@ Trả về DUY NHẤT một chuỗi JSON chuẩn cú pháp ứng với cấu tr�
 });
 
 // Export HTML content to Microsoft Word (.docx)
-router.post("/export-docx", validate([{ field: "html", type: "string", required: true, message: "Thiếu nội dung HTML để xuất DOCX." }]), async (req: Request, res: Response) => {
+router.post("/export-docx", validate([
+  { field: "html", type: "string", required: true, message: "Thiếu nội dung HTML để xuất DOCX." },
+  { field: "pageSize", type: "object", message: "pageSize phải là một object hợp lệ." },
+]), async (req: Request, res: Response) => {
   try {
-    const { html, title } = req.body;
+    const { html, title, pageSize } = req.body;
     let processedHtml = html || "";
     // Convert interactive checkboxes to nice static symbols for Word
     processedHtml = processedHtml.replace(/<input\s+[^>]*type="checkbox"[^>]*checked[^>]*>/gi, "☑ ");
@@ -162,11 +193,13 @@ router.post("/export-docx", validate([{ field: "html", type: "string", required:
       </html>
     `;
 
+    const normalizedPageSize = normalizeDocxPageSize(pageSize);
     const options = {
       table: { row: { cantSplit: true } },
       footer: true,
       pageNumber: true,
       title: title || "Exported Document",
+      ...(normalizedPageSize ? { pageSize: normalizedPageSize } : {}),
     };
 
     // Inline the styles so html-to-docx can read them as inline attributes

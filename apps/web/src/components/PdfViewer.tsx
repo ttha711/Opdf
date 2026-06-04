@@ -129,6 +129,7 @@ export function PdfViewer({
 
   useEffect(() => {
     if (viewMode !== "continuous") return;
+    if (document.body.dataset.opdfSelecting === "1") return;
     let frameId = 0;
     let attempts = 0;
     const scrollToPage = () => {

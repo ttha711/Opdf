@@ -73,9 +73,16 @@ export interface OpdfBridge {
   applyAiPatch?: (payload: AiPatchRequest) => Promise<LivePatch>;
 }
 
+export interface OpdfUpdateBridge {
+  onUpdateReady: (callback: (info: { version: string; description?: string }) => void) => void;
+  checkPendingUpdate: () => Promise<{ version: string; description?: string } | null>;
+  restartApp: () => Promise<void>;
+}
+
 declare global {
   interface Window {
     opdf?: OpdfBridge;
+    opdfUpdate?: OpdfUpdateBridge;
     __opdfAiEditorBootstrap?: {
       fileName?: string;
       docBytes?: number[];

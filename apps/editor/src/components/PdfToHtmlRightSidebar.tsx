@@ -5,7 +5,8 @@ import {
   Sparkles, 
   CheckSquare, 
   Loader2,
-  Layers
+  Layers,
+  Languages
 } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -21,6 +22,7 @@ interface PdfToHtmlRightSidebarProps {
   isRightSidebarCollapsed: boolean;
   setIsRightSidebarCollapsed: (collapsed: boolean) => void;
   applyAISelectionEdit: () => void;
+  applyAISelectionTranslate: () => void;
 
   // AI Image Layer Edit props
   pdfViewerTab?: "visual" | "compare" | "xml" | "image_edit";
@@ -41,6 +43,7 @@ export default function PdfToHtmlRightSidebar({
   isRightSidebarCollapsed,
   setIsRightSidebarCollapsed,
   applyAISelectionEdit,
+  applyAISelectionTranslate,
 
   // Destructured Image Edit props
   pdfViewerTab,
@@ -180,21 +183,50 @@ export default function PdfToHtmlRightSidebar({
           isRightSidebarCollapsed ? (
             <div className="flex flex-col items-center gap-4 py-8">
               {selectedPdfSelection ? (
-                <button
-                  onClick={() => setIsRightSidebarCollapsed(false)}
-                  className="relative group p-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 transition-all cursor-pointer flex flex-col items-center gap-1 text-center"
-                  title="Có văn bản đang bôi chọn! Nhấp để mở rộng và tùy chỉnh."
-                >
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-indigo-650 animate-ping" />
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-indigo-660" />
-                  <Sparkles className="w-5 h-5 text-indigo-555 animate-bounce" />
-                  <span className="text-[8px] text-indigo-600 font-bold uppercase tracking-wider scale-90">Có text</span>
-                </button>
+                <>
+                  <button
+                    onClick={() => setIsRightSidebarCollapsed(false)}
+                    className="relative group p-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 transition-all cursor-pointer flex flex-col items-center gap-1 text-center"
+                    title="Có văn bản đang bôi chọn! Nhấp để mở rộng và tùy chỉnh."
+                  >
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-indigo-650 animate-ping" />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-indigo-660" />
+                    <Sparkles className="w-5 h-5 text-indigo-555 animate-bounce" />
+                    <span className="text-[8px] text-indigo-600 font-bold uppercase tracking-wider scale-90">Có text</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={applyAISelectionTranslate}
+                    disabled={pdfSelectionEditing || !selectedPdfSelection}
+                    className="relative group p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-all cursor-pointer flex flex-col items-center gap-1 text-center disabled:cursor-not-allowed disabled:opacity-70"
+                    title={selectedPdfSelection ? "Dịch nhanh và thay thế ngay" : "Chọn văn bản trước để dịch nhanh"}
+                  >
+                    {pdfSelectionEditing ? (
+                      <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />
+                    ) : (
+                      <Languages className="w-5 h-5 text-slate-700" />
+                    )}
+                    <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider scale-90">
+                      Dịch
+                    </span>
+                  </button>
+                </>
               ) : (
-                <div className="flex flex-col items-center gap-1.5 opacity-60">
-                  <CheckSquare className="w-5 h-5 text-slate-400" />
-                  <span className="text-[8px] text-slate-400 font-bold uppercase text-center tracking-wider leading-tight">Chờ quét</span>
-                </div>
+                <>
+                  <div className="flex flex-col items-center gap-1.5 opacity-60">
+                    <CheckSquare className="w-5 h-5 text-slate-400" />
+                    <span className="text-[8px] text-slate-400 font-bold uppercase text-center tracking-wider leading-tight">Chờ quét</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled
+                    className="relative group p-2 rounded-xl border border-slate-200 bg-white cursor-not-allowed flex flex-col items-center gap-1 text-center opacity-70"
+                    title="Chọn văn bản trước để dịch nhanh"
+                  >
+                    <Languages className="w-5 h-5 text-slate-400" />
+                    <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider scale-90">Dịch</span>
+                  </button>
+                </>
               )}
             </div>
           ) : selectedPdfSelection ? (
@@ -210,6 +242,24 @@ export default function PdfToHtmlRightSidebar({
 
               <div className="space-y-1.5">
                 <span className="text-[9px] uppercase font-bold text-slate-400 block">Chọn tác vụ xử lý:</span>
+                <button
+                  type="button"
+                  onClick={applyAISelectionTranslate}
+                  disabled={pdfSelectionEditing || !selectedPdfSelection}
+                  className="w-full bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-slate-800"
+                >
+                  {pdfSelectionEditing ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Đang dịch</span>
+                    </>
+                  ) : (
+                    <>
+                      <Languages className="w-3.5 h-3.5" />
+                      <span>Dịch nhanh và thay thế</span>
+                    </>
+                  )}
+                </button>
                 {[
                   { label: "💡 Chuyển in đậm & chữ đỏ", prompt: "Format this specific selection: make the typography bolder, and set style='color: #e11d48;'" },
                   { label: "📝 Dịch văn bản sang tiếng Anh", prompt: "Translate this selection text accurately into formal office business English" },
@@ -228,11 +278,20 @@ export default function PdfToHtmlRightSidebar({
               </div>
             </div>
           ) : (
-            <div className="p-4 bg-slate-50 border border-slate-200/50 rounded-xl text-center space-y-2 select-none py-8">
+            <div className="p-4 bg-slate-50 border border-slate-200/50 rounded-xl text-center space-y-3 select-none py-8">
               <CheckSquare className="w-5 h-5 text-slate-400 mx-auto" />
               <p className="text-[11px] text-slate-500 leading-relaxed">
                 Hãy lựa chọn quét bôi đen một đoạn bên màn hiển thị văn bản để kích hoạt menu sửa nhanh.
               </p>
+              <button
+                type="button"
+                disabled
+                className="w-full bg-slate-900/60 text-white font-bold text-xs py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-800/60 opacity-70"
+                title="Chọn văn bản trước để dịch nhanh và thay thế"
+              >
+                <Languages className="w-3.5 h-3.5" />
+                <span>Dịch nhanh và thay thế</span>
+              </button>
             </div>
           )
         )}

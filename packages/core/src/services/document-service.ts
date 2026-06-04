@@ -12,6 +12,15 @@ import type {
 } from "../types/index.js";
 
 export class DocumentService {
+  private toWinAnsiSafeText(value: unknown): string {
+    const raw = String(value ?? "");
+    return raw
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D");
+  }
+
   async open(filePath: string): Promise<OpenDocumentResult> {
     const bytes = new Uint8Array(await readFile(filePath));
     return { filePath, bytes, openedAt: Date.now() };
@@ -67,18 +76,27 @@ export class DocumentService {
     const module = await import("pdf-lib");
     const doc = await module.PDFDocument.load(pdfBytes);
     const pages = doc.getPages();
+    const orderedAnnotations = [...annotations].sort((a, b) => {
+      const aPatch = Boolean((a?.payload as any)?.isPatch);
+      const bPatch = Boolean((b?.payload as any)?.isPatch);
+      if (a.kind === "redact" && b.kind !== "redact") return -1;
+      if (a.kind !== "redact" && b.kind === "redact") return 1;
+      if (aPatch && !bPatch) return 1;
+      if (!aPatch && bPatch) return -1;
+      return 0;
+    });
 
-    for (const ann of annotations) {
+    for (const ann of orderedAnnotations) {
       const pageIndex = ann.page - 1;
       if (pageIndex < 0 || pageIndex >= pages.length) continue;
       const page = pages[pageIndex];
       const { width, height } = page.getSize();
       
-      const payload = ann.payload;
-      const uiX = payload.x || 0;
-      const uiY = payload.y || 0;
-      const uiW = payload.width || 0.1;
-      const uiH = payload.height || 0.05;
+      const payload = (ann.payload ?? {}) as Record<string, unknown>;
+      const uiX = Number(payload.x ?? 0);
+      const uiY = Number(payload.y ?? 0);
+      const uiW = Number(payload.width ?? 0.1);
+      const uiH = Number(payload.height ?? 0.05);
 
       const x = uiX * width;
       const objW = uiW * width;
@@ -92,8 +110,16 @@ export class DocumentService {
           opacity: 0.4
         });
       } else if (ann.kind === "note") {
-        page.drawText(payload.text || "Note", {
-          x, y: y + objH - 16, size: 16, color: module.rgb(0, 0, 0)
+        const noteText = this.toWinAnsiSafeText(payload.text ?? "Note");
+        const fontSize = Number(payload.fontSize ?? 16) || 16;
+        const textColor = typeof payload.textColor === "string" ? payload.textColor : "#000000";
+        const rgb = this.parseCssColor(textColor, module) ?? module.rgb(0, 0, 0);
+        page.drawText(noteText, {
+          x: x + 2,
+          y: y + Math.max(2, objH - fontSize - 2),
+          size: Math.max(8, Math.min(fontSize, 64)),
+          color: rgb,
+          maxWidth: objW - 4,
         });
       } else if (ann.kind === "shape") {
         page.drawRectangle({
@@ -102,14 +128,16 @@ export class DocumentService {
           borderWidth: 2
         });
       } else if (ann.kind === "signature") {
-        page.drawText(payload.signer || "Signature", {
+        page.drawText(this.toWinAnsiSafeText(payload.signer ?? "Signature"), {
           x, y: y + objH - 24, size: 24, color: module.rgb(0, 0, 1)
         });
       } else if (ann.kind === "redact") {
+        const redactColor = this.parseCssColor(payload.color, module) ?? module.rgb(0, 0, 0);
+        const redactOpacity = typeof payload.opacity === "number" ? payload.opacity : 1;
         page.drawRectangle({
           x, y, width: objW, height: objH,
-          color: module.rgb(0, 0, 0),
-          opacity: 1
+          color: redactColor,
+          opacity: redactOpacity
         });
       } else if (ann.kind === "image" && payload.image) {
         let base64Data = payload.image as string;
@@ -130,6 +158,48 @@ export class DocumentService {
     }
 
     return doc.save();
+  }
+
+  private parseCssColor(value: unknown, module: any) {
+    if (typeof value !== "string") return null;
+    const normalized = value.trim().toLowerCase();
+    if (!normalized || normalized === "transparent" || normalized === "none") return null;
+
+    const named: Record<string, [number, number, number]> = {
+      black: [0, 0, 0],
+      white: [255, 255, 255],
+      red: [255, 0, 0],
+      green: [0, 128, 0],
+      blue: [0, 0, 255],
+      yellow: [255, 255, 0],
+      gray: [128, 128, 128],
+      grey: [128, 128, 128],
+      orange: [255, 165, 0],
+      purple: [128, 0, 128],
+      pink: [255, 192, 203],
+      brown: [165, 42, 42],
+      cyan: [0, 255, 255],
+      magenta: [255, 0, 255],
+    };
+
+    const namedRgb = named[normalized];
+    if (namedRgb) {
+      return module.rgb(namedRgb[0] / 255, namedRgb[1] / 255, namedRgb[2] / 255);
+    }
+
+    const hex = normalized.replace(/^#/, "");
+    if (/^[0-9a-f]{3}$/i.test(hex)) {
+      const r = Number.parseInt(hex[0] + hex[0], 16) / 255;
+      const g = Number.parseInt(hex[1] + hex[1], 16) / 255;
+      const b = Number.parseInt(hex[2] + hex[2], 16) / 255;
+      return module.rgb(r, g, b);
+    }
+
+    if (!/^[0-9a-f]{6}$/i.test(hex)) return null;
+    const r = Number.parseInt(hex.slice(0, 2), 16) / 255;
+    const g = Number.parseInt(hex.slice(2, 4), 16) / 255;
+    const b = Number.parseInt(hex.slice(4, 6), 16) / 255;
+    return module.rgb(r, g, b);
   }
 
   async compressPdf(pdfBytes: Uint8Array): Promise<Uint8Array> {

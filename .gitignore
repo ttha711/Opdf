@@ -16,6 +16,7 @@ structure.txt
 .env.development
 .env.production
 .env.test
+*.md
 
 # E2E & Temp
 .e2e-*/
@@ -44,3 +45,5 @@ apps/desktop/tools/python/
 cloudflared-two-apps.yml
 scripts/smoke/run-ai-phase1.ps1
 scripts/smoke/verify-ai-phase1.cjs
+
+.codegraph/

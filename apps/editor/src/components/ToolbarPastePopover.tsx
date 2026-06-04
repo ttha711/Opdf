@@ -80,7 +80,7 @@ export default function ToolbarPastePopover({
 
       {/* Pasted text value textarea box */}
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-bold text-slate-400">NỘI DUNG VĂN BẢN / HTML</label>
+        <label className="text-[10px] font-bold text-slate-400">NỘI DUNG VĂN BẢN / CẤU TRÚC</label>
         <textarea 
           placeholder="Dán hoặc nhập toàn bộ nội dung bạn muốn chèn..."
           value={pasteTextInput}
@@ -111,7 +111,7 @@ export default function ToolbarPastePopover({
               pasteFormatMode === "html" ? "bg-white text-slate-800 shadow-xs" : "text-slate-500 hover:text-slate-700"
             )}
           >
-            Mã Raw HTML
+            Cấu trúc nâng cao
           </button>
         </div>
       </div>

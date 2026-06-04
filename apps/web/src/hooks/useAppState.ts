@@ -3,6 +3,7 @@ import type { Annotation, OcrJob } from "@opdf/core";
 import type { ActiveTool, AnnotationToolDefaults, PendingNote, ViewMode, ZoomPreset } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
 import type { OpdfTab } from "../lib/web-storage";
+import { buildDocumentFingerprint } from "../lib/documentFingerprint";
 
 export function useAppState() {
   const cloneBytes = (bytes: Uint8Array | null): Uint8Array | null => {
@@ -40,6 +41,7 @@ export function useAppState() {
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [showInsertModal, setShowInsertModal] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [viewMode, setViewMode] = useState<ViewMode>("continuous");
   const [documentTool, setDocumentTool] = useState<DocumentTool>("delete-pages");
   const [transitionTick, setTransitionTick] = useState(0);
@@ -73,6 +75,7 @@ export function useAppState() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const findInputRef = useRef<HTMLInputElement>(null);
   const lastWheelFlipAtRef = useRef(0);
+  const savedFingerprintRef = useRef<string>("");
   
   const isSwitchingRef = useRef(false);
   const tabsRef = useRef(tabs);
@@ -80,6 +83,69 @@ export function useAppState() {
   useEffect(() => {
     tabsRef.current = tabs;
   }, [tabs]);
+
+  useEffect(() => {
+    const currentFingerprint = buildDocumentFingerprint({
+      fileName,
+      docBytes,
+      annotations,
+      bookmarks,
+      pageRotations,
+    });
+
+    if (!currentFingerprint) {
+      if (savedFingerprintRef.current) {
+        savedFingerprintRef.current = "";
+      }
+      if (saveState !== "idle") {
+        setSaveState("idle");
+      }
+      return;
+    }
+
+    if (!savedFingerprintRef.current) {
+      savedFingerprintRef.current = currentFingerprint;
+      if (saveState !== "saved") {
+        setSaveState("saved");
+      }
+      return;
+    }
+
+    if (saveState === "saving") {
+      return;
+    }
+
+    if (currentFingerprint === savedFingerprintRef.current) {
+      if (saveState !== "saved") {
+        setSaveState("saved");
+      }
+    } else if (saveState !== "idle") {
+      setSaveState("idle");
+    }
+  }, [annotations, bookmarks, docBytes, fileName, pageRotations, saveState]);
+
+  const markDocumentSaved = useCallback((snapshot?: {
+    fileName?: string;
+    docBytes?: Uint8Array | null;
+    annotations?: Annotation[];
+    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
+    pageRotations?: Record<number, number>;
+  }) => {
+    const fingerprint = buildDocumentFingerprint({
+      fileName: snapshot?.fileName ?? fileName,
+      docBytes: snapshot?.docBytes ?? docBytes,
+      annotations: snapshot?.annotations ?? annotations,
+      bookmarks: snapshot?.bookmarks ?? bookmarks,
+      pageRotations: snapshot?.pageRotations ?? pageRotations,
+    });
+    savedFingerprintRef.current = fingerprint;
+    setSaveState(fingerprint ? "saved" : "idle");
+  }, [annotations, bookmarks, docBytes, fileName, pageRotations]);
+
+  const clearDocumentSaveTracking = useCallback(() => {
+    savedFingerprintRef.current = "";
+    setSaveState("idle");
+  }, []);
 
   const hasDocument = useMemo(() => Boolean(fileName && docBytes), [fileName, docBytes]);
   const highlightMode = activeTool === "highlight";
@@ -100,11 +166,18 @@ export function useAppState() {
     setBookmarks(targetTab.bookmarks || []);
     setThumbnails(targetTab.thumbnails || []);
     setPageRotations(targetTab.pageRotations || {});
+    markDocumentSaved({
+      fileName: targetTab.fileName,
+      docBytes: targetTab.docBytes,
+      annotations: targetTab.annotations || [],
+      bookmarks: targetTab.bookmarks || [],
+      pageRotations: targetTab.pageRotations || {},
+    });
     
     setTimeout(() => {
       isSwitchingRef.current = false;
     }, 100);
-  }, []);
+  }, [markDocumentSaved]);
 
   const closeTab = useCallback((tabId: string) => {
     setTabs(prevTabs => {
@@ -141,6 +214,7 @@ export function useAppState() {
           setThumbnails([]);
           setPageRotations({});
           setShowDashboard(true);
+          clearDocumentSaveTracking();
           setTimeout(() => {
             isSwitchingRef.current = false;
           }, 100);
@@ -149,7 +223,7 @@ export function useAppState() {
       
       return remainingTabs;
     });
-  }, [activeTabId, switchTab]);
+  }, [activeTabId, switchTab, clearDocumentSaveTracking]);
 
   const addTabToGroup = useCallback((tabId: string, groupName: string, groupColor?: string) => {
     const colors = ["#ff5a5f", "#e03e2d", "#10b981", "#0061d5", "#8b5cf6", "#f59e0b"];
@@ -254,6 +328,7 @@ export function useAppState() {
           setThumbnails([]);
           setPageRotations({});
           setShowDashboard(true);
+          clearDocumentSaveTracking();
           setTimeout(() => {
             isSwitchingRef.current = false;
           }, 100);
@@ -317,43 +392,27 @@ export function useAppState() {
         });
       });
     } else {
-      // Look if there's already a tab loaded with this filename to switch to it
-      const alreadyOpenTab = currentTabs.find(t => t.fileName === fileName);
-      if (alreadyOpenTab) {
-        isSwitchingRef.current = true;
-        setActiveTabId(alreadyOpenTab.id);
-        setFileName(alreadyOpenTab.fileName);
-        setDocBytes(cloneBytes(alreadyOpenTab.docBytes));
-        setPage(alreadyOpenTab.page || 1);
-        setTotalPages(alreadyOpenTab.totalPages || 0);
-        setAnnotations(alreadyOpenTab.annotations || []);
-        setBookmarks(alreadyOpenTab.bookmarks || []);
-        setThumbnails(alreadyOpenTab.thumbnails || []);
-        setPageRotations(alreadyOpenTab.pageRotations || {});
-        setTimeout(() => { isSwitchingRef.current = false; }, 50);
-      } else {
-        // Create a new tab
-        const newTabId = "tab_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
-        const colors = ["#ff5a5f", "#e03e2d", "#10b981", "#0061d5", "#8b5cf6", "#f59e0b"];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
-        
-        const newTab: OpdfTab = {
-          id: newTabId,
-          fileName,
-          docBytes: cloneBytes(docBytes),
-          page,
-          totalPages,
-          annotations,
-          bookmarks,
-          group: activeGroupFilter,
-          groupColor: activeGroupFilter ? randomColor : null,
-          thumbnails: [],
-          pageRotations: {}
-        };
-        
-        setTabs(prev => [...prev, newTab]);
-        setActiveTabId(newTabId);
-      }
+      // Always create a new tab for an open-file action to avoid name-collision tab hijacking.
+      const newTabId = "tab_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+      const colors = ["#ff5a5f", "#e03e2d", "#10b981", "#0061d5", "#8b5cf6", "#f59e0b"];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      
+      const newTab: OpdfTab = {
+        id: newTabId,
+        fileName,
+        docBytes: cloneBytes(docBytes),
+        page,
+        totalPages,
+        annotations,
+        bookmarks,
+        group: activeGroupFilter,
+        groupColor: activeGroupFilter ? randomColor : null,
+        thumbnails: [],
+        pageRotations: {}
+      };
+      
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(newTabId);
     }
   }, [fileName, docBytes, page, totalPages, annotations, bookmarks, thumbnails, pageRotations, activeTabId, activeGroupFilter]);
 
@@ -362,12 +421,14 @@ export function useAppState() {
     annotations, setAnnotations, ocrJobs, setOcrJobs, pageSearch, setPageSearch, searchResult, setSearchResult, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, pendingNote, setPendingNote, noteText, setNoteText, showSignModal, setShowSignModal,
     signatureStyle, setSignatureStyle, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
+    saveState, setSaveState,
     transitionTick, setTransitionTick, transitionDirection, setTransitionDirection, thumbnails, setThumbnails, bookmarks, setBookmarks, openMenu, setOpenMenu,
     showFindBar, setShowFindBar, theme, setTheme, fileInputRef, findInputRef, lastWheelFlipAtRef, hasDocument, highlightMode, hasDesktopBridge,
     showDashboard, setShowDashboard, activeDashboardTool, setActiveDashboardTool,
 
     // NEW TABS STATE & ACTIONS
     tabs, setTabs, activeTabId, setActiveTabId, activeGroupFilter, isSwitchingRef,
+    markDocumentSaved, clearDocumentSaveTracking,
     switchTab, closeTab, addTabToGroup, removeTabFromGroup, renameTabGroup, changeTabGroupColor, closeTabGroup, ungroupGroup
   };
 }

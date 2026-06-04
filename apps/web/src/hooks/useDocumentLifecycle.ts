@@ -1,4 +1,4 @@
-import { useEffect, type ChangeEvent, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useEffect, useRef, type ChangeEvent, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { Annotation } from "@opdf/core";
 import { useOpdfBridge } from "./useOpdfBridge";
 
@@ -15,6 +15,9 @@ export function useDocumentLifecycle({
   setThumbnails,
   setAnnotations,
   setTransitionTick,
+  setSaveState,
+  markDocumentSaved,
+  clearDocumentSaveTracking,
 }: {
   bridge: ReturnType<typeof useOpdfBridge>;
   hasDesktopBridge: boolean;
@@ -28,7 +31,18 @@ export function useDocumentLifecycle({
   setThumbnails: Dispatch<SetStateAction<Array<{ page: number; url: string; blob: Blob }>>>;
   setAnnotations: Dispatch<SetStateAction<Annotation[]>>;
   setTransitionTick: Dispatch<SetStateAction<number>>;
+  setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
+  markDocumentSaved: (snapshot?: {
+    fileName?: string;
+    docBytes?: Uint8Array | null;
+    annotations?: Annotation[];
+    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
+    pageRotations?: Record<number, number>;
+  }) => void;
+  clearDocumentSaveTracking: () => void;
 }) {
+  const isOpeningFileRef = useRef(false);
+
   async function loadBrowserFile(file: File) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     setFileName(file.name);
@@ -37,45 +51,62 @@ export function useDocumentLifecycle({
     setViewerError(null);
     setThumbnails([]);
     setAnnotations([]);
+    markDocumentSaved({ fileName: file.name, docBytes: bytes, annotations: [], bookmarks: [], pageRotations: {} });
   }
 
   async function openFile() {
+    if (isOpeningFileRef.current) return;
+    isOpeningFileRef.current = true;
     if (!hasDesktopBridge) {
       const input = fileInputRef.current;
       if (!input) {
         setViewerError("File picker is unavailable.");
+        isOpeningFileRef.current = false;
         return;
       }
       input.value = "";
       try {
-        if (typeof input.showPicker === "function") {
-          try {
-            input.showPicker();
-          } catch {
-            // Fallback for browsers that restrict showPicker in async context
-            input.click();
-          }
-        } else {
-          input.click();
-        }
+        // Keep file-open in the direct user-gesture path for best browser compatibility.
+        input.click();
       } catch {
-        setViewerError("Cannot open file picker. Please click 'Choose File' directly.");
+        try {
+          if (typeof input.showPicker === "function") {
+            input.showPicker();
+          }
+        } catch {
+          setViewerError("Cannot open file picker. Please click 'Choose File' directly.");
+        }
       }
+      setTimeout(() => {
+        isOpeningFileRef.current = false;
+      }, 250);
       return;
     }
 
     try {
       const result = await bridge.pickAndOpenDocument();
       if (result) {
+        const loadedAnnotations = await bridge.listAnnotations(result.filePath);
         setFileName(result.filePath);
         setDocBytes(result.bytes);
         setPage(1);
         setViewerError(null);
         setThumbnails([]);
         await bridge.pushRecent(result.filePath);
-        setAnnotations(await bridge.listAnnotations(result.filePath));
+        setAnnotations(loadedAnnotations);
+        markDocumentSaved({
+          fileName: result.filePath,
+          docBytes: result.bytes,
+          annotations: loadedAnnotations,
+          bookmarks: [],
+          pageRotations: {},
+        });
       }
-    } catch {}
+    } catch {
+      // no-op
+    } finally {
+      isOpeningFileRef.current = false;
+    }
   }
 
   async function openFileWithPath(filePath: string) {
@@ -89,7 +120,15 @@ export function useDocumentLifecycle({
           setViewerError(null);
           setThumbnails([]);
           await bridge.pushRecent(result.filePath);
-          setAnnotations(await bridge.listAnnotations(result.filePath));
+          const loadedAnnotations = await bridge.listAnnotations(result.filePath);
+          setAnnotations(loadedAnnotations);
+          markDocumentSaved({
+            fileName: result.filePath,
+            docBytes: result.bytes,
+            annotations: loadedAnnotations,
+            bookmarks: [],
+            pageRotations: {},
+          });
         }
       } catch {}
       return;
@@ -100,12 +139,20 @@ export function useDocumentLifecycle({
       const response = await fetch(`/@fs/${filePath.replaceAll("\\", "/")}`);
       if (!response.ok) throw new Error(`HTTP ${response.status} when trying to load file`);
       const bytes = new Uint8Array(await response.arrayBuffer());
-      setFileName(filePath.split(/[\\/]/).pop() || filePath);
+      const displayName = filePath.split(/[\\/]/).pop() || filePath;
+      setFileName(displayName);
       setDocBytes(bytes);
       setPage(1);
       setViewerError(null);
       setThumbnails([]);
       setAnnotations([]);
+      markDocumentSaved({
+        fileName: displayName,
+        docBytes: bytes,
+        annotations: [],
+        bookmarks: [],
+        pageRotations: {},
+      });
     } catch (error) {
       setViewerError(error instanceof Error ? error.message : "Unable to open file");
     }
@@ -124,6 +171,7 @@ export function useDocumentLifecycle({
     setViewerError(null);
     setPage(Math.max(1, nextPage));
     setTransitionTick((n) => n + 1);
+    setSaveState("idle");
   }
 
   function closeDocument() {
@@ -134,6 +182,7 @@ export function useDocumentLifecycle({
     setViewerError(null);
     setThumbnails([]);
     setAnnotations([]);
+    clearDocumentSaveTracking();
     import("../lib/web-storage").then(m => m.clearDraft());
   }
 
@@ -150,14 +199,22 @@ export function useDocumentLifecycle({
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const bytes = new Uint8Array(await response.arrayBuffer());
         if (cancelled) return;
-        setFileName(devOpenPath.split(/[\\/]/).pop() || devOpenPath);
+        const displayName = devOpenPath.split(/[\\/]/).pop() || devOpenPath;
+        setFileName(displayName);
         setDocBytes(bytes);
         setPage(1);
         setViewerError(null);
         setThumbnails([]);
         setAnnotations([]);
-      } catch (error) {
-        if (!cancelled) setViewerError(error instanceof Error ? error.message : "Unable to open file");
+        markDocumentSaved({
+          fileName: displayName,
+          docBytes: bytes,
+          annotations: [],
+          bookmarks: [],
+          pageRotations: {},
+        });
+      } catch {
+        if (!cancelled) setViewerError("Unable to open file");
       }
     }
 

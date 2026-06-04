@@ -52,6 +52,9 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setThumbnails: state.setThumbnails,
     setAnnotations: state.setAnnotations,
     setTransitionTick: state.setTransitionTick,
+    setSaveState: state.setSaveState,
+    markDocumentSaved: state.markDocumentSaved,
+    clearDocumentSaveTracking: state.clearDocumentSaveTracking,
   });
 
   const { addHighlight, createToolAnnotation, undoAnnotations, redoAnnotations, removeAnnotation, updateAnnotation } = useAnnotationActions({
@@ -62,9 +65,10 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     annotationToolDefaults: state.annotationToolDefaults,
     setAnnotations: state.setAnnotations,
     setViewerError: state.setViewerError,
+    setSaveState: state.setSaveState,
   });
 
-  const { runOcr, exportPdf, compressDocument, addWatermark, mergeDocuments, splitDocument, convertToImages, runDocumentTool, runConfiguredDocumentTool, runConfiguredMarkupTool, runConfiguredWatermark } = useDocumentActions({
+  const { runOcr, savePdf, savePdfAs, exportPdf, compressDocument, addWatermark, mergeDocuments, splitDocument, convertToImages, runDocumentTool, runConfiguredDocumentTool, runConfiguredMarkupTool, runConfiguredWatermark } = useDocumentActions({
     bridge,
     hasDocument: state.hasDocument,
     hasDesktopBridge: state.hasDesktopBridge,
@@ -74,12 +78,16 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     totalPages: state.totalPages,
     thumbnails: state.thumbnails,
     annotations: state.annotations,
+    setFileName: state.setFileName,
+    setAnnotations: state.setAnnotations,
     documentTool: state.documentTool,
     replaceDocumentBytes,
     setDocBytes: state.setDocBytes,
     setPage: state.setPage,
     setOcrJobs: state.setOcrJobs,
     setViewerError: state.setViewerError,
+    setSaveState: state.setSaveState,
+    markDocumentSaved: state.markDocumentSaved,
     setShowSplitModal: state.setShowSplitModal,
     setShowMergeModal: state.setShowMergeModal,
     setShowInsertModal: state.setShowInsertModal,
@@ -157,7 +165,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setActiveTool: state.setActiveTool,
     openFile,
     closeDocument,
-    exportPdf,
+    savePdf,
+    savePdfAs,
     compressDocument,
     addWatermark,
     mergeDocuments,
@@ -199,6 +208,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setTheme: state.setTheme,
     findInputRef: state.findInputRef,
     openFile,
+    savePdf,
+    savePdfAs,
     exportPdf,
     undoAnnotations,
     redoAnnotations,
@@ -231,6 +242,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     actions: {
       openFile,
       closeDocument,
+      savePdf,
+      savePdfAs,
       exportPdf,
       goPrevPage,
       goNextPage,
@@ -313,17 +326,10 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
       alert("This feature is only available on Local or Desktop App versions.");
       return;
     }
-    const payload = {
-      fileName: state.fileName,
-      docBytes: state.docBytes ? Array.from(state.docBytes) : undefined,
-    };
-    window.__opdfAiEditorBootstrap = payload;
-    window.__opdfAiEditorGetBootstrap = () => payload;
-    const nextUrl = new URL(window.location.href);
-    nextUrl.searchParams.set("ai-editor", "1");
-    const popup = window.open(nextUrl.toString(), "opdf-ai-editor", "width=1440,height=920");
+    const editorUrl = localStorage.getItem("opdf-editor-url") || "http://localhost:5175";
+    const popup = window.open(editorUrl, "opdf-ai-editor", "width=1440,height=920");
     if (popup) popup.focus();
-  }, [state.fileName, state.docBytes, isPublic]);
+  }, [isPublic]);
 
   return {
     state,

@@ -156,9 +156,17 @@ export default function PdfToHtmlPageQueueItem({
             </span>
           )}
           {page.status === "done" && (
-            <span className="text-[9.5px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-100 w-full py-0.5 rounded-md flex items-center justify-center gap-1 font-sans">
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                convertSinglePage(idx);
+              }}
+              className="w-full text-[9.5px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 py-0.5 rounded-md flex items-center justify-center gap-1 font-sans cursor-pointer transition-all"
+              title="Nhấp để dịch lại trang này bằng AI"
+            >
               Đã nạp ✓
-            </span>
+            </button>
           )}
           {page.status === "error" && (
             <button 

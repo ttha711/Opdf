@@ -59,12 +59,17 @@ export function syncAnnotationsToCanvas(params: {
     } else if (ann.kind === "note") {
       const textColorVal = payload.textColor as string | undefined;
       const fontFamilyVal = payload.fontFamily as string | undefined;
+      const fontWeightVal = payload.fontWeight as string | undefined;
+      const fontStyleVal = payload.fontStyle as string | undefined;
+      const resolvedFontStyle = fontStyleVal === "italic" || fontStyleVal === "oblique" ? fontStyleVal : "normal";
       
       const textOptions = {
         left: absX, top: absY,
         originX: "left" as const, originY: "top" as const,
         fontSize: fontSize || 16, fill: textColorVal || "black", backgroundColor: color || "#fff8d6",
         fontFamily: fontFamilyVal || "Helvetica, Arial, sans-serif",
+        fontWeight: fontWeightVal || "normal",
+        fontStyle: resolvedFontStyle as any,
         opacity: annOpacity,
         selectable,
         evented: selectable,

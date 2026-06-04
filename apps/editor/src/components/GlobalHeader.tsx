@@ -1,5 +1,5 @@
 import React from "react";
-import { 
+import {
   FileCode, 
   Layers, 
   Eye, 
@@ -13,6 +13,7 @@ import {
   Redo
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { UNIFIED_EDITOR_COPY } from "../lib/editorExperience";
 
 interface GlobalHeaderProps {
   activeWorkspace: "pdf-to-html" | "block-office";
@@ -68,12 +69,12 @@ export default function GlobalHeader({
             Ω
           </div>
           <div className="flex items-center gap-1">
-            <h1 className="font-semibold text-sm tracking-tight text-slate-900 hidden sm:inline-block">Office Hub</h1>
+            <h1 className="font-semibold text-sm tracking-tight text-slate-900 hidden sm:inline-block">{UNIFIED_EDITOR_COPY.appTitle}</h1>
             <span className="text-[8px] uppercase tracking-wider font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 px-1 py-0.2 rounded-md hidden md:inline-block">Pro</span>
           </div>
         </div>
 
-        {/* WORKSPACE MODE TOGGLER */}
+        {/* Unified document flow: keep engines separate, hide the technical split from users. */}
         <div className="flex bg-slate-100 p-0.5 rounded-md border border-slate-200 items-center">
           <button
             onClick={() => {
@@ -88,7 +89,7 @@ export default function GlobalHeader({
             )}
           >
             <FileCode className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Trích xuất PDF</span>
+            <span>{UNIFIED_EDITOR_COPY.prepareWorkspaceLabel}</span>
           </button>
           
           <button
@@ -104,7 +105,7 @@ export default function GlobalHeader({
             )}
           >
             <Layers className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Soạn thảo Office</span>
+            <span>{UNIFIED_EDITOR_COPY.editWorkspaceLabel}</span>
           </button>
         </div>
 
@@ -148,7 +149,7 @@ export default function GlobalHeader({
               )}
             >
               <Eye className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Mặt hiển thị</span>
+              <span>{UNIFIED_EDITOR_COPY.prepareViewLabel}</span>
             </button>
             <button
               onClick={() => setPdfViewerTab("compare")}
@@ -158,7 +159,7 @@ export default function GlobalHeader({
               )}
             >
               <Sliders className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Đối chiếu PDF</span>
+              <span>{UNIFIED_EDITOR_COPY.compareViewLabel}</span>
             </button>
             <button
               onClick={() => setPdfViewerTab("xml")}
@@ -169,7 +170,7 @@ export default function GlobalHeader({
               title="Xem mã cấu trúc XML ngữ nghĩa"
             >
               <FileCode className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Cấu trúc XML</span>
+              <span>{UNIFIED_EDITOR_COPY.structureViewLabel}</span>
             </button>
             <button
               onClick={() => setPdfViewerTab("image_edit")}
@@ -180,7 +181,7 @@ export default function GlobalHeader({
               title="Sửa ảnh PDF trực tiếp bằng AI"
             >
               <Layers className="w-3.5 h-3.5 text-indigo-650 animate-pulse" />
-              <span>Sửa Ảnh AI</span>
+              <span>{UNIFIED_EDITOR_COPY.imageEditViewLabel}</span>
             </button>
           </div>
 
@@ -189,10 +190,10 @@ export default function GlobalHeader({
             <button
               onClick={handlePrint}
               className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-xs text-slate-700 font-semibold rounded-md border border-slate-200 transition-all cursor-pointer"
-              title="In bản dịch"
+              title="In tài liệu"
             >
               <Printer className="w-3.5 h-3.5 text-slate-500" />
-              <span className="hidden lg:inline">In bản dịch</span>
+              <span className="hidden lg:inline">In tài liệu</span>
             </button>
             <button
               onClick={exportPDFToWord}
@@ -201,7 +202,7 @@ export default function GlobalHeader({
               title="Lưu tệp Word"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Lưu tệp Word</span>
+              <span>Xuất Word</span>
             </button>
           </div>
         </div>

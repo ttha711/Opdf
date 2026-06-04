@@ -69,3 +69,11 @@ const api = {
 
 contextBridge.exposeInMainWorld("opdf", api);
 
+contextBridge.exposeInMainWorld("opdfUpdate", {
+  onUpdateReady: (callback: (info: { version: string; description?: string }) => void) => {
+    ipcRenderer.on("opdf:update-ready", (_event, info) => callback(info));
+  },
+  checkPendingUpdate: () => ipcRenderer.invoke("opdf:check-pending-update"),
+  restartApp: () => ipcRenderer.invoke("opdf:restart-app"),
+});
+

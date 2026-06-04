@@ -4,6 +4,17 @@ import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
+const buildDocxPageSize = (pageWidth?: number, pageHeight?: number) => {
+  if (!pageWidth || !pageHeight || pageWidth <= 0 || pageHeight <= 0) {
+    return undefined;
+  }
+
+  return {
+    width: `${(pageWidth / 72).toFixed(2)}in`,
+    height: `${(pageHeight / 72).toFixed(2)}in`,
+  };
+};
+
 export async function runBackgroundOcrAndExport(
   bytes: Uint8Array,
   fileName: string,
@@ -16,10 +27,15 @@ export async function runBackgroundOcrAndExport(
     const totalPages = pdf.numPages;
     let combinedHtml = "";
     let combinedText = "";
+    let pageSize: { width: string; height: string } | undefined;
 
     for (let i = 1; i <= totalPages; i++) {
       setViewerError(`Processing Page ${i} of ${totalPages}...`);
       const page = await pdf.getPage(i);
+      if (!pageSize) {
+        const sourceViewport = page.getViewport({ scale: 1.0 });
+        pageSize = buildDocxPageSize(sourceViewport.width, sourceViewport.height);
+      }
       const viewport = page.getViewport({ scale: 1.5 }); // High resolution for OCR
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
@@ -48,10 +64,10 @@ export async function runBackgroundOcrAndExport(
         // Convert crop-image-placeholder elements to actual base64 cropped images
         const placeholders = tempDiv.querySelectorAll(".crop-image-placeholder");
         placeholders.forEach((el) => {
-          const xPercent = parseFloat(el.getAttribute("data-x") || "0");
-          const yPercent = parseFloat(el.getAttribute("data-y") || "0");
-          const wPercent = parseFloat(el.getAttribute("data-w") || "0");
-          const hPercent = parseFloat(el.getAttribute("data-h") || "0");
+          const xPercent = parseFloat(el.getAttribute("data-crop-x") || el.getAttribute("data-x") || "0");
+          const yPercent = parseFloat(el.getAttribute("data-crop-y") || el.getAttribute("data-y") || "0");
+          const wPercent = parseFloat(el.getAttribute("data-crop-w") || el.getAttribute("data-w") || "0");
+          const hPercent = parseFloat(el.getAttribute("data-crop-h") || el.getAttribute("data-h") || "0");
           const label = el.getAttribute("aria-label") || "image";
 
           if (wPercent > 0 && hPercent > 0) {
@@ -95,7 +111,7 @@ export async function runBackgroundOcrAndExport(
       const res = await fetch("/api/export-docx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: combinedHtml, title: fileBase })
+        body: JSON.stringify({ html: combinedHtml, title: fileBase, pageSize })
       });
       if (!res.ok) throw new Error("Failed to export Word document via API");
       const blob = await res.blob();

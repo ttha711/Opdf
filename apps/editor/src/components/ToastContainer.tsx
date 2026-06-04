@@ -31,7 +31,7 @@ const textColors = {
 
 export default function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   return (
-    <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-2 pointer-events-none print-hidden">
       <AnimatePresence mode="popLayout">
         {toasts.map(toast => (
           <motion.div

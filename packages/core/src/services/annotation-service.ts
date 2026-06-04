@@ -8,6 +8,7 @@ interface AnnotationState {
   annotations: Annotation[];
   undoStack: Annotation[][];
   redoStack: Annotation[][];
+  lastCommittedGroupKey: string | null;
 }
 
 export class AnnotationService {
@@ -23,6 +24,7 @@ export class AnnotationService {
       annotations: [],
       undoStack: [],
       redoStack: [],
+      lastCommittedGroupKey: null,
     };
 
     this.stateByDocument.set(documentId, initial);
@@ -38,12 +40,13 @@ export class AnnotationService {
     state.annotations = this.cloneAnnotations(annotations);
     state.undoStack = [];
     state.redoStack = [];
+    state.lastCommittedGroupKey = null;
     return this.list(documentId);
   }
 
   create(documentId: string, input: AnnotationCreateInput): Annotation {
     const state = this.getState(documentId);
-    this.commitSnapshot(state);
+    this.commitSnapshot(state, this.getGroupKey(input.payload));
 
     const now = Date.now();
     const item: Annotation = {
@@ -85,13 +88,19 @@ export class AnnotationService {
 
   delete(documentId: string, id: string): boolean {
     const state = this.getState(documentId);
-    const next = state.annotations.filter((a) => a.id !== id);
-    if (next.length === state.annotations.length) {
+    const target = state.annotations.find((a) => a.id === id);
+    if (!target) {
       return false;
     }
 
-    this.commitSnapshot(state);
-    state.annotations = next;
+    this.commitSnapshot(state, this.getGroupKey(target.payload));
+
+    const groupKey = this.getGroupKey(target.payload);
+    if (groupKey) {
+      state.annotations = state.annotations.filter((a) => this.getGroupKey(a.payload) !== groupKey);
+    } else {
+      state.annotations = state.annotations.filter((a) => a.id !== id);
+    }
     return true;
   }
 
@@ -104,6 +113,7 @@ export class AnnotationService {
 
     state.redoStack.push(this.cloneAnnotations(state.annotations));
     state.annotations = previous;
+    state.lastCommittedGroupKey = null;
     return state.annotations;
   }
 
@@ -116,18 +126,29 @@ export class AnnotationService {
 
     state.undoStack.push(this.cloneAnnotations(state.annotations));
     state.annotations = next;
+    state.lastCommittedGroupKey = null;
     return state.annotations;
   }
 
-  private commitSnapshot(state: AnnotationState): void {
+  private commitSnapshot(state: AnnotationState, groupKey?: string | null): void {
+    if (groupKey && state.lastCommittedGroupKey === groupKey) {
+      return;
+    }
+
     state.undoStack.push(this.cloneAnnotations(state.annotations));
     if (state.undoStack.length > 50) {
       state.undoStack.shift();
     }
     state.redoStack = [];
+    state.lastCommittedGroupKey = groupKey ?? null;
   }
 
   private cloneAnnotations(items: Annotation[]): Annotation[] {
     return items.map((item) => ({ ...item, payload: { ...item.payload } }));
+  }
+
+  private getGroupKey(payload: Record<string, unknown>): string | null {
+    const groupId = payload.groupId;
+    return typeof groupId === "string" && groupId.trim().length > 0 ? groupId : null;
   }
 }

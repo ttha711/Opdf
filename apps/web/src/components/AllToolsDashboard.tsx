@@ -1,4 +1,8 @@
 import { useState, useRef } from "react";
+import {
+  getDocumentToolLabel,
+  getEditorLaunchError,
+} from "../lib/documentEditingExperience";
 
 interface AllToolsDashboardProps {
   hasDocument: boolean;
@@ -212,6 +216,7 @@ export function AllToolsDashboard({
 
   const getTargetFormat = (actionId: string): string => {
     switch (actionId) {
+      case "pdf-to-ms-office": return "ms-office";
       case "pdf-to-word": return "word";
       case "pdf-to-excel": return "excel";
       case "pdf-to-ppt": return "powerpoint";
@@ -288,7 +293,7 @@ export function AllToolsDashboard({
     }
   };
 
-  // Convert PDF to Office files (Word, Excel, PPT, XML, HTML, RTF) via Web Editor
+  // Open the dedicated AI document editor for deep content edits and Office export.
   const convertPdfToOffice = (actionId: string) => {
     const targetFormat = getTargetFormat(actionId);
     if (hasDocument && docBytes) {
@@ -318,7 +323,7 @@ export function AllToolsDashboard({
     const editorUrl = localStorage.getItem("opdf-editor-url") || "http://localhost:5175";
     const editorWin = window.open(editorUrl, "_blank");
     if (!editorWin) {
-      alert("Popup blocker prevented opening the PDF to Web editor. Please allow popups.");
+      alert(getEditorLaunchError());
       return;
     }
 
@@ -339,23 +344,12 @@ export function AllToolsDashboard({
 
   // Define tools mapping
   const tools: ToolDef[] = [
-    // ROW 1: PDF to X (Convert from PDF)
-    { id: "pdf-to-word", name: "PDF to Word", icon: "📄", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => convertPdfToOffice("pdf-to-word") },
-    { id: "pdf-to-excel", name: "PDF to Excel", icon: "📊", color: "#0f7f45", bgColor: "#e2f9ed", borderColor: "#a9ecbe", action: () => convertPdfToOffice("pdf-to-excel") },
+    // ROW 1: one user-facing AI edit handoff. Word/Excel/PPT choice happens inside 5175.
+    { id: "pdf-to-ms-office", name: getDocumentToolLabel("pdf-to-ms-office"), icon: "🪄", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => convertPdfToOffice("pdf-to-ms-office") },
     { id: "pdf-to-png", name: "PDF to PNG", icon: "🖼️", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => convertPdfToImages(true) },
     { id: "pdf-to-jpeg", name: "PDF to JPEG", icon: "🌄", color: "#862e9c", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => convertPdfToImages(false) },
-    { id: "pdf-to-ppt", name: "PDF to PPT", icon: "📉", color: "#e8590c", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => convertPdfToOffice("pdf-to-ppt") },
-    { id: "pdf-to-txt", name: "PDF to TXT", icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: convertPdfToTxt },
-    { id: "pdf-to-html", name: "PDF to Web", icon: "🌐", color: "#1098ad", bgColor: "#e3fafc", borderColor: "#99e9f2", action: () => {
-      if (hasDocument && docBytes) {
-        launchPdfToHtmlEditorWithBytes(docBytes, fileName, "html");
-        onClose();
-      } else {
-        triggerFileInput("pdf-to-html");
-      }
-    } },
-    { id: "pdf-to-xml", name: "PDF to XML", icon: "👾", color: "#0ca678", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: () => convertPdfToOffice("pdf-to-xml") },
-    { id: "pdf-to-rtf", name: "PDF to RTF", icon: "🖋️", color: "#3b5bdb", bgColor: "#edf2ff", borderColor: "#bac8ff", action: () => convertPdfToOffice("pdf-to-rtf") },
+    { id: "pdf-to-txt", name: getDocumentToolLabel("pdf-to-txt"), icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: convertPdfToTxt },
+    { id: "pdf-to-xml", name: getDocumentToolLabel("pdf-to-xml"), icon: "👾", color: "#0ca678", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: () => convertPdfToOffice("pdf-to-xml") },
 
     // ROW 2: X to PDF (Convert to PDF) & PDF Utilities
     { id: "word-to-pdf", name: "Word to PDF", icon: "📝", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => triggerFileInput("word-to-pdf") },
@@ -376,7 +370,7 @@ export function AllToolsDashboard({
   const getFilteredTools = () => {
     switch (activeTab) {
       case "hot":
-        return tools.filter(t => ["pdf-to-word", "image-to-pdf", "merge-pdf", "split-pdf", "compress-pdf", "fill-form"].includes(t.id));
+        return tools.filter(t => ["pdf-to-ms-office", "image-to-pdf", "merge-pdf", "split-pdf", "compress-pdf", "fill-form"].includes(t.id));
       case "from_pdf":
         return tools.filter(t => t.id.startsWith("pdf-to"));
       case "to_pdf":

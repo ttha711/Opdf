@@ -358,7 +358,7 @@ export function AiRewriteEditorWindow() {
         setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Đã nạp TXT: ${file.name}` }]);
         return;
       }
-      alert("Hiện hỗ trợ PDF/HTML/TXT để mở vào AI Editor.");
+      alert("Hiện hỗ trợ PDF, tài liệu web và TXT để mở vào AI Document Editor.");
     } catch (error) {
       setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Nạp file thất bại: ${String(error)}` }]);
     } finally {
@@ -408,7 +408,7 @@ export function AiRewriteEditorWindow() {
     <div style={{ height: "100vh", display: "grid", gridTemplateColumns: "1fr 330px", background: "#eef2f7" }}>
       <section style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
         <header style={{ display: "flex", gap: 8, alignItems: "center", padding: 12, borderBottom: "1px solid #d6dce7", background: "#fff" }}>
-          <strong>AI Editor</strong>
+          <strong>AI Document Editor</strong>
           <span style={{ color: "#64748b", fontSize: 12 }}>{fileName}</span>
           <button onClick={onConvertToDocx} disabled={isConverting || isLoadingFile} type="button" style={{ marginLeft: "auto" }}>
             {isConverting ? "Converting..." : "Convert to DOCX"}

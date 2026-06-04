@@ -25,15 +25,17 @@ import aiAvatar from "./assets/ai-avatar.jpg";
 import "./types/opdf";
 
 export function App() {
-  const isLocal = typeof window !== "undefined" && (
+  const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
+  const isLocal = hasDesktopBridge || (typeof window !== "undefined" && (
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname === "[::1]" ||
     window.location.hostname === "::1" ||
+    window.location.hostname.endsWith(".trycloudflare.com") ||
     window.location.hostname.startsWith("192.168.") ||
     window.location.hostname.startsWith("10.") ||
     window.location.hostname.startsWith("172.")
-  );
+  ));
   const isPublic = !isLocal;
 
   const isAiEditorWindow = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("ai-editor") === "1";
@@ -47,6 +49,24 @@ export function App() {
     }
     return <AiRewriteEditorWindow />;
   }
+
+  const [updateInfo, setUpdateInfo] = useState<{ version: string; description?: string } | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.opdfUpdate) {
+      window.opdfUpdate.onUpdateReady((info) => {
+        console.log("Hot update ready from event:", info);
+        setUpdateInfo(info);
+      });
+
+      window.opdfUpdate.checkPendingUpdate().then((info) => {
+        if (info) {
+          console.log("Hot update ready from cache check:", info);
+          setUpdateInfo(info);
+        }
+      });
+    }
+  }, []);
 
   const [activeMarkupTool, setActiveMarkupTool] = useState<MarkupTool | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
@@ -104,7 +124,17 @@ export function App() {
     setViewerError: state.setViewerError,
   });
 
+  const handleTabThumbsLoaded = useCallback((tabId: string, thumbs: Array<{ page: number; url: string; blob: Blob }>) => {
+    state.setTabs((prevTabs) =>
+      prevTabs.map((t) => (t.id === tabId ? { ...t, thumbnails: thumbs } : t))
+    );
+    if (state.activeTabId === tabId) {
+      state.setThumbnails(thumbs);
+    }
+  }, [state]);
+
   const showLeft = state.hasDocument || !state.activeDashboardTool;
+  const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null;
   const leftColWidth = showLeft && !isLeftCollapsed ? `${leftWidth}px` : "0px";
   const leftResizerWidth = showLeft && !isLeftCollapsed ? "4px" : "0px";
   const rightResizerWidth = !isRightCollapsed ? "4px" : "0px";
@@ -112,6 +142,46 @@ export function App() {
 
   return (
     <div className="app acrobat-shell">
+      {updateInfo && (
+        <div style={{
+          backgroundColor: "#10b981",
+          color: "white",
+          padding: "8px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontSize: "13px",
+          fontWeight: "500",
+          zIndex: 9999,
+          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "16px" }}>🎉</span>
+            <span>Phiên bản mới <strong>v{updateInfo.version}</strong> đã sẵn sàng. ({updateInfo.description || "Có lỗi được sửa và cải tiến hiệu năng"})</span>
+          </div>
+          <button
+            onClick={() => {
+              if (window.opdfUpdate) {
+                void window.opdfUpdate.restartApp();
+              }
+            }}
+            style={{
+              backgroundColor: "white",
+              color: "#10b981",
+              border: "none",
+              padding: "4px 12px",
+              borderRadius: "4px",
+              fontWeight: "bold",
+              cursor: "pointer",
+              transition: "opacity 0.2s"
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.opacity = "0.9"; }}
+            onMouseOut={(e) => { e.currentTarget.style.opacity = "1"; }}
+          >
+            Restart to Update
+          </button>
+        </div>
+      )}
       <AppHeader
         {...headerProps}
         tabs={state.tabs}
@@ -194,10 +264,10 @@ export function App() {
                 }}
               />
 
-              {state.tabs.map(tab => (
+              {activeTab && (
                 <section
-                  key={tab.id}
-                  ref={state.activeTabId === tab.id ? viewerAreaRef : null}
+                  key={activeTab.id}
+                  ref={viewerAreaRef}
                   className="viewer-area"
                   tabIndex={0}
                   onWheel={onViewerWheel}
@@ -206,10 +276,10 @@ export function App() {
                   aria-label="PDF viewer area"
                   style={{
                     gridColumn: 3,
-                    display: state.activeTabId === tab.id ? "block" : "none"
+                    display: "block"
                   }}
                 >
-                  {state.showFindBar && state.activeTabId === tab.id && (
+                  {state.showFindBar && (
                     <FindBar
                       searchText={state.pageSearch}
                       searchResult={state.searchResult}
@@ -223,14 +293,15 @@ export function App() {
                   )}
                   <PdfViewer
                     {...viewerProps}
-                    data={state.activeTabId === tab.id ? state.docBytes : tab.docBytes}
-                    page={state.activeTabId === tab.id ? state.page : tab.page}
-                    annotations={state.activeTabId === tab.id ? state.annotations : tab.annotations}
-                    pageRotations={state.activeTabId === tab.id ? state.pageRotations : tab.pageRotations}
-                    initialThumbnails={tab.thumbnails}
+                    data={state.docBytes}
+                    page={state.page}
+                    annotations={state.annotations}
+                    pageRotations={state.pageRotations}
+                    initialThumbnails={state.thumbnails}
+                    onThumbsLoaded={(thumbs) => handleTabThumbsLoaded(activeTab.id, thumbs)}
                   />
                 </section>
-              ))}
+              )}
             </>
           )}
 
@@ -380,7 +451,7 @@ export function App() {
           )}
         </main>
       )}
-      <StatusBar hasDocument={state.hasDocument} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} />
+      <StatusBar hasDocument={state.hasDocument} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} />
       
       {/* Floating AI Chat Assistant Trigger FAB */}
       <button

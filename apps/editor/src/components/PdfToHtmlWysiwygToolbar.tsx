@@ -15,12 +15,15 @@ import {
   AlignJustify, 
   List, 
   ListOrdered, 
+  Table,
   ChevronLeft, 
   ChevronRight, 
   Eraser, 
   Image, 
   FileUp, 
   Clipboard, 
+  Type,
+  Square,
   Code 
 } from "lucide-react";
 import { cn } from "../lib/utils";
@@ -29,8 +32,6 @@ interface PdfToHtmlWysiwygToolbarProps {
   activePdfPageIdx: number;
   rawHtmlText: string;
   setRawHtmlText: (val: string) => void;
-  showRawHtml: boolean;
-  setShowRawHtml: (val: boolean) => void;
   updatePdfPageHtml: (idx: number, htmlContent: string) => void;
   handlePrint: () => void;
   pageRenderContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -40,12 +41,11 @@ export default function PdfToHtmlWysiwygToolbar({
   activePdfPageIdx,
   rawHtmlText,
   setRawHtmlText,
-  showRawHtml,
-  setShowRawHtml,
   updatePdfPageHtml,
   handlePrint,
   pageRenderContainerRef
 }: PdfToHtmlWysiwygToolbarProps) {
+  const savedRangeRef = React.useRef<Range | null>(null);
   const [textColorPopoverOpen, setTextColorPopoverOpen] = React.useState(false);
   const [bgColorPopoverOpen, setBgColorPopoverOpen] = React.useState(false);
   const [fontSize, setFontSize] = React.useState(12);
@@ -57,33 +57,95 @@ export default function PdfToHtmlWysiwygToolbar({
   const [pasteTextInput, setPasteTextInput] = React.useState("");
   const [pasteFormatMode, setPasteFormatMode] = React.useState<"text" | "html">("text");
   const [pasteInsertMode, setPasteInsertMode] = React.useState<"cursor" | "replace" | "append">("cursor");
+  const [boxPopoverOpen, setBoxPopoverOpen] = React.useState(false);
+  const [tablePopoverOpen, setTablePopoverOpen] = React.useState(false);
+  const [tableGridHover, setTableGridHover] = React.useState<{ rows: number; cols: number }>({ rows: 3, cols: 3 });
+  const floatingImageInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const getEditorDiv = React.useCallback(() => {
+    return pageRenderContainerRef.current?.querySelector(".wysiwyg-editor") as HTMLDivElement | null;
+  }, [pageRenderContainerRef]);
+
+  const captureCurrentSelection = React.useCallback(() => {
+    const editorDiv = getEditorDiv();
+    const sel = window.getSelection();
+    if (!editorDiv || !sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (editorDiv.contains(range.commonAncestorContainer)) {
+      savedRangeRef.current = range.cloneRange();
+    }
+  }, [getEditorDiv]);
+
+  const restoreEditorSelection = React.useCallback(() => {
+    const editorDiv = getEditorDiv();
+    if (!editorDiv) return null;
+    editorDiv.focus({ preventScroll: true });
+    const savedRange = savedRangeRef.current;
+    if (!savedRange) return editorDiv;
+    if (!editorDiv.contains(savedRange.commonAncestorContainer)) return editorDiv;
+    const sel = window.getSelection();
+    if (!sel) return editorDiv;
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+    return editorDiv;
+  }, [getEditorDiv]);
+
+  React.useEffect(() => {
+    const onSelectionChange = () => captureCurrentSelection();
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", onSelectionChange);
+    };
+  }, [captureCurrentSelection]);
 
   const execFormatting = (command: string, value: string = "") => {
+    const editorDiv = restoreEditorSelection();
+    if (!editorDiv) return;
     document.execCommand(command, false, value);
-    if (pageRenderContainerRef.current) {
-      const editorDiv = pageRenderContainerRef.current.querySelector(".wysiwyg-editor");
-      if (editorDiv) {
-        updatePdfPageHtml(activePdfPageIdx, editorDiv.innerHTML);
-      }
-    }
+    // Avoid immediate React state sync here because it re-renders contentEditable
+    // and clears current text selection. Content is persisted on editor blur.
+    captureCurrentSelection();
   };
 
   const insertHtmlIntoEditor = (html: string) => {
-    if (pageRenderContainerRef.current) {
-      const editorDiv = pageRenderContainerRef.current.querySelector(".wysiwyg-editor") as HTMLDivElement;
-      if (editorDiv) {
-        editorDiv.focus();
-        try {
-          const success = document.execCommand("insertHTML", false, html);
-          if (!success) {
-            editorDiv.innerHTML += html;
-          }
-        } catch (e) {
-          editorDiv.innerHTML += html;
-        }
-        updatePdfPageHtml(activePdfPageIdx, editorDiv.innerHTML);
+    const editorDiv = restoreEditorSelection();
+    if (!editorDiv) return;
+    try {
+      const success = document.execCommand("insertHTML", false, html);
+      if (!success) {
+        editorDiv.innerHTML += html;
       }
+    } catch (e) {
+      editorDiv.innerHTML += html;
     }
+    updatePdfPageHtml(activePdfPageIdx, editorDiv.innerHTML);
+    captureCurrentSelection();
+  };
+
+  const insertTable = (rows = 3, cols = 3) => {
+    const safeRows = Math.max(1, Math.min(12, rows));
+    const safeCols = Math.max(1, Math.min(8, cols));
+    const headerRow = `<tr>${Array.from({ length: safeCols }, (_, i) => `<th style="border:1px solid #d1d5db;padding:6px 10px;background:#f8fafc;font-weight:700;text-align:left;font-size:11px;">Cột ${i + 1}</th>`).join("")}</tr>`;
+    const bodyRows = Array.from({ length: safeRows - 1 }, (_, ri) =>
+      `<tr>${Array.from({ length: safeCols }, () => `<td style="border:1px solid #e2e8f0;padding:6px 10px;font-size:11px;">Ô ${ri + 1}</td>`).join("")}</tr>`
+    ).join("");
+    const markup = `<table style="width:100%;border-collapse:collapse;margin:10px 0;">${headerRow}${bodyRows}</table><p></p>`;
+
+    insertHtmlIntoEditor(markup);
+    const editorDiv = getEditorDiv();
+    const firstCell = editorDiv?.querySelector("table:last-of-type td, table:last-of-type th") as HTMLElement | null;
+    if (firstCell) {
+      const range = document.createRange();
+      range.selectNodeContents(firstCell);
+      range.collapse(true);
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      captureCurrentSelection();
+    }
+    setTablePopoverOpen(false);
   };
 
   const handlePasteCustom = () => {
@@ -102,33 +164,30 @@ export default function PdfToHtmlWysiwygToolbar({
 
     if (!cleanHtml.trim()) return;
 
-    if (pageRenderContainerRef.current) {
-      const editorDiv = pageRenderContainerRef.current.querySelector(".wysiwyg-editor") as HTMLDivElement;
-      if (editorDiv) {
-        editorDiv.focus();
-        
-        switch (pasteInsertMode) {
-          case "replace":
-            editorDiv.innerHTML = cleanHtml;
-            break;
-          case "append":
-            editorDiv.innerHTML = (editorDiv.innerHTML || "") + cleanHtml;
-            break;
-          case "cursor":
-          default:
-            try {
-              const success = document.execCommand("insertHTML", false, cleanHtml);
-              if (!success) {
-                editorDiv.innerHTML += cleanHtml;
-              }
-            } catch (e) {
+    const editorDiv = restoreEditorSelection();
+    if (editorDiv) {
+      switch (pasteInsertMode) {
+        case "replace":
+          editorDiv.innerHTML = cleanHtml;
+          break;
+        case "append":
+          editorDiv.innerHTML = (editorDiv.innerHTML || "") + cleanHtml;
+          break;
+        case "cursor":
+        default:
+          try {
+            const success = document.execCommand("insertHTML", false, cleanHtml);
+            if (!success) {
               editorDiv.innerHTML += cleanHtml;
             }
-            break;
-        }
-        
-        updatePdfPageHtml(activePdfPageIdx, editorDiv.innerHTML);
+          } catch (e) {
+            editorDiv.innerHTML += cleanHtml;
+          }
+          break;
       }
+      
+      updatePdfPageHtml(activePdfPageIdx, editorDiv.innerHTML);
+      captureCurrentSelection();
     }
 
     setPasteTextInput("");
@@ -147,8 +206,51 @@ export default function PdfToHtmlWysiwygToolbar({
     setImagePopoverOpen(false);
   };
 
+  const insertFloatingTextBox = () => {
+    const markup = `
+      <div class="floating-box floating-text-box" data-floating-box="true" data-wrap-mode="front" data-move-with-text="false" contenteditable="false" style="position:absolute;left:48px;top:96px;width:260px;min-height:110px;padding:10px 12px;border:1px dashed #94a3b8;background:rgba(255,255,255,0.96);border-radius:8px;z-index:25;box-shadow:0 2px 12px rgba(15,23,42,0.08);">
+        <div data-float-handle="true" contenteditable="false" style="height:14px;margin:-10px -12px 8px -12px;border-bottom:1px dashed #cbd5e1;background:linear-gradient(90deg,#f8fafc,#eef2ff);cursor:move;border-radius:8px 8px 0 0;"></div>
+        <div contenteditable="true" spellcheck="true" style="font-size:12px;line-height:1.5;color:#1e293b;cursor:text;">Nhập nội dung...</div>
+        <div data-float-resize="true" contenteditable="false" style="position:absolute;right:-1px;bottom:-1px;width:14px;height:14px;border-right:2px solid #64748b;border-bottom:2px solid #64748b;cursor:nwse-resize;border-radius:0 0 8px 0;"></div>
+      </div>
+    `;
+    insertHtmlIntoEditor(markup);
+    setBoxPopoverOpen(false);
+  };
+
+  const handleFloatingImageInsert = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const src = event.target?.result as string;
+      const markup = `
+        <div class="floating-box floating-image-box" data-floating-box="true" data-wrap-mode="front" data-move-with-text="false" contenteditable="false" style="position:absolute;left:64px;top:126px;width:280px;height:180px;border:1px solid #cbd5e1;background:white;border-radius:8px;z-index:25;overflow:hidden;box-shadow:0 2px 12px rgba(15,23,42,0.08);">
+          <div data-float-handle="true" contenteditable="false" style="height:14px;border-bottom:1px solid #dbe3ef;background:linear-gradient(90deg,#f8fafc,#eef2ff);cursor:move;"></div>
+          <img src="${src}" alt="Ảnh box" draggable="false" style="display:block;width:100%;height:calc(100% - 14px);object-fit:contain;background:#fff;pointer-events:none;user-select:none;" />
+          <div data-float-resize="true" contenteditable="false" style="position:absolute;right:-1px;bottom:-1px;width:14px;height:14px;border-right:2px solid #64748b;border-bottom:2px solid #64748b;cursor:nwse-resize;border-radius:0 0 8px 0;"></div>
+        </div>
+      `;
+      insertHtmlIntoEditor(markup);
+      if (floatingImageInputRef.current) floatingImageInputRef.current.value = "";
+    };
+    reader.readAsDataURL(file);
+    setBoxPopoverOpen(false);
+  };
+
   return (
-    <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-200 rounded-xl mb-4 select-none print:hidden shadow-xs font-sans text-slate-705">
+    <div
+      className="flex flex-wrap items-center gap-1.5 px-6 py-2.5 bg-slate-50 border-b border-slate-200 w-full select-none print:hidden font-sans text-slate-705 shadow-xs shrink-0 z-10"
+      onMouseDownCapture={(e) => {
+        captureCurrentSelection();
+        const target = e.target as HTMLElement;
+        if (target.closest("input, textarea, select, label")) return;
+        if (target.closest("button")) {
+          // Keep text selection in editor while toolbar commands are clicked.
+          e.preventDefault();
+        }
+      }}
+    >
       
       {/* Group 1: Undo, Redo, Print, Paint Format */}
       <div className="flex items-center gap-0.5">
@@ -427,7 +529,7 @@ export default function PdfToHtmlWysiwygToolbar({
 
       <div className="w-px h-5 bg-slate-300 mx-1" />
 
-      {/* Group 8: Lists, Indents & Eraser */}
+      {/* Group 8: Lists, table & Eraser */}
       <div className="flex items-center gap-0.5">
         <button
           type="button"
@@ -461,6 +563,53 @@ export default function PdfToHtmlWysiwygToolbar({
         >
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setTablePopoverOpen(!tablePopoverOpen);
+              setImagePopoverOpen(false);
+              setPastePopoverOpen(false);
+              setTextColorPopoverOpen(false);
+              setBgColorPopoverOpen(false);
+            }}
+            className={cn(
+              "p-1 px-1.5 hover:bg-slate-200 active:bg-slate-300 rounded-lg text-slate-705 cursor-pointer flex items-center gap-1",
+              tablePopoverOpen && "bg-slate-200"
+            )}
+            title="Thêm bảng"
+          >
+            <Table className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-semibold hidden md:inline">Bảng</span>
+          </button>
+          {tablePopoverOpen && (
+            <div className="absolute top-9 left-0 z-50 bg-white border border-slate-250 p-3 rounded-xl shadow-xl w-[250px]">
+              <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                Chèn bảng: {tableGridHover.rows} x {tableGridHover.cols}
+              </div>
+              <div className="grid grid-cols-8 gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                {Array.from({ length: 80 }, (_, idx) => {
+                  const r = Math.floor(idx / 8) + 1;
+                  const c = (idx % 8) + 1;
+                  const active = r <= tableGridHover.rows && c <= tableGridHover.cols;
+                  return (
+                    <button
+                      key={`${r}-${c}`}
+                      type="button"
+                      onMouseEnter={() => setTableGridHover({ rows: r, cols: c })}
+                      onClick={() => insertTable(r, c)}
+                      className={cn(
+                        "w-5 h-5 border rounded-[2px] cursor-pointer",
+                        active ? "bg-indigo-200 border-indigo-500" : "bg-white border-slate-300 hover:border-indigo-300"
+                      )}
+                      title={`${r} x ${c}`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -473,6 +622,54 @@ export default function PdfToHtmlWysiwygToolbar({
         >
           <Eraser className="w-3.5 h-3.5" />
         </button>
+      </div>
+
+      <div className="w-px h-5 bg-slate-300 mx-1" />
+
+      {/* Group 8.4: Floating boxes */}
+      <div className="relative font-sans">
+        <button
+          type="button"
+          onClick={() => {
+            setBoxPopoverOpen(!boxPopoverOpen);
+            setImagePopoverOpen(false);
+            setPastePopoverOpen(false);
+            setTextColorPopoverOpen(false);
+            setBgColorPopoverOpen(false);
+            setTablePopoverOpen(false);
+          }}
+          className={cn(
+            "p-1 px-1.5 hover:bg-slate-200 active:bg-slate-300 rounded-lg flex items-center gap-1 cursor-pointer text-slate-707 transition-colors",
+            boxPopoverOpen && "bg-slate-200"
+          )}
+          title="Chèn box chữ hoặc box ảnh tự do"
+        >
+          <Square className="w-3.5 h-3.5 text-indigo-650" />
+          <span className="text-[11px] font-semibold hidden md:inline">Box</span>
+        </button>
+        {boxPopoverOpen && (
+          <div className="absolute top-9 left-0 z-50 bg-white border border-slate-250 p-3 rounded-xl shadow-xl w-56 space-y-2">
+            <button
+              type="button"
+              onClick={insertFloatingTextBox}
+              className="w-full flex items-center gap-2 text-left px-2.5 py-2 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 text-slate-700 text-xs font-semibold cursor-pointer"
+            >
+              <Type className="w-3.5 h-3.5 text-indigo-600" />
+              Chèn box chữ tự do
+            </button>
+            <label className="w-full flex items-center gap-2 text-left px-2.5 py-2 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 text-slate-700 text-xs font-semibold cursor-pointer">
+              <Image className="w-3.5 h-3.5 text-indigo-600" />
+              Chèn box ảnh tự do
+              <input
+                ref={floatingImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFloatingImageInsert}
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="w-px h-5 bg-slate-300 mx-1" />
@@ -674,29 +871,6 @@ export default function PdfToHtmlWysiwygToolbar({
           </div>
         )}
       </div>
-      
-      {/* Group 9: Direct HTML Code switch panel on the right */}
-      <button
-        type="button"
-        onClick={() => {
-          if (showRawHtml) {
-            updatePdfPageHtml(activePdfPageIdx, rawHtmlText);
-          } else {
-            // caller handles populating editor Div text manually in side effect or on blur
-          }
-          setShowRawHtml(!showRawHtml);
-        }}
-        className={cn(
-          "p-1.5 rounded-lg text-xs flex items-center gap-1.5 px-3 cursor-pointer font-bold ml-auto transition-all",
-          showRawHtml 
-            ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs" 
-            : "bg-slate-105 hover:bg-slate-200 text-slate-700 border border-slate-200"
-        )}
-        title="Sửa Code HTML trực tiếp"
-      >
-        <Code className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">{showRawHtml ? "Chế độ Soạn thảo" : "Sửa mã HTML"}</span>
-      </button>
     </div>
   );
 }

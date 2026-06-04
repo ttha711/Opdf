@@ -12,6 +12,7 @@ import {
   FileUtilitiesGroup,
 } from "./AppHeader.parts";
 import type { OpdfTab } from "../lib/web-storage";
+import { getEditorLaunchTitle } from "../lib/documentEditingExperience";
 
 export function AppHeader({
   fileInputRef,
@@ -69,6 +70,9 @@ export function AppHeader({
   showDashboard,
   setShowDashboard,
   onOpenAiEditorWindow,
+  savePdf,
+  savePdfAs,
+  saveState,
 
   // NEW TABS PROPS
   tabs,
@@ -138,6 +142,9 @@ export function AppHeader({
   showDashboard: boolean;
   setShowDashboard: (show: boolean) => void;
   onOpenAiEditorWindow?: () => void;
+  savePdf: () => void;
+  savePdfAs: () => void;
+  saveState: "idle" | "saving" | "saved";
 
   // NEW TABS TYPES
   tabs: OpdfTab[];
@@ -177,15 +184,16 @@ export function AppHeader({
         <MenuDropdown label="View" items={viewMenuItems} isOpen={openMenu === "View"} onToggle={() => toggleMenu("View")} onClose={closeMenu} />
         <MenuDropdown label="Tools" items={toolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
         {(() => {
-          const isLocal = typeof window !== "undefined" && (
+          const isLocal = hasDesktopBridge || (typeof window !== "undefined" && (
             window.location.hostname === "localhost" ||
             window.location.hostname === "127.0.0.1" ||
             window.location.hostname === "[::1]" ||
             window.location.hostname === "::1" ||
+            window.location.hostname.endsWith(".trycloudflare.com") ||
             window.location.hostname.startsWith("192.168.") ||
             window.location.hostname.startsWith("10.") ||
             window.location.hostname.startsWith("172.")
-          );
+          ));
           const isPublic = !isLocal;
 
           return (
@@ -211,10 +219,10 @@ export function AppHeader({
                     : "border border-blue-500 text-blue-600 bg-blue-50 hover:bg-blue-100 cursor-pointer"
                 }`}
                 onClick={isPublic ? () => alert("This feature is only available on Local or Desktop App versions.") : onOpenAiEditorWindow}
-                title={isPublic ? "Feature locked in public view" : "AI Editor"}
+                title={isPublic ? "Feature locked in public view" : getEditorLaunchTitle()}
                 type="button"
               >
-                {isPublic ? "🔒 AI Editor" : "AI Editor"}
+                {isPublic ? `🔒 ${getEditorLaunchTitle()}` : getEditorLaunchTitle()}
               </button>
             </>
           );
@@ -227,6 +235,11 @@ export function AppHeader({
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8h-8l-2-3H5a2 2 0 0 0-2 2z" /></svg>
           Open
         </button>
+        {hasDocument && (
+          <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${saveState === "saving" ? "bg-amber-100 text-amber-700" : saveState === "saved" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+            {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Unsaved"}
+          </span>
+        )}
       </div>
 
       <TabBar
@@ -249,6 +262,8 @@ export function AppHeader({
         <FileViewGroup
           openFile={openFile}
           hasDocument={hasDocument}
+          savePdf={savePdf}
+          savePdfAs={savePdfAs}
           exportPdf={exportPdf}
           activeTool={activeTool}
           setActiveTool={setActiveTool}

@@ -13,23 +13,45 @@
 }
 
 @media print {
-  body {
+  html, body {
     background-color: white !important;
+    background: white !important;
     color: black !important;
+    height: auto !important;
+    overflow: visible !important;
   }
-  .print-hidden {
+  
+  header,
+  aside,
+  .print-hidden,
+  [class*="WysiwygToolbar"],
+  [class*="LeftSidebar"],
+  [class*="RightSidebar"],
+  header.border-b,
+  footer.border-t {
     display: none !important;
   }
+  
+  /* Ensure print content expands and does not scroll */
+  .flex-grow,
+  .flex-1,
+  .overflow-y-auto,
+  section,
+  div {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+  }
+
   .a4-page-print {
     box-shadow: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    page-break-after: always !important;
-    page-break-inside: avoid !important;
+    margin: 0 auto !important;
     border: none !important;
     background: white !important;
-    width: 210mm !important;
-    height: 297mm !important;
+    page-break-after: always !important;
+    page-break-inside: avoid !important;
+    position: static !important;
   }
 }
 

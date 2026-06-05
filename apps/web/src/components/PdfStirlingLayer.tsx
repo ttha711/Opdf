@@ -1,6 +1,6 @@
 import type { RenderedTextItem } from "./PdfViewer.types";
 import type { GroupedParagraph } from "./PdfTextSelection.types";
-import { groupTextItemsIntoLines } from "./PdfTextSelection.utils";
+import { groupTextItemsIntoLines, sortItemsInReadingOrder } from "./PdfTextSelection.utils";
 
 export function StirlingControls({
   active,
@@ -116,30 +116,19 @@ export function SavedPatches({
 }
 
 export function NormalTextLayer({ items }: { items: RenderedTextItem[] }) {
-  const lines = groupTextItemsIntoLines(items);
-
-  return lines.map((line, index) => {
-    const prev = lines[index - 1];
-    const marginTop = index === 0 ? line.top : Math.max(0, line.top - (prev.top + prev.height));
-
-    return (
+  const lines = groupTextItemsIntoLines(sortItemsInReadingOrder(items));
+  return lines.map((line, index) => (
     <span
       key={`${index}-${line.left}-${line.top}`}
       style={{
-        position: "relative",
-        display: "block",
-        marginTop: index === 0 ? line.top : marginTop,
-        paddingLeft: line.left,
-        width: "100%",
+        left: line.left,
+        top: line.top,
+        width: line.width,
         height: line.height,
         fontSize: line.fontSize,
-        whiteSpace: "pre",
-        boxSizing: "border-box",
-        lineHeight: 1.2,
       }}
     >
       {line.str}
     </span>
-    );
-  });
+  ));
 }

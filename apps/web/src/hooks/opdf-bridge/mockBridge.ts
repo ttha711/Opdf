@@ -4,7 +4,7 @@ import type {
   HeaderFooterLine, CropOptions, InsertOptions,
 } from "@opdf/core";
 import type { OpdfBridge } from "../../types/opdf";
-import { loadPdfLib, parseColor } from "./pdfHelpers";
+import { loadPdfLib, loadPdfLibWithFontkit, loadUnicodeFontBytes, parseColor } from "./pdfHelpers";
 import { runBrowserOcrWithTextLayer } from "./ocrHelpers";
 
 export function createMockBridge(): OpdfBridge {
@@ -59,6 +59,12 @@ export function createMockBridge(): OpdfBridge {
     const namedRgb = named[normalized];
     if (namedRgb) return pdfLib.rgb(namedRgb[0] / 255, namedRgb[1] / 255, namedRgb[2] / 255);
 
+    // rgb() / rgba() — produced by sampleColorsFromImage
+    const rgbMatch = normalized.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (rgbMatch) {
+      return pdfLib.rgb(Number(rgbMatch[1]) / 255, Number(rgbMatch[2]) / 255, Number(rgbMatch[3]) / 255);
+    }
+
     const hex = normalized.replace(/^#/, "");
     if (/^[0-9a-f]{3}$/i.test(hex)) {
       return pdfLib.rgb(
@@ -98,8 +104,9 @@ export function createMockBridge(): OpdfBridge {
     async saveDocument() {},
     async exportFlattened(bytes, annotations) {
       console.log("[MockBridge] exportFlattened", bytes.length, annotations.length);
-      const pdfLib = await loadPdfLib();
+      const { pdfLib, fontkit } = await loadPdfLibWithFontkit();
       const doc = await pdfLib.PDFDocument.load(bytes);
+      doc.registerFontkit(fontkit);
       const pages = doc.getPages();
       const orderedAnnotations = [...annotations].sort((a, b) => {
         const aPatch = Boolean((a?.payload as any)?.isPatch);
@@ -142,33 +149,63 @@ export function createMockBridge(): OpdfBridge {
             opacity: opacity !== undefined ? opacity : 1,
           });
         } else if (ann.kind === "note") {
-          const textVal = toWinAnsiSafeText(text || "Note");
-          // 1. Draw solid background mask
-          page.drawRectangle({
-            x: absX, y: absY, width: absW, height: absH,
-            color: parseCssColor(color || "#fff8d6", pdfLib) || parseColor("#fff8d6", pdfLib),
-            opacity: opacity !== undefined ? opacity : 1,
-          });
-          // 2. Overlay the text
-          const standardFont = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
+          // 1. Draw background mask only when color is explicitly set (not transparent/none)
+          const bgColor = parseCssColor(color, pdfLib);
+          if (bgColor) {
+            page.drawRectangle({
+              x: absX, y: absY, width: absW, height: absH,
+              color: bgColor,
+              opacity: opacity !== undefined ? opacity : 1,
+            });
+          }
+          // 2. Overlay text — embed Unicode font to preserve diacritics/Vietnamese
+          let textFont;
+          let textVal: string;
+          try {
+            const unicodeFontBytes = await loadUnicodeFontBytes();
+            if (unicodeFontBytes) {
+              textFont = await doc.embedFont(unicodeFontBytes);
+              textVal = String(text || "Note");
+            } else {
+              textFont = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
+              textVal = toWinAnsiSafeText(text || "Note");
+            }
+          } catch (fontErr) {
+            console.error("[MockBridge] embedFont failed:", fontErr);
+            textFont = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
+            textVal = toWinAnsiSafeText(text || "Note");
+          }
           const fs = Math.max(8, Math.min(Number(fontSize) || 14, 64));
           page.drawText(textVal, {
             x: absX + 5,
             y: absY + Math.max(2, absH - fs - 4),
             size: fs,
-            font: standardFont,
+            font: textFont,
             color: parseCssColor((ann.payload as any)?.textColor, pdfLib) || pdfLib.rgb(0, 0, 0),
             maxWidth: absW - 10,
           });
         } else if (ann.kind === "signature") {
-          const textVal = toWinAnsiSafeText(signer || "Signature");
-          const signatureFont = await doc.embedFont(pdfLib.StandardFonts.TimesRomanItalic);
-          page.drawText(textVal, {
+          let sigFont;
+          let sigText: string;
+          try {
+            const unicodeFontBytes = await loadUnicodeFontBytes();
+            if (unicodeFontBytes) {
+              sigFont = await doc.embedFont(unicodeFontBytes);
+              sigText = String(signer || "Signature");
+            } else {
+              sigFont = await doc.embedFont(pdfLib.StandardFonts.TimesRomanItalic);
+              sigText = toWinAnsiSafeText(signer || "Signature");
+            }
+          } catch {
+            sigFont = await doc.embedFont(pdfLib.StandardFonts.TimesRomanItalic);
+            sigText = toWinAnsiSafeText(signer || "Signature");
+          }
+          page.drawText(sigText, {
             x: absX,
             y: absY + 5,
             size: 20,
-            font: signatureFont,
-            color: pdfLib.rgb(0, 0, 0.8), // standard blue-ish signature color
+            font: sigFont,
+            color: pdfLib.rgb(0, 0, 0.8),
           });
         }
       }

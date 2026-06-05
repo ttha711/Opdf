@@ -85,6 +85,9 @@ export function PdfPageStage(props: PdfPageStageProps) {
         if (document.body.dataset.opdfSelecting === "1") {
           return;
         }
+        if (window.getSelection()?.toString().trim()) {
+          return;
+        }
         onActivePageChange?.(pageData.pageNumber);
         const aiPatchMode = activeTool === "ai-patch";
         if (!shapeMode && !highlightMode && !redactMode && !measureMode && !aiPatchMode) {

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type {
   OpenDocumentResult,
   PasswordOptions,
@@ -12,6 +13,20 @@ import type {
 } from "../types/index.js";
 
 export class DocumentService {
+  private _unicodeFontCache: Uint8Array | null = null;
+
+  private async loadUnicodeFontBytes(): Promise<Uint8Array | null> {
+    if (this._unicodeFontCache) return this._unicodeFontCache;
+    try {
+      const __filename = fileURLToPath(import.meta.url);
+      const fontPath = resolve(dirname(__filename), "../assets/VietnameseFont.ttf");
+      this._unicodeFontCache = new Uint8Array(await readFile(fontPath));
+      return this._unicodeFontCache;
+    } catch {
+      return null;
+    }
+  }
+
   private toWinAnsiSafeText(value: unknown): string {
     const raw = String(value ?? "");
     return raw
@@ -74,7 +89,10 @@ export class DocumentService {
 
   async exportFlattened(pdfBytes: Uint8Array, annotations: any[] = []): Promise<Uint8Array> {
     const module = await import("pdf-lib");
+    const fontkitModule = await import("@pdf-lib/fontkit");
+    const fontkit = (fontkitModule as any).default ?? fontkitModule;
     const doc = await module.PDFDocument.load(pdfBytes);
+    doc.registerFontkit(fontkit);
     const pages = doc.getPages();
     const orderedAnnotations = [...annotations].sort((a, b) => {
       const aPatch = Boolean((a?.payload as any)?.isPatch);
@@ -110,14 +128,20 @@ export class DocumentService {
           opacity: 0.4
         });
       } else if (ann.kind === "note") {
-        const noteText = this.toWinAnsiSafeText(payload.text ?? "Note");
+        const rawText = String(payload.text ?? "Note");
         const fontSize = Number(payload.fontSize ?? 16) || 16;
         const textColor = typeof payload.textColor === "string" ? payload.textColor : "#000000";
         const rgb = this.parseCssColor(textColor, module) ?? module.rgb(0, 0, 0);
+        const unicodeFontBytes = await this.loadUnicodeFontBytes();
+        const noteFont = unicodeFontBytes
+          ? await doc.embedFont(unicodeFontBytes)
+          : null;
+        const noteText = noteFont ? rawText : this.toWinAnsiSafeText(rawText);
         page.drawText(noteText, {
           x: x + 2,
           y: y + Math.max(2, objH - fontSize - 2),
           size: Math.max(8, Math.min(fontSize, 64)),
+          ...(noteFont ? { font: noteFont } : {}),
           color: rgb,
           maxWidth: objW - 4,
         });
@@ -185,6 +209,12 @@ export class DocumentService {
     const namedRgb = named[normalized];
     if (namedRgb) {
       return module.rgb(namedRgb[0] / 255, namedRgb[1] / 255, namedRgb[2] / 255);
+    }
+
+    // rgb() / rgba() — produced by sampleColorsFromImage
+    const rgbMatch = normalized.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (rgbMatch) {
+      return module.rgb(Number(rgbMatch[1]) / 255, Number(rgbMatch[2]) / 255, Number(rgbMatch[3]) / 255);
     }
 
     const hex = normalized.replace(/^#/, "");

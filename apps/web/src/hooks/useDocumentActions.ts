@@ -83,6 +83,7 @@ export function useDocumentActions({
     docBytes,
     annotations,
     replaceDocumentBytes,
+    setDocBytes,
     setFileName,
     setAnnotations,
     setViewerError,

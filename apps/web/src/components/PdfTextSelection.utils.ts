@@ -119,6 +119,12 @@ export interface NormalizedSelectionRect {
   height: number;
 }
 
+export interface DragSelectionResult {
+  text: string;
+  rects: NormalizedSelectionRect[];
+  matchedItems: RenderedTextItem[];
+}
+
 export function normalizeSelectionRects(
   rects: DOMRect[],
   containerRect: DOMRect,
@@ -192,6 +198,33 @@ export function matchTextItemsToRects(
   }
 
   return matched;
+}
+
+export function buildSelectionFromDragBounds(
+  items: RenderedTextItem[],
+  dragRect: NormalizedSelectionRect,
+  pageWidth: number,
+  pageHeight: number,
+): DragSelectionResult {
+  const matchedItems = matchTextItemsToRects(items, [dragRect], pageWidth, pageHeight);
+  const text = joinMatchedItems(matchedItems);
+  const rects = buildSelectionRectsFromItems(matchedItems, pageWidth, pageHeight);
+  return { text, rects, matchedItems };
+}
+
+export function buildSelectionRectsFromItems(
+  items: RenderedTextItem[],
+  pageWidth: number,
+  pageHeight: number,
+): NormalizedSelectionRect[] {
+  return groupTextItemsIntoLines(sortItemsInReadingOrder(items))
+    .map((line) => ({
+      x: line.left / pageWidth,
+      y: line.top / pageHeight,
+      width: line.width / pageWidth,
+      height: line.height / pageHeight,
+    }))
+    .filter((rect) => rect.width > 0.001 && rect.height > 0.001);
 }
 
 function clamp(value: number, min: number, max: number) {

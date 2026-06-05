@@ -5,9 +5,10 @@
     z-index: 12;
     overflow: hidden;
     line-height: 1;
-    pointer-events: none;
-    user-select: text;
-    -webkit-user-select: text;
+    pointer-events: auto;
+    cursor: text;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .pdf-text-layer span {
@@ -17,9 +18,9 @@
     white-space: pre;
     cursor: text;
     transform-origin: 0 0;
-    user-select: text;
-    -webkit-user-select: text;
-    pointer-events: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
   }
 
   .pdf-text-layer.disabled {
@@ -32,6 +33,13 @@
   }
 
   .pdf-text-layer ::selection {
+    background: rgba(65, 132, 199, 0.32);
+  }
+
+  .pdf-text-selection-rect {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 2px;
     background: rgba(65, 132, 199, 0.32);
   }
 

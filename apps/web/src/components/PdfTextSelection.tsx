@@ -23,7 +23,7 @@ export function PdfTextLayer({
   onAnnotationUpdated,
   imageUrl,
 }: PdfTextLayerProps) {
-  const { menu, clearMenu, layerRef, handleContextMenu, handleMouseDown, findMatchedItems } = useTextSelection(
+  const { menu, clearMenu, selectionRects, layerRef, handleContextMenu, handleMouseDown, findMatchedItems } = useTextSelection(
     selectionEnabled,
     width,
     height,
@@ -246,6 +246,19 @@ export function PdfTextLayer({
         ) : (
           <NormalTextLayer items={textItems} />
         )}
+
+        {selectionRects.map((rect, index) => (
+          <div
+            key={`selection-rect-${pageNumber}-${index}`}
+            className="pdf-text-selection-rect"
+            style={{
+              left: rect.x * width,
+              top: rect.y * height,
+              width: rect.width * width,
+              height: rect.height * height,
+            }}
+          />
+        ))}
 
         {actions.editTextState && (
           <EditTextOverlay

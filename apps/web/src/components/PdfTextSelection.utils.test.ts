@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { groupTextItemsIntoLines, joinMatchedItems, matchTextItemsToRects, sortItemsInReadingOrder } from "./PdfTextSelection.utils";
+import {
+  buildSelectionFromDragBounds,
+  groupTextItemsIntoLines,
+  joinMatchedItems,
+  matchTextItemsToRects,
+  sortItemsInReadingOrder,
+} from "./PdfTextSelection.utils";
 
 describe("joinMatchedItems", () => {
   it("reconstructs wrapped PDF text with hyphenated fragments", () => {
@@ -53,6 +59,26 @@ describe("joinMatchedItems", () => {
     );
 
     expect(matched.map((item) => item.str)).toEqual(["Middle"]);
+  });
+
+  it("builds a drag-box selection across multiple lines even when the drag starts in the left gap", () => {
+    const selection = buildSelectionFromDragBounds(
+      [
+        { str: "One of a kind,", left: 60, top: 20, width: 95, height: 14, fontSize: 14, transform: "" },
+        { str: "always on top", left: 60, top: 38, width: 98, height: 14, fontSize: 14, transform: "" },
+        { str: "seamlessly.", left: 60, top: 56, width: 81, height: 14, fontSize: 14, transform: "" },
+      ] as any,
+      { x: 40 / 200, y: 18 / 100, width: 130 / 200, height: 56 / 100 },
+      200,
+      100,
+    );
+
+    expect(selection.text).toBe("One of a kind,\nalways on top\nseamlessly.");
+    expect(selection.rects).toEqual([
+      { x: 60 / 200, y: 20 / 100, width: 95 / 200, height: 14 / 100 },
+      { x: 60 / 200, y: 38 / 100, width: 98 / 200, height: 14 / 100 },
+      { x: 60 / 200, y: 56 / 100, width: 81 / 200, height: 14 / 100 },
+    ]);
   });
 
   it("keeps multi-column reading order within each column group", () => {

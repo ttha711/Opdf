@@ -47,3 +47,18 @@ scripts/smoke/run-ai-phase1.ps1
 scripts/smoke/verify-ai-phase1.cjs
 
 .codegraph/
+
+# Local scratch, temp and audit directories
+scratch/
+temp/
+audit/
+
+# Temporary and test files at root
+/*.png
+/*.pdf
+/*.docx
+/*.xlsx
+/*.pptx
+/*.txt
+/~$*
+~$*

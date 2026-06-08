@@ -218,12 +218,12 @@ export function useThumbnailRefresh(params: {
   annotations: Annotation[];
   page: number;
   initialThumbnails?: Array<{ page: number; url: string; blob: Blob }>;
-  onThumbsLoaded?: (thumbs: Array<{ page: number; url: string; blob: Blob }>) => void;
+  setThumbnails: Dispatch<SetStateAction<Array<{ page: number; url: string; blob: Blob }>>>;
 }) {
-  const { pdf, annotations, page, initialThumbnails, onThumbsLoaded } = params;
+  const { pdf, annotations, page, initialThumbnails, setThumbnails } = params;
 
   useEffect(() => {
-    if (!pdf || !onThumbsLoaded) return;
+    if (!pdf) return;
     const timeout = setTimeout(async () => {
       try {
         const p = await pdf.getPage(page);
@@ -239,19 +239,27 @@ export function useThumbnailRefresh(params: {
         const blob = await canvasToBlob(c, "image/jpeg", THUMBNAIL_JPEG_QUALITY);
         if (!blob) return;
         const url = URL.createObjectURL(blob);
-        const nextThumbs = (initialThumbnails || []).map((t) => {
-          if (t.page === page) {
-            URL.revokeObjectURL(t.url);
-            return { page, url, blob };
+        setThumbnails((prev) => {
+          const baseThumbs = prev.length > 0 ? prev : (initialThumbnails || []);
+          if (baseThumbs.length === 0) {
+            URL.revokeObjectURL(url);
+            return prev;
           }
-          return t;
+
+          const nextThumbs = baseThumbs.map((t) => {
+            if (t.page === page) {
+              URL.revokeObjectURL(t.url);
+              return { page, url, blob };
+            }
+            return t;
+          });
+          return nextThumbs;
         });
-        onThumbsLoaded(nextThumbs);
         p.cleanup();
       } catch {
       }
     }, 2000);
 
     return () => clearTimeout(timeout);
-  }, [annotations.length, page, pdf]);
+  }, [annotations.length, page, pdf, initialThumbnails, setThumbnails]);
 }

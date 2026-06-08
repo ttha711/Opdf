@@ -35,6 +35,130 @@ export function createMockBridge(): OpdfBridge {
       .replace(/Đ/g, "D");
   }
 
+  function wrapText(text: string, font: any, fontSize: number, maxWidth: number): string[] {
+    const paragraphs = text.split("\n");
+    const lines: string[] = [];
+    for (const para of paragraphs) {
+      const words = para.split(/\s+/).filter(Boolean);
+      if (words.length === 0) { lines.push(""); continue; }
+      let current = words[0];
+      for (let i = 1; i < words.length; i++) {
+        const test = current + " " + words[i];
+        const w = font.widthOfTextAtSize(test, fontSize);
+        if (w <= maxWidth) {
+          current = test;
+        } else {
+          lines.push(current);
+          current = words[i];
+        }
+      }
+      lines.push(current);
+    }
+    return lines;
+  }
+
+  function renderPatchTextToImage(text: string, opts: {
+    width: number; height: number; fontSize: number; lineHeight: number;
+    fontFamily: string; fontWeight: string; fontStyle: string;
+    textAlign: string; textColor: string; bgColor?: string;
+  }): { png: Uint8Array; descentPad: number } | null {
+    try {
+      const scale = 3;
+      const cW = Math.round(opts.width * scale);
+      const descentPx = Math.ceil(opts.fontSize * 0.35 * scale);
+      const cH = Math.round(opts.height * scale) + descentPx;
+      if (cW < 1 || cH < 1) return null;
+      const canvas = document.createElement("canvas");
+      canvas.width = cW;
+      canvas.height = cH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+
+      ctx.fillStyle = opts.textColor;
+      ctx.font = `${opts.fontStyle} ${opts.fontWeight} ${opts.fontSize * scale}px ${opts.fontFamily}`;
+      ctx.textBaseline = "top";
+      ctx.textAlign = (opts.textAlign as CanvasTextAlign) || "left";
+
+      const padX = 5 * scale;
+      const maxTextW = cW - padX * 2;
+      const lines = wrapTextCanvas(ctx, text, maxTextW);
+      const lhPx = opts.lineHeight * scale;
+      const drawX = opts.textAlign === "center" ? cW / 2
+        : opts.textAlign === "right" ? cW - padX
+        : padX;
+
+      for (let i = 0; i < lines.length; i++) {
+        const ly = 4 * scale + i * lhPx;
+        if (ly > cH) break;
+        ctx.fillText(lines[i], drawX, ly);
+      }
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const b64 = dataUrl.split(",")[1];
+      const raw = atob(b64);
+      const arr = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      return { png: arr, descentPad: opts.fontSize * 0.35 };
+    } catch (e) {
+      console.error("[renderPatchTextToImage]", e);
+      return null;
+    }
+  }
+
+  function wrapTextCanvas(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+    const paragraphs = text.split("\n");
+    const lines: string[] = [];
+    for (const para of paragraphs) {
+      const words = para.split(/\s+/).filter(Boolean);
+      if (words.length === 0) { lines.push(""); continue; }
+      let current = words[0];
+      for (let i = 1; i < words.length; i++) {
+        const test = current + " " + words[i];
+        if (ctx.measureText(test).width <= maxWidth) {
+          current = test;
+        } else {
+          lines.push(current);
+          current = words[i];
+        }
+      }
+      lines.push(current);
+    }
+    return lines;
+  }
+
+  async function drawNoteTextFallback(page: any, doc: any, pdfLib: any, textVal: string, fs: number, lineH: number, absX: number, absY: number, absW: number, absH: number, payload: any) {
+    let textFont;
+    let finalText: string;
+    try {
+      const unicodeFontBytes = await loadUnicodeFontBytes();
+      if (unicodeFontBytes) {
+        textFont = await doc.embedFont(unicodeFontBytes);
+        finalText = textVal;
+      } else {
+        textFont = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
+        finalText = toWinAnsiSafeText(textVal);
+      }
+    } catch {
+      textFont = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
+      finalText = toWinAnsiSafeText(textVal);
+    }
+    const textColor = parseCssColor(payload?.textColor, pdfLib) || pdfLib.rgb(0, 0, 0);
+    const maxW = absW - 10;
+    const wrappedLines = wrapText(finalText, textFont, fs, maxW);
+    const startY = absY + absH - fs - 4;
+    for (let li = 0; li < wrappedLines.length; li++) {
+      const ly = startY - li * lineH;
+      if (ly < absY - lineH) break;
+      page.drawText(wrappedLines[li], {
+        x: absX + 5,
+        y: Math.max(absY, ly),
+        size: fs,
+        font: textFont,
+        color: textColor,
+      });
+    }
+  }
+
   function parseCssColor(value: unknown, pdfLib: any) {
     if (typeof value !== "string") return null;
     const normalized = value.trim().toLowerCase();
@@ -149,7 +273,6 @@ export function createMockBridge(): OpdfBridge {
             opacity: opacity !== undefined ? opacity : 1,
           });
         } else if (ann.kind === "note") {
-          // 1. Draw background mask only when color is explicitly set (not transparent/none)
           const bgColor = parseCssColor(color, pdfLib);
           if (bgColor) {
             page.drawRectangle({
@@ -158,32 +281,36 @@ export function createMockBridge(): OpdfBridge {
               opacity: opacity !== undefined ? opacity : 1,
             });
           }
-          // 2. Overlay text — embed Unicode font to preserve diacritics/Vietnamese
-          let textFont;
-          let textVal: string;
-          try {
-            const unicodeFontBytes = await loadUnicodeFontBytes();
-            if (unicodeFontBytes) {
-              textFont = await doc.embedFont(unicodeFontBytes);
-              textVal = String(text || "Note");
-            } else {
-              textFont = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
-              textVal = toWinAnsiSafeText(text || "Note");
-            }
-          } catch (fontErr) {
-            console.error("[MockBridge] embedFont failed:", fontErr);
-            textFont = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
-            textVal = toWinAnsiSafeText(text || "Note");
-          }
+          const payload = ann.payload as any;
+          const textVal = String(text || "Note");
           const fs = Math.max(8, Math.min(Number(fontSize) || 14, 64));
-          page.drawText(textVal, {
-            x: absX + 5,
-            y: absY + Math.max(2, absH - fs - 4),
-            size: fs,
-            font: textFont,
-            color: parseCssColor((ann.payload as any)?.textColor, pdfLib) || pdfLib.rgb(0, 0, 0),
-            maxWidth: absW - 10,
-          });
+          const lineH = fs * 1.2;
+
+          if (payload.isPatch) {
+            const imgResult = renderPatchTextToImage(textVal, {
+              width: absW, height: absH, fontSize: fs, lineHeight: lineH,
+              fontFamily: payload.fontFamily || "Helvetica, Arial, sans-serif",
+              fontWeight: payload.fontWeight || "normal",
+              fontStyle: payload.fontStyle || "normal",
+              textAlign: payload.textAlign || "left",
+              textColor: payload.textColor || "black",
+              bgColor: color,
+            });
+            if (imgResult) {
+              try {
+                const img = await doc.embedPng(imgResult.png);
+                const dp = imgResult.descentPad;
+                page.drawImage(img, { x: absX, y: absY - dp, width: absW, height: absH + dp });
+              } catch (imgErr) {
+                console.error("[MockBridge] embedPng failed, falling back to drawText:", imgErr);
+                await drawNoteTextFallback(page, doc, pdfLib, textVal, fs, lineH, absX, absY, absW, absH, payload);
+              }
+            } else {
+              await drawNoteTextFallback(page, doc, pdfLib, textVal, fs, lineH, absX, absY, absW, absH, payload);
+            }
+          } else {
+            await drawNoteTextFallback(page, doc, pdfLib, textVal, fs, lineH, absX, absY, absW, absH, payload);
+          }
         } else if (ann.kind === "signature") {
           let sigFont;
           let sigText: string;

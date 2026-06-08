@@ -1,10 +1,12 @@
 import type { RenderedTextItem } from "./PdfViewer.types";
+import { groupTextItemsIntoLines, sortItemsInReadingOrder } from "./PdfTextSelection.utils";
 
 export interface EditStyleSnapshot {
   patchFontSize: number;
   patchFontFamily: string;
   patchFontWeight: string;
   patchFontStyle: string;
+  patchTextAlign: string;
   patchTextColorMode: string;
   customTextColorInput: string;
   maskColor: string;
@@ -21,6 +23,7 @@ export interface EditStyleResolutionInput {
   fallbackFontFamily?: string;
   fallbackFontWeight?: string;
   fallbackFontStyle?: string;
+  fallbackTextAlign?: string;
   fallbackTextColor?: string;
 }
 
@@ -33,6 +36,7 @@ export async function resolveEditStyleSnapshot({
   fallbackFontFamily,
   fallbackFontWeight,
   fallbackFontStyle,
+  fallbackTextAlign,
   fallbackTextColor,
 }: EditStyleResolutionInput): Promise<EditStyleSnapshot> {
   const matchedFontSize = matchedItems.length > 0 ? Math.max(...matchedItems.map((item) => item.fontSize)) : 0;
@@ -51,6 +55,10 @@ export async function resolveEditStyleSnapshot({
   );
   const detectedFontStyle = normalizeFontStyle(
     spanStyle?.fontStyle || fallbackFontStyle || (matchedItems[0] as any)?.fontStyle || "normal",
+  );
+  const inferredTextAlign = inferTextAlignFromItems(matchedItems);
+  const detectedTextAlign = normalizeTextAlign(
+    fallbackTextAlign || inferredTextAlign,
   );
 
   const { detectedBgColor: sampledBgColor, detectedTextColor: sampledTextColor } = await sampleColorsFromImage(imageUrl, rects);
@@ -72,11 +80,48 @@ export async function resolveEditStyleSnapshot({
     patchFontFamily: detectedFontFamily,
     patchFontWeight: detectedFontWeight,
     patchFontStyle: detectedFontStyle,
+    patchTextAlign: detectedTextAlign,
     patchTextColorMode: colorToMode(detectedTextColor),
     customTextColorInput: colorToHex(detectedTextColor),
     maskColor: colorToMode(detectedBgColor),
     customColorInput: colorToHex(detectedBgColor),
   };
+}
+
+function inferTextAlignFromItems(items: RenderedTextItem[]) {
+  const lines = groupTextItemsIntoLines(sortItemsInReadingOrder(items));
+  if (lines.length < 2) return "left";
+
+  const lefts = lines.map((line) => line.left);
+  const centers = lines.map((line) => line.left + line.width / 2);
+  const rights = lines.map((line) => line.left + line.width);
+
+  const leftSpread = standardDeviation(lefts);
+  const centerSpread = standardDeviation(centers);
+  const rightSpread = standardDeviation(rights);
+  const bestSpread = Math.min(leftSpread, centerSpread, rightSpread);
+  const tolerance = Math.max(1, Math.max(...lines.map((line) => line.width)) * 0.02);
+
+  if (bestSpread === centerSpread && centerSpread + tolerance < leftSpread && centerSpread + tolerance < rightSpread) {
+    return "center";
+  }
+
+  if (bestSpread === rightSpread && rightSpread + tolerance < leftSpread && rightSpread + tolerance < centerSpread) {
+    return "right";
+  }
+
+  return "left";
+}
+
+export function normalizeTextAlign(value: unknown) {
+  if (typeof value !== "string") return "left";
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "start") return "left";
+  if (normalized === "end") return "right";
+  if (normalized === "left" || normalized === "center" || normalized === "right" || normalized === "justify") {
+    return normalized;
+  }
+  return "left";
 }
 
 function findBestSpan(layerEl: HTMLDivElement | null | undefined, rects: Array<{ x: number; y: number; width: number; height: number }>) {
@@ -108,6 +153,13 @@ function findBestSpan(layerEl: HTMLDivElement | null | undefined, rects: Array<{
   }
 
   return bestSpan;
+}
+
+function standardDeviation(values: number[]) {
+  if (values.length === 0) return 0;
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
+  return Math.sqrt(variance);
 }
 
 async function sampleColorsFromImage(

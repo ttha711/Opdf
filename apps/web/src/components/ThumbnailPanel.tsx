@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Bookmark {
   id: string;
@@ -60,6 +60,32 @@ export function ThumbnailPanel({
   const [activeTab, setActiveTab] = useState<"pages" | "bookmarks">("pages");
   const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>("");
+  const thumbnailRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+
+  const setThumbnailRef = useCallback((pageNumber: number, element: HTMLButtonElement | null) => {
+    if (element) {
+      thumbnailRefs.current.set(pageNumber, element);
+    } else {
+      thumbnailRefs.current.delete(pageNumber);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "pages" || !hasDocument || thumbnails.length === 0) return;
+
+    const target = thumbnailRefs.current.get(page);
+    if (!target) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      target.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeTab, hasDocument, page, thumbnails.length]);
 
   const addCurrentPageBookmark = () => {
     if (!setBookmarks) return;
@@ -180,6 +206,7 @@ export function ThumbnailPanel({
                         : "border-transparent bg-transparent hover:bg-[var(--ui-hover-bg)]"
                     }`}
                     onClick={() => onSelectPage(t.page)}
+                    ref={(el) => setThumbnailRef(t.page, el)}
                     type="button"
                   >
                     <ThumbnailImage blob={t.blob} url={t.url} page={t.page} />

@@ -14,6 +14,7 @@ export function useTextSelection(
   const [selectionText, setSelectionText] = useState("");
   const layerRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const releaseSelectingTimerRef = useRef<number | null>(null);
 
   const clearMenu = useCallback(() => setMenu(null), []);
   const clearSelection = useCallback(() => {
@@ -40,6 +41,9 @@ export function useTextSelection(
       clearMenu();
       clearSelection();
       setSelectingFlag(false);
+      return;
+    }
+    if (dragStartRef.current) {
       return;
     }
     const selection = window.getSelection();
@@ -87,6 +91,10 @@ export function useTextSelection(
   }, [buildDragRect, clearSelection, height, textItems, width]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (releaseSelectingTimerRef.current !== null) {
+      window.clearTimeout(releaseSelectingTimerRef.current);
+      releaseSelectingTimerRef.current = null;
+    }
     if (!selectionEnabled || e.button !== 0 || isInteractiveDescendant(e.target)) {
       dragStartRef.current = null;
       return;
@@ -127,8 +135,14 @@ export function useTextSelection(
         anchor: "cursor",
       });
     }
-    dragStartRef.current = null;
-    setSelectingFlag(false);
+    if (releaseSelectingTimerRef.current !== null) {
+      window.clearTimeout(releaseSelectingTimerRef.current);
+    }
+    releaseSelectingTimerRef.current = window.setTimeout(() => {
+      dragStartRef.current = null;
+      setSelectingFlag(false);
+      releaseSelectingTimerRef.current = null;
+    }, 0);
   }, [setSelectingFlag, updateCustomSelection]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -188,6 +202,10 @@ export function useTextSelection(
     clearMenu();
     clearSelection();
     dragStartRef.current = null;
+    if (releaseSelectingTimerRef.current !== null) {
+      window.clearTimeout(releaseSelectingTimerRef.current);
+      releaseSelectingTimerRef.current = null;
+    }
     setSelectingFlag(false);
   }, [clearMenu, clearSelection, selectionEnabled, setSelectingFlag]);
 
@@ -203,6 +221,10 @@ export function useTextSelection(
       window.removeEventListener("mouseup", handleMouseUp);
       window.removeEventListener("scroll", clearMenu, true);
       window.removeEventListener("resize", clearMenu);
+      if (releaseSelectingTimerRef.current !== null) {
+        window.clearTimeout(releaseSelectingTimerRef.current);
+        releaseSelectingTimerRef.current = null;
+      }
     };
   }, [clearMenu, handleMouseMove, handleMouseUp, updateSelection]);
 

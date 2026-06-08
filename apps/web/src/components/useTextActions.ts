@@ -42,6 +42,7 @@ export function useTextActions(
   const [patchFontFamily, setPatchFontFamily] = useState<string>("Helvetica, Arial, sans-serif");
   const [patchFontWeight, setPatchFontWeight] = useState<string>("normal");
   const [patchFontStyle, setPatchFontStyle] = useState<string>("normal");
+  const [patchTextAlign, setPatchTextAlign] = useState<string>("left");
 
   const [translateStyleSnapshot, setTranslateStyleSnapshot] = useState<EditStyleSnapshot | null>(null);
   const [translateOrigin, setTranslateOrigin] = useState<"menu" | "edit" | null>(null);
@@ -217,6 +218,7 @@ export function useTextActions(
       setPatchFontFamily(styleSnapshot.patchFontFamily);
       setPatchFontWeight(styleSnapshot.patchFontWeight);
       setPatchFontStyle(styleSnapshot.patchFontStyle);
+      setPatchTextAlign(styleSnapshot.patchTextAlign);
       setPatchTextColorMode(styleSnapshot.patchTextColorMode);
       setCustomTextColorInput(styleSnapshot.customTextColorInput);
       setMaskColor(styleSnapshot.maskColor);
@@ -255,7 +257,7 @@ export function useTextActions(
     editTextState, setEditTextState, editedInputText, setEditedInputText,
     maskColor, setMaskColor, customColorInput, setCustomColorInput,
     patchTextColorMode, setPatchTextColorMode, customTextColorInput, setCustomTextColorInput,
-    patchFontSize, setPatchFontSize, patchFontFamily, setPatchFontFamily, patchFontWeight, setPatchFontWeight, patchFontStyle, setPatchFontStyle,
+    patchFontSize, setPatchFontSize, patchFontFamily, setPatchFontFamily, patchFontWeight, setPatchFontWeight, patchFontStyle, setPatchFontStyle, patchTextAlign, setPatchTextAlign,
     isEditTranslating,
     runAction, handleAiTranslate, handleAiRewrite, translateTextForEdit, startTranslateFromEdit,
   };

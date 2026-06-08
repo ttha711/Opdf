@@ -88,6 +88,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     onError: state.setViewerError,
     onActivePageChange: actions.onActivePageChange,
     onThumbsLoaded: state.setThumbnails,
+    setThumbnails: state.setThumbnails,
     initialThumbnails: state.thumbnails,
     onAnnotationUpdated: actions.updateAnnotation,
     onAnnotationDeleted: actions.removeAnnotation,

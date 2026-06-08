@@ -9,6 +9,7 @@ export async function applyEditPatch({
   patchFontFamily,
   patchFontWeight,
   patchFontStyle,
+  patchTextAlign,
   width,
   height,
   pageNumber,
@@ -25,6 +26,7 @@ export async function applyEditPatch({
   patchFontFamily?: string;
   patchFontWeight?: string;
   patchFontStyle?: string;
+  patchTextAlign?: string;
   width: number;
   height: number;
   pageNumber: number;
@@ -35,11 +37,13 @@ export async function applyEditPatch({
   if (editTextState.id && onAnnotationUpdated) {
     await onAnnotationUpdated(editTextState.id, {
       text: editedInputText,
+      color: maskColor === "custom" ? customColorInput : maskColor,
       textColor: patchTextColorMode === "custom" ? customTextColorInput : patchTextColorMode,
       fontSize: patchFontSize,
       fontFamily: patchFontFamily,
       fontWeight: patchFontWeight,
       fontStyle: patchFontStyle,
+      textAlign: resolvePatchTextAlign(patchTextAlign, editTextState.matchedItems ?? editTextState.rects),
     });
     return;
   }
@@ -76,12 +80,13 @@ export async function applyEditPatch({
     groupLabel: "Sửa text",
     groupSummary: editedInputText,
     text: editedInputText,
-    color: "transparent",
+    color: finalMaskColor,
     textColor: patchTextColorMode === "custom" ? customTextColorInput : patchTextColorMode,
     fontSize: patchFontSize,
     fontFamily: patchFontFamily,
     fontWeight: patchFontWeight,
     fontStyle: patchFontStyle,
+    textAlign: resolvePatchTextAlign(patchTextAlign, targetsToCover),
     x: minX,
     y: minY,
     width: unionW,
@@ -107,6 +112,7 @@ export async function applyRewritePatch({
   pageNumber,
   createToolAnnotation,
   imageUrl,
+  patchTextAlign,
 }: {
   rewriteText: string;
   rewriteResult: string;
@@ -125,6 +131,7 @@ export async function applyRewritePatch({
   pageNumber: number;
   createToolAnnotation?: (kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image", pageNumber: number, rect: any) => Promise<void>;
   imageUrl?: string;
+  patchTextAlign?: string;
 }) {
   const groupId = crypto.randomUUID();
   if (!rewriteText || !createToolAnnotation) return;
@@ -167,12 +174,13 @@ export async function applyRewritePatch({
     groupLabel: "Viết lại text",
     groupSummary: rewriteResult,
     text: rewriteResult,
-    color: "transparent",
+    color: finalMaskColor,
     textColor: finalTextColor,
     fontSize: patchFontSize || finalFontSize,
     fontFamily: patchFontFamily || "Helvetica, Arial, sans-serif",
     fontWeight: patchFontWeight || "normal",
     fontStyle: patchFontStyle || "normal",
+    textAlign: resolvePatchTextAlign(patchTextAlign, targetsToCover),
     x: minX,
     y: minY,
     width: unionW,
@@ -198,6 +206,7 @@ export async function applyTranslatePatch({
   pageNumber,
   createToolAnnotation,
   imageUrl,
+  patchTextAlign,
 }: {
   translateText: string;
   translationResult: string;
@@ -216,6 +225,7 @@ export async function applyTranslatePatch({
   pageNumber: number;
   createToolAnnotation?: (kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image", pageNumber: number, rect: any) => Promise<void>;
   imageUrl?: string;
+  patchTextAlign?: string;
 }) {
   const groupId = crypto.randomUUID();
   if (!translateText || !createToolAnnotation) return;
@@ -258,17 +268,88 @@ export async function applyTranslatePatch({
     groupLabel: "Dịch text",
     groupSummary: translationResult,
     text: translationResult,
-    color: "transparent",
+    color: finalMaskColor,
     textColor: finalTextColor,
     fontSize: patchFontSize || finalFontSize,
     fontFamily: patchFontFamily,
     fontWeight: patchFontWeight,
     fontStyle: patchFontStyle,
+    textAlign: resolvePatchTextAlign(patchTextAlign, targetsToCover),
     x: minX,
     y: minY,
     width: unionW,
     height: unionH,
   });
+}
+
+function resolvePatchTextAlign(
+  explicitTextAlign: string | undefined,
+  targets: Array<{ x: number; y: number; width: number; height: number }>,
+) {
+  const normalized = normalizeTextAlign(explicitTextAlign);
+  if (normalized !== "left" || typeof explicitTextAlign === "string") return normalized;
+  return inferTextAlignFromRects(targets);
+}
+
+function inferTextAlignFromRects(targets: Array<{ x: number; y: number; width: number; height: number }>) {
+  if (targets.length < 2) return "left";
+
+  const lines = groupRectsIntoLines(targets);
+  if (lines.length < 2) return "left";
+
+  const lefts = lines.map((line) => line.left);
+  const centers = lines.map((line) => line.left + line.width / 2);
+  const rights = lines.map((line) => line.left + line.width);
+
+  const leftSpread = standardDeviation(lefts);
+  const centerSpread = standardDeviation(centers);
+  const rightSpread = standardDeviation(rights);
+  const bestSpread = Math.min(leftSpread, centerSpread, rightSpread);
+  const tolerance = Math.max(0.01, Math.max(...lines.map((line) => line.width)) * 0.02);
+
+  if (bestSpread === centerSpread && centerSpread + tolerance < leftSpread && centerSpread + tolerance < rightSpread) {
+    return "center";
+  }
+
+  if (bestSpread === rightSpread && rightSpread + tolerance < leftSpread && rightSpread + tolerance < centerSpread) {
+    return "right";
+  }
+
+  return "left";
+}
+
+function groupRectsIntoLines(targets: Array<{ x: number; y: number; width: number; height: number }>) {
+  const sorted = [...targets].sort((a, b) => a.y - b.y || a.x - b.x);
+  const lines: Array<{ left: number; right: number; width: number; top: number }> = [];
+  for (const item of sorted) {
+    const existing = lines.find((line) => Math.abs(line.top - item.y) <= Math.max(0.01, item.height * 0.5));
+    if (existing) {
+      existing.left = Math.min(existing.left, item.x);
+      existing.right = Math.max(existing.right, item.x + item.width);
+      existing.width = existing.right - existing.left;
+    } else {
+      lines.push({ left: item.x, right: item.x + item.width, width: item.width, top: item.y });
+    }
+  }
+  return lines;
+}
+
+function normalizeTextAlign(value: unknown) {
+  if (typeof value !== "string") return "left";
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "start") return "left";
+  if (normalized === "end") return "right";
+  if (normalized === "left" || normalized === "center" || normalized === "right" || normalized === "justify") {
+    return normalized;
+  }
+  return "left";
+}
+
+function standardDeviation(values: number[]) {
+  if (values.length === 0) return 0;
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
+  return Math.sqrt(variance);
 }
 
 function computeUnion(targets: Array<{ x: number; y: number; width: number; height: number }>) {

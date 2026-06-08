@@ -41,6 +41,7 @@ export function PdfTextLayer({
       fallbackFontFamily?: string;
       fallbackFontWeight?: string;
       fallbackFontStyle?: string;
+      fallbackTextAlign?: string;
       fallbackTextColor?: string;
     }): Promise<EditStyleSnapshot> => {
       return buildEditStyleSnapshot({
@@ -86,6 +87,7 @@ export function PdfTextLayer({
       patchFontFamily: actions.patchFontFamily,
       patchFontWeight: actions.patchFontWeight,
       patchFontStyle: actions.patchFontStyle,
+      patchTextAlign: actions.patchTextAlign,
       width, height, pageNumber,
       createToolAnnotation,
       onAnnotationUpdated,
@@ -132,6 +134,7 @@ export function PdfTextLayer({
       patchFontFamily: actions.translateStyleSnapshot?.patchFontFamily ?? actions.patchFontFamily,
       patchFontWeight: actions.translateStyleSnapshot?.patchFontWeight ?? actions.patchFontWeight,
       patchFontStyle: actions.translateStyleSnapshot?.patchFontStyle ?? actions.patchFontStyle,
+      patchTextAlign: actions.translateStyleSnapshot?.patchTextAlign ?? actions.patchTextAlign,
       width, height, pageNumber,
       createToolAnnotation,
       imageUrl,
@@ -169,6 +172,7 @@ export function PdfTextLayer({
     actions.setPatchFontFamily(style.patchFontFamily);
     actions.setPatchFontWeight(style.patchFontWeight);
     actions.setPatchFontStyle(style.patchFontStyle);
+    actions.setPatchTextAlign(style.patchTextAlign);
     actions.setPatchTextColorMode(style.patchTextColorMode);
     actions.setCustomTextColorInput(style.customTextColorInput);
     actions.setMaskColor(style.maskColor);
@@ -201,6 +205,7 @@ export function PdfTextLayer({
       fallbackFontFamily: payload.fontFamily || "Helvetica, Arial, sans-serif",
       fallbackFontWeight: payload.fontWeight || "normal",
       fallbackFontStyle: payload.fontStyle || "normal",
+      fallbackTextAlign: payload.textAlign,
       fallbackTextColor: payload.textColor || "black",
     });
 
@@ -208,6 +213,7 @@ export function PdfTextLayer({
     actions.setPatchFontFamily(style.patchFontFamily);
     actions.setPatchFontWeight(style.patchFontWeight);
     actions.setPatchFontStyle(style.patchFontStyle);
+    actions.setPatchTextAlign(style.patchTextAlign);
     actions.setPatchTextColorMode(style.patchTextColorMode);
     actions.setCustomTextColorInput(style.customTextColorInput);
     actions.setMaskColor(style.maskColor);
@@ -238,6 +244,35 @@ export function PdfTextLayer({
           onToggle={() => setStirlingMode(!stirlingMode)}
           onSubModeChange={setStirlingSubMode}
         />
+
+        {pagePatches.map((patch) => {
+          const p = patch.payload as any;
+          if (!p || actions.editTextState?.id === patch.id) return null;
+          return (
+            <div
+              key={`patch-text-${patch.id}`}
+              className="absolute pointer-events-none select-none"
+              style={{
+                left: (p.x ?? 0) * width,
+                top: (p.y ?? 0) * height,
+                width: (p.width ?? 0.1) * width,
+                fontSize: `${p.fontSize || 14}px`,
+                lineHeight: `${(p.fontSize || 14) * 1.2}px`,
+                color: p.textColor || "black",
+                backgroundColor: p.color && p.color !== "transparent" ? p.color : undefined,
+                fontFamily: p.fontFamily || "Helvetica, Arial, sans-serif",
+                fontWeight: p.fontWeight || "normal",
+                fontStyle: p.fontStyle || "normal",
+                textAlign: (p.textAlign || "left") as any,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                zIndex: 30,
+              }}
+            >
+              {p.text}
+            </div>
+          );
+        })}
 
         {stirlingMode && <SavedPatches patches={pagePatches} width={width} height={height} onClick={handlePatchClick} />}
 
@@ -271,6 +306,7 @@ export function PdfTextLayer({
             patchFontFamily={actions.patchFontFamily}
             patchFontWeight={actions.patchFontWeight}
             patchFontStyle={actions.patchFontStyle}
+            patchTextAlign={actions.patchTextAlign}
             patchTextColorMode={actions.patchTextColorMode}
             customTextColorInput={actions.customTextColorInput}
             maskColor={actions.maskColor}

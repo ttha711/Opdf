@@ -131,20 +131,29 @@ export class DocumentService {
         const rawText = String(payload.text ?? "Note");
         const fontSize = Number(payload.fontSize ?? 16) || 16;
         const textColor = typeof payload.textColor === "string" ? payload.textColor : "#000000";
+        const textAlign = payload.isPatch ? "left" : this.normalizeTextAlign(payload.textAlign);
         const rgb = this.parseCssColor(textColor, module) ?? module.rgb(0, 0, 0);
         const unicodeFontBytes = await this.loadUnicodeFontBytes();
         const noteFont = unicodeFontBytes
           ? await doc.embedFont(unicodeFontBytes)
           : null;
         const noteText = noteFont ? rawText : this.toWinAnsiSafeText(rawText);
-        page.drawText(noteText, {
-          x: x + 2,
-          y: y + Math.max(2, objH - fontSize - 2),
-          size: Math.max(8, Math.min(fontSize, 64)),
-          ...(noteFont ? { font: noteFont } : {}),
-          color: rgb,
-          maxWidth: objW - 4,
-        });
+        const size = Math.max(8, Math.min(fontSize, 64));
+        const lineHeight = Math.max(size * 1.2, size + 2);
+        const lines = noteText.split(/\r?\n/);
+        let currentY = y + Math.max(2, objH - fontSize - 2);
+        for (const line of lines) {
+          const lineWidth = noteFont ? noteFont.widthOfTextAtSize(line || " ", size) : Math.max(1, (line || "").length * size * 0.5);
+          const drawX = this.resolveAlignedTextX(textAlign, x, objW, lineWidth);
+          page.drawText(line, {
+            x: drawX,
+            y: currentY,
+            size,
+            ...(noteFont ? { font: noteFont } : {}),
+            color: rgb,
+          });
+          currentY -= lineHeight;
+        }
       } else if (ann.kind === "shape") {
         page.drawRectangle({
           x, y, width: objW, height: objH,
@@ -230,6 +239,27 @@ export class DocumentService {
     const g = Number.parseInt(hex.slice(2, 4), 16) / 255;
     const b = Number.parseInt(hex.slice(4, 6), 16) / 255;
     return module.rgb(r, g, b);
+  }
+
+  private normalizeTextAlign(value: unknown) {
+    if (typeof value !== "string") return "left";
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "start") return "left";
+    if (normalized === "end") return "right";
+    if (normalized === "left" || normalized === "center" || normalized === "right" || normalized === "justify") {
+      return normalized;
+    }
+    return "left";
+  }
+
+  private resolveAlignedTextX(textAlign: string, x: number, width: number, lineWidth: number) {
+    if (textAlign === "center") {
+      return x + Math.max(2, (width - lineWidth) / 2);
+    }
+    if (textAlign === "right") {
+      return x + Math.max(2, width - lineWidth - 2);
+    }
+    return x + 2;
   }
 
   async compressPdf(pdfBytes: Uint8Array): Promise<Uint8Array> {

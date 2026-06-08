@@ -69,8 +69,9 @@ export function useAnnotationActions({
                 fontFamily: (rect as any).fontFamily,
                 fontWeight: (rect as any).fontWeight,
                 fontStyle: (rect as any).fontStyle,
+                textAlign: (rect as any).textAlign ?? "left",
               }
-            : { text: noteText || "New note", color: annotationToolDefaults.note.color, opacity: annotationToolDefaults.note.opacity, fontSize: annotationToolDefaults.note.size, x: rect.x, y: rect.y })
+            : { text: noteText || "New note", color: annotationToolDefaults.note.color, opacity: annotationToolDefaults.note.opacity, fontSize: annotationToolDefaults.note.size, x: rect.x, y: rect.y, textAlign: "left" })
           : kind === "shape"
             ? { shape: "rectangle", stroke: annotationToolDefaults.shape.color, opacity: annotationToolDefaults.shape.opacity, strokeWidth: annotationToolDefaults.shape.size, ...rect }
             : kind === "redact"

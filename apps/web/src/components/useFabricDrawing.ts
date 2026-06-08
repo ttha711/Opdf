@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import * as fabric from "fabric";
 import type { MutableRefObject } from "react";
 import type { AnnotationToolDefaults } from "../lib/app-types";
+import { normalizeTextAlign } from "./PdfTextSelection.editStyle";
 
 interface UseFabricDrawingParams {
   fabricRef: MutableRefObject<fabric.Canvas | null>;
@@ -178,6 +179,7 @@ export function useFabricDrawing({
                 let fontSize = Math.max(10, Math.min(ch * 0.75, 48));
                 let fontWeight = "normal";
                 let fontStyle = "normal";
+                let textAlign = "left";
 
                 try {
                   // 1. Get dominant color (background)
@@ -247,6 +249,7 @@ export function useFabricDrawing({
                         textColor = computedStyle.color;
                         fontWeight = computedStyle.fontWeight;
                         fontStyle = computedStyle.fontStyle;
+                        textAlign = normalizeTextAlign(computedStyle.textAlign);
                       }
                     }
                   }
@@ -271,6 +274,7 @@ export function useFabricDrawing({
                     fontSize: Math.round(calculatedFontSize),
                     fontFamily: fontFamily,
                     isPatch: true,
+                    textAlign,
                     image: undefined,
                     imageType: undefined,
                   });

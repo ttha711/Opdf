@@ -35,6 +35,7 @@ export function PdfViewer({
   onError,
   onActivePageChange,
   onThumbsLoaded,
+  setThumbnails,
   initialThumbnails,
   onAnnotationUpdated,
   onAnnotationDeleted,
@@ -125,7 +126,60 @@ export function PdfViewer({
     []
   );
 
-  useThumbnailRefresh({ pdf, annotations, page, initialThumbnails, onThumbsLoaded });
+  useThumbnailRefresh({ pdf, annotations, page, initialThumbnails, setThumbnails });
+
+  useEffect(() => {
+    if (viewMode !== "continuous") return;
+    if (renderedPages.length === 0) return;
+    if (!onActivePageChange) return;
+
+    const scrollContainer = loadMoreRef.current?.closest(".viewer-area");
+    if (!(scrollContainer instanceof HTMLElement)) return;
+
+    let frameId = 0;
+
+    const syncActivePage = () => {
+      frameId = 0;
+      if (document.body.dataset.opdfSelecting === "1") return;
+
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const containerCenter = containerRect.top + containerRect.height / 2;
+
+      let nearestPage = page;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      for (const [pageNumber, element] of pageElementsRef.current.entries()) {
+        const rect = element.getBoundingClientRect();
+        if (rect.bottom < containerRect.top || rect.top > containerRect.bottom) continue;
+
+        const pageCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(pageCenter - containerCenter);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestPage = pageNumber;
+        }
+      }
+
+      if (nearestPage !== page) {
+        onActivePageChange(nearestPage);
+      }
+    };
+
+    const scheduleSync = () => {
+      if (frameId !== 0) return;
+      frameId = window.requestAnimationFrame(syncActivePage);
+    };
+
+    scrollContainer.addEventListener("scroll", scheduleSync, { passive: true });
+    window.addEventListener("resize", scheduleSync);
+    scheduleSync();
+
+    return () => {
+      if (frameId !== 0) window.cancelAnimationFrame(frameId);
+      scrollContainer.removeEventListener("scroll", scheduleSync);
+      window.removeEventListener("resize", scheduleSync);
+    };
+  }, [onActivePageChange, page, renderedPages.length, viewMode]);
 
   useEffect(() => {
     if (viewMode !== "continuous") return;

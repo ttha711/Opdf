@@ -1,3 +1,5 @@
+import type { Dispatch, SetStateAction } from "react";
+
 export type ViewMode = "continuous" | "page";
 
 export interface PdfViewerProps {
@@ -23,6 +25,7 @@ export interface PdfViewerProps {
   onError?: (message: string | null) => void;
   onActivePageChange?: (page: number) => void;
   onThumbsLoaded?: (thumbs: Array<{ page: number; url: string; blob: Blob }>) => void;
+  setThumbnails: Dispatch<SetStateAction<Array<{ page: number; url: string; blob: Blob }>>>;
   initialThumbnails?: Array<{ page: number; url: string; blob: Blob }>;
   onAnnotationUpdated?: (id: string, payload: Record<string, unknown>) => void;
   onAnnotationDeleted?: (id: string) => void;

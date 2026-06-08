@@ -61,6 +61,7 @@ export function syncAnnotationsToCanvas(params: {
       const fontFamilyVal = payload.fontFamily as string | undefined;
       const fontWeightVal = payload.fontWeight as string | undefined;
       const fontStyleVal = payload.fontStyle as string | undefined;
+      const textAlignVal = payload.isPatch ? "left" : ((payload.textAlign as string | undefined) || "left");
       const resolvedFontStyle = fontStyleVal === "italic" || fontStyleVal === "oblique" ? fontStyleVal : "normal";
       
       const textOptions = {
@@ -82,21 +83,19 @@ export function syncAnnotationsToCanvas(params: {
       };
 
       if (payload.isPatch) {
-        // TỐI ƯU: Sử dụng fabric.Textbox thay vì fabric.IText để tự động ngắt xuống dòng (wrapping) khớp hoàn hảo với chiều rộng đoạn văn đã bôi đen
-        obj = new fabric.Textbox(text || "Note", {
-          ...textOptions,
-          width: absW, // Áp dụng chiều rộng chính xác của đoạn văn
-        });
+        // Patch text is rendered as an HTML overlay (PdfTextSelection)
+        // so CSS font metrics match the textarea preview exactly.
       } else {
         obj = new fabric.IText(text || "Note", textOptions);
+        (obj as any)[ANN_ID_KEY] = ann.id;
+        (obj as any)[ANN_KIND_KEY] = ann.kind;
+        canvas.add(obj);
+        if (obj.width > 0) {
+          obj.scaleToWidth(absW);
+        }
+        obj.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
+        obj = null;
       }
-
-      canvas.add(obj);
-      if (obj.width > 0 && !payload.isPatch) {
-        obj.scaleToWidth(absW);
-      }
-      obj.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
-      obj = null;
     } else if (ann.kind === "shape") {
       obj = new fabric.Rect({
         left: absX, top: absY, width: absW, height: absH,

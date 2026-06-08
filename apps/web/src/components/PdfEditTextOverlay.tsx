@@ -42,6 +42,7 @@ export function EditTextOverlay({
   patchFontFamily,
   patchFontWeight,
   patchFontStyle,
+  patchTextAlign,
   patchTextColorMode,
   customTextColorInput,
   maskColor,
@@ -68,6 +69,7 @@ export function EditTextOverlay({
   patchFontFamily: string;
   patchFontWeight: string;
   patchFontStyle: string;
+  patchTextAlign: string;
   patchTextColorMode: string;
   customTextColorInput: string;
   maskColor: string;
@@ -125,6 +127,7 @@ export function EditTextOverlay({
           fontFamily: patchFontFamily,
           fontWeight: patchFontWeight,
           fontStyle: patchFontStyle,
+          textAlign: "left",
           backgroundColor: maskColor === "custom" ? customColorInput : maskColor,
         }}
         autoFocus

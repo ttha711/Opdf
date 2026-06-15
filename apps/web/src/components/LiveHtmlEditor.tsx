@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { generateAiPatch } from "./live-editor/aiPatchService";
 import { blocksToHtml, htmlToBlocks } from "./live-editor/transform";
 import type { EditorBlock } from "./live-editor/types";
+import { sanitizeHtml } from "../lib/sanitizeHtml";
 
 const DEFAULT_BLOCKS: EditorBlock[] = [
   { id: "block_1", type: "heading", content: "Quarterly Operations Report", html: "<h2>Quarterly Operations Report</h2>", style: { font: "Noto Sans", size: 18, color: "#111827", lineHeight: 1.35 } },
@@ -130,7 +131,7 @@ export function LiveHtmlEditor({ isOpen, onClose, initialHtml }: LiveHtmlEditorP
                   suppressContentEditableWarning
                   className="live-editor-content"
                   style={{ fontFamily: block.style.font, fontSize: `${block.style.size}px`, color: block.style.color, lineHeight: block.style.lineHeight }}
-                  dangerouslySetInnerHTML={{ __html: block.html }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.html) }}
                   onBlur={(e) => updateBlockHtml(block.id, e.currentTarget.innerHTML)}
                 />
                 {showDebugHtml && (

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { toast } from "./ToastProvider";
 
 interface MergeFile {
   id: string;
@@ -89,7 +90,7 @@ export function MergeModal({
             size: file.size,
           });
         } catch {
-          alert(`Skipped "${file.name}": Not a valid PDF document or it is password protected.`);
+          toast.error(`Đã bỏ qua "${file.name}": Tệp PDF không hợp lệ hoặc đang được bảo vệ bằng mật khẩu.`);
         }
       }
 

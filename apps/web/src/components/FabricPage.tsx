@@ -177,6 +177,7 @@ export function FabricPage({
     onAnnotationUpdated,
     onAnnotationDeleted,
     setSelectedAnn,
+    selectFabricObject,
   });
 
   return (

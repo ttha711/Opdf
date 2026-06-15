@@ -31,17 +31,17 @@ export function useAiAssistantSettings() {
     const savedIframeUrl = localStorage.getItem("opdf_iframe_url");
 
     // Resolve default environment variables or safe fallback values
-    const defaultUrl = import.meta.env.VITE_DIFY_API_URL || "https://ong-ongai.duckdns.org/v1";
-    const defaultKey = import.meta.env.VITE_DIFY_API_KEY || "REDACTED_DIFY_API_KEY";
+    const defaultUrl = import.meta.env.VITE_DIFY_API_URL || "https://api.dify.ai/v1";
+    const defaultKey = import.meta.env.VITE_DIFY_API_KEY || "";
 
-    // Self-healing migration from public Dify to company's self-hosted Dify host
+    // Fall back to environment defaults when nothing is saved
     if (!savedUrl || savedUrl === "https://api.dify.ai/v1") {
       savedUrl = defaultUrl;
       localStorage.setItem("opdf_dify_url", savedUrl);
     }
-    if (!savedKey || savedKey === "REDACTED_DIFY_API_KEY") {
+    if (!savedKey) {
       savedKey = defaultKey;
-      localStorage.setItem("opdf_dify_key", savedKey);
+      if (savedKey) localStorage.setItem("opdf_dify_key", savedKey);
     }
 
     savedMode = "dify";

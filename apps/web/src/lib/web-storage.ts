@@ -25,6 +25,14 @@ export interface WebState {
   bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
 }
 
+function awaitTransaction(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error("IndexedDB transaction failed"));
+    tx.onabort = () => reject(tx.error ?? new Error("IndexedDB transaction aborted"));
+  });
+}
+
 async function getDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
@@ -36,7 +44,8 @@ async function getDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function saveTabsList(tabs: OpdfTab[]) {
+/** Returns true when the data was durably written, false on failure. */
+export async function saveTabsList(tabs: OpdfTab[]): Promise<boolean> {
   try {
     const safeTabs: OpdfTab[] = tabs.map((tab) => {
       let safeDocBytes: Uint8Array | null = null;
@@ -55,8 +64,11 @@ export async function saveTabsList(tabs: OpdfTab[]) {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(safeTabs, "opdf_tabs");
+    await awaitTransaction(tx);
+    return true;
   } catch (err) {
     console.error("Failed to save tabs list:", err);
+    return false;
   }
 }
 
@@ -76,13 +88,16 @@ export async function loadTabsList(): Promise<OpdfTab[] | null> {
   }
 }
 
-export async function saveActiveTabId(id: string | null) {
+export async function saveActiveTabId(id: string | null): Promise<boolean> {
   try {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(id, "opdf_active_tab_id");
+    await awaitTransaction(tx);
+    return true;
   } catch (err) {
     console.error("Failed to save active tab ID:", err);
+    return false;
   }
 }
 
@@ -107,6 +122,7 @@ export async function savePdfBytes(bytes: Uint8Array) {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(bytes, PDF_KEY);
+    await awaitTransaction(tx);
   } catch (err) {
     console.error("Failed to save PDF bytes:", err);
   }
@@ -117,6 +133,7 @@ export async function saveWebState(state: WebState) {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(state, STATE_KEY);
+    await awaitTransaction(tx);
   } catch (err) {
     console.error("Failed to save web state:", err);
   }
@@ -149,6 +166,7 @@ export async function clearDraft() {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).delete(PDF_KEY);
     tx.objectStore(STORE_NAME).delete(STATE_KEY);
+    await awaitTransaction(tx);
   } catch (err) {
     console.error("Failed to clear draft:", err);
   }

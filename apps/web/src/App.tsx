@@ -21,6 +21,8 @@ import { useResizableSidebars } from "./hooks/useResizableSidebars";
 import { useDraggableFab } from "./hooks/useDraggableFab";
 import { useIntegratedFileConverter } from "./hooks/useIntegratedFileConverter";
 import { useAppControllers } from "./hooks/useAppControllers";
+import { ViewerErrorBoundary } from "./components/ViewerErrorBoundary";
+import { useToast } from "./components/ToastProvider";
 import aiAvatar from "./assets/ai-avatar.jpg";
 import "./types/opdf";
 
@@ -123,6 +125,20 @@ export function App() {
     setPage: state.setPage,
     setViewerError: state.setViewerError,
   });
+
+  const toast = useToast();
+
+  // Warn before leaving the page when there are unsaved changes.
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (state.hasDocument && state.saveState === "idle") {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [state.hasDocument, state.saveState]);
 
   const handleTabThumbsLoaded = useCallback((tabId: string, thumbs: Array<{ page: number; url: string; blob: Blob }>) => {
     state.setTabs((prevTabs) =>
@@ -291,15 +307,17 @@ export function App() {
                       }}
                     />
                   )}
-                  <PdfViewer
-                    {...viewerProps}
-                    data={state.docBytes}
-                    page={state.page}
-                    annotations={state.annotations}
-                    pageRotations={state.pageRotations}
-                    initialThumbnails={state.thumbnails}
-                    onThumbsLoaded={(thumbs) => handleTabThumbsLoaded(activeTab.id, thumbs)}
-                  />
+                  <ViewerErrorBoundary>
+                    <PdfViewer
+                      {...viewerProps}
+                      data={state.docBytes}
+                      page={state.page}
+                      annotations={state.annotations}
+                      pageRotations={state.pageRotations}
+                      initialThumbnails={state.thumbnails}
+                      onThumbsLoaded={(thumbs) => handleTabThumbsLoaded(activeTab.id, thumbs)}
+                    />
+                  </ViewerErrorBoundary>
                 </section>
               )}
             </>
@@ -336,6 +354,7 @@ export function App() {
             onMergeComplete={(mergedBytes) => {
               state.setDocBytes(mergedBytes);
               state.setPage(1);
+              toast.success("Ghép tài liệu PDF thành công!");
             }}
             setViewerError={state.setViewerError}
           />

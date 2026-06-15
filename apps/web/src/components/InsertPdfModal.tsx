@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { toast } from "./ToastProvider";
 
 interface InsertFile {
   name: string;
@@ -83,7 +84,7 @@ export function InsertPdfModal({
         });
         setViewerError(null);
       } catch (err) {
-        alert(`Failed to load "${file.name}": Not a valid PDF document or it is password protected.`);
+        toast.error(`Không thể tải "${file.name}": Tệp PDF không hợp lệ hoặc đang được bảo vệ bằng mật khẩu.`);
         setViewerError(null);
       }
     } catch (err) {
@@ -121,7 +122,7 @@ export function InsertPdfModal({
       if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
         await processSelectedFile(file);
       } else {
-        alert("Please drop a valid PDF file.");
+        toast.error("Vui lòng thả một tệp PDF hợp lệ.");
       }
     }
   }

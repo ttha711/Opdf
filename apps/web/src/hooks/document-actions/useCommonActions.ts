@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { useOpdfBridge } from "../useOpdfBridge";
+import { toast } from "../../components/ToastProvider";
 
 export function useCommonActions({
   bridge,
@@ -29,10 +30,11 @@ export function useCommonActions({
       const compressed = await bridge.compressPdf(docBytes);
       setDocBytes(compressed);
       setSaveState("idle");
-      setViewerError("Compression complete!");
-      setTimeout(() => setViewerError(null), 3000);
+      setViewerError(null);
+      toast.success("Nén tài liệu thành công!");
     } catch (err) {
       setViewerError("Compression failed: " + err);
+      toast.error("Nén tài liệu thất bại.");
     }
   }
 
@@ -65,7 +67,7 @@ export function useCommonActions({
 
   async function convertToImages() {
     if (!fileName || thumbnails.length === 0) {
-      alert("Please wait for all pages to finish rendering before converting.");
+      toast.info("Vui lòng chờ tất cả các trang render xong trước khi chuyển đổi.");
       return;
     }
     try {
@@ -85,6 +87,7 @@ export function useCommonActions({
       a.click();
       URL.revokeObjectURL(url);
       setViewerError(null);
+      toast.success("Đã xuất ảnh các trang thành công!");
     } catch (err) {
       setViewerError("Failed to convert: " + err);
     }

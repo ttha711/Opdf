@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { Annotation } from "@opdf/core";
 import { loadFullDraft, saveTabsList, loadTabsList, saveActiveTabId, loadActiveTabId, type OpdfTab } from "../lib/web-storage";
@@ -21,6 +21,7 @@ type AppEffectsArgs = {
   setPage: (v: number) => void;
   setThumbnails: (v: Array<{ page: number; url: string; blob: Blob }>) => void;
   setBookmarks: (v: Array<{ id: string; page: number; title: string; createdAt: number }>) => void;
+  setPageRotations: (v: Record<number, number>) => void;
   setShowFindBar: Dispatch<SetStateAction<boolean>>;
   setOpenMenu: Dispatch<SetStateAction<string | null>>;
   setActiveTool: (v: ActiveTool) => void;
@@ -49,122 +50,164 @@ type AppEffectsArgs = {
 export function useAppEffects(args: AppEffectsArgs) {
   const {
     bridge, hasDesktopBridge, docBytes, hasDocument, fileName, annotations, thumbnails, bookmarks, page, theme,
-    setFileName, setDocBytes, setAnnotations, setPage, setThumbnails, setBookmarks, setShowFindBar, setOpenMenu, setActiveTool, setTheme, findInputRef,
+    setFileName, setDocBytes, setAnnotations, setPage, setThumbnails, setBookmarks, setPageRotations, setShowFindBar, setOpenMenu, setActiveTool, setTheme, findInputRef,
     openFile, savePdf, savePdfAs, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage,
 
     // NEW TABS PROPS
     tabs, setTabs, activeTabId, setActiveTabId, isSwitchingRef, setShowDashboard,
   } = args;
 
+  const [hasRestoredTabs, setHasRestoredTabs] = useState(() => {
+    if (typeof window === "undefined") return hasDesktopBridge;
+    return hasDesktopBridge || new URLSearchParams(window.location.search).has("open");
+  });
+
   // 1. Initial Tabs Restore on startup
   useEffect(() => {
     if (hasDesktopBridge) return;
-    if (new URLSearchParams(window.location.search).has("open")) return;
-    
-    async function initTabs() {
-      const loadedTabs = await loadTabsList();
-      const loadedActiveId = await loadActiveTabId();
-      
-      const urlParams = new URLSearchParams(window.location.search);
-      const groupFilter = urlParams.get("group") || null;
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has("open")) return;
 
-      if (loadedTabs && loadedTabs.length > 0) {
-        const tabsWithUrls = loadedTabs.map(tab => {
-          if (tab.thumbnails && tab.thumbnails.length > 0) {
-            return {
-              ...tab,
-              thumbnails: tab.thumbnails.map(t => ({
-                ...t,
-                url: URL.createObjectURL(t.blob)
-              }))
-            };
+    let cancelled = false;
+    const createdObjectUrls: string[] = [];
+
+    const makeThumbUrls = (tab: OpdfTab) => {
+      if (!tab.thumbnails || tab.thumbnails.length === 0) return tab.thumbnails;
+      return tab.thumbnails.map((thumb) => {
+        const url = URL.createObjectURL(thumb.blob);
+        createdObjectUrls.push(url);
+        return {
+          ...thumb,
+          url,
+        };
+      });
+    };
+
+    async function initTabs() {
+      try {
+        const [loadedTabs, loadedActiveId] = await Promise.all([
+          loadTabsList(),
+          loadActiveTabId(),
+        ]);
+        if (cancelled) return;
+
+        const groupFilter = urlParams.get("group") || null;
+
+        if (loadedTabs && loadedTabs.length > 0) {
+          const tabsWithUrls = loadedTabs.map((tab) => ({
+            ...tab,
+            thumbnails: makeThumbUrls(tab),
+          }));
+          setTabs(tabsWithUrls);
+
+          let targetTab = tabsWithUrls.find(t => t.id === loadedActiveId);
+
+          if (groupFilter) {
+            const groupTabs = tabsWithUrls.filter(t => t.group === groupFilter);
+            if (groupTabs.length > 0) {
+              if (!targetTab || targetTab.group !== groupFilter) {
+                targetTab = groupTabs[0];
+              }
+            } else {
+              targetTab = undefined;
+            }
           }
-          return tab;
-        });
-        setTabs(tabsWithUrls);
-        
-        let targetTab = tabsWithUrls.find(t => t.id === loadedActiveId);
-        
-        if (groupFilter) {
-          const groupTabs = tabsWithUrls.filter(t => t.group === groupFilter);
-          if (groupTabs.length > 0) {
-            if (!targetTab || targetTab.group !== groupFilter) {
-              targetTab = groupTabs[0];
+
+          if (targetTab) {
+            if (isSwitchingRef) {
+              (isSwitchingRef as any).current = true;
+            }
+            setActiveTabId(targetTab.id);
+            setShowDashboard(false);
+            setFileName(targetTab.fileName);
+            setDocBytes(targetTab.docBytes);
+            setPage(targetTab.page || 1);
+            setAnnotations(targetTab.annotations || []);
+            setBookmarks(targetTab.bookmarks || []);
+            setThumbnails(targetTab.thumbnails || []);
+            setPageRotations(targetTab.pageRotations || {});
+
+            if (bridge.replaceAnnotations) {
+              await bridge.replaceAnnotations(targetTab.fileName, targetTab.annotations || []);
+            }
+
+            setTimeout(() => {
+              if (!cancelled && isSwitchingRef) {
+                (isSwitchingRef as any).current = false;
+              }
+            }, 100);
+          } else {
+            setShowDashboard(true);
+          }
+        } else {
+          // Legacy draft loading fallback
+          const draft = await loadFullDraft();
+          if (draft && draft.bytes && draft.state) {
+            const newTabId = "tab_initial";
+            const newTab: OpdfTab = {
+              id: newTabId,
+              fileName: draft.state.fileName,
+              docBytes: draft.bytes,
+              page: draft.state.page || 1,
+              totalPages: 0,
+              annotations: draft.state.annotations || [],
+              bookmarks: draft.state.bookmarks || [],
+              group: null,
+              groupColor: null
+            };
+
+            setTabs([newTab]);
+            setActiveTabId(newTabId);
+            setShowDashboard(false);
+            setFileName(newTab.fileName);
+            setDocBytes(newTab.docBytes);
+            setPage(newTab.page);
+            setAnnotations(newTab.annotations);
+            setBookmarks(newTab.bookmarks);
+            setPageRotations({});
+
+            if (bridge.replaceAnnotations) {
+              await bridge.replaceAnnotations(newTab.fileName, newTab.annotations || []);
             }
           } else {
-            targetTab = undefined;
+            setShowDashboard(true);
           }
         }
-        
-        if (targetTab) {
-          if (isSwitchingRef) {
-            (isSwitchingRef as any).current = true;
-          }
-          setActiveTabId(targetTab.id);
-          setFileName(targetTab.fileName);
-          setDocBytes(targetTab.docBytes);
-          setPage(targetTab.page || 1);
-          setAnnotations(targetTab.annotations || []);
-          setBookmarks(targetTab.bookmarks || []);
-          setThumbnails(targetTab.thumbnails || []);
-          
-          if (bridge.replaceAnnotations) {
-            await bridge.replaceAnnotations(targetTab.fileName, targetTab.annotations || []);
-          }
-          
-          setTimeout(() => {
-            if (isSwitchingRef) {
-              (isSwitchingRef as any).current = false;
-            }
-          }, 100);
-        } else {
-          setShowDashboard(true);
-        }
-      } else {
-        // Legacy draft loading fallback
-        const draft = await loadFullDraft();
-        if (draft && draft.bytes && draft.state) {
-          const newTabId = "tab_initial";
-          const newTab: OpdfTab = {
-            id: newTabId,
-            fileName: draft.state.fileName,
-            docBytes: draft.bytes,
-            page: draft.state.page || 1,
-            totalPages: 0,
-            annotations: draft.state.annotations || [],
-            bookmarks: draft.state.bookmarks || [],
-            group: null,
-            groupColor: null
-          };
-          
-          setTabs([newTab]);
-          setActiveTabId(newTabId);
-          setFileName(newTab.fileName);
-          setDocBytes(newTab.docBytes);
-          setPage(newTab.page);
-          setAnnotations(newTab.annotations);
-          setBookmarks(newTab.bookmarks);
-          
-          if (bridge.replaceAnnotations) {
-            await bridge.replaceAnnotations(newTab.fileName, newTab.annotations || []);
-          }
-        } else {
-          setShowDashboard(true);
+      } catch (error) {
+        console.error("Failed to restore tabs:", error);
+      } finally {
+        if (!cancelled) {
+          setHasRestoredTabs(true);
         }
       }
     }
     void initTabs();
+
+    return () => {
+      cancelled = true;
+      createdObjectUrls.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          // Ignore cleanup failures during teardown.
+        }
+      });
+    };
   }, [bridge, hasDesktopBridge]);
 
   // 2. Tabs Auto-Save effect
   useEffect(() => {
-    if (hasDesktopBridge || tabs.length === 0) return;
+    if (hasDesktopBridge || !hasRestoredTabs || tabs.length === 0) return;
     const timeout = setTimeout(() => {
-      void saveTabsList(tabs);
-      void saveActiveTabId(activeTabId);
+      void (async () => {
+        const savedTabs = await saveTabsList(tabs);
+        if (savedTabs) {
+          void saveActiveTabId(activeTabId);
+        }
+      })();
     }, 2000);
     return () => clearTimeout(timeout);
-  }, [hasDesktopBridge, tabs, activeTabId]);
+  }, [hasDesktopBridge, hasRestoredTabs, tabs, activeTabId]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

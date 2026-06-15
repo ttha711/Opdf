@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import { getDocumentToolLabel } from "../lib/documentEditingExperience";
+import { toast } from "./ToastProvider";
 
 interface IntegratedUploadWorkspaceProps {
   activeToolId: string;
@@ -82,7 +83,7 @@ export function IntegratedUploadWorkspace({
       if (fileSpec.ext.includes(ext) || fileSpec.accept === "*/*") {
         onFileSelected(file);
       } else {
-        alert(`Invalid format: Please load a valid ${fileSpec.label} for this operation.`);
+        toast.error(`Định dạng không hợp lệ: Vui lòng chọn tệp ${fileSpec.label} hợp lệ cho thao tác này.`);
       }
     }
   };

@@ -3,6 +3,15 @@ import { useAiAssistant } from "./AiAssistantPanel.hooks";
 import { SettingsPanel, ChatMessageBubble, SuggestionChips, ChatInputForm } from "./AiAssistantPanel.parts";
 import aiAvatar from "../assets/ai-avatar.jpg";
 
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveEditor }: AiAssistantPanelProps) {
   const {
     messages,
@@ -67,12 +76,19 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveE
       ) : engineMode === "iframe" ? (
         /* Iframe Nhúng Client AI-WEB-CHAT */
         <div style={{ flex: 1, width: "100%", height: "100%", overflow: "hidden" }}>
-          <iframe
-            src={iframeUrl}
-            style={{ width: "100%", height: "100%", border: "none" }}
-            title="AI-WEB-CHAT NextJS Client"
-            allow="clipboard-write"
-          />
+          {isHttpUrl(iframeUrl) ? (
+            <iframe
+              src={iframeUrl}
+              style={{ width: "100%", height: "100%", border: "none" }}
+              title="AI-WEB-CHAT NextJS Client"
+              allow="clipboard-write"
+              sandbox="allow-scripts allow-same-origin allow-forms"
+            />
+          ) : (
+            <div style={{ padding: 16, fontSize: 13, color: "#64748b" }}>
+              URL iframe không hợp lệ. Vui lòng nhập một địa chỉ http(s) hợp lệ trong phần cài đặt.
+            </div>
+          )}
         </div>
       ) : (
         <>

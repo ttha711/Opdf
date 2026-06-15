@@ -1,12 +1,15 @@
 import { useEffect, useRef, type ChangeEvent, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { Annotation } from "@opdf/core";
 import { useOpdfBridge } from "./useOpdfBridge";
+import { useToast } from "../components/ToastProvider";
+import { useConfirm } from "../components/ConfirmDialog";
 
 export function useDocumentLifecycle({
   bridge,
   hasDesktopBridge,
   fileInputRef,
   page,
+  saveState,
   setFileName,
   setDocBytes,
   setPage,
@@ -14,6 +17,8 @@ export function useDocumentLifecycle({
   setViewerError,
   setThumbnails,
   setAnnotations,
+  setBookmarks,
+  setPageRotations,
   setTransitionTick,
   setSaveState,
   markDocumentSaved,
@@ -23,6 +28,7 @@ export function useDocumentLifecycle({
   hasDesktopBridge: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
   page: number;
+  saveState: "idle" | "saving" | "saved";
   setFileName: Dispatch<SetStateAction<string>>;
   setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
   setPage: Dispatch<SetStateAction<number>>;
@@ -30,6 +36,8 @@ export function useDocumentLifecycle({
   setViewerError: Dispatch<SetStateAction<string | null>>;
   setThumbnails: Dispatch<SetStateAction<Array<{ page: number; url: string; blob: Blob }>>>;
   setAnnotations: Dispatch<SetStateAction<Annotation[]>>;
+  setBookmarks: Dispatch<SetStateAction<Array<{ id: string; page: number; title: string; createdAt: number }>>>;
+  setPageRotations: Dispatch<SetStateAction<Record<number, number>>>;
   setTransitionTick: Dispatch<SetStateAction<number>>;
   setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
   markDocumentSaved: (snapshot?: {
@@ -42,56 +50,60 @@ export function useDocumentLifecycle({
   clearDocumentSaveTracking: () => void;
 }) {
   const isOpeningFileRef = useRef(false);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   async function loadBrowserFile(file: File) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     setFileName(file.name);
     setDocBytes(bytes);
     setPage(1);
+    setTotalPages(0);
     setViewerError(null);
     setThumbnails([]);
     setAnnotations([]);
+    setBookmarks([]);
+    setPageRotations({});
     markDocumentSaved({ fileName: file.name, docBytes: bytes, annotations: [], bookmarks: [], pageRotations: {} });
   }
 
   async function openFile() {
     if (isOpeningFileRef.current) return;
     isOpeningFileRef.current = true;
-    if (!hasDesktopBridge) {
-      const input = fileInputRef.current;
-      if (!input) {
-        setViewerError("File picker is unavailable.");
-        isOpeningFileRef.current = false;
+    try {
+      if (!hasDesktopBridge) {
+        const input = fileInputRef.current;
+        if (!input) {
+          setViewerError("File picker is unavailable.");
+          return;
+        }
+        input.value = "";
+        try {
+          // Keep file-open in the direct user-gesture path for best browser compatibility.
+          input.click();
+        } catch {
+          try {
+            if (typeof input.showPicker === "function") {
+              input.showPicker();
+            }
+          } catch {
+            setViewerError("Cannot open file picker. Please click 'Choose File' directly.");
+          }
+        }
         return;
       }
-      input.value = "";
-      try {
-        // Keep file-open in the direct user-gesture path for best browser compatibility.
-        input.click();
-      } catch {
-        try {
-          if (typeof input.showPicker === "function") {
-            input.showPicker();
-          }
-        } catch {
-          setViewerError("Cannot open file picker. Please click 'Choose File' directly.");
-        }
-      }
-      setTimeout(() => {
-        isOpeningFileRef.current = false;
-      }, 250);
-      return;
-    }
 
-    try {
       const result = await bridge.pickAndOpenDocument();
       if (result) {
         const loadedAnnotations = await bridge.listAnnotations(result.filePath);
         setFileName(result.filePath);
         setDocBytes(result.bytes);
         setPage(1);
+        setTotalPages(0);
         setViewerError(null);
         setThumbnails([]);
+        setBookmarks([]);
+        setPageRotations({});
         await bridge.pushRecent(result.filePath);
         setAnnotations(loadedAnnotations);
         markDocumentSaved({
@@ -102,9 +114,11 @@ export function useDocumentLifecycle({
           pageRotations: {},
         });
       }
-    } catch {
-      // no-op
+    } catch (error) {
+      console.warn("openFile failed:", error);
+      toast.error("Không thể mở tệp. Vui lòng thử lại.");
     } finally {
+      // Always release the open-file lock deterministically.
       isOpeningFileRef.current = false;
     }
   }
@@ -112,15 +126,18 @@ export function useDocumentLifecycle({
   async function openFileWithPath(filePath: string) {
     if (hasDesktopBridge) {
       try {
-        const result = await bridge.pickAndOpenDocument();
+        const result = await bridge.openDocument(filePath);
         if (result) {
+          const loadedAnnotations = await bridge.listAnnotations(result.filePath);
           setFileName(result.filePath);
           setDocBytes(result.bytes);
           setPage(1);
+          setTotalPages(0);
           setViewerError(null);
           setThumbnails([]);
+          setBookmarks([]);
+          setPageRotations({});
           await bridge.pushRecent(result.filePath);
-          const loadedAnnotations = await bridge.listAnnotations(result.filePath);
           setAnnotations(loadedAnnotations);
           markDocumentSaved({
             fileName: result.filePath,
@@ -130,7 +147,10 @@ export function useDocumentLifecycle({
             pageRotations: {},
           });
         }
-      } catch {}
+      } catch (error) {
+        console.warn("openFileWithPath failed:", error);
+        toast.error("Không thể mở tệp. Vui lòng thử lại.");
+      }
       return;
     }
 
@@ -143,9 +163,12 @@ export function useDocumentLifecycle({
       setFileName(displayName);
       setDocBytes(bytes);
       setPage(1);
+      setTotalPages(0);
       setViewerError(null);
       setThumbnails([]);
       setAnnotations([]);
+      setBookmarks([]);
+      setPageRotations({});
       markDocumentSaved({
         fileName: displayName,
         docBytes: bytes,
@@ -174,7 +197,18 @@ export function useDocumentLifecycle({
     setSaveState("idle");
   }
 
-  function closeDocument() {
+  async function closeDocument() {
+    // Guard: require confirmation when there are unsaved changes (saveState "idle"
+    // means the current fingerprint differs from the last saved one — see StatusBar "Unsaved").
+    if (saveState === "idle") {
+      const ok = await confirm({
+        title: "Đóng tài liệu",
+        message: "Tài liệu có thay đổi chưa lưu. Đóng mà không lưu?",
+        confirmLabel: "Đóng không lưu",
+        danger: true,
+      });
+      if (!ok) return;
+    }
     setDocBytes(null);
     setFileName("");
     setPage(1);
@@ -182,8 +216,11 @@ export function useDocumentLifecycle({
     setViewerError(null);
     setThumbnails([]);
     setAnnotations([]);
+    setBookmarks([]);
+    setPageRotations({});
     clearDocumentSaveTracking();
-    import("../lib/web-storage").then(m => m.clearDraft());
+    const { clearDraft } = await import("../lib/web-storage");
+    await clearDraft();
   }
 
   useEffect(() => {
@@ -203,9 +240,12 @@ export function useDocumentLifecycle({
         setFileName(displayName);
         setDocBytes(bytes);
         setPage(1);
+        setTotalPages(0);
         setViewerError(null);
         setThumbnails([]);
         setAnnotations([]);
+        setBookmarks([]);
+        setPageRotations({});
         markDocumentSaved({
           fileName: displayName,
           docBytes: bytes,

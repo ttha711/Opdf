@@ -13,6 +13,8 @@ import {
 } from "./AppHeader.parts";
 import type { OpdfTab } from "../lib/web-storage";
 import { getEditorLaunchTitle } from "../lib/documentEditingExperience";
+import { useOpdfBridge } from "../hooks/useOpdfBridge";
+import { toast } from "./ToastProvider";
 
 export function AppHeader({
   fileInputRef,
@@ -159,6 +161,7 @@ export function AppHeader({
   closeTabGroup: (groupName: string) => void;
   ungroupGroup: (groupName: string) => void;
 }) {
+  const bridgeCapabilities = useOpdfBridge().capabilities;
   return (
     <header className="z-10 flex flex-col border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm">
       <div className="flex h-9 items-center gap-[var(--ui-gap-xs)] border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[var(--ui-pad-sm)]">
@@ -206,7 +209,7 @@ export function AppHeader({
                     ? "border border-red-500 text-red-500 bg-red-500/10 cursor-pointer"
                     : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] cursor-pointer"
                 }`}
-                onClick={isPublic ? () => alert("This feature is only available on Local or Desktop App versions.") : () => setShowDashboard(!showDashboard)}
+                onClick={isPublic ? () => toast.info("Tính năng này chỉ khả dụng trên phiên bản Local hoặc Desktop App.") : () => setShowDashboard(!showDashboard)}
                 title={isPublic ? "Feature locked in public view" : "All Tools Dashboard"}
                 type="button"
               >
@@ -218,7 +221,7 @@ export function AppHeader({
                     ? "border border-dashed border-gray-300 text-gray-400 bg-gray-50/50 opacity-60 cursor-not-allowed"
                     : "border border-blue-500 text-blue-600 bg-blue-50 hover:bg-blue-100 cursor-pointer"
                 }`}
-                onClick={isPublic ? () => alert("This feature is only available on Local or Desktop App versions.") : onOpenAiEditorWindow}
+                onClick={isPublic ? () => toast.info("Tính năng này chỉ khả dụng trên phiên bản Local hoặc Desktop App.") : onOpenAiEditorWindow}
                 title={isPublic ? "Feature locked in public view" : getEditorLaunchTitle()}
                 type="button"
               >
@@ -319,6 +322,7 @@ export function AppHeader({
           mergeDocuments={mergeDocuments}
           convertToImages={convertToImages}
           runDocumentTool={runDocumentTool}
+          capabilities={bridgeCapabilities}
         />
       </div>
     </header>

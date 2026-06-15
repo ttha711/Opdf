@@ -62,3 +62,8 @@ audit/
 /*.txt
 /~$*
 ~$*
+
+# Playwright E2E configuration and tests
+e2e/
+playwright.config.ts
+scripts/playwright/

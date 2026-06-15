@@ -11,6 +11,7 @@ import { usePdfDrop } from "./usePdfDrop";
 import { useAppViewModel } from "./useAppViewModel";
 import { useAgentBridge, createAgentStateSnapshot } from "./useAgentBridge";
 import type { MarkupTool } from "./useDocumentActions";
+import { toast } from "../components/ToastProvider";
 
 type UseAppControllersArgs = {
   isPublic: boolean;
@@ -44,6 +45,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     hasDesktopBridge: state.hasDesktopBridge,
     fileInputRef: state.fileInputRef,
     page: state.page,
+    saveState: state.saveState,
     setFileName: state.setFileName,
     setDocBytes: state.setDocBytes,
     setPage: state.setPage,
@@ -51,6 +53,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setViewerError: state.setViewerError,
     setThumbnails: state.setThumbnails,
     setAnnotations: state.setAnnotations,
+    setBookmarks: state.setBookmarks,
+    setPageRotations: state.setPageRotations,
     setTransitionTick: state.setTransitionTick,
     setSaveState: state.setSaveState,
     markDocumentSaved: state.markDocumentSaved,
@@ -183,6 +187,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     runOcr,
     setDocumentTool: state.setDocumentTool,
     runDocumentTool,
+    capabilities: bridge.capabilities,
   });
 
   useAppEffects({
@@ -202,6 +207,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setPage: state.setPage,
     setThumbnails: state.setThumbnails,
     setBookmarks: state.setBookmarks,
+    setPageRotations: state.setPageRotations,
     setShowFindBar: state.setShowFindBar,
     setOpenMenu: state.setOpenMenu,
     setActiveTool: state.setActiveTool,
@@ -323,7 +329,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
 
   const openAiEditorWindow = useCallback(() => {
     if (isPublic) {
-      alert("This feature is only available on Local or Desktop App versions.");
+      toast.info("Tính năng này chỉ khả dụng trên phiên bản Local hoặc Desktop App.");
       return;
     }
     const editorUrl = localStorage.getItem("opdf-editor-url") || "http://localhost:5175";

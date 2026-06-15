@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation, OcrJob } from "@opdf/core";
 import type { ActiveTool, AnnotationToolDefaults, PendingNote, ViewMode, ZoomPreset } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
-import type { OpdfTab } from "../lib/web-storage";
+import { saveActiveTabId, saveTabsList, type OpdfTab } from "../lib/web-storage";
 import { buildDocumentFingerprint } from "../lib/documentFingerprint";
+import { useToast } from "../components/ToastProvider";
+import { useConfirm } from "../components/ConfirmDialog";
 
 export function useAppState() {
   const cloneBytes = (bytes: Uint8Array | null): Uint8Array | null => {
@@ -78,7 +80,11 @@ export function useAppState() {
   const savedFingerprintRef = useRef<string>("");
   
   const isSwitchingRef = useRef(false);
+  // Tab id (or null for "no tab") of the in-flight switch. `undefined` = no switch pending.
+  const pendingSwitchTabIdRef = useRef<string | null | undefined>(undefined);
   const tabsRef = useRef(tabs);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
     tabsRef.current = tabs;
@@ -157,6 +163,7 @@ export function useAppState() {
     if (!targetTab) return;
 
     isSwitchingRef.current = true;
+    pendingSwitchTabIdRef.current = tabId;
     setActiveTabId(tabId);
     setFileName(targetTab.fileName);
     setDocBytes(cloneBytes(targetTab.docBytes));
@@ -173,57 +180,74 @@ export function useAppState() {
       bookmarks: targetTab.bookmarks || [],
       pageRotations: targetTab.pageRotations || {},
     });
-    
-    setTimeout(() => {
-      isSwitchingRef.current = false;
-    }, 100);
+    // The switch lock is released deterministically by an effect once the
+    // render carrying the new activeTabId has committed (no arbitrary timeout).
   }, [markDocumentSaved]);
 
-  const closeTab = useCallback((tabId: string) => {
-    setTabs(prevTabs => {
-      // Free up Blob URLs of thumbnails to prevent memory leaks
-      const tabToClose = prevTabs.find(t => t.id === tabId);
-      if (tabToClose && tabToClose.thumbnails) {
-        tabToClose.thumbnails.forEach(thumb => {
-          if (thumb.url && thumb.url.startsWith("blob:")) {
-            try {
-              URL.revokeObjectURL(thumb.url);
-            } catch (err) {
-              console.error("Failed to revoke blob URL:", err);
-            }
-          }
-        });
-      }
+  const closeTab = useCallback(async (tabId: string) => {
+    const prevTabs = tabsRef.current;
+    const tabToClose = prevTabs.find(t => t.id === tabId);
+    if (!tabToClose) return;
 
-      const remainingTabs = prevTabs.filter(t => t.id !== tabId);
-      
-      if (activeTabId === tabId) {
-        if (remainingTabs.length > 0) {
-          setTimeout(() => {
-            switchTab(remainingTabs[0].id);
-          }, 0);
-        } else {
-          isSwitchingRef.current = true;
-          setActiveTabId(null);
-          setFileName("");
-          setDocBytes(null);
-          setPage(1);
-          setTotalPages(0);
-          setAnnotations([]);
-          setBookmarks([]);
-          setThumbnails([]);
-          setPageRotations({});
-          setShowDashboard(true);
-          clearDocumentSaveTracking();
-          setTimeout(() => {
-            isSwitchingRef.current = false;
-          }, 100);
-        }
+    // Guard: closing the active tab while it has unsaved changes requires confirmation.
+    if (activeTabId === tabId && docBytes && saveState === "idle") {
+      const ok = await confirm({
+        title: "Đóng tab",
+        message: `"${tabToClose.fileName || fileName}" có thay đổi chưa lưu. Bạn vẫn muốn đóng tab này?`,
+        confirmLabel: "Đóng tab",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+
+    const remainingTabs = prevTabs.filter(t => t.id !== tabId);
+    const nextActiveId = activeTabId === tabId ? (remainingTabs[0]?.id ?? null) : activeTabId;
+
+    // Persist to IndexedDB FIRST — only clear in-memory state after the save succeeds.
+    if (!hasDesktopBridge) {
+      const savedTabs = await saveTabsList(remainingTabs);
+      const savedActive = savedTabs && await saveActiveTabId(nextActiveId);
+      if (!savedTabs || !savedActive) {
+        toast.error("Không thể lưu trạng thái phiên làm việc. Tab chưa được đóng.");
+        return;
       }
-      
-      return remainingTabs;
-    });
-  }, [activeTabId, switchTab, clearDocumentSaveTracking]);
+    }
+
+    // Free up Blob URLs of thumbnails to prevent memory leaks
+    if (tabToClose.thumbnails) {
+      tabToClose.thumbnails.forEach(thumb => {
+        if (thumb.url && thumb.url.startsWith("blob:")) {
+          try {
+            URL.revokeObjectURL(thumb.url);
+          } catch (err) {
+            console.error("Failed to revoke blob URL:", err);
+          }
+        }
+      });
+    }
+
+    setTabs(remainingTabs);
+
+    if (activeTabId === tabId) {
+      if (remainingTabs.length > 0) {
+        switchTab(remainingTabs[0].id);
+      } else {
+        isSwitchingRef.current = true;
+        pendingSwitchTabIdRef.current = null;
+        setActiveTabId(null);
+        setFileName("");
+        setDocBytes(null);
+        setPage(1);
+        setTotalPages(0);
+        setAnnotations([]);
+        setBookmarks([]);
+        setThumbnails([]);
+        setPageRotations({});
+        setShowDashboard(true);
+        clearDocumentSaveTracking();
+      }
+    }
+  }, [activeTabId, switchTab, clearDocumentSaveTracking, confirm, toast, docBytes, saveState, fileName, hasDesktopBridge]);
 
   const addTabToGroup = useCallback((tabId: string, groupName: string, groupColor?: string) => {
     const colors = ["#ff5a5f", "#e03e2d", "#10b981", "#0061d5", "#8b5cf6", "#f59e0b"];
@@ -318,6 +342,7 @@ export function useAppState() {
           }, 0);
         } else {
           isSwitchingRef.current = true;
+          pendingSwitchTabIdRef.current = null;
           setActiveTabId(null);
           setFileName("");
           setDocBytes(null);
@@ -329,9 +354,6 @@ export function useAppState() {
           setPageRotations({});
           setShowDashboard(true);
           clearDocumentSaveTracking();
-          setTimeout(() => {
-            isSwitchingRef.current = false;
-          }, 100);
         }
       }
       
@@ -402,19 +424,31 @@ export function useAppState() {
         fileName,
         docBytes: cloneBytes(docBytes),
         page,
-        totalPages,
+        totalPages: 0,
         annotations,
-        bookmarks,
+        bookmarks: [],
         group: activeGroupFilter,
         groupColor: activeGroupFilter ? randomColor : null,
         thumbnails: [],
-        pageRotations: {}
+        pageRotations: {},
       };
       
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTabId);
     }
   }, [fileName, docBytes, page, totalPages, annotations, bookmarks, thumbnails, pageRotations, activeTabId, activeGroupFilter]);
+
+  // Deterministic release of the tab-switch lock: once the render carrying the
+  // switched-to activeTabId has committed (this effect runs after the sync
+  // effect above), the lock is dropped. A newer switch simply overwrites
+  // pendingSwitchTabIdRef, invalidating the older one.
+  useEffect(() => {
+    if (!isSwitchingRef.current || pendingSwitchTabIdRef.current === undefined) return;
+    if (activeTabId === pendingSwitchTabIdRef.current) {
+      isSwitchingRef.current = false;
+      pendingSwitchTabIdRef.current = undefined;
+    }
+  });
 
   return {
     fileName, setFileName, docBytes, setDocBytes, page, setPage, totalPages, setTotalPages, scale, setScale, rotation, setRotation, pageRotations, setPageRotations,

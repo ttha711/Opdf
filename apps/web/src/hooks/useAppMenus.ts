@@ -2,6 +2,9 @@ import type { Dispatch, SetStateAction } from "react";
 import type { MenuItemDef } from "../components/MenuDropdown";
 import type { ActiveTool, ViewMode } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
+import type { BridgeCapabilities } from "../types/opdf";
+
+const DESKTOP_ONLY_TITLE = "Chỉ khả dụng trên bản desktop";
 
 export function useAppMenus({
   hasDocument,
@@ -28,6 +31,7 @@ export function useAppMenus({
   runOcr,
   setDocumentTool,
   runDocumentTool,
+  capabilities,
 }: {
   hasDocument: boolean;
   viewMode: ViewMode;
@@ -53,7 +57,12 @@ export function useAppMenus({
   runOcr: () => void;
   setDocumentTool: Dispatch<SetStateAction<DocumentTool>>;
   runDocumentTool: (tool?: DocumentTool) => void;
+  capabilities?: BridgeCapabilities;
 }) {
+  // Absent capabilities (desktop bridge) means everything is supported
+  const canCompress = capabilities?.compress !== false;
+  const canEncrypt = capabilities?.encrypt !== false;
+  const canPdfA = capabilities?.pdfA !== false;
   const fileMenuItems: MenuItemDef[] = [
     { kind: "action", label: "Open...", shortcut: "Ctrl+O", onClick: openFile },
     { kind: "action", label: "Close", disabled: !hasDocument, onClick: closeDocument },
@@ -61,7 +70,7 @@ export function useAppMenus({
     { kind: "action", label: "Save", shortcut: "Ctrl+S", disabled: !hasDocument, onClick: savePdf },
     { kind: "action", label: "Save As...", shortcut: "Ctrl+Shift+S", disabled: !hasDocument, onClick: savePdfAs },
     { kind: "separator" },
-    { kind: "action", label: "Compress PDF", disabled: !hasDocument, onClick: compressDocument },
+    { kind: "action", label: "Compress PDF", disabled: !hasDocument || !canCompress, title: !canCompress ? DESKTOP_ONLY_TITLE : undefined, onClick: compressDocument },
     { kind: "action", label: "Add Watermark", disabled: !hasDocument, onClick: addWatermark },
     { kind: "action", label: "Merge PDFs", onClick: mergeDocuments },
     { kind: "action", label: "Split PDF", disabled: !hasDocument, onClick: splitDocument },
@@ -105,9 +114,9 @@ export function useAppMenus({
     { kind: "action", label: "Add Footer", disabled: !hasDocument, onClick: () => { runDocumentTool("footer"); } },
     { kind: "action", label: "Add Bates Numbering", disabled: !hasDocument, onClick: () => { runDocumentTool("bates"); } },
     { kind: "separator" },
-    { kind: "action", label: "Encrypt PDF", disabled: !hasDocument, onClick: () => { runDocumentTool("encrypt"); } },
-    { kind: "action", label: "Decrypt PDF", disabled: !hasDocument, onClick: () => { runDocumentTool("decrypt"); } },
-    { kind: "action", label: "Convert to PDF/A", disabled: !hasDocument, onClick: () => { runDocumentTool("normalize"); } },
+    { kind: "action", label: "Encrypt PDF", disabled: !hasDocument || !canEncrypt, title: !canEncrypt ? DESKTOP_ONLY_TITLE : undefined, onClick: () => { runDocumentTool("encrypt"); } },
+    { kind: "action", label: "Decrypt PDF", disabled: !hasDocument || !canEncrypt, title: !canEncrypt ? DESKTOP_ONLY_TITLE : undefined, onClick: () => { runDocumentTool("decrypt"); } },
+    { kind: "action", label: "Convert to PDF/A", disabled: !hasDocument || !canPdfA, title: !canPdfA ? DESKTOP_ONLY_TITLE : undefined, onClick: () => { runDocumentTool("normalize"); } },
   ];
 
   return { fileMenuItems, editMenuItems, viewMenuItems, toolsMenuItems };

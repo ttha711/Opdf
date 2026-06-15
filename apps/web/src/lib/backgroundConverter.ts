@@ -1,4 +1,6 @@
 import * as pdfjsLib from "pdfjs-dist";
+import { sanitizeHtml } from "./sanitizeHtml";
+import { toast } from "../components/ToastProvider";
 
 // Configure worker for pdfjs-dist inside the web app
 import pdfWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
@@ -59,7 +61,8 @@ export async function runBackgroundOcrAndExport(
 
       if (data.html) {
         const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = data.html;
+        // data.html comes from the external OCR/AI service — sanitize before injecting
+        tempDiv.innerHTML = sanitizeHtml(data.html);
 
         // Convert crop-image-placeholder elements to actual base64 cropped images
         const placeholders = tempDiv.querySelectorAll(".crop-image-placeholder");
@@ -196,7 +199,7 @@ export async function runBackgroundOcrAndExport(
   } catch (err: any) {
     console.error("Automatic conversion failed:", err);
     setViewerError(`Conversion failed: ${err.message || err}`);
-    alert(`Failed to complete conversion: ${err.message || err}`);
+    toast.error(`Chuyển đổi không hoàn tất: ${err.message || err}`);
   }
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import { ToolIconButton } from "./ToolIconButton";
 import type { ActiveTool, AnnotationStyleTool, AnnotationToolDefaults, ViewMode, ZoomPreset } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
+import type { BridgeCapabilities } from "../types/opdf";
 
 // --- FILE & VIEW GROUP ---
 interface FileViewGroupProps {
@@ -505,7 +506,10 @@ interface FileUtilitiesGroupProps {
   mergeDocuments: () => void;
   convertToImages: () => void;
   runDocumentTool: (tool: DocumentTool) => void;
+  capabilities?: BridgeCapabilities;
 }
+
+const DESKTOP_ONLY_TITLE = "Chỉ khả dụng trên bản desktop";
 
 export function FileUtilitiesGroup({
   hasDocument,
@@ -515,12 +519,17 @@ export function FileUtilitiesGroup({
   mergeDocuments,
   convertToImages,
   runDocumentTool,
+  capabilities,
 }: FileUtilitiesGroupProps) {
+  // Absent capabilities (desktop bridge) means everything is supported
+  const canCompress = capabilities?.compress !== false;
+  const canEncrypt = capabilities?.encrypt !== false;
+  const canPdfA = capabilities?.pdfA !== false;
   return (
     <div className="flex flex-col items-center gap-1 rounded-[var(--ui-radius-md)] border border-[var(--border-color)] bg-[var(--bg-toolbar)] p-[var(--ui-pad-sm)] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
       <span className="text-center text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--text-secondary)] opacity-70">File Utilities</span>
       <div className="flex flex-1 items-center gap-[var(--ui-gap-xs)]">
-        <ToolIconButton label="Compress" disabled={!hasDocument} onClick={compressDocument}>
+        <ToolIconButton label={canCompress ? "Compress" : `Compress — ${DESKTOP_ONLY_TITLE}`} disabled={!hasDocument || !canCompress} onClick={compressDocument}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="4" y="2" width="16" height="20" rx="2" />
             <path d="m12 8-3 3h6l-3-3zm0 8 3-3H9l3 3z" />
@@ -552,19 +561,19 @@ export function FileUtilitiesGroup({
             <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
           </svg>
         </ToolIconButton>
-        <ToolIconButton label="Encrypt" disabled={!hasDocument} onClick={() => runDocumentTool("encrypt")}>
+        <ToolIconButton label={canEncrypt ? "Encrypt" : `Encrypt — ${DESKTOP_ONLY_TITLE}`} disabled={!hasDocument || !canEncrypt} onClick={() => runDocumentTool("encrypt")}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
         </ToolIconButton>
-        <ToolIconButton label="Decrypt" disabled={!hasDocument} onClick={() => runDocumentTool("decrypt")}>
+        <ToolIconButton label={canEncrypt ? "Decrypt" : `Decrypt — ${DESKTOP_ONLY_TITLE}`} disabled={!hasDocument || !canEncrypt} onClick={() => runDocumentTool("decrypt")}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" />
             <path d="M7 11V7a5 5 0 0 1 9.9-1" />
           </svg>
         </ToolIconButton>
-        <ToolIconButton label="PDF/A" disabled={!hasDocument} onClick={() => runDocumentTool("normalize")}>
+        <ToolIconButton label={canPdfA ? "PDF/A" : `PDF/A — ${DESKTOP_ONLY_TITLE}`} disabled={!hasDocument || !canPdfA} onClick={() => runDocumentTool("normalize")}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             <path d="m9 10 2 2 4-4" />

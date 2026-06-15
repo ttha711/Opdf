@@ -3,6 +3,8 @@ import {
   getDocumentToolLabel,
   getEditorLaunchError,
 } from "../lib/documentEditingExperience";
+import { useOpdfBridge } from "../hooks/useOpdfBridge";
+import { toast } from "./ToastProvider";
 
 interface AllToolsDashboardProps {
   hasDocument: boolean;
@@ -41,6 +43,7 @@ export function AllToolsDashboard({
   onTriggerSplit,
   onSelectTool,
 }: AllToolsDashboardProps) {
+  const canCompress = useOpdfBridge().capabilities?.compress !== false;
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -198,17 +201,17 @@ export function AllToolsDashboard({
           onClose();
           return;
         } else if (activeAction === "pdf-to-png" || activeAction === "pdf-to-jpg") {
-          alert("To convert PDF to images, please open it in Opdf first and click the 'To Images' utility button to export rendered high-res pages.");
+          toast.info("Để chuyển PDF sang ảnh, hãy mở tệp trong Opdf rồi bấm nút 'To Images' để xuất các trang đã render.");
         } else {
           runPdfToOfficeMock(activeAction, file.name);
         }
       } else {
-        alert("Please select a valid PDF file for this operation.");
+        toast.error("Vui lòng chọn một tệp PDF hợp lệ cho thao tác này.");
       }
 
     } catch (err) {
       console.error(err);
-      alert("Failed to process file: " + err);
+      toast.error("Xử lý tệp thất bại: " + err);
     } finally {
       e.target.value = "";
     }
@@ -259,7 +262,7 @@ export function AllToolsDashboard({
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert("Failed to parse PDF text: " + err);
+      toast.error("Không thể trích xuất văn bản PDF: " + err);
     }
   };
 
@@ -289,7 +292,7 @@ export function AllToolsDashboard({
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert("Failed to zip images: " + err);
+      toast.error("Không thể nén ảnh: " + err);
     }
   };
 
@@ -323,7 +326,7 @@ export function AllToolsDashboard({
     const editorUrl = localStorage.getItem("opdf-editor-url") || "http://localhost:5175";
     const editorWin = window.open(editorUrl, "_blank");
     if (!editorWin) {
-      alert(getEditorLaunchError());
+      toast.error(getEditorLaunchError());
       return;
     }
 
@@ -363,7 +366,7 @@ export function AllToolsDashboard({
     { id: "split-pdf", name: "Split PDF", icon: "✂️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerSplit },
 
     // ROW 3: Fill Form
-    { id: "fill-form", name: "Fill Form", icon: "✍️", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: () => alert("Form filling overlays enabled. Double click or use standard text/note inputs to overlay details onto PDF fields.") }
+    { id: "fill-form", name: "Fill Form", icon: "✍️", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: () => toast.info("Đã bật chế độ điền biểu mẫu. Nhấp đúp hoặc dùng công cụ văn bản/ghi chú để điền thông tin lên PDF.") }
   ];
 
   // Filter tools based on active tab
@@ -436,6 +439,8 @@ export function AllToolsDashboard({
         {getFilteredTools().map((tool) => (
           <button
             key={tool.id}
+            disabled={tool.id === "compress-pdf" && !canCompress}
+            title={tool.id === "compress-pdf" && !canCompress ? "Chỉ khả dụng trên bản desktop" : undefined}
             onClick={() => {
               if (hasDocument) {
                 tool.action();
@@ -448,7 +453,7 @@ export function AllToolsDashboard({
             style={{
               borderColor: tool.borderColor,
             }}
-            className="flex flex-col items-center justify-center p-5 rounded-xl border text-center transition-all duration-200 transform hover:-translate-y-1 hover:shadow-md cursor-pointer h-32 group"
+            className="flex flex-col items-center justify-center p-5 rounded-xl border text-center transition-all duration-200 transform hover:-translate-y-1 hover:shadow-md cursor-pointer h-32 group disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
           >
             {/* Tool Icon inside colored circle */}
             <div

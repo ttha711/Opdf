@@ -220,6 +220,9 @@ export function createMockBridge(): OpdfBridge {
   }
 
   return {
+    // Browser runtime: these features are stubbed (compress returns input unchanged,
+    // encrypt/decrypt/bookmarks/PDF-A throw). Only available on the desktop build.
+    capabilities: { compress: false, encrypt: false, bookmarksPersist: false, pdfA: false },
     async openProjectFolder() { return false; },
     async pickAndOpenDocument() { return null; },
     async openDocument(_filePath: string): Promise<OpenDocumentResult> {

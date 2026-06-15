@@ -1,5 +1,6 @@
 import type React from "react";
 import { convertBlobToGrayscale, downloadFile } from "./helpers";
+import { toast } from "../../ToastProvider";
 
 interface UsePdfToImagesArgs {
   docBytes: Uint8Array | null;
@@ -30,7 +31,7 @@ export function usePdfToImages(args: UsePdfToImagesArgs) {
 
   const handlePdfToImages = async () => {
     if (!docBytes || thumbnails.length === 0) {
-      alert("Please wait for all pages to finish rendering before converting.");
+      toast.info("Vui lòng chờ tất cả các trang render xong trước khi chuyển đổi.");
       return;
     }
     setIsProcessing(true);

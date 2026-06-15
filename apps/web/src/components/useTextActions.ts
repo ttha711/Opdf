@@ -3,6 +3,7 @@ import type { RenderedTextItem } from "./PdfViewer.types";
 import type { SelectionMenuState, TextSelectionAction } from "./PdfTextSelection.types";
 import { joinMatchedItems } from "./PdfTextSelection.utils";
 import type { EditStyleResolutionInput, EditStyleSnapshot } from "./PdfTextSelection.editStyle";
+import { sanitizeHtml } from "../lib/sanitizeHtml";
 
 export function useTextActions(
   menu: SelectionMenuState | null,
@@ -95,7 +96,7 @@ export function useTextActions(
       if (!raw) return "";
 
       const wrapper = document.createElement("div");
-      wrapper.innerHTML = raw;
+      wrapper.innerHTML = sanitizeHtml(raw);
       return (wrapper.textContent || wrapper.innerText || raw).trim();
     } catch (err: any) {
       throw new Error(err.message || "Lỗi dịch thuật.");

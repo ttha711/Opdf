@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 export type MenuItemDef =
-  | { kind: "action"; label: string; shortcut?: string; disabled?: boolean; onClick: () => void }
+  | { kind: "action"; label: string; shortcut?: string; disabled?: boolean; title?: string; onClick: () => void }
   | { kind: "separator" };
 
 type MenuDropdownProps = {
@@ -39,6 +39,7 @@ export function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDr
                 key={i}
                 className="flex w-full items-center justify-between gap-6 border-none bg-transparent px-4 py-[7px] text-left text-[13px] text-[var(--text-primary)] transition-colors hover:bg-[#e8f0fe] hover:text-[var(--acrobat-blue)] disabled:cursor-default disabled:text-[#b0b0b0]"
                 disabled={item.disabled}
+                title={item.title}
                 onClick={() => {
                   item.onClick();
                   onClose();

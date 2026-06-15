@@ -20,7 +20,22 @@ export type AiPatchRequest = {
   referenceImage: string | null;
 };
 
+export type AiImageRequest = {
+  prompt: string;
+  selectedRegionImage: string | null;
+  referenceImage: string | null;
+};
+
+export type BridgeCapabilities = {
+  compress: boolean;
+  encrypt: boolean;
+  bookmarksPersist: boolean;
+  pdfA: boolean;
+};
+
 export interface OpdfBridge {
+  /** Feature support flags. Absent (e.g. on desktop bridge) means everything is supported. */
+  capabilities?: BridgeCapabilities;
   openProjectFolder: () => Promise<boolean>;
   pickAndOpenDocument: () => Promise<OpenDocumentResult | null>;
   openDocument: (filePath: string) => Promise<OpenDocumentResult>;
@@ -71,6 +86,7 @@ export interface OpdfBridge {
     gatewayBaseUrl: string | null;
   }>;
   applyAiPatch?: (payload: AiPatchRequest) => Promise<LivePatch>;
+  generateAiImage?: (payload: AiImageRequest) => Promise<unknown>;
 }
 
 export interface OpdfUpdateBridge {

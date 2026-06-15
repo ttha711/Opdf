@@ -10,6 +10,7 @@ interface UseFabricAnnotationToolbarParams {
   onAnnotationUpdated?: (id: string, payload: Record<string, unknown>) => void;
   onAnnotationDeleted?: (id: string) => void;
   setSelectedAnn: Dispatch<SetStateAction<SelectedAnnotationState | null>>;
+  selectFabricObject: (obj: fabric.Object) => void;
 }
 
 export function useFabricAnnotationToolbar({
@@ -17,6 +18,7 @@ export function useFabricAnnotationToolbar({
   onAnnotationUpdated,
   onAnnotationDeleted,
   setSelectedAnn,
+  selectFabricObject,
 }: UseFabricAnnotationToolbarParams) {
   const handleToolbarColor = useCallback(
     (id: string, newColor: string) => {
@@ -32,11 +34,12 @@ export function useFabricAnnotationToolbar({
       } else {
         obj.set({ fill: newColor });
       }
+      obj.setCoords();
       canvas.renderAll();
-      setSelectedAnn((prev) => (prev?.id === id ? { ...prev, color: newColor } : prev));
       onAnnotationUpdated?.(id, (kind === "shape" || kind === "note") ? { [kind === "shape" ? "stroke" : "color"]: newColor } : { color: newColor });
+      selectFabricObject(obj);
     },
-    [fabricRef, onAnnotationUpdated, setSelectedAnn]
+    [fabricRef, onAnnotationUpdated, selectFabricObject]
   );
 
   const handleToolbarOpacity = useCallback(
@@ -46,11 +49,12 @@ export function useFabricAnnotationToolbar({
       const obj = canvas.getObjects().find((o) => (o as any)[ANN_ID_KEY] === id);
       if (!obj) return;
       obj.set({ opacity: newOpacity });
+      obj.setCoords();
       canvas.renderAll();
-      setSelectedAnn((prev) => (prev?.id === id ? { ...prev, opacity: newOpacity } : prev));
       onAnnotationUpdated?.(id, { opacity: newOpacity });
+      selectFabricObject(obj);
     },
-    [fabricRef, onAnnotationUpdated, setSelectedAnn]
+    [fabricRef, onAnnotationUpdated, selectFabricObject]
   );
 
   const handleToolbarFontSize = useCallback(
@@ -62,12 +66,13 @@ export function useFabricAnnotationToolbar({
       const kind = (obj as any)[ANN_KIND_KEY] as string;
       if (kind === "note") {
         (obj as fabric.IText).set({ fontSize: newSize });
+        obj.setCoords();
         canvas.renderAll();
-        setSelectedAnn((prev) => (prev?.id === id ? { ...prev, fontSize: newSize } : prev));
         onAnnotationUpdated?.(id, { fontSize: newSize });
+        selectFabricObject(obj);
       }
     },
-    [fabricRef, onAnnotationUpdated, setSelectedAnn]
+    [fabricRef, onAnnotationUpdated, selectFabricObject]
   );
 
   const handleToolbarSize = useCallback(
@@ -79,12 +84,13 @@ export function useFabricAnnotationToolbar({
       const kind = (obj as any)[ANN_KIND_KEY] as string;
       if (kind === "shape" || kind === "redact") {
         (obj as fabric.Rect).set({ strokeWidth: newSize });
+        obj.setCoords();
         canvas.renderAll();
-        setSelectedAnn((prev) => (prev?.id === id ? { ...prev, size: newSize } : prev));
         onAnnotationUpdated?.(id, { strokeWidth: newSize });
+        selectFabricObject(obj);
       }
     },
-    [fabricRef, onAnnotationUpdated, setSelectedAnn]
+    [fabricRef, onAnnotationUpdated, selectFabricObject]
   );
 
   const handleToolbarDelete = useCallback(
@@ -93,6 +99,7 @@ export function useFabricAnnotationToolbar({
       if (!canvas) return;
       const obj = canvas.getObjects().find((o) => (o as any)[ANN_ID_KEY] === id);
       if (obj) {
+        canvas.discardActiveObject();
         canvas.remove(obj);
         canvas.renderAll();
       }

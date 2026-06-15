@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { generateAiPatch } from "./live-editor/aiPatchService";
 import { blocksToHtml, htmlToBlocks } from "./live-editor/transform";
 import type { EditorBlock } from "./live-editor/types";
+import { sanitizeHtml } from "../lib/sanitizeHtml";
+import { toast } from "./ToastProvider";
 
 type ChatMsg = { id: string; sender: "user" | "assistant"; text: string };
 
@@ -306,7 +308,7 @@ export function AiRewriteEditorWindow() {
           return;
         }
       }
-      alert("No content loaded. Please add or drag-drop a PDF/HTML/TXT file first.");
+      toast.info("Chưa có nội dung. Vui lòng thêm hoặc kéo-thả tệp PDF/HTML/TXT trước.");
     } catch (error) {
       setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Convert failed: ${String(error)}` }]);
       if (lastSourceBytesSnapshot) {
@@ -316,7 +318,7 @@ export function AiRewriteEditorWindow() {
           return;
         }
       }
-      alert(`Convert failed: ${String(error)}`);
+      toast.error(`Chuyển đổi thất bại: ${String(error)}`);
       return;
     }
     if (lastSourceBytesSnapshot) {
@@ -326,7 +328,7 @@ export function AiRewriteEditorWindow() {
         return;
       }
     }
-    alert("Unable to extract content for rewrite.");
+    toast.error("Không thể trích xuất nội dung để viết lại.");
   };
 
   const handleFile = async (file: File) => {
@@ -358,7 +360,7 @@ export function AiRewriteEditorWindow() {
         setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Đã nạp TXT: ${file.name}` }]);
         return;
       }
-      alert("Hiện hỗ trợ PDF, tài liệu web và TXT để mở vào AI Document Editor.");
+      toast.info("Hiện hỗ trợ PDF, tài liệu web và TXT để mở vào AI Document Editor.");
     } catch (error) {
       setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Nạp file thất bại: ${String(error)}` }]);
     } finally {
@@ -461,7 +463,7 @@ export function AiRewriteEditorWindow() {
                 setContextUI({ x: e.clientX, y: e.clientY, blockId: block.id });
               }}
             >
-              <div contentEditable suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: block.html }} onBlur={(e) => {
+              <div contentEditable suppressContentEditableWarning dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.html) }} onBlur={(e) => {
                 const html = e.currentTarget.innerHTML;
                 setBlocks((prev) => prev.map((b) => (b.id === block.id ? { ...b, html, content: toContent(html) } : b)));
               }} />

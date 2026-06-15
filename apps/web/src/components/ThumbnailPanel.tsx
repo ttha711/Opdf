@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "./ToastProvider";
 
 interface Bookmark {
   id: string;
@@ -90,7 +91,7 @@ export function ThumbnailPanel({
   const addCurrentPageBookmark = () => {
     if (!setBookmarks) return;
     if (bookmarks.some((b) => b.page === page)) {
-      alert(`Page ${page} is already bookmarked!`);
+      toast.info(`Trang ${page} đã được đánh dấu trước đó!`);
       return;
     }
     const newBookmark: Bookmark = {

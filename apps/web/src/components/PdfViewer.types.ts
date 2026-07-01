@@ -31,6 +31,8 @@ export interface PdfViewerProps {
   onAnnotationDeleted?: (id: string) => void;
   /** Called when an ai-patch image overlay is placed, so the viewer parent can switch tool */
   onPatchApplied?: () => void;
+  selectedPages?: Set<number>;
+  onPageSelectionClick?: (pageNum: number, ctrl: boolean, shift: boolean) => void;
 }
 
 export interface RenderedPage {
@@ -54,5 +56,9 @@ export interface RenderedTextItem {
   fontName?: string;
 }
 
-export const WINDOW_RADIUS = 2;
-export const CONTINUOUS_BATCH_SIZE = 4;
+export interface PageDimension {
+  pageNumber: number;
+  cssWidth: number;
+  cssHeight: number;
+  rotation: number;
+}

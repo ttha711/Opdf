@@ -34,6 +34,7 @@ const api = {
   addBatesNumbering: (bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => ipcRenderer.invoke("opdf:add-bates-numbering", bytes, prefix, startNumber, suffix) as Promise<Uint8Array>,
   convertToPdfA: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:convert-to-pdfa", bytes) as Promise<Uint8Array>,
   rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => ipcRenderer.invoke("opdf:rotate-pages", bytes, pageNumbers, degrees) as Promise<Uint8Array>,
+  showItemInFolder: (filePath: string) => ipcRenderer.invoke("opdf:show-item-in-folder", filePath) as Promise<void>,
   convertPdfOffice: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => ipcRenderer.invoke("opdf:convert-pdf-office", bytes, format) as Promise<Uint8Array>,
   applyAiPatch: (payload: { prompt: string; selectedBlocks: unknown[]; allBlocks: unknown[]; referenceImage: string | null }) =>
     ipcRenderer.invoke("opdf:ai-patch", payload) as Promise<{ updates: Array<Record<string, unknown> & { id: string }> }>,

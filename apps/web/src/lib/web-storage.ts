@@ -117,6 +117,37 @@ export async function loadActiveTabId(): Promise<string | null> {
   }
 }
 
+export async function computeFileHash(bytes: Uint8Array): Promise<string> {
+  const buffer = await crypto.subtle.digest("SHA-256", bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
+  return Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function saveAnnotationsByHash(hash: string, annotations: unknown[]): Promise<void> {
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put({ annotations, savedAt: Date.now() }, `annot_${hash}`);
+    await awaitTransaction(tx);
+  } catch (err) {
+    console.error("Failed to save annotations by hash:", err);
+  }
+}
+
+export async function loadAnnotationsByHash(hash: string): Promise<unknown[] | null> {
+  try {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.get(`annot_${hash}`);
+    return new Promise((resolve) => {
+      req.onsuccess = () => resolve(req.result?.annotations ?? null);
+      tx.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function savePdfBytes(bytes: Uint8Array) {
   try {
     const db = await getDB();

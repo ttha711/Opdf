@@ -8,7 +8,7 @@
   .workspace.acrobat-body { @apply grid min-h-0 overflow-hidden; grid-template-columns: 240px 1fr 240px; }
   .left-panel { @apply z-[2] overflow-hidden border-r p-0 shadow-[1px_0_3px_rgba(0,0,0,.02)]; background: var(--bg-panel); border-color: var(--border-color); }
 
-  .viewer-area { @apply flex justify-center overflow-auto py-6 outline-none; background: var(--bg-app); scroll-behavior: smooth; }
+  .viewer-area { @apply flex justify-center overflow-auto py-6 outline-none relative; background: var(--bg-app); scroll-behavior: smooth; }
   .viewer-area:focus { box-shadow: inset 0 0 0 1px var(--acrobat-blue); }
   .viewer-shell { @apply flex min-h-[calc(100vh-120px)] w-full items-start justify-center; }
   .doc-column { @apply flex w-full flex-col items-center; }

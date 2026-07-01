@@ -15,7 +15,8 @@ export function useTextActions(
   onAction: (pageNumber: number, kind: string, rect: { x: number; y: number; width: number; height: number }) => void,
   findMatchedItems: (rects: Array<{ x: number; y: number; width: number; height: number }>) => RenderedTextItem[],
   resolveEditStyleSnapshot: (input: EditStyleResolutionInput) => Promise<EditStyleSnapshot>,
-  imageUrl?: string
+  imageUrl?: string,
+  pagePatches?: Array<{ id: string; payload: unknown }>
 ) {
   const [translateText, setTranslateText] = useState<string | null>(null);
   const [translationResult, setTranslationResult] = useState<string>("");
@@ -202,6 +203,44 @@ export function useTextActions(
       return;
     }
     if (action === "edit-text") {
+      // If the selection overlaps an existing patch annotation, re-open that patch for editing
+      // instead of reading stale original text from the PDF text layer.
+      const overlappingPatch = findOverlappingPatch(menu.rects, pagePatches);
+      if (overlappingPatch) {
+        const payload = overlappingPatch.payload as any;
+        const patchRect = { x: payload.x, y: payload.y, width: payload.width, height: payload.height };
+        const patchMatchedItems: any[] = [{ ...patchRect, fontSize: payload.fontSize, fontName: payload.fontFamily }];
+        const styleSnapshot = await resolveEditStyleSnapshot({
+          pageNumber,
+          rects: [patchRect],
+          matchedItems: patchMatchedItems,
+          fallbackFontSize: payload.fontSize || 14,
+          fallbackFontFamily: payload.fontFamily || "Helvetica, Arial, sans-serif",
+          fallbackFontWeight: payload.fontWeight || "normal",
+          fallbackFontStyle: payload.fontStyle || "normal",
+          fallbackTextAlign: payload.textAlign,
+          fallbackTextColor: payload.textColor || "black",
+        });
+        setPatchFontSize(styleSnapshot.patchFontSize);
+        setPatchFontFamily(styleSnapshot.patchFontFamily);
+        setPatchFontWeight(styleSnapshot.patchFontWeight);
+        setPatchFontStyle(styleSnapshot.patchFontStyle);
+        setPatchTextAlign(styleSnapshot.patchTextAlign);
+        setPatchTextColorMode(styleSnapshot.patchTextColorMode);
+        setCustomTextColorInput(styleSnapshot.customTextColorInput);
+        setMaskColor(styleSnapshot.maskColor);
+        setCustomColorInput(styleSnapshot.customColorInput);
+        setEditedInputText(payload.text || "");
+        setEditTextState({
+          id: overlappingPatch.id,
+          text: payload.text || "",
+          rects: [patchRect],
+          matchedItems: patchMatchedItems,
+        });
+        clearMenu();
+        return;
+      }
+
       const matchedItems = findMatchedItems(menu.rects);
 
       const fullText = matchedItems.length > 0
@@ -262,4 +301,31 @@ export function useTextActions(
     isEditTranslating,
     runAction, handleAiTranslate, handleAiRewrite, translateTextForEdit, startTranslateFromEdit,
   };
+}
+
+type NormRect = { x: number; y: number; width: number; height: number };
+
+function rectsOverlap(a: NormRect, b: NormRect): boolean {
+  return !(
+    a.x + a.width < b.x ||
+    b.x + b.width < a.x ||
+    a.y + a.height < b.y ||
+    b.y + b.height < a.y
+  );
+}
+
+function findOverlappingPatch(
+  selectionRects: NormRect[],
+  patches?: Array<{ id: string; payload: unknown }>
+): { id: string; payload: unknown } | null {
+  if (!patches || patches.length === 0) return null;
+  for (const patch of patches) {
+    const p = patch.payload as any;
+    if (!p || typeof p.x !== "number") continue;
+    const patchRect: NormRect = { x: p.x, y: p.y, width: p.width, height: p.height };
+    if (selectionRects.some((r) => rectsOverlap(r, patchRect))) {
+      return patch;
+    }
+  }
+  return null;
 }

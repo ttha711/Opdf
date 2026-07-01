@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "./ToastProvider";
+import { useConfirm } from "./ConfirmDialog";
 
 interface Bookmark {
   id: string;
@@ -48,6 +49,12 @@ export function ThumbnailPanel({
   setBookmarks,
   isCollapsed = false,
   setIsCollapsed,
+  selectedPages,
+  onSelectionChange,
+  onRotatePages,
+  onDeletePages,
+  runDocumentTool,
+  onInsertAfterPage,
 }: {
   thumbnails: Array<{ page: number; url: string; blob: Blob }>;
   page: number;
@@ -57,11 +64,20 @@ export function ThumbnailPanel({
   setBookmarks?: (bookmarks: Array<Bookmark>) => void;
   isCollapsed?: boolean;
   setIsCollapsed?: (collapsed: boolean) => void;
+  selectedPages: Set<number>;
+  onSelectionChange: (pages: Set<number>) => void;
+  onRotatePages?: (pages: number[], degrees: number) => Promise<void>;
+  onDeletePages?: (pages: number[]) => Promise<void>;
+  runDocumentTool?: (tool: string) => void;
+  onInsertAfterPage?: (page: number) => void;
 }) {
   const [activeTab, setActiveTab] = useState<"pages" | "bookmarks">("pages");
   const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>("");
+  const [isActing, setIsActing] = useState(false);
   const thumbnailRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const lastSelectedRef = useRef<number | null>(null);
+  const confirm = useConfirm();
 
   const setThumbnailRef = useCallback((pageNumber: number, element: HTMLButtonElement | null) => {
     if (element) {
@@ -70,6 +86,31 @@ export function ThumbnailPanel({
       thumbnailRefs.current.delete(pageNumber);
     }
   }, []);
+
+  // Clear selection when document changes (thumbnails reset)
+  useEffect(() => {
+    if (thumbnails.length === 0) {
+      onSelectionChange(new Set());
+      lastSelectedRef.current = null;
+    }
+  }, [thumbnails.length === 0]);
+
+  // Keyboard shortcuts: Escape = clear selection, Ctrl+A = select all
+  useEffect(() => {
+    if (!hasDocument || thumbnails.length === 0) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && selectedPages.size > 0) {
+        onSelectionChange(new Set());
+        lastSelectedRef.current = null;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "a" && activeTab === "pages") {
+        e.preventDefault();
+        onSelectionChange(new Set(thumbnails.map((t) => t.page)));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedPages.size, onSelectionChange, hasDocument, thumbnails, activeTab]);
 
   useEffect(() => {
     if (activeTab !== "pages" || !hasDocument || thumbnails.length === 0) return;
@@ -87,6 +128,71 @@ export function ThumbnailPanel({
 
     return () => window.cancelAnimationFrame(frameId);
   }, [activeTab, hasDocument, page, thumbnails.length]);
+
+  function handleThumbnailClick(pageNum: number, e: React.MouseEvent) {
+    if (e.shiftKey && lastSelectedRef.current !== null) {
+      // Replace selection with clean range from anchor to current — do NOT add to old set.
+      const start = Math.min(lastSelectedRef.current, pageNum);
+      const end = Math.max(lastSelectedRef.current, pageNum);
+      const next = new Set<number>();
+      for (let i = start; i <= end; i++) next.add(i);
+      onSelectionChange(next);
+      // Anchor (lastSelectedRef) stays fixed so further shift+clicks extend from same point.
+    } else if (e.ctrlKey || e.metaKey) {
+      const next = new Set(selectedPages);
+      if (next.has(pageNum)) next.delete(pageNum);
+      else next.add(pageNum);
+      onSelectionChange(next);
+      lastSelectedRef.current = pageNum;
+    } else if (selectedPages.size > 0) {
+      const next = new Set(selectedPages);
+      if (next.has(pageNum)) next.delete(pageNum);
+      else next.add(pageNum);
+      onSelectionChange(next);
+      lastSelectedRef.current = pageNum;
+    } else {
+      lastSelectedRef.current = pageNum;
+      onSelectPage(pageNum);
+    }
+  }
+
+  function clearSelection() {
+    onSelectionChange(new Set());
+    lastSelectedRef.current = null;
+  }
+
+  async function handleRotate(degrees: number) {
+    if (selectedPages.size === 0 || !onRotatePages || isActing) return;
+    const pages = Array.from(selectedPages).sort((a, b) => a - b);
+    setIsActing(true);
+    try {
+      await onRotatePages(pages, degrees);
+    } catch {
+      toast.error("Could not rotate pages. Please try again.");
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (selectedPages.size === 0 || !onDeletePages || isActing) return;
+    const pages = Array.from(selectedPages).sort((a, b) => a - b);
+    const ok = await confirm({
+      title: "Delete Pages",
+      message: `Delete ${pages.length} selected page(s) (${pages.join(", ")})? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    setIsActing(true);
+    try {
+      await onDeletePages(pages);
+    } catch {
+      toast.error("Could not delete pages. Please try again.");
+    } finally {
+      setIsActing(false);
+    }
+  }
 
   const addCurrentPageBookmark = () => {
     if (!setBookmarks) return;
@@ -193,26 +299,207 @@ export function ThumbnailPanel({
         )}
       </div>
 
+      {/* Selection toolbar */}
+      {activeTab === "pages" && selectedPages.size > 0 && (
+        <div className="flex items-center gap-1 px-2 py-1.5 bg-violet-50 border-b border-violet-200 shrink-0 flex-wrap">
+          <span className="text-[11px] font-semibold text-violet-700 mr-0.5 shrink-0">
+            {selectedPages.size === thumbnails.length ? "Tất cả" : selectedPages.size} trang
+          </span>
+
+          {/* Rotate selected pages */}
+          {onRotatePages && (
+            <>
+              <button
+                className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-white/70 disabled:opacity-50 cursor-pointer"
+                title="Xoay trái 90°"
+                type="button"
+                disabled={isActing}
+                onClick={() => handleRotate(-90)}
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                Xoay ↺
+              </button>
+              <button
+                className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-white/70 disabled:opacity-50 cursor-pointer"
+                title="Xoay phải 90°"
+                type="button"
+                disabled={isActing}
+                onClick={() => handleRotate(90)}
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                  <path d="M21 3v5h-5" />
+                </svg>
+                Xoay ↻
+              </button>
+            </>
+          )}
+
+          {/* Rotate All — chỉ khi đã chọn tất cả trang */}
+          {onRotatePages && selectedPages.size === thumbnails.length && runDocumentTool && (
+            <>
+              <div className="mx-0.5 h-3.5 w-px bg-violet-200" />
+              <button
+                className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-violet-700 hover:bg-white/70 disabled:opacity-50 cursor-pointer"
+                title="Xoay tất cả trang sang trái"
+                type="button"
+                disabled={isActing}
+                onClick={() => runDocumentTool("rotate-all-left")}
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                  <rect x="10" y="10" width="6" height="8" rx="1" />
+                </svg>
+                Tất cả ↺
+              </button>
+              <button
+                className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-violet-700 hover:bg-white/70 disabled:opacity-50 cursor-pointer"
+                title="Xoay tất cả trang sang phải"
+                type="button"
+                disabled={isActing}
+                onClick={() => runDocumentTool("rotate-all-right")}
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                  <path d="M21 3v5h-5" />
+                  <rect x="10" y="10" width="6" height="8" rx="1" />
+                </svg>
+                Tất cả ↻
+              </button>
+            </>
+          )}
+
+          {/* Insert PDF — chỉ khi chọn đúng 1 trang */}
+          {selectedPages.size === 1 && onInsertAfterPage && (
+            <>
+              <div className="mx-0.5 h-3.5 w-px bg-violet-200" />
+              <button
+                className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-white/70 cursor-pointer"
+                title={`Chèn PDF sau trang ${Array.from(selectedPages)[0]}`}
+                type="button"
+                onClick={() => onInsertAfterPage(Array.from(selectedPages)[0])}
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+                Chèn PDF
+              </button>
+            </>
+          )}
+
+          {onDeletePages && (
+            <>
+              <div className="mx-0.5 h-3.5 w-px bg-violet-200" />
+              <button
+                className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 cursor-pointer"
+                title="Xóa trang đã chọn"
+                type="button"
+                disabled={isActing}
+                onClick={handleDelete}
+              >
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Xóa
+              </button>
+            </>
+          )}
+
+          <button
+            className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded text-violet-400 hover:bg-white/70 hover:text-violet-700 cursor-pointer"
+            title="Bỏ chọn (Escape)"
+            type="button"
+            onClick={clearSelection}
+          >
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Selection hint */}
+      {activeTab === "pages" && selectedPages.size === 0 && hasDocument && thumbnails.length > 0 && (
+        <div className="px-2 py-1 border-b border-[var(--border-color)] shrink-0">
+          <p className="text-[10px] text-[var(--text-secondary)] text-center">
+            Ctrl+click or Shift+click to select pages
+          </p>
+        </div>
+      )}
+
+
       <div className="flex-1 overflow-y-auto min-h-0">
         {activeTab === "pages" ? (
           <div className="grid gap-[var(--ui-gap-lg)] p-3">
             {thumbnails.map((t) => {
+              const isCurrentPage = page === t.page;
+              const isSelected = selectedPages.has(t.page);
               const isBookmarked = bookmarks.some((b) => b.page === t.page);
               return (
                 <div key={t.page} className="relative group w-full">
                   <button
-                    className={`flex cursor-pointer flex-col items-center gap-[var(--ui-gap-sm)] rounded-[var(--ui-radius-sm)] border-2 p-1 w-full text-center ${
-                      page === t.page
-                        ? "border-[var(--acrobat-blue)] bg-[var(--ui-accent-bg)]"
-                        : "border-transparent bg-transparent hover:bg-[var(--ui-hover-bg)]"
+                    className={`flex cursor-pointer flex-col items-center gap-[var(--ui-gap-sm)] rounded-[var(--ui-radius-sm)] border-2 p-1 w-full text-center transition-colors ${
+                      isSelected
+                        ? "border-violet-500 bg-violet-50"
+                        : isCurrentPage
+                          ? "border-[var(--acrobat-blue)] bg-[var(--ui-accent-bg)]"
+                          : "border-transparent bg-transparent hover:bg-[var(--ui-hover-bg)]"
                     }`}
-                    onClick={() => onSelectPage(t.page)}
+                    onClick={(e) => handleThumbnailClick(t.page, e)}
                     ref={(el) => setThumbnailRef(t.page, el)}
                     type="button"
+                    title={
+                      selectedPages.size > 0
+                        ? `Trang ${t.page} — click để ${isSelected ? "bỏ chọn" : "thêm vào chọn"}`
+                        : `Trang ${t.page}`
+                    }
                   >
                     <ThumbnailImage blob={t.blob} url={t.url} page={t.page} />
-                    <span className="text-xs text-[var(--text-secondary)]">{t.page}</span>
+                    <span className={`text-xs ${isSelected ? "text-violet-700 font-semibold" : "text-[var(--text-secondary)]"}`}>
+                      {t.page}
+                    </span>
                   </button>
+
+                  {/* Selection checkbox overlay */}
+                  <div
+                    className={`absolute top-2 left-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded border-2 transition-all ${
+                      isSelected
+                        ? "border-violet-500 bg-violet-500 text-white opacity-100 scale-100"
+                        : selectedPages.size > 0
+                          ? "border-[var(--border-color)] bg-white/95 opacity-100 scale-100 hover:scale-105 hover:border-violet-400"
+                          : "border-[var(--border-color)] bg-white/95 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 hover:scale-105 hover:border-violet-400"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      const next = new Set(selectedPages);
+                      if (next.has(t.page)) {
+                        next.delete(t.page);
+                      } else {
+                        next.add(t.page);
+                      }
+                      onSelectionChange(next);
+                      lastSelectedRef.current = t.page;
+                    }}
+                    title={isSelected ? "Bỏ chọn trang" : "Chọn trang"}
+                  >
+                    {isSelected && (
+                      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </div>
+
+                  {/* Bookmark button */}
                   <button
                     className={`absolute top-2 right-2 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white/95 border border-[var(--border-color)] shadow-sm transition-all hover:scale-105 hover:bg-white text-[var(--acrobat-blue)] ${
                       isBookmarked

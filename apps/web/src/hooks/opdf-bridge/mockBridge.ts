@@ -617,5 +617,8 @@ export function createMockBridge(): OpdfBridge {
       }
       return doc.save();
     },
+    async showItemInFolder(filePath) {
+      console.log("[MockBridge] showItemInFolder", filePath);
+    },
   };
 }

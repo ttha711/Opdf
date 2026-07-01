@@ -15,6 +15,7 @@ export function useAppMenus({
   closeDocument,
   savePdf,
   savePdfAs,
+  exportPdf,
   compressDocument,
   addWatermark,
   mergeDocuments,
@@ -41,6 +42,7 @@ export function useAppMenus({
   closeDocument: () => void;
   savePdf: () => void;
   savePdfAs: () => void;
+  exportPdf: () => void;
   compressDocument: () => void;
   addWatermark: () => void;
   mergeDocuments: () => void;
@@ -69,6 +71,7 @@ export function useAppMenus({
     { kind: "separator" },
     { kind: "action", label: "Save", shortcut: "Ctrl+S", disabled: !hasDocument, onClick: savePdf },
     { kind: "action", label: "Save As...", shortcut: "Ctrl+Shift+S", disabled: !hasDocument, onClick: savePdfAs },
+    { kind: "action", label: "Export PDF...", disabled: !hasDocument, onClick: exportPdf },
     { kind: "separator" },
     { kind: "action", label: "Compress PDF", disabled: !hasDocument || !canCompress, title: !canCompress ? DESKTOP_ONLY_TITLE : undefined, onClick: compressDocument },
     { kind: "action", label: "Add Watermark", disabled: !hasDocument, onClick: addWatermark },
@@ -98,8 +101,10 @@ export function useAppMenus({
     { kind: "action", label: "Fit Width", disabled: !hasDocument, onClick: () => applyZoomPreset("fit-width") },
     { kind: "action", label: "Fit Page", disabled: !hasDocument, onClick: () => applyZoomPreset("fit-page") },
     { kind: "separator" },
-    { kind: "action", label: "Rotate Left", disabled: !hasDocument, onClick: rotateLeft },
-    { kind: "action", label: "Rotate Right", disabled: !hasDocument, onClick: rotateRight },
+    { kind: "action", label: "Rotate Page Left", disabled: !hasDocument, onClick: rotateLeft },
+    { kind: "action", label: "Rotate Page Right", disabled: !hasDocument, onClick: rotateRight },
+    { kind: "action", label: "Rotate All Pages Left", disabled: !hasDocument, onClick: () => runDocumentTool("rotate-all-left") },
+    { kind: "action", label: "Rotate All Pages Right", disabled: !hasDocument, onClick: () => runDocumentTool("rotate-all-right") },
   ];
 
   const toolsMenuItems: MenuItemDef[] = [

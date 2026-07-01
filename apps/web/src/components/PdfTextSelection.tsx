@@ -54,6 +54,10 @@ export function PdfTextLayer({
     [imageUrl, layerRef, pageNumber],
   );
 
+  const pagePatches = (annotations ?? []).filter(
+    (ann) => ann.page === pageNumber && ann.kind === "note" && (ann.payload as any)?.isPatch,
+  );
+
   const actions = useTextActions(
     menu,
     clearMenu,
@@ -65,14 +69,11 @@ export function PdfTextLayer({
     findMatchedItems,
     resolveInitialEditStyle,
     imageUrl,
+    pagePatches,
   );
 
   const { stirlingMode, setStirlingMode, stirlingSubMode, setStirlingSubMode, groupedParagraphs } =
     useStirlingMode(textItems);
-
-  const pagePatches = (annotations ?? []).filter(
-    (ann) => ann.page === pageNumber && ann.kind === "note" && (ann.payload as any)?.isPatch,
-  );
 
   const handleSaveEdit = async () => {
     if (!actions.editTextState) return;
@@ -251,7 +252,7 @@ export function PdfTextLayer({
           return (
             <div
               key={`patch-text-${patch.id}`}
-              className="absolute pointer-events-none select-none"
+              className="absolute select-none group/patch"
               style={{
                 left: (p.x ?? 0) * width,
                 top: (p.y ?? 0) * height,
@@ -267,9 +268,21 @@ export function PdfTextLayer({
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
                 zIndex: 30,
+                cursor: "text",
+                pointerEvents: "auto",
+              }}
+              title="Click để sửa"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                void handlePatchClick(patch);
               }}
             >
               {p.text}
+              {/* Edit hint icon on hover */}
+              <span className="absolute -top-4 right-0 hidden group-hover/patch:flex items-center gap-0.5 text-[9px] bg-indigo-600 text-white px-1 py-0.5 rounded pointer-events-none whitespace-nowrap z-50">
+                ✏️ Click để sửa
+              </span>
             </div>
           );
         })}

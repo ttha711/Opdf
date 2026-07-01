@@ -7,7 +7,6 @@ import {
   FileViewGroup,
   NavigationZoomGroup,
   AnnotationsHistoryGroup,
-  PageActionsGroup,
   DocumentMarkupGroup,
   FileUtilitiesGroup,
 } from "./AppHeader.parts";
@@ -258,6 +257,7 @@ export function AppHeader({
         closeTabGroup={closeTabGroup}
         ungroupGroup={ungroupGroup}
         openFile={openFile}
+        showItemInFolder={hasDesktopBridge ? (filePath) => window.opdf?.showItemInFolder?.(filePath) : undefined}
       />
 
 
@@ -299,13 +299,6 @@ export function AppHeader({
           setAnnotationToolDefaults={setAnnotationToolDefaults}
           undoAnnotations={undoAnnotations}
           redoAnnotations={redoAnnotations}
-        />
-
-        <PageActionsGroup
-          hasDocument={hasDocument}
-          runDocumentTool={runDocumentTool}
-          rotateLeft={rotateLeft}
-          rotateRight={rotateRight}
         />
 
         <DocumentMarkupGroup

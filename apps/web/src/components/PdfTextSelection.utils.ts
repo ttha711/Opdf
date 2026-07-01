@@ -281,11 +281,12 @@ export function groupTextItemsIntoLines(items: RenderedTextItem[]): GroupedLine[
   let currentLine: GroupedLine | null = null;
 
   for (const item of items) {
-    if (!item.str.trim()) continue;
+    const itemText = typeof item.str === "string" ? item.str : "";
+    if (!itemText.trim()) continue;
 
     if (!currentLine) {
       currentLine = {
-        str: item.str,
+        str: itemText,
         left: item.left,
         top: item.top,
         width: item.width,
@@ -310,7 +311,7 @@ export function groupTextItemsIntoLines(items: RenderedTextItem[]): GroupedLine[
     } else {
       lines.push(currentLine);
       currentLine = {
-        str: item.str,
+        str: itemText,
         left: item.left,
         top: item.top,
         width: item.width,
@@ -329,6 +330,7 @@ export function groupTextItemsIntoLines(items: RenderedTextItem[]): GroupedLine[
 }
 
 function appendItemText(parts: string[], text: string) {
+  if (typeof text !== "string") return;
   const value = text.trim();
   if (!value) return;
 

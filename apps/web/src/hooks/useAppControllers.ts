@@ -171,6 +171,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     closeDocument,
     savePdf,
     savePdfAs,
+    exportPdf,
     compressDocument,
     addWatermark,
     mergeDocuments,

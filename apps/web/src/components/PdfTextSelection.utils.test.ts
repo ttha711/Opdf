@@ -166,4 +166,12 @@ describe("joinMatchedItems", () => {
       "Right-2",
     ]);
   });
+
+  it("ignores geometry-only items when reopening a saved patch", () => {
+    expect(
+      groupTextItemsIntoLines([
+        { x: 0.1, y: 0.2, width: 0.3, height: 0.05, fontSize: 14, fontFamily: "Arial" } as any,
+      ]),
+    ).toEqual([]);
+  });
 });

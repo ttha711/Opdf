@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { useOpdfBridge } from "../useOpdfBridge";
+import { savePdfBytes, saveWebState, computeFileHash, saveAnnotationsByHash } from "../../lib/web-storage";
 
 export function useExportAction({
   bridge,
@@ -36,34 +37,17 @@ export function useExportAction({
     pageRotations?: Record<number, number>;
   }) => void;
 }) {
-  // Silent update — replaces bytes in state without triggering viewer re-render (no transitionTick bump).
-  // Used by Save so the page doesn't blink after a save.
-  const silentSave = (savedBytes: Uint8Array, savedFileName: string) => {
-    setDocBytes(savedBytes);
-    setFileName(savedFileName);
-    setAnnotations([]);
-    // Omit bookmarks/pageRotations so markDocumentSaved uses the current closure values —
-    // this ensures the fingerprint matches what the useEffect will compute.
-    markDocumentSaved({ fileName: savedFileName, docBytes: savedBytes, annotations: [] });
-    setSaveState("saved");
-  };
-
-  // Full replace — used by Save As (user is switching to the exported version).
-  const commitSavedDocument = (savedBytes: Uint8Array, savedFileName: string) => {
-    replaceDocumentBytes(savedBytes);
-    setFileName(savedFileName);
-    setAnnotations([]);
-    markDocumentSaved({ fileName: savedFileName, docBytes: savedBytes, annotations: [] });
-    setSaveState("saved");
-  };
-
   // ── Save (Ctrl+S) ──────────────────────────────────────────────────────────
-  // Web: flattens + downloads with current filename, no file-picker dialog.
-  // Desktop: writes to existing path, keeps annotations in bridge.
+  // Desktop: writes docBytes to existing path + saves annotations. No flatten.
+  // Web: saves docBytes + annotations to IndexedDB draft. No download, no flatten.
   async function savePdf() {
     if (!hasDocument || !fileName || !docBytes) return;
     try {
       setSaveState("saving");
+
+      // Persist annotations keyed by file hash — works for both web and desktop restarts.
+      const hash = await computeFileHash(docBytes);
+      await saveAnnotationsByHash(hash, annotations);
 
       if (hasDesktopBridge) {
         await bridge.saveDocument(fileName, docBytes);
@@ -77,25 +61,11 @@ export function useExportAction({
         return;
       }
 
-      const bytesToSave = annotations.length > 0
-        ? await bridge.exportFlattened(docBytes, annotations)
-        : docBytes;
-
-      const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
-      const finalName = baseName.toLowerCase().endsWith(".pdf") ? baseName : `${baseName}.pdf`;
-
-      const blob = new Blob([bytesToSave as unknown as BlobPart], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.style.display = "none";
-      a.href = url;
-      a.download = finalName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      silentSave(bytesToSave, fileName);
+      // Web: persist draft to IndexedDB so the session can be resumed.
+      await savePdfBytes(docBytes);
+      await saveWebState({ fileName, annotations, thumbnails: [], page: 1 });
+      markDocumentSaved({ fileName, docBytes, annotations });
+      setSaveState("saved");
       setViewerError("File saved successfully!");
       setTimeout(() => setViewerError(null), 3000);
     } catch (err) {
@@ -106,35 +76,43 @@ export function useExportAction({
   }
 
   // ── Save As (Ctrl+Shift+S) ─────────────────────────────────────────────────
-  // Web: flattens + prompts with file-picker for a new name/location.
-  // Desktop: opens native save-file dialog.
+  // Lets the user pick a new location/name. Saves raw docBytes (no flatten).
+  // Annotations are kept in state so editing continues on the new file.
   async function savePdfAs() {
     if (!hasDocument || !fileName || !docBytes) return;
     try {
       setSaveState("saving");
-      const flattenedBytes = await bridge.exportFlattened(docBytes, annotations);
 
       if (hasDesktopBridge) {
-        const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
-        const suggestedName = baseName.toLowerCase().endsWith(".pdf") ? `edited-${baseName}` : `edited-${baseName}.pdf`;
-        const savedPath = await bridge.saveFile(flattenedBytes, suggestedName, ["pdf"]);
+        const savedPath = await bridge.saveDocumentAs(docBytes);
         if (!savedPath) { setSaveState("idle"); return; }
-        commitSavedDocument(flattenedBytes, savedPath);
+        if (bridge.replaceAnnotations) {
+          await bridge.replaceAnnotations(savedPath, annotations);
+        }
+        setDocBytes(docBytes);
+        setFileName(savedPath);
+        markDocumentSaved({ fileName: savedPath, docBytes, annotations });
+        setSaveState("saved");
+        setViewerError("File saved successfully!");
+        setTimeout(() => setViewerError(null), 3000);
         return;
       }
 
       if ("showSaveFilePicker" in window) {
         try {
           const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
-          const suggestedName = baseName.toLowerCase().endsWith(".pdf") ? `edited-${baseName}` : `edited-${baseName}.pdf`;
+          const suggestedName = baseName.toLowerCase().endsWith(".pdf") ? baseName : `${baseName}.pdf`;
           const handle = await (window as any).showSaveFilePicker({
             suggestedName,
             types: [{ description: "PDF Document", accept: { "application/pdf": [".pdf"] } }],
           });
           const writable = await handle.createWritable();
-          await writable.write(flattenedBytes);
+          await writable.write(docBytes);
           await writable.close();
-          commitSavedDocument(flattenedBytes, handle.name ?? fileName);
+          const newName = handle.name ?? fileName;
+          setFileName(newName);
+          markDocumentSaved({ fileName: newName, docBytes, annotations });
+          setSaveState("saved");
           setViewerError("File saved successfully!");
           setTimeout(() => setViewerError(null), 3000);
           return;
@@ -144,7 +122,74 @@ export function useExportAction({
         }
       }
 
-      // Fallback: download with edited- prefix
+      // Fallback: download raw (non-flattened) bytes with current filename.
+      const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
+      const finalName = baseName.toLowerCase().endsWith(".pdf") ? baseName : `${baseName}.pdf`;
+      const blob = new Blob([docBytes as unknown as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = finalName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      markDocumentSaved({ fileName, docBytes, annotations });
+      setSaveState("saved");
+    } catch (err) {
+      console.error(err);
+      setViewerError("Failed to save PDF.");
+      setSaveState("idle");
+    }
+  }
+
+  // ── Export PDF ─────────────────────────────────────────────────────────────
+  // Flattens annotations into the PDF bytes, then downloads / saves to a new file.
+  // This is the ONLY operation that flattens.
+  async function exportPdf() {
+    if (!hasDocument || !fileName || !docBytes) return;
+    try {
+      setSaveState("saving");
+      const flattenedBytes = await bridge.exportFlattened(docBytes, annotations);
+
+      if (hasDesktopBridge) {
+        const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
+        const suggestedName = baseName.toLowerCase().endsWith(".pdf")
+          ? `exported-${baseName}`
+          : `exported-${baseName}.pdf`;
+        const savedPath = await bridge.saveFile(flattenedBytes, suggestedName, ["pdf"]);
+        if (!savedPath) { setSaveState("idle"); return; }
+        setSaveState("saved");
+        setViewerError("PDF exported successfully!");
+        setTimeout(() => setViewerError(null), 3000);
+        return;
+      }
+
+      if ("showSaveFilePicker" in window) {
+        try {
+          const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
+          const suggestedName = baseName.toLowerCase().endsWith(".pdf")
+            ? `exported-${baseName}`
+            : `exported-${baseName}.pdf`;
+          const handle = await (window as any).showSaveFilePicker({
+            suggestedName,
+            types: [{ description: "PDF Document", accept: { "application/pdf": [".pdf"] } }],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(flattenedBytes);
+          await writable.close();
+          setSaveState("saved");
+          setViewerError("PDF exported successfully!");
+          setTimeout(() => setViewerError(null), 3000);
+          return;
+        } catch (err: any) {
+          if (err.name === "AbortError") { setSaveState("idle"); return; }
+          console.error("Export Picker failed, falling back to download", err);
+        }
+      }
+
+      // Fallback: download flattened PDF.
       const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
       const finalName = baseName.toLowerCase().endsWith(".pdf") ? baseName : `${baseName}.pdf`;
       const blob = new Blob([flattenedBytes as unknown as BlobPart], { type: "application/pdf" });
@@ -152,12 +197,14 @@ export function useExportAction({
       const a = document.createElement("a");
       a.style.display = "none";
       a.href = url;
-      a.download = `edited-${finalName}`;
+      a.download = `exported-${finalName}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      commitSavedDocument(flattenedBytes, fileName);
+      setSaveState("saved");
+      setViewerError("PDF exported successfully!");
+      setTimeout(() => setViewerError(null), 3000);
     } catch (err) {
       console.error(err);
       setViewerError("Failed to export PDF.");
@@ -165,5 +212,5 @@ export function useExportAction({
     }
   }
 
-  return { savePdf, savePdfAs, exportPdf: savePdfAs };
+  return { savePdf, savePdfAs, exportPdf };
 }

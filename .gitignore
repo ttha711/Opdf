@@ -67,3 +67,5 @@ audit/
 e2e/
 playwright.config.ts
 scripts/playwright/
+playwright-report/
+test-results/

@@ -1,7 +1,7 @@
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { Util, type PDFDocumentProxy } from "pdfjs-dist";
 import { canvasToBlob, isRenderingCancelled } from "./PdfViewer.utils";
-import { CONTINUOUS_BATCH_SIZE, type RenderedPage, type RenderedTextItem, type ViewMode } from "./PdfViewer.types";
+import { type RenderedPage, type RenderedTextItem, type ViewMode } from "./PdfViewer.types";
 
 export function usePageRendering(params: {
   pdf: PDFDocumentProxy | null;
@@ -11,14 +11,14 @@ export function usePageRendering(params: {
   pageRotations?: Record<number, number>;
   searchText?: string;
   viewMode: ViewMode;
-  continuousLoadedUntil: number;
+  visiblePages: Set<number>;
   setRenderedPages: Dispatch<SetStateAction<RenderedPage[]>>;
   renderedPagesRef: MutableRefObject<RenderedPage[]>;
   renderedUrlsRef: MutableRefObject<string[]>;
   lastParamsRef: MutableRefObject<{ pdf: PDFDocumentProxy | null; scale: number; rotation: number; pageRotations?: Record<number, number>; viewMode: ViewMode }>;
   onSearchResultRef: MutableRefObject<((found: boolean, message: string) => void) | undefined>;
 }) {
-  const { pdf, page, scale, rotation, pageRotations = {}, searchText, viewMode, continuousLoadedUntil, setRenderedPages, renderedPagesRef, renderedUrlsRef, lastParamsRef, onSearchResultRef } = params;
+  const { pdf, page, scale, rotation, pageRotations = {}, searchText, viewMode, visiblePages, setRenderedPages, renderedPagesRef, renderedUrlsRef, lastParamsRef, onSearchResultRef } = params;
 
   useEffect(() => {
     if (!pdf) return;
@@ -37,18 +37,27 @@ export function usePageRendering(params: {
         lastParamsRef.current = { pdf, scale, rotation, pageRotations, viewMode };
       }
 
+      const renderedPageNums = new Set(renderedPagesRef.current.map((p) => p.pageNumber));
+
       const targetPages: number[] = [];
       if (viewMode === "continuous") {
-        const initialBatchEnd = Math.min(CONTINUOUS_BATCH_SIZE, pdf.numPages);
-        const endPage = paramsChanged
-          ? initialBatchEnd
-          : Math.max(1, Math.min(pdf.numPages, continuousLoadedUntil || initialBatchEnd));
-        for (let i = 1; i <= endPage; i += 1) targetPages.push(i);
+        if (paramsChanged) {
+          // Scale/rotation/pdf changed: re-render currently visible pages
+          visiblePages.forEach((p) => targetPages.push(p));
+          // Fallback: if visiblePages is empty (e.g. IntersectionObserver hasn't fired yet
+          // after elements remounted), render the current page so the viewer isn't blank.
+          if (targetPages.length === 0) targetPages.push(Math.min(Math.max(1, page), pdf.numPages));
+        } else {
+          // Only render newly visible pages that aren't rendered yet
+          visiblePages.forEach((p) => {
+            if (!renderedPageNums.has(p)) targetPages.push(p);
+          });
+        }
+        targetPages.sort((a, b) => a - b);
       } else {
         targetPages.push(Math.min(Math.max(1, page), pdf.numPages));
       }
 
-      const renderedPageNums = new Set(renderedPagesRef.current.map((p) => p.pageNumber));
       const pagesToRender = paramsChanged ? targetPages : targetPages.filter((pNum) => !renderedPageNums.has(pNum));
 
       if (pagesToRender.length === 0) {
@@ -100,8 +109,7 @@ export function usePageRendering(params: {
           p.cleanup();
           return;
         }
-        // Keep main viewer crisp: JPEG introduces visible artifacts on text-heavy PDF pages.
-        const blob = await canvasToBlob(c, "image/png", 1);
+        const blob = await canvasToBlob(c, "image/webp", 0.92);
         if (!blob) {
           p.cleanup();
           continue;
@@ -168,5 +176,5 @@ export function usePageRendering(params: {
       cancelled = true;
       activeRenderTasks.forEach((task) => task.cancel());
     };
-  }, [pdf, page, scale, rotation, pageRotations, searchText, viewMode, continuousLoadedUntil]);
+  }, [pdf, page, scale, rotation, pageRotations, searchText, viewMode, visiblePages]);
 }

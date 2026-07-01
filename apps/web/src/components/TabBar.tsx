@@ -14,6 +14,7 @@ interface TabBarProps {
   closeTabGroup: (groupName: string) => void;
   ungroupGroup: (groupName: string) => void;
   openFile: () => void;
+  showItemInFolder?: (filePath: string) => void;
 }
 
 export function TabBar({
@@ -29,6 +30,7 @@ export function TabBar({
   closeTabGroup,
   ungroupGroup,
   openFile,
+  showItemInFolder,
 }: TabBarProps) {
   // UI states for floating menus
   const [activeMenuTabId, setActiveMenuTabId] = useState<string | null>(null);
@@ -184,13 +186,14 @@ export function TabBar({
                   }}
                   onClick={() => switchTab(tab.id)}
                   onContextMenu={(e) => handleTabContextMenu(e, tab.id)}
+                  title={tab.fileName}
                 >
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="#e03e2d" className="flex-shrink-0">
                     <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6z" />
                   </svg>
                   
                   <span className="max-w-[120px] truncate whitespace-nowrap">
-                    {tab.fileName}
+                    {tab.fileName.split(/[/\\]/).pop() || tab.fileName}
                   </span>
 
                   <button
@@ -307,6 +310,50 @@ export function TabBar({
               Mở nhóm sang cửa sổ mới
             </button>
           )}
+
+          {(() => {
+            const tab = tabs.find(t => t.id === activeMenuTabId);
+            if (!tab?.fileName) return null;
+            const baseName = tab.fileName.split(/[/\\]/).pop() || tab.fileName;
+            const isFullPath = tab.fileName !== baseName;
+            return (
+              <>
+                <div className="border-t border-[var(--ui-divider)] my-1" />
+                {isFullPath && (
+                  <div className="px-2.5 py-1 text-[10px] text-[var(--text-secondary)] break-all leading-tight select-text">
+                    {tab.fileName}
+                  </div>
+                )}
+                <button
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold hover:bg-[var(--ui-hover-bg)] rounded-md cursor-pointer"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(tab.fileName);
+                    setActiveMenuTabId(null);
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  {isFullPath ? "Sao chép đường dẫn" : "Sao chép tên file"}
+                </button>
+                {showItemInFolder && (
+                  <button
+                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold hover:bg-[var(--ui-hover-bg)] rounded-md cursor-pointer"
+                    onClick={() => {
+                      showItemInFolder(tab.fileName);
+                      setActiveMenuTabId(null);
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+                    </svg>
+                    Mở thư mục chứa file
+                  </button>
+                )}
+              </>
+            );
+          })()}
 
           <button
             className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold hover:bg-[var(--ui-hover-bg)] text-[var(--ui-danger)] rounded-md cursor-pointer border-t border-[var(--ui-divider)]"

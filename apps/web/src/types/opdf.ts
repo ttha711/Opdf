@@ -87,6 +87,7 @@ export interface OpdfBridge {
   }>;
   applyAiPatch?: (payload: AiPatchRequest) => Promise<LivePatch>;
   generateAiImage?: (payload: AiImageRequest) => Promise<unknown>;
+  showItemInFolder?: (filePath: string) => Promise<void>;
 }
 
 export interface OpdfUpdateBridge {

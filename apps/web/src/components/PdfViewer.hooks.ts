@@ -2,7 +2,7 @@ import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } 
 import { getDocument, type PDFDocumentProxy } from "pdfjs-dist";
 import type { Annotation } from "@opdf/core";
 import { canvasToBlob, drawAnnotationsToCanvas } from "./PdfViewer.utils";
-import { CONTINUOUS_BATCH_SIZE, WINDOW_RADIUS, type RenderedPage, type ViewMode } from "./PdfViewer.types";
+import { type RenderedPage } from "./PdfViewer.types";
 
 const THUMBNAIL_CSS_WIDTH = 188;
 const THUMBNAIL_MAX_DEVICE_SCALE = 2;
@@ -47,9 +47,8 @@ export function usePdfDataLoader(params: {
   renderedUrlsRef: MutableRefObject<string[]>;
   setPdf: Dispatch<SetStateAction<PDFDocumentProxy | null>>;
   setRenderedPages: Dispatch<SetStateAction<RenderedPage[]>>;
-  setContinuousLoadedUntil: Dispatch<SetStateAction<number>>;
 }) {
-  const { data, annotations, initialThumbnails, onThumbsLoaded, onDocumentLoadedRef, onErrorRef, onThumbsLoadedRef, thumbnailUrlsRef, renderedPagesRef, renderedUrlsRef, setPdf, setRenderedPages, setContinuousLoadedUntil } = params;
+  const { data, annotations, initialThumbnails, onThumbsLoaded, onDocumentLoadedRef, onErrorRef, onThumbsLoadedRef, thumbnailUrlsRef, renderedPagesRef, renderedUrlsRef, setPdf, setRenderedPages } = params;
 
   useEffect(() => {
     if (!data) {
@@ -58,7 +57,6 @@ export function usePdfDataLoader(params: {
       setPdf(null);
       renderedPagesRef.current = [];
       setRenderedPages([]);
-      setContinuousLoadedUntil(0);
       onThumbsLoaded?.([]);
       return;
     }
@@ -79,7 +77,6 @@ export function usePdfDataLoader(params: {
         });
         renderedPagesRef.current = [];
         setRenderedPages([]);
-        setContinuousLoadedUntil(Math.min(CONTINUOUS_BATCH_SIZE, nextPdf.numPages));
         onDocumentLoadedRef.current?.(nextPdf.numPages);
         onErrorRef.current?.(null);
 
@@ -91,20 +88,24 @@ export function usePdfDataLoader(params: {
           return;
         }
 
-        const thumbCount = Math.min(nextPdf.numPages, 40);
+        // Yield ~300ms so the PDF.js worker can finish rendering page 1 before thumbnails compete for it.
+        await new Promise<void>((r) => setTimeout(r, 300));
+        if (cancelled) return;
+
+        const thumbCount = nextPdf.numPages;
         const thumbs: Array<{ page: number; url: string; blob: Blob }> = [];
-        
+
         // Controlled Concurrency Batching (Batch size = 4 to fully utilize CPU/GPU cores without memory issues)
         const BATCH_SIZE = 4;
-        
+
         for (let i = 1; i <= thumbCount; i += BATCH_SIZE) {
           if (cancelled) break;
-          
+
           const batchPageNums: number[] = [];
           for (let j = 0; j < BATCH_SIZE && i + j <= thumbCount; j++) {
             batchPageNums.push(i + j);
           }
-          
+
           const batchResults = await Promise.all(
             batchPageNums.map(async (pNum) => {
               if (cancelled) return null;
@@ -121,13 +122,13 @@ export function usePdfDataLoader(params: {
                   const fallbackUrl = URL.createObjectURL(fallbackBlob);
                   return { page: pNum, url: fallbackUrl, blob: fallbackBlob };
                 }
-                
+
                 c.width = Math.max(1, Math.floor(vp.width));
                 c.height = Math.max(1, Math.floor(vp.height));
-                
+
                 await p.render({ canvasContext: ctx, viewport: vp }).promise;
                 drawAnnotationsToCanvas(ctx, annotations, pNum, c.width, c.height);
-                
+
                 const blob = await canvasToBlob(c, "image/jpeg", THUMBNAIL_JPEG_QUALITY);
                 if (!blob) {
                   const fallbackBlob = await createFallbackThumbnail(pNum);
@@ -148,18 +149,18 @@ export function usePdfDataLoader(params: {
               }
             })
           );
-          
+
           if (cancelled) break;
-          
+
           for (const res of batchResults) {
             if (res) {
               thumbnailUrlsRef.current.push(res.url);
               thumbs.push(res);
             }
           }
+          // Progressive: emit after each batch so thumbnail panel populates as they render
+          if (!cancelled) onThumbsLoadedRef.current?.([...thumbs]);
         }
-        
-        if (!cancelled) onThumbsLoadedRef.current?.(thumbs);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to load PDF";
         onDocumentLoadedRef.current?.(0);
@@ -177,41 +178,6 @@ export function usePdfDataLoader(params: {
   }, [data]);
 }
 
-export function useContinuousLoading(params: {
-  pdf: PDFDocumentProxy | null;
-  page: number;
-  viewMode: ViewMode;
-  renderedPagesLength: number;
-  continuousLoadedUntil: number;
-  setContinuousLoadedUntil: Dispatch<SetStateAction<number>>;
-  loadMoreRef: MutableRefObject<HTMLDivElement | null>;
-}) {
-  const { pdf, page, viewMode, renderedPagesLength, continuousLoadedUntil, setContinuousLoadedUntil, loadMoreRef } = params;
-
-  useEffect(() => {
-    if (!pdf) return void setContinuousLoadedUntil(0);
-    if (viewMode !== "continuous") return;
-    setContinuousLoadedUntil((prev) => (prev >= pdf.numPages ? prev : Math.max(Math.min(page + WINDOW_RADIUS, pdf.numPages), Math.min(CONTINUOUS_BATCH_SIZE, pdf.numPages))));
-  }, [pdf, viewMode, page]);
-
-  useEffect(() => {
-    if (viewMode !== "continuous" || !pdf || continuousLoadedUntil >= pdf.numPages) return;
-    const sentinel = loadMoreRef.current;
-    if (!sentinel) return;
-    const scrollRoot = sentinel.closest(".viewer-area");
-    const root = scrollRoot instanceof HTMLElement ? scrollRoot : null;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const isVisible = entries.some((entry) => entry.isIntersecting);
-        if (!isVisible) return;
-        setContinuousLoadedUntil((prev) => Math.min(pdf.numPages, prev + CONTINUOUS_BATCH_SIZE));
-      },
-      { root, rootMargin: "300px 0px", threshold: 0.01 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [viewMode, pdf, renderedPagesLength, continuousLoadedUntil]);
-}
 
 export function useThumbnailRefresh(params: {
   pdf: PDFDocumentProxy | null;

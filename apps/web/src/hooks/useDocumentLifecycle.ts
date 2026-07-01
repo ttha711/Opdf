@@ -3,6 +3,7 @@ import type { Annotation } from "@opdf/core";
 import { useOpdfBridge } from "./useOpdfBridge";
 import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmDialog";
+import { computeFileHash, loadAnnotationsByHash } from "../lib/web-storage";
 
 export function useDocumentLifecycle({
   bridge,
@@ -55,16 +56,19 @@ export function useDocumentLifecycle({
 
   async function loadBrowserFile(file: File) {
     const bytes = new Uint8Array(await file.arrayBuffer());
+    // Restore annotations saved for this exact file content (hash-based).
+    const hash = await computeFileHash(bytes);
+    const savedAnnotations = (await loadAnnotationsByHash(hash) ?? []) as Annotation[];
     setFileName(file.name);
     setDocBytes(bytes);
     setPage(1);
     setTotalPages(0);
     setViewerError(null);
     setThumbnails([]);
-    setAnnotations([]);
+    setAnnotations(savedAnnotations);
     setBookmarks([]);
     setPageRotations({});
-    markDocumentSaved({ fileName: file.name, docBytes: bytes, annotations: [], bookmarks: [], pageRotations: {} });
+    markDocumentSaved({ fileName: file.name, docBytes: bytes, annotations: savedAnnotations, bookmarks: [], pageRotations: {} });
   }
 
   async function openFile() {
@@ -95,7 +99,12 @@ export function useDocumentLifecycle({
 
       const result = await bridge.pickAndOpenDocument();
       if (result) {
-        const loadedAnnotations = await bridge.listAnnotations(result.filePath);
+        const bridgeAnnotations = await bridge.listAnnotations(result.filePath);
+        // If bridge has no persisted annotations (e.g. first run after restart), fall back to hash store.
+        const hash = await computeFileHash(result.bytes);
+        const loadedAnnotations: Annotation[] = bridgeAnnotations.length > 0
+          ? bridgeAnnotations
+          : ((await loadAnnotationsByHash(hash) ?? []) as Annotation[]);
         setFileName(result.filePath);
         setDocBytes(result.bytes);
         setPage(1);
@@ -128,7 +137,11 @@ export function useDocumentLifecycle({
       try {
         const result = await bridge.openDocument(filePath);
         if (result) {
-          const loadedAnnotations = await bridge.listAnnotations(result.filePath);
+          const bridgeAnnotations = await bridge.listAnnotations(result.filePath);
+          const hash = await computeFileHash(result.bytes);
+          const loadedAnnotations: Annotation[] = bridgeAnnotations.length > 0
+            ? bridgeAnnotations
+            : ((await loadAnnotationsByHash(hash) ?? []) as Annotation[]);
           setFileName(result.filePath);
           setDocBytes(result.bytes);
           setPage(1);

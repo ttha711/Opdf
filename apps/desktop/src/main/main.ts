@@ -606,6 +606,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle("opdf:add-bates-numbering", async (_event, bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => documentService.addBatesNumbering(bytes, prefix, startNumber, suffix));
   ipcMain.handle("opdf:convert-to-pdfa", async (_event, bytes: Uint8Array) => documentService.convertToPdfA(bytes));
   ipcMain.handle("opdf:rotate-pages", async (_event, bytes: Uint8Array, pageNumbers: number[], degrees: number) => documentService.rotatePages(bytes, pageNumbers, degrees));
+  ipcMain.handle("opdf:show-item-in-folder", async (_event, filePath: string) => { shell.showItemInFolder(filePath); });
   ipcMain.handle("opdf:convert-pdf-office", async (_event, bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => {
     const payload = toNodeBuffer(bytes);
     if (payload.byteLength === 0) throw new Error("Cannot convert empty PDF payload.");

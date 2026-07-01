@@ -25,6 +25,148 @@ import { ViewerErrorBoundary } from "./components/ViewerErrorBoundary";
 import { useToast } from "./components/ToastProvider";
 import aiAvatar from "./assets/ai-avatar.jpg";
 import "./types/opdf";
+import { useConfirm } from "./components/ConfirmDialog";
+
+function PageSelectionFloatingBar({
+  selectedPages,
+  totalPages,
+  onClear,
+  onRotate,
+  onDelete,
+  onInsertAfterPage,
+  runDocumentTool,
+}: {
+  selectedPages: Set<number>;
+  totalPages: number;
+  onClear: () => void;
+  onRotate: (pages: number[], degrees: number) => Promise<void>;
+  onDelete: (pages: number[]) => Promise<void>;
+  onInsertAfterPage?: (page: number) => void;
+  runDocumentTool?: (tool: string) => void;
+}) {
+  const confirm = useConfirm();
+  const [isActing, setIsActing] = useState(false);
+  const isAllSelected = totalPages > 0 && selectedPages.size === totalPages;
+
+  async function handleRotate(degrees: number) {
+    if (isActing) return;
+    const pages = Array.from(selectedPages).sort((a, b) => a - b);
+    setIsActing(true);
+    try { await onRotate(pages, degrees); } finally { setIsActing(false); }
+  }
+
+  async function handleDelete() {
+    if (isActing) return;
+    const pages = Array.from(selectedPages).sort((a, b) => a - b);
+    const ok = await confirm({
+      title: "Delete Pages",
+      message: `Delete ${pages.length} selected page(s) (${pages.join(", ")})? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    setIsActing(true);
+    try { await onDelete(pages); } finally { setIsActing(false); }
+  }
+
+  const btnCls = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium hover:bg-violet-50 disabled:opacity-50 cursor-pointer transition-colors text-[var(--text-primary)]";
+  const divider = <div className="h-4 w-px bg-violet-200 shrink-0" />;
+
+  return (
+    <div
+      style={{ pointerEvents: "all" }}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-full border border-violet-300 bg-white/95 px-3 py-1.5 shadow-lg backdrop-blur-sm"
+    >
+      <span className="text-[12px] font-semibold text-violet-700 mr-0.5 shrink-0">
+        {isAllSelected ? "All" : selectedPages.size} page{selectedPages.size !== 1 ? "s" : ""}
+      </span>
+
+      {divider}
+
+      {/* Rotate selected */}
+      <button className={btnCls} title="Rotate left 90°" type="button" disabled={isActing} onClick={() => handleRotate(-90)}>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+        </svg>
+        Rotate ↺
+      </button>
+      <button className={btnCls} title="Rotate right 90°" type="button" disabled={isActing} onClick={() => handleRotate(90)}>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />
+        </svg>
+        Rotate ↻
+      </button>
+
+      {/* Rotate ALL — only when all pages selected */}
+      {isAllSelected && runDocumentTool && (
+        <>
+          {divider}
+          <button className={btnCls} title="Rotate all pages left" type="button" disabled={isActing} onClick={() => runDocumentTool("rotate-left-all")}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+            </svg>
+            All ↺
+          </button>
+          <button className={btnCls} title="Rotate all pages right" type="button" disabled={isActing} onClick={() => runDocumentTool("rotate-right-all")}>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />
+            </svg>
+            All ↻
+          </button>
+        </>
+      )}
+
+      {/* Insert PDF — only when exactly 1 page selected */}
+      {selectedPages.size === 1 && onInsertAfterPage && (
+        <>
+          {divider}
+          <button
+            className={btnCls}
+            title="Insert PDF after this page"
+            type="button"
+            disabled={isActing}
+            onClick={() => {
+              const page = Array.from(selectedPages)[0];
+              onInsertAfterPage(page);
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="12" y1="11" x2="12" y2="17" />
+              <line x1="9" y1="14" x2="15" y2="14" />
+            </svg>
+            Insert PDF
+          </button>
+        </>
+      )}
+
+      {divider}
+      <button
+        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 cursor-pointer transition-colors"
+        title="Delete selected pages" type="button" disabled={isActing}
+        onClick={handleDelete}
+      >
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </svg>
+        Delete
+      </button>
+
+      {divider}
+      <button
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-violet-400 hover:bg-violet-50 hover:text-violet-700 cursor-pointer transition-colors"
+        title="Clear selection (Escape)" type="button"
+        onClick={onClear}
+      >
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+  );
+}
 
 export function App() {
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
@@ -71,6 +213,8 @@ export function App() {
   }, []);
 
   const [activeMarkupTool, setActiveMarkupTool] = useState<MarkupTool | null>(null);
+  const [selectedThumbnailPages, setSelectedThumbnailPages] = useState<Set<number>>(new Set());
+  const lastViewerSelectedRef = useRef<number | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isLiveEditorOpen, setIsLiveEditorOpen] = useState(false);
   const [liveEditorHtml, setLiveEditorHtml] = useState<string | null>(null);
@@ -148,6 +292,43 @@ export function App() {
       state.setThumbnails(thumbs);
     }
   }, [state]);
+
+  // Clear thumbnail selection when document is closed or replaced
+  useEffect(() => {
+    if (!state.hasDocument) setSelectedThumbnailPages(new Set());
+  }, [state.hasDocument]);
+
+  const handleRotatePages = useCallback(async (pages: number[], degrees: number) => {
+    if (!state.docBytes) return;
+    const next = await bridge.rotatePages(state.docBytes, pages, degrees);
+    replaceDocumentBytes(next, state.page);
+  }, [state.docBytes, state.page, bridge, replaceDocumentBytes]);
+
+  const handleViewerPageSelectionClick = useCallback((pageNum: number, ctrl: boolean, shift: boolean) => {
+    if (shift && lastViewerSelectedRef.current !== null) {
+      const start = Math.min(lastViewerSelectedRef.current, pageNum);
+      const end = Math.max(lastViewerSelectedRef.current, pageNum);
+      setSelectedThumbnailPages(prev => {
+        const next = new Set(prev);
+        for (let i = start; i <= end; i++) next.add(i);
+        return next;
+      });
+    } else {
+      setSelectedThumbnailPages(prev => {
+        const next = new Set(prev);
+        if (next.has(pageNum)) next.delete(pageNum);
+        else next.add(pageNum);
+        return next;
+      });
+      lastViewerSelectedRef.current = pageNum;
+    }
+  }, []);
+
+  const handleDeletePages = useCallback(async (pages: number[]) => {
+    if (!state.docBytes) return;
+    const next = await bridge.deletePages(state.docBytes, pages);
+    replaceDocumentBytes(next, Math.min(state.page, state.totalPages - pages.length));
+  }, [state.docBytes, state.page, state.totalPages, bridge, replaceDocumentBytes]);
 
   const showLeft = state.hasDocument || !state.activeDashboardTool;
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null;
@@ -266,6 +447,15 @@ export function App() {
                   setBookmarks={state.setBookmarks}
                   isCollapsed={isLeftCollapsed}
                   setIsCollapsed={setIsLeftCollapsed}
+                  selectedPages={selectedThumbnailPages}
+                  onSelectionChange={setSelectedThumbnailPages}
+                  onRotatePages={handleRotatePages}
+                  onDeletePages={handleDeletePages}
+                  runDocumentTool={(tool) => headerProps.runDocumentTool(tool as import("./lib/document-tools").DocumentTool)}
+                  onInsertAfterPage={(targetPage) => {
+                    state.setPage(targetPage);
+                    state.setShowInsertModal(true);
+                  }}
                 />
               </div>
 
@@ -295,6 +485,18 @@ export function App() {
                     display: "block"
                   }}
                 >
+                  {selectedThumbnailPages.size > 0 && <PageSelectionFloatingBar
+                    selectedPages={selectedThumbnailPages}
+                    totalPages={state.totalPages}
+                    onClear={() => setSelectedThumbnailPages(new Set())}
+                    onRotate={handleRotatePages}
+                    onDelete={handleDeletePages}
+                    onInsertAfterPage={(targetPage) => {
+                      state.setPage(targetPage);
+                      state.setShowInsertModal(true);
+                    }}
+                    runDocumentTool={(tool) => headerProps.runDocumentTool(tool as import("./lib/document-tools").DocumentTool)}
+                  />}
                   {state.showFindBar && (
                     <FindBar
                       searchText={state.pageSearch}
@@ -316,6 +518,8 @@ export function App() {
                       pageRotations={state.pageRotations}
                       initialThumbnails={state.thumbnails}
                       onThumbsLoaded={(thumbs) => handleTabThumbsLoaded(activeTab.id, thumbs)}
+                      selectedPages={selectedThumbnailPages}
+                      onPageSelectionClick={handleViewerPageSelectionClick}
                     />
                   </ViewerErrorBoundary>
                 </section>

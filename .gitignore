@@ -69,3 +69,8 @@ playwright.config.ts
 scripts/playwright/
 playwright-report/
 test-results/
+
+# Specific redundant binaries and zip files
+apps/desktop/release-relative-installer-smoke.png
+apps/editor/pdf2html-office-audit.png
+apps/web/public/web.zip

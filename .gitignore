@@ -74,3 +74,7 @@ test-results/
 apps/desktop/release-relative-installer-smoke.png
 apps/editor/pdf2html-office-audit.png
 apps/web/public/web.zip
+
+# IDE settings and documentation
+.claude/
+apps/editor/docs/

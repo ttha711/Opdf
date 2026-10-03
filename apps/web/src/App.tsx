@@ -343,9 +343,10 @@ export function App() {
     replaceDocumentBytes(next, Math.min(state.page, state.totalPages - pages.length));
   }, [state.docBytes, state.page, state.totalPages, bridge, materializeDocumentBytes, replaceDocumentBytes]);
 
-  // EmbedPDF ships a virtualized thumbnail/navigation sidebar. Do not render
-  // the legacy OPDF thumbnail rail beside it for active documents.
-  const showLeft = !state.hasDocument && !state.activeDashboardTool;
+  // Keep OPDF's page-management rail available for active PDFs. Thumbnails
+  // are now rendered lazily by the PDFium viewer, so this no longer revives
+  // the legacy PDF.js raster path.
+  const showLeft = !state.activeDashboardTool;
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null;
   const leftColWidth = showLeft && !isLeftCollapsed ? `${leftWidth}px` : "0px";
   const leftResizerWidth = showLeft && !isLeftCollapsed ? "4px" : "0px";

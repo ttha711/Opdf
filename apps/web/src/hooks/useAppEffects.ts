@@ -224,14 +224,13 @@ export function useAppEffects(args: AppEffectsArgs) {
           const serverTabs = tabs
             .map((tab) => tab.sourceIdentity)
             .filter((value): value is string => Boolean(value?.startsWith("server://")));
-          const activeIndex = Math.max(
-            0,
-            tabs.findIndex((tab) => tab.id === activeTabId),
-          );
           const activeTab = tabs.find((tab) => tab.id === activeTabId);
           const activeFilePath = activeTab?.sourceIdentity?.startsWith("server://")
             ? activeTab.sourceIdentity
             : null;
+          const activeIndex = activeFilePath
+            ? Math.max(0, serverTabs.indexOf(activeFilePath))
+            : 0;
           await bridge.writeSession({
             activeFilePath,
             openTabs: serverTabs,

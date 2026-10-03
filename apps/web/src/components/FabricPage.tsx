@@ -15,6 +15,7 @@ import {
   calibrateMmPerPdfPoint,
   presetMmPerPdfPoint,
   toMillimeters,
+  type MeasurementMode,
   type MeasurementUnit,
 } from "../lib/measurement";
 
@@ -24,6 +25,7 @@ export function FabricPage({
   height,
   imageUrl,
   pageScale,
+  documentKey = "document",
   annotations,
   highlightMode,
   shapeMode,
@@ -52,9 +54,15 @@ export function FabricPage({
     const saved = window.localStorage.getItem("opdf-measure-unit");
     return saved === "mm" || saved === "cm" || saved === "m" ? saved : "m";
   });
+  const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(() => {
+    if (typeof window === "undefined") return "distance";
+    const saved = window.localStorage.getItem("opdf-measure-mode");
+    return saved === "perimeter" || saved === "area" ? saved : "distance";
+  });
+  const calibrationStorageKey = "opdf-measure-calibration:" + encodeURIComponent(documentKey) + ":" + pageNumber;
   const [calibratedMmPerPdfPoint, setCalibratedMmPerPdfPoint] = useState<number | null>(() => {
     if (typeof window === "undefined") return null;
-    const saved = Number(window.localStorage.getItem("opdf-measure-calibration"));
+    const saved = Number(window.localStorage.getItem(calibrationStorageKey));
     return Number.isFinite(saved) && saved > 0 ? saved : null;
   });
   const [calibrationMode, setCalibrationMode] = useState(false);
@@ -70,12 +78,19 @@ export function FabricPage({
   }, [measurementUnit]);
 
   useEffect(() => {
-    if (calibratedMmPerPdfPoint) {
-      window.localStorage.setItem("opdf-measure-calibration", String(calibratedMmPerPdfPoint));
-    } else {
-      window.localStorage.removeItem("opdf-measure-calibration");
+    window.localStorage.setItem("opdf-measure-mode", measurementMode);
+    if (measurementMode !== "distance") {
+      setCalibrationMode(false);
+      setPendingCalibrationPdfPoints(null);
     }
-  }, [calibratedMmPerPdfPoint]);
+  }, [measurementMode]);
+
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(calibrationStorageKey));
+    setCalibratedMmPerPdfPoint(Number.isFinite(saved) && saved > 0 ? saved : null);
+    setCalibrationMode(false);
+    setPendingCalibrationPdfPoints(null);
+  }, [calibrationStorageKey]);
 
   const effectiveMmPerPdfPoint = calibratedMmPerPdfPoint ?? presetMmPerPdfPoint(drawingScale);
 
@@ -86,6 +101,7 @@ export function FabricPage({
     const next = calibrateMmPerPdfPoint(pendingCalibrationPdfPoints, knownMillimeters);
     if (!next) return;
     setCalibratedMmPerPdfPoint(next);
+    window.localStorage.setItem(calibrationStorageKey, String(next));
     setCalibrationMode(false);
     setPendingCalibrationPdfPoints(null);
     setMeasureResult(null);
@@ -93,6 +109,7 @@ export function FabricPage({
 
   const resetCalibration = () => {
     setCalibratedMmPerPdfPoint(null);
+    window.localStorage.removeItem(calibrationStorageKey);
     setPendingCalibrationPdfPoints(null);
     setCalibrationMode(false);
   };
@@ -220,6 +237,7 @@ export function FabricPage({
     pageScale,
     mmPerPdfPoint: effectiveMmPerPdfPoint,
     measurementUnit,
+    measurementMode,
     onMeasureCommitted: (pdfPoints) => {
       if (calibrationMode) {
         setPendingCalibrationPdfPoints(pdfPoints);
@@ -269,6 +287,7 @@ export function FabricPage({
             onChange={(event) => {
               setDrawingScale(Number(event.target.value));
               setCalibratedMmPerPdfPoint(null);
+              window.localStorage.removeItem(calibrationStorageKey);
             }}
             className="rounded border border-emerald-200 bg-white px-1 py-0.5"
             aria-label="Drawing scale"
@@ -288,17 +307,32 @@ export function FabricPage({
             <option value="cm">cm</option>
             <option value="mm">mm</option>
           </select>
-          <button
-            type="button"
-            className={`rounded border px-1.5 py-0.5 ${calibrationMode ? "border-amber-400 bg-amber-50 text-amber-800" : "border-emerald-200 bg-white"}`}
-            onClick={() => {
-              setCalibrationMode((current) => !current);
-              setPendingCalibrationPdfPoints(null);
-            }}
-            title="Vẽ một đoạn có kích thước thực đã biết để hiệu chuẩn"
+          <select
+            value={measurementMode}
+            onChange={(event) => setMeasurementMode(event.target.value as MeasurementMode)}
+            className="rounded border border-emerald-200 bg-white px-1 py-0.5"
+            aria-label="Measurement mode"
+            disabled={calibrationMode}
           >
-            {calibrationMode ? "Đang calibrate…" : calibratedMmPerPdfPoint ? "Đã calibrate" : "Calibrate"}
-          </button>
+            <option value="distance">Distance</option>
+            <option value="perimeter">Perimeter</option>
+            <option value="area">Area</option>
+          </select>
+          {measurementMode === "distance" ? (
+            <button
+              type="button"
+              className={`rounded border px-1.5 py-0.5 ${calibrationMode ? "border-amber-400 bg-amber-50 text-amber-800" : "border-emerald-200 bg-white"}`}
+              onClick={() => {
+                setCalibrationMode((current) => !current);
+                setPendingCalibrationPdfPoints(null);
+              }}
+              title="Vẽ một đoạn có kích thước thực đã biết để hiệu chuẩn"
+            >
+              {calibrationMode ? "Đang calibrate…" : calibratedMmPerPdfPoint ? "Đã calibrate" : "Calibrate"}
+            </button>
+          ) : (
+            <span className="text-[10px] text-emerald-700">Click điểm · double-click/Enter để kết thúc</span>
+          )}
           {calibratedMmPerPdfPoint && !calibrationMode ? (
             <button
               type="button"
@@ -351,7 +385,7 @@ export function FabricPage({
             <path d="M21.3 4.7a1 1 0 0 0-1.4 0L4.7 19.9a1 1 0 0 0 1.4 1.4L21.3 6.1a1 1 0 0 0 0-1.4z"/>
             <path d="M15 6l2.5 2.5M12 9l2.5 2.5M9 12l2.5 2.5M6 15l2.5 2.5"/>
           </svg>
-          Distance: {measureResult}
+          {measurementMode === "area" ? "Area" : measurementMode === "perimeter" ? "Perimeter" : "Distance"}: {measureResult}
         </div>
       )}
 

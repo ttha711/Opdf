@@ -1,5 +1,22 @@
+import { useMemo, useState } from "react";
 import type { Annotation, OcrJob } from "@opdf/core";
 import { buildAnnotationListItems } from "../lib/annotationGroups";
+
+type ReviewReply = {
+  text: string;
+  createdAt: number;
+};
+
+function readReplies(annotation?: Annotation): ReviewReply[] {
+  const raw = annotation?.payload?.["reviewReplies"];
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((item) => item && typeof item === "object" && typeof (item as any).text === "string")
+    .map((item) => ({
+      text: String((item as any).text),
+      createdAt: Number((item as any).createdAt || Date.now()),
+    }));
+}
 
 export function RightInfoPanel({
   hasDocument,
@@ -12,6 +29,8 @@ export function RightInfoPanel({
   annotations,
   ocrJobs,
   onRemoveAnnotation,
+  onUpdateAnnotation,
+  onGoToPage,
   isCollapsed = false,
   setIsCollapsed,
 }: {
@@ -25,10 +44,39 @@ export function RightInfoPanel({
   annotations: Annotation[];
   ocrJobs: OcrJob[];
   onRemoveAnnotation: (id: string) => void;
+  onUpdateAnnotation?: (id: string, payload: Record<string, unknown>) => void;
+  onGoToPage?: (page: number) => void;
   isCollapsed?: boolean;
   setIsCollapsed?: (collapsed: boolean) => void;
 }) {
+  const [reviewFilter, setReviewFilter] = useState<"all" | "open" | "resolved">("all");
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const annotationItems = buildAnnotationListItems(annotations);
+
+  const visibleItems = useMemo(() => {
+    return annotationItems.filter((item) => {
+      const annotation = annotations.find((candidate) => candidate.id === item.id);
+      const resolved = Boolean(annotation?.payload?.["reviewResolved"]);
+      if (reviewFilter === "open") return !resolved;
+      if (reviewFilter === "resolved") return resolved;
+      return true;
+    });
+  }, [annotationItems, annotations, reviewFilter]);
+
+  const resolvedCount = annotationItems.filter((item) => {
+    const annotation = annotations.find((candidate) => candidate.id === item.id);
+    return Boolean(annotation?.payload?.["reviewResolved"]);
+  }).length;
+
+  const submitReply = (annotation: Annotation) => {
+    const value = (replyDrafts[annotation.id] || "").trim();
+    if (!value || !onUpdateAnnotation) return;
+    const replies = readReplies(annotation);
+    onUpdateAnnotation(annotation.id, {
+      reviewReplies: [...replies, { text: value, createdAt: Date.now() }],
+    });
+    setReplyDrafts((current) => ({ ...current, [annotation.id]: "" }));
+  };
 
   return (
     <aside className="overflow-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] h-full flex flex-col">
@@ -39,7 +87,7 @@ export function RightInfoPanel({
             <polyline points="14 2 14 8 20 8" />
           </svg>
           Document
-          {setIsCollapsed && (
+          {setIsCollapsed ? (
             <button
               className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded hover:bg-[var(--ui-subtle-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
               onClick={() => setIsCollapsed(true)}
@@ -51,85 +99,107 @@ export function RightInfoPanel({
                 <polyline points="6 17 11 12 6 7" />
               </svg>
             </button>
-          )}
+          ) : null}
         </div>
         <div className="px-[14px] py-2.5">
           {hasDocument ? (
             <>
-              <div className="flex items-start justify-between gap-[var(--ui-gap-md)] border-b border-[var(--ui-divider)] py-1 text-xs"><span className="shrink-0 whitespace-nowrap text-[var(--text-secondary)]">File</span><span className="break-all text-right font-mono text-xs text-[var(--text-secondary)]">{fileName.split(/[/\\]/).pop()}</span></div>
-              <div className="flex items-start justify-between gap-[var(--ui-gap-md)] border-b border-[var(--ui-divider)] py-1 text-xs"><span className="shrink-0 whitespace-nowrap text-[var(--text-secondary)]">Pages</span><span className="break-all text-right text-xs text-[var(--text-primary)]">{totalPages}</span></div>
-              <div className="flex items-start justify-between gap-[var(--ui-gap-md)] border-b border-[var(--ui-divider)] py-1 text-xs"><span className="shrink-0 whitespace-nowrap text-[var(--text-secondary)]">Page</span><span className="break-all text-right text-xs text-[var(--text-primary)]">{page} / {totalPages}</span></div>
-              <div className="flex items-start justify-between gap-[var(--ui-gap-md)] py-1 text-xs"><span className="shrink-0 whitespace-nowrap text-[var(--text-secondary)]">Zoom</span><span className="break-all text-right text-xs text-[var(--text-primary)]">{Math.round(scale * 100)}%</span></div>
+              <div className="flex items-start justify-between gap-2 border-b border-[var(--ui-divider)] py-1 text-xs"><span className="text-[var(--text-secondary)]">File</span><span className="break-all text-right font-mono text-[var(--text-secondary)]">{fileName.split(/[/\\]/).pop()}</span></div>
+              <div className="flex items-start justify-between gap-2 border-b border-[var(--ui-divider)] py-1 text-xs"><span className="text-[var(--text-secondary)]">Pages</span><span>{totalPages}</span></div>
+              <div className="flex items-start justify-between gap-2 border-b border-[var(--ui-divider)] py-1 text-xs"><span className="text-[var(--text-secondary)]">Page</span><span>{page} / {totalPages}</span></div>
+              <div className="flex items-start justify-between gap-2 py-1 text-xs"><span className="text-[var(--text-secondary)]">Zoom</span><span>{Math.round(scale * 100)}%</span></div>
             </>
-          ) : (
-            <p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)]">No document open</p>
-          )}
-          {viewerError ? <p className="rounded-[var(--ui-radius-sm)] p-[var(--ui-pad-sm)] text-[var(--ui-font-sm)]" style={{ backgroundColor: 'var(--ui-error-bg)', color: 'var(--ui-error-text)' }}>{viewerError}</p> : null}
-          {searchResult ? <p className="mt-2 rounded px-2 py-1.5 text-xs" style={{ backgroundColor: 'var(--ui-success-bg)', color: 'var(--ui-success-text)' }}>{searchResult}</p> : null}
+          ) : <p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)]">No document open</p>}
+          {viewerError ? <p className="rounded p-2 text-xs" style={{ backgroundColor: "var(--ui-error-bg)", color: "var(--ui-error-text)" }}>{viewerError}</p> : null}
+          {searchResult ? <p className="mt-2 rounded px-2 py-1.5 text-xs" style={{ backgroundColor: "var(--ui-success-bg)", color: "var(--ui-success-text)" }}>{searchResult}</p> : null}
         </div>
       </div>
 
       <div className="border-b border-[var(--border-color)]">
-        <div className="flex cursor-default items-center gap-[var(--ui-gap-md)] border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] py-2.5 text-xs font-semibold uppercase tracking-[0.02em] text-[var(--text-primary)]">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="m15 5 4 4-9 9H6v-4z" />
-            <path d="m12 8 4 4" />
-          </svg>
-          Annotations
-          <span className="ml-auto rounded-full bg-[var(--acrobat-blue)] px-1.5 py-[1px] text-[10px] font-bold text-white">{annotationItems.length}</span>
+        <div className="flex items-center gap-2 border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] py-2.5 text-xs font-semibold uppercase text-[var(--text-primary)]">
+          <span>Review</span>
+          <span className="ml-auto rounded-full bg-[var(--acrobat-blue)] px-1.5 py-[1px] text-[10px] font-bold text-white">{annotationItems.length - resolvedCount} open</span>
         </div>
-        {annotationItems.length > 0 ? (
+        <div className="flex gap-1 px-[14px] py-2">
+          {(["all", "open", "resolved"] as const).map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              onClick={() => setReviewFilter(filter)}
+              className={"rounded px-2 py-1 text-[11px] font-semibold " + (reviewFilter === filter ? "bg-[var(--acrobat-blue)] text-white" : "bg-[var(--ui-muted-bg)] text-[var(--text-secondary)]")}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+
+        {visibleItems.length > 0 ? (
           <ul className="m-0 list-none p-0">
-            {annotationItems.map((item) => (
-              <li key={`${item.id}-${item.groupId ?? "single"}`} className="flex items-start gap-[var(--ui-gap-sm)] border-b border-[var(--ui-divider)] px-[14px] py-1.5 text-xs">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`shrink-0 rounded px-1.5 py-px text-[10px] font-bold tracking-[0.03em] ${
-                      item.groupId
-                        ? "bg-indigo-100 text-indigo-800"
-                        : item.kind === "highlight"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : item.kind === "note"
-                            ? "bg-[#fff8d6] text-amber-800"
-                            : item.kind === "shape"
-                              ? "bg-red-100 text-red-800"
-                              : item.kind === "signature"
-                                ? "bg-violet-100 text-violet-800"
-                                : "bg-gray-800 text-white"
-                    }`}>{item.label}</span>
-                    <span className="text-[11px] text-[var(--text-secondary)]">p.{item.page}</span>
+            {visibleItems.map((item) => {
+              const annotation = annotations.find((candidate) => candidate.id === item.id);
+              if (!annotation) return null;
+              const resolved = Boolean(annotation.payload?.["reviewResolved"]);
+              const replies = readReplies(annotation);
+              return (
+                <li key={item.id} className={"border-t border-[var(--ui-divider)] px-[14px] py-2 text-xs " + (resolved ? "opacity-65" : "")}>
+                  <div className="flex items-start gap-2">
+                    <button type="button" onClick={() => onGoToPage?.(item.page)} className="min-w-0 flex-1 text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded bg-slate-100 px-1.5 py-px text-[10px] font-bold text-slate-700">{item.label}</span>
+                        <span className="text-[11px] text-[var(--text-secondary)]">p.{item.page}</span>
+                        {resolved ? <span className="rounded bg-emerald-100 px-1.5 py-px text-[10px] font-bold text-emerald-700">RESOLVED</span> : null}
+                      </div>
+                      {item.summary ? <p className="mt-1 truncate text-[11px] text-[var(--text-primary)]">{item.summary}</p> : null}
+                    </button>
+                    {onUpdateAnnotation ? (
+                      <button
+                        type="button"
+                        onClick={() => onUpdateAnnotation(annotation.id, { reviewResolved: !resolved })}
+                        className="rounded border border-[var(--border-color)] px-1.5 py-0.5 text-[10px]"
+                      >
+                        {resolved ? "Reopen" : "Resolve"}
+                      </button>
+                    ) : null}
+                    <button onClick={() => onRemoveAnnotation(item.id)} title="Delete annotation" className="rounded p-0.5 text-[#aaa] hover:bg-red-100 hover:text-red-600" type="button">✕</button>
                   </div>
-                  {item.summary ? (
-                    <p className="mt-0.5 truncate text-[11px] text-[var(--text-primary)]" title={item.summary}>{item.summary}</p>
+
+                  {replies.length > 0 ? (
+                    <div className="mt-2 space-y-1 border-l-2 border-[var(--border-color)] pl-2">
+                      {replies.slice(-3).map((reply, index) => (
+                        <div key={reply.createdAt + "-" + index} className="text-[11px] text-[var(--text-secondary)]">
+                          <span className="font-semibold text-[var(--text-primary)]">Reply:</span> {reply.text}
+                        </div>
+                      ))}
+                    </div>
                   ) : null}
-                </div>
-                <button onClick={() => onRemoveAnnotation(item.id)} title="Delete annotation" className="ml-auto flex items-center rounded p-0.5 text-[#aaa] transition-colors hover:bg-red-100 hover:text-[var(--ui-danger)]" type="button">
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18 6 6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              </li>
-            ))}
+
+                  {onUpdateAnnotation ? (
+                    <div className="mt-2 flex gap-1">
+                      <input
+                        value={replyDrafts[annotation.id] || ""}
+                        onChange={(event) => setReplyDrafts((current) => ({ ...current, [annotation.id]: event.target.value }))}
+                        onKeyDown={(event) => { if (event.key === "Enter") submitReply(annotation); }}
+                        placeholder="Reply…"
+                        className="min-w-0 flex-1 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-1 text-[11px]"
+                      />
+                      <button type="button" onClick={() => submitReply(annotation)} className="rounded bg-[var(--acrobat-blue)] px-2 py-1 text-[10px] font-semibold text-white">Send</button>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
-        ) : (
-          <div className="px-[14px] py-2.5"><p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)]">No annotations yet</p></div>
-        )}
+        ) : <div className="px-[14px] py-3 text-xs text-[var(--text-secondary)]">No review items in this filter.</div>}
       </div>
 
       <div className="border-b border-[var(--border-color)]">
-        <div className="flex cursor-default items-center gap-[var(--ui-gap-md)] border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] py-2.5 text-xs font-semibold uppercase tracking-[0.02em] text-[var(--text-primary)]">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <path d="M7 8h10M7 12h6M7 16h4" />
-          </svg>
-          OCR Jobs
+        <div className="flex items-center gap-2 border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] py-2.5 text-xs font-semibold uppercase text-[var(--text-primary)]">
+          <span>OCR Jobs</span>
         </div>
         <div className="px-[14px] py-2.5">
-          {ocrJobs.length === 0 ? (
-            <p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)]">No OCR jobs</p>
-          ) : (
+          {ocrJobs.length === 0 ? <p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)]">No OCR jobs</p> : (
             <ul className="m-0 list-none p-0">
-              {ocrJobs.map((j) => <li key={j.id} className="flex items-center justify-between gap-[var(--ui-gap-sm)] border-b border-[var(--ui-divider)] py-1.5 text-xs"><span>{j.status}</span><span>{j.progress}%</span></li>)}
+              {ocrJobs.map((job) => <li key={job.id} className="flex items-center justify-between border-b border-[var(--ui-divider)] py-1.5 text-xs"><span>{job.status}</span><span>{job.progress}%</span></li>)}
             </ul>
           )}
         </div>

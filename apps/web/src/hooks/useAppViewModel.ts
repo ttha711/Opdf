@@ -80,6 +80,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     shapeMode: state.activeTool === "shape",
     redactMode: state.activeTool === "redact",
     measureMode: state.activeTool === "measure",
+    measurementDocumentKey: state.sourceIdentity || state.fileName || "document",
     activeTool: state.activeTool,
     annotationToolDefaults: state.annotationToolDefaults,
     searchText: state.pageSearch,

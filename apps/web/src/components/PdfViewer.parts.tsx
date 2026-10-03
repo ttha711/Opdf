@@ -26,6 +26,7 @@ interface PdfPageStageProps {
   shapeMode: boolean;
   redactMode: boolean;
   measureMode: boolean;
+  measurementDocumentKey?: string;
   activeTool: string;
   annotationToolDefaults: import("../lib/app-types").AnnotationToolDefaults;
   annotations: any[];
@@ -57,6 +58,7 @@ export function PdfPageStage(props: PdfPageStageProps) {
     shapeMode,
     redactMode,
     measureMode,
+    measurementDocumentKey,
     activeTool,
     annotationToolDefaults,
     annotations,
@@ -161,6 +163,7 @@ export function PdfPageStage(props: PdfPageStageProps) {
           height={pageData.height}
           imageUrl={pageData.imageUrl}
           pageScale={pageData.scale}
+          documentKey={measurementDocumentKey}
           annotations={annotations}
           highlightMode={highlightMode || false}
           shapeMode={shapeMode || false}

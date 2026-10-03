@@ -32,6 +32,7 @@ export function PdfViewer({
   shapeMode = false,
   redactMode = false,
   measureMode = false,
+  measurementDocumentKey = "document",
   onDocumentLoaded,
   onSearchResult,
   onError,
@@ -281,6 +282,7 @@ export function PdfViewer({
                   shapeMode={shapeMode}
                   redactMode={redactMode}
                   measureMode={measureMode}
+                  measurementDocumentKey={measurementDocumentKey}
                   activeTool={activeTool}
                   annotationToolDefaults={annotationToolDefaults}
                   annotations={annotations}
@@ -308,6 +310,7 @@ export function PdfViewer({
                   shapeMode={shapeMode}
                   redactMode={redactMode}
                   measureMode={measureMode}
+                  measurementDocumentKey={measurementDocumentKey}
                   activeTool={activeTool}
                   annotationToolDefaults={annotationToolDefaults}
                   annotations={annotations}

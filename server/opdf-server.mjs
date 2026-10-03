@@ -3,6 +3,7 @@ import { mkdir, open, readFile, rename, rm, stat } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
+import { DocumentService } from "@opdf/core";
 import { createOpdfStorage, assertDocumentId, sanitizeFileName } from "./opdf-storage.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -12,7 +13,9 @@ const host = process.env.OPDF_HOST || "127.0.0.1";
 const dataDir = resolve(process.env.OPDF_DATA_DIR || join(repoRoot, ".opdf-data"));
 const webDist = resolve(process.env.OPDF_WEB_DIST || join(repoRoot, "apps", "web", "dist"));
 const maxBytes = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 750 * 1024 * 1024);
+const maxOperationBytes = Number(process.env.OPDF_MAX_OPERATION_BYTES || 250 * 1024 * 1024);
 const storage = createOpdfStorage(dataDir);
+const documentService = new DocumentService();
 
 function setBaseHeaders(res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -42,6 +45,62 @@ async function readJsonBody(req, limit = 2 * 1024 * 1024) {
   }
   if (total === 0) return {};
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+}
+
+async function readPdfBody(req, limit = maxOperationBytes) {
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of req) {
+    total += chunk.length;
+    if (total > limit) throw new Error("PDF operation payload exceeds OPDF_MAX_OPERATION_BYTES.");
+    chunks.push(chunk);
+  }
+  if (total < 5) throw new Error("PDF payload is empty.");
+  const buffer = Buffer.concat(chunks);
+  if (buffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
+    throw new Error("Payload is not a PDF.");
+  }
+  return new Uint8Array(buffer);
+}
+
+function sendPdf(res, bytes) {
+  setBaseHeaders(res);
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Length", String(bytes.byteLength));
+  res.end(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+}
+
+function parseOperationOptions(req) {
+  const encoded = req.headers["x-opdf-options"];
+  if (!encoded || typeof encoded !== "string") return {};
+  try {
+    return JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+  } catch {
+    throw new Error("Invalid X-OPDF-Options header.");
+  }
+}
+
+async function handlePdfOperation(req, res, operation) {
+  if (req.method !== "POST") return sendError(res, 405, "Method not allowed.");
+  const input = await readPdfBody(req);
+  if (operation === "compress") {
+    return sendPdf(res, await documentService.compressPdf(input));
+  }
+  if (operation === "encrypt") {
+    const options = parseOperationOptions(req);
+    return sendPdf(res, await documentService.encryptPdf(input, {
+      userPassword: typeof options.userPassword === "string" ? options.userPassword : undefined,
+      ownerPassword: typeof options.ownerPassword === "string" ? options.ownerPassword : undefined,
+      permissions: typeof options.permissions === "number" ? options.permissions : undefined,
+    }));
+  }
+  if (operation === "decrypt") {
+    const options = parseOperationOptions(req);
+    if (typeof options.password !== "string") throw new Error("Decrypt password is required.");
+    return sendPdf(res, await documentService.decryptPdf(input, options.password));
+  }
+  return sendError(res, 404, "PDF operation not found.");
 }
 
 async function streamBodyToPath(req, tempPath) {
@@ -224,8 +283,22 @@ async function handleApi(req, res, url) {
       ok: true,
       runtime: "server",
       maxUploadBytes: maxBytes,
-      capabilities: { persistence: true, rangeReads: true, annotations: true, session: true },
+      maxOperationBytes,
+      capabilities: {
+        persistence: true,
+        rangeReads: true,
+        annotations: true,
+        session: true,
+        compress: true,
+        encrypt: true,
+        decrypt: true,
+      },
     });
+  }
+
+  const operationMatch = url.pathname.match(/^\/api\/opdf\/operations\/(compress|encrypt|decrypt)$/);
+  if (operationMatch) {
+    return handlePdfOperation(req, res, operationMatch[1]);
   }
 
   if (url.pathname === "/api/opdf/documents" && req.method === "POST") {

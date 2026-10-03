@@ -156,6 +156,7 @@ export async function signPdfWithP12(
 
   const pdfWithPlaceholder = Buffer.from(await pdfDoc.save({ useObjectStreams: false }));
   const signerImpl = new P12Signer(Buffer.from(p12Bytes), { passphrase });
-  const signerEngine = new SignPdf();\n  const signed = await signerEngine.sign(pdfWithPlaceholder, signerImpl, now);
+  const signerEngine = new SignPdf();
+  const signed = await signerEngine.sign(pdfWithPlaceholder, signerImpl, now);
   return { bytes: new Uint8Array(signed), certificate };
 }

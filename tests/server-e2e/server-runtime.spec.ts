@@ -59,8 +59,9 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
 
   // Structural edits create an unsaved working copy. The viewer must render
   // that copy instead of continuing to prefer the persisted server URL.
-  await page.getByRole("button", { name: "View", exact: true }).click();
-  await page.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
+  const header = page.locator("header");
+  await header.getByRole("button", { name: "View", exact: true }).click();
+  await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
   await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy", { timeout: 30_000 });
   await expect(page.getByText(/Page\s+1\s+of\s+24/i)).toBeVisible({ timeout: 30_000 });
 });

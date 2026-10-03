@@ -11,6 +11,12 @@ import {
   useFabricSelection,
 } from "./index";
 import type { FabricPageProps, SelectedAnnotationState } from "./index";
+import {
+  calibrateMmPerPdfPoint,
+  presetMmPerPdfPoint,
+  toMillimeters,
+  type MeasurementUnit,
+} from "../lib/measurement";
 
 export function FabricPage({
   pageNumber,
@@ -41,11 +47,55 @@ export function FabricPage({
     const saved = Number(window.localStorage.getItem("opdf-measure-scale"));
     return Number.isFinite(saved) && saved > 0 ? saved : 1;
   });
-  const [measurementUnit, setMeasurementUnit] = useState<"mm" | "m">("m");
+  const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>(() => {
+    if (typeof window === "undefined") return "m";
+    const saved = window.localStorage.getItem("opdf-measure-unit");
+    return saved === "mm" || saved === "cm" || saved === "m" ? saved : "m";
+  });
+  const [calibratedMmPerPdfPoint, setCalibratedMmPerPdfPoint] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const saved = Number(window.localStorage.getItem("opdf-measure-calibration"));
+    return Number.isFinite(saved) && saved > 0 ? saved : null;
+  });
+  const [calibrationMode, setCalibrationMode] = useState(false);
+  const [pendingCalibrationPdfPoints, setPendingCalibrationPdfPoints] = useState<number | null>(null);
+  const [knownCalibrationValue, setKnownCalibrationValue] = useState("1");
 
   useEffect(() => {
     window.localStorage.setItem("opdf-measure-scale", String(drawingScale));
   }, [drawingScale]);
+
+  useEffect(() => {
+    window.localStorage.setItem("opdf-measure-unit", measurementUnit);
+  }, [measurementUnit]);
+
+  useEffect(() => {
+    if (calibratedMmPerPdfPoint) {
+      window.localStorage.setItem("opdf-measure-calibration", String(calibratedMmPerPdfPoint));
+    } else {
+      window.localStorage.removeItem("opdf-measure-calibration");
+    }
+  }, [calibratedMmPerPdfPoint]);
+
+  const effectiveMmPerPdfPoint = calibratedMmPerPdfPoint ?? presetMmPerPdfPoint(drawingScale);
+
+  const applyCalibration = () => {
+    if (!pendingCalibrationPdfPoints) return;
+    const knownValue = Number(knownCalibrationValue);
+    const knownMillimeters = toMillimeters(knownValue, measurementUnit);
+    const next = calibrateMmPerPdfPoint(pendingCalibrationPdfPoints, knownMillimeters);
+    if (!next) return;
+    setCalibratedMmPerPdfPoint(next);
+    setCalibrationMode(false);
+    setPendingCalibrationPdfPoints(null);
+    setMeasureResult(null);
+  };
+
+  const resetCalibration = () => {
+    setCalibratedMmPerPdfPoint(null);
+    setPendingCalibrationPdfPoints(null);
+    setCalibrationMode(false);
+  };
 
   const isAnyDrawMode = highlightMode || shapeMode || redactMode || measureMode || aiPatchMode;
 
@@ -168,8 +218,13 @@ export function FabricPage({
     onAnnotationCreated,
     setMeasureResult,
     pageScale,
-    drawingScale,
+    mmPerPdfPoint: effectiveMmPerPdfPoint,
     measurementUnit,
+    onMeasureCommitted: (pdfPoints) => {
+      if (calibrationMode) {
+        setPendingCalibrationPdfPoints(pdfPoints);
+      }
+    },
     onPatchApplied,
   });
 
@@ -207,13 +262,17 @@ export function FabricPage({
       <canvas ref={canvasRef} />
 
       {measureMode && (
-        <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 rounded-md border border-emerald-300 bg-white/95 px-2 py-1 text-[11px] font-semibold text-emerald-800 shadow-sm">
+        <div className="absolute top-3 left-3 z-30 flex max-w-[420px] flex-wrap items-center gap-1.5 rounded-md border border-emerald-300 bg-white/95 px-2 py-1 text-[11px] font-semibold text-emerald-800 shadow-sm">
           <span>Tỷ lệ</span>
           <select
             value={drawingScale}
-            onChange={(event) => setDrawingScale(Number(event.target.value))}
+            onChange={(event) => {
+              setDrawingScale(Number(event.target.value));
+              setCalibratedMmPerPdfPoint(null);
+            }}
             className="rounded border border-emerald-200 bg-white px-1 py-0.5"
             aria-label="Drawing scale"
+            disabled={calibrationMode}
           >
             {[1, 20, 50, 100, 200, 500].map((value) => (
               <option key={value} value={value}>1:{value}</option>
@@ -221,15 +280,68 @@ export function FabricPage({
           </select>
           <select
             value={measurementUnit}
-            onChange={(event) => setMeasurementUnit(event.target.value as "mm" | "m")}
+            onChange={(event) => setMeasurementUnit(event.target.value as MeasurementUnit)}
             className="rounded border border-emerald-200 bg-white px-1 py-0.5"
             aria-label="Measurement unit"
           >
             <option value="m">m</option>
+            <option value="cm">cm</option>
             <option value="mm">mm</option>
           </select>
+          <button
+            type="button"
+            className={`rounded border px-1.5 py-0.5 ${calibrationMode ? "border-amber-400 bg-amber-50 text-amber-800" : "border-emerald-200 bg-white"}`}
+            onClick={() => {
+              setCalibrationMode((current) => !current);
+              setPendingCalibrationPdfPoints(null);
+            }}
+            title="Vẽ một đoạn có kích thước thực đã biết để hiệu chuẩn"
+          >
+            {calibrationMode ? "Đang calibrate…" : calibratedMmPerPdfPoint ? "Đã calibrate" : "Calibrate"}
+          </button>
+          {calibratedMmPerPdfPoint && !calibrationMode ? (
+            <button
+              type="button"
+              className="rounded border border-emerald-200 bg-white px-1.5 py-0.5"
+              onClick={resetCalibration}
+              title="Quay về tỷ lệ 1:N"
+            >
+              Reset
+            </button>
+          ) : null}
+          {calibrationMode ? (
+            <span className="text-amber-700">Kéo theo một kích thước đã biết</span>
+          ) : null}
         </div>
       )}
+
+      {measureMode && calibrationMode && pendingCalibrationPdfPoints ? (
+        <div className="absolute left-3 top-12 z-40 w-[290px] rounded-md border border-amber-300 bg-white p-2 text-[11px] text-slate-800 shadow-lg">
+          <div className="mb-1 font-bold">Nhập kích thước thực của đoạn vừa vẽ</div>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min="0.001"
+              step="any"
+              value={knownCalibrationValue}
+              onChange={(event) => setKnownCalibrationValue(event.target.value)}
+              className="min-w-0 flex-1 rounded border border-slate-300 px-2 py-1"
+              aria-label="Known calibration distance"
+            />
+            <span className="w-6 text-center font-semibold">{measurementUnit}</span>
+            <button
+              type="button"
+              className="rounded bg-emerald-600 px-2 py-1 font-bold text-white"
+              onClick={applyCalibration}
+            >
+              Áp dụng
+            </button>
+          </div>
+          <div className="mt-1 text-[10px] text-slate-500">
+            Sau khi áp dụng, phép đo dùng calibration này thay cho preset 1:{drawingScale}.
+          </div>
+        </div>
+      ) : null}
 
       {measureMode && measureResult && (
         <div 

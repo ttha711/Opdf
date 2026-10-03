@@ -160,6 +160,7 @@ export function PdfPageStage(props: PdfPageStageProps) {
           width={pageData.width}
           height={pageData.height}
           imageUrl={pageData.imageUrl}
+          pageScale={pageData.scale}
           annotations={annotations}
           highlightMode={highlightMode || false}
           shapeMode={shapeMode || false}

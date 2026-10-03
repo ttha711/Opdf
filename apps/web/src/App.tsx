@@ -28,6 +28,7 @@ import { RevisionCompareModal } from "./components/RevisionCompareModal";
 import { SearchRedactModal } from "./components/SearchRedactModal";
 import { AdvancedPdfModal } from "./components/AdvancedPdfModal";
 import { DigitalSignatureModal } from "./components/DigitalSignatureModal";
+import { hasFullWebAccess } from "./lib/runtimeAccess";
 
 function PageSelectionFloatingBar({
   selectedPages,
@@ -173,17 +174,11 @@ function PageSelectionFloatingBar({
 export function App() {
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
   const isServerRuntime = typeof window !== "undefined" && window.__OPDF_RUNTIME__ === "server";
-  const isLocal = hasDesktopBridge || isServerRuntime || (typeof window !== "undefined" && (
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1" ||
-    window.location.hostname === "[::1]" ||
-    window.location.hostname === "::1" ||
-    window.location.hostname.endsWith(".trycloudflare.com") ||
-    window.location.hostname.startsWith("192.168.") ||
-    window.location.hostname.startsWith("10.") ||
-    window.location.hostname.startsWith("172.")
-  ));
-  const isPublic = !isLocal;
+  const isPublic = !hasFullWebAccess({
+    hasDesktopBridge,
+    isServerRuntime,
+    hostname: typeof window !== "undefined" ? window.location.hostname : "",
+  });
 
   const isAiEditorWindow = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("ai-editor") === "1";
   if (isAiEditorWindow) {
@@ -364,6 +359,7 @@ export function App() {
       )}
       <AppHeader
         {...headerProps}
+        isPublic={isPublic}
         tabs={state.tabs}
         activeTabId={state.activeTabId}
         activeGroupFilter={state.activeGroupFilter}

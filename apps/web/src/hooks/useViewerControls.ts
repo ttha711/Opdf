@@ -175,6 +175,7 @@ export function useViewerControls({
   }
 
   function onViewerWheel(event: WheelEvent<HTMLElement>) {
+    if (getViewerControls()) return;
     if (!hasDocument || highlightMode || event.ctrlKey || viewMode === "continuous") return;
     const now = Date.now();
     if (now - lastWheelFlipAtRef.current < 180 || Math.abs(event.deltaY) < 10) return;

@@ -240,7 +240,7 @@ export function AllToolsDashboard({
   // Keep the active PDF viewer mounted for PDFium-backed image export.
   // The dedicated tool panel owns format/zoom/grayscale options.
   const convertPdfToImages = (isPng: boolean) => {
-    const toolId = isPng ? "pdf-to-png" : "pdf-to-jpg";
+    const toolId = isPng ? "pdf-to-png" : "pdf-to-jpeg";
     if (hasDocument && onSelectTool) {
       onSelectTool(toolId);
       onClose();

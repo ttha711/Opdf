@@ -26,6 +26,7 @@ import { useToast } from "./components/ToastProvider";
 import aiAvatar from "./assets/ai-avatar.jpg";
 import "./types/opdf";
 import { useConfirm } from "./components/ConfirmDialog";
+import { RevisionCompareModal } from "./components/RevisionCompareModal";
 
 function PageSelectionFloatingBar({
   selectedPages,
@@ -218,6 +219,7 @@ export function App() {
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isLiveEditorOpen, setIsLiveEditorOpen] = useState(false);
   const [liveEditorHtml, setLiveEditorHtml] = useState<string | null>(null);
+  const [showRevisionCompare, setShowRevisionCompare] = useState(false);
 
   const {
     leftWidth,
@@ -393,6 +395,15 @@ export function App() {
         closeTabGroup={state.closeTabGroup}
         ungroupGroup={state.ungroupGroup}
         onOpenAiEditorWindow={openAiEditorWindow}
+        compareRevisions={() => setShowRevisionCompare(true)}
+      />
+
+      <RevisionCompareModal
+        isOpen={showRevisionCompare}
+        onClose={() => setShowRevisionCompare(false)}
+        baseSource={state.sourceBlob ?? state.docBytes}
+        baseFileName={state.fileName}
+        initialPage={state.page}
       />
 
       {state.showDashboard && !isPublic ? (

@@ -7,6 +7,7 @@ export interface PdfViewerProps {
   transitionDirection?: "next" | "prev";
   data: Uint8Array | null;
   sourceBlob?: Blob | null;
+  sourceIdentity?: string;
   page: number;
   scale: number;
   rotation?: number;

@@ -131,8 +131,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     viewMode: state.viewMode,
     totalPages: state.totalPages,
     viewerAreaRef,
-    setTransitionDirection: state.setTransitionDirection,
-    setTransitionTick: state.setTransitionTick,
     page: state.page,
     setPage: state.setPage,
     setZoomPreset: state.setZoomPreset,

@@ -40,15 +40,9 @@ export function useCommonActions({
 
   async function addWatermark() {
     if (!docBytes) return;
-    const text = prompt("Enter watermark text:", "CONFIDENTIAL");
-    if (!text) return;
-    try {
-      const watermarked = await bridge.watermarkPdf(docBytes, text);
-      setDocBytes(watermarked);
-      setSaveState("idle");
-    } catch (err) {
-      setViewerError("Watermark failed: " + err);
-    }
+    // Configuration belongs in the Watermark panel. This fallback deliberately
+    // avoids native prompt() dialogs.
+    toast.info("Mở Watermark trong PDF Tools để cấu hình nội dung và kiểu hiển thị.");
   }
 
   async function mergeDocuments() {

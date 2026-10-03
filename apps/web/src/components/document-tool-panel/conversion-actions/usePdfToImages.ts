@@ -17,7 +17,6 @@ interface UsePdfToImagesArgs {
 
 export function usePdfToImages(args: UsePdfToImagesArgs) {
   const {
-    docBytes,
     thumbnails,
     imgFormat,
     imgOutputOption,
@@ -30,7 +29,7 @@ export function usePdfToImages(args: UsePdfToImagesArgs) {
   } = args;
 
   const handlePdfToImages = async () => {
-    if (!docBytes || thumbnails.length === 0) {
+    if (thumbnails.length === 0) {
       toast.info("Vui lòng chờ tất cả các trang render xong trước khi chuyển đổi.");
       return;
     }

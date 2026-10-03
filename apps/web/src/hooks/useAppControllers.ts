@@ -49,6 +49,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setFileName: state.setFileName,
     setDocBytes: state.setDocBytes,
     setSourceBlob: state.setSourceBlob,
+    sourceIdentity: state.sourceIdentity,
     setSourceIdentity: state.setSourceIdentity,
     setPage: state.setPage,
     setTotalPages: state.setTotalPages,

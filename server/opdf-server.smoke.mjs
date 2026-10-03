@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { PDFDocument } from "pdf-lib";
 
 const port = 18787;
 const dataDir = await mkdtemp(join(tmpdir(), "opdf-server-smoke-"));
@@ -45,7 +46,9 @@ try {
   const health = await waitForHealth();
   assert(health.runtime === "server", "health runtime must be server");
 
-  const sample = Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n", "ascii");
+  const sampleDoc = await PDFDocument.create();
+  sampleDoc.addPage([200, 200]);
+  const sample = Buffer.from(await sampleDoc.save());
   const upload = await fetch(`${base}/api/opdf/documents?name=smoke.pdf`, {
     method: "POST",
     headers: { "Content-Type": "application/pdf" },
@@ -65,7 +68,10 @@ try {
   assert(range.status === 206, "range request must return 206");
   assert(Buffer.from(await range.arrayBuffer()).toString("ascii") === "%PDF-", "range bytes differ");
 
-  const updatedSample = Buffer.from("%PDF-1.4\n2 0 obj\n<< /Updated true >>\nendobj\n%%EOF\n", "ascii");
+  const updatedDoc = await PDFDocument.create();
+  updatedDoc.addPage([300, 300]);
+  updatedDoc.addPage([200, 200]);
+  const updatedSample = Buffer.from(await updatedDoc.save());
   const replace = await fetch(`${base}/api/opdf/documents/${document.id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/pdf" },
@@ -133,6 +139,46 @@ try {
 
   const recent = await fetch(`${base}/api/opdf/recent`).then((r) => r.json());
   assert(recent.some((item) => item.filePath === document.filePath), "recent document missing");
+
+  const compressedResponse = await fetch(`${base}/api/opdf/operations/compress`, {
+    method: "POST",
+    headers: { "Content-Type": "application/pdf" },
+    body: updatedSample,
+  });
+  assert(compressedResponse.ok, `compress operation failed: ${compressedResponse.status}`);
+  const compressed = Buffer.from(await compressedResponse.arrayBuffer());
+  assert(compressed.subarray(0, 5).toString("ascii") === "%PDF-", "compressed result is not a PDF");
+
+  const encodeOptions = (value) =>
+    Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+
+  const encryptedResponse = await fetch(`${base}/api/opdf/operations/encrypt`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/pdf",
+      "X-OPDF-Options": encodeOptions({
+        userPassword: "viewer-pass",
+        ownerPassword: "owner-pass",
+      }),
+    },
+    body: updatedSample,
+  });
+  assert(encryptedResponse.ok, `encrypt operation failed: ${encryptedResponse.status}`);
+  const encrypted = Buffer.from(await encryptedResponse.arrayBuffer());
+  assert(encrypted.subarray(0, 5).toString("ascii") === "%PDF-", "encrypted result is not a PDF");
+
+  const decryptedResponse = await fetch(`${base}/api/opdf/operations/decrypt`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/pdf",
+      "X-OPDF-Options": encodeOptions({ password: "viewer-pass" }),
+    },
+    body: encrypted,
+  });
+  assert(decryptedResponse.ok, `decrypt operation failed: ${decryptedResponse.status}`);
+  const decrypted = new Uint8Array(await decryptedResponse.arrayBuffer());
+  const decryptedDoc = await PDFDocument.load(decrypted);
+  assert(decryptedDoc.getPageCount() === 2, "decrypt operation did not preserve the PDF");
 
   console.log("OPDF server smoke test passed.");
 } finally {

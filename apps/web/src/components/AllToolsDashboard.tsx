@@ -311,11 +311,7 @@ export function AllToolsDashboard({
     { id: "pdf-to-xml", name: getDocumentToolLabel("pdf-to-xml"), icon: "👾", color: "#0ca678", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: () => convertPdfToOffice("pdf-to-xml") },
 
     // ROW 2: X to PDF (Convert to PDF) & PDF Utilities
-    { id: "word-to-pdf", name: "Word to PDF", icon: "📝", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => triggerFileInput("word-to-pdf") },
-    { id: "excel-to-pdf", name: "Excel to PDF", icon: "📈", color: "#0f7f45", bgColor: "#e2f9ed", borderColor: "#a9ecbe", action: () => triggerFileInput("excel-to-pdf") },
-    { id: "ppt-to-pdf", name: "PPT to PDF", icon: "📉", color: "#e8590c", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => triggerFileInput("ppt-to-pdf") },
     { id: "image-to-pdf", name: "Image to PDF", icon: "🖼️", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => triggerFileInput("image-to-pdf") },
-    { id: "rtf-to-pdf", name: "RTF to PDF", icon: "🖋️", color: "#3b5bdb", bgColor: "#edf2ff", borderColor: "#bac8ff", action: () => triggerFileInput("rtf-to-pdf") },
     { id: "txt-to-pdf", name: "TXT to PDF", icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: () => triggerFileInput("txt-to-pdf") },
     { id: "compress-pdf", name: "Compress PDF", icon: "🗜️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerCompress },
     { id: "merge-pdf", name: "Merge PDF", icon: "📚", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerMerge },

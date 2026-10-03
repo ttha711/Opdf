@@ -1,0 +1,5 @@
+pdfplumber
+pdf2docx
+python-pptx
+openpyxl
+python-docx

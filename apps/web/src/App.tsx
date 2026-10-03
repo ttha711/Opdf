@@ -264,6 +264,7 @@ export function App() {
     mergeDocuments,
     splitDocument,
     replaceDocumentBytes,
+    materializeDocumentBytes,
     runConfiguredMarkupTool,
     removeAnnotation,
     updateAnnotation,
@@ -309,10 +310,11 @@ export function App() {
   }, [state.hasDocument]);
 
   const handleRotatePages = useCallback(async (pages: number[], degrees: number) => {
-    if (!state.docBytes) return;
-    const next = await bridge.rotatePages(state.docBytes, pages, degrees);
+    const bytes = state.docBytes ?? await materializeDocumentBytes();
+    if (!bytes) return;
+    const next = await bridge.rotatePages(bytes, pages, degrees);
     replaceDocumentBytes(next, state.page);
-  }, [state.docBytes, state.page, bridge, replaceDocumentBytes]);
+  }, [state.docBytes, state.page, bridge, materializeDocumentBytes, replaceDocumentBytes]);
 
   const handleViewerPageSelectionClick = useCallback((pageNum: number, ctrl: boolean, shift: boolean) => {
     if (shift && lastViewerSelectedRef.current !== null) {
@@ -335,10 +337,11 @@ export function App() {
   }, []);
 
   const handleDeletePages = useCallback(async (pages: number[]) => {
-    if (!state.docBytes) return;
-    const next = await bridge.deletePages(state.docBytes, pages);
+    const bytes = state.docBytes ?? await materializeDocumentBytes();
+    if (!bytes) return;
+    const next = await bridge.deletePages(bytes, pages);
     replaceDocumentBytes(next, Math.min(state.page, state.totalPages - pages.length));
-  }, [state.docBytes, state.page, state.totalPages, bridge, replaceDocumentBytes]);
+  }, [state.docBytes, state.page, state.totalPages, bridge, materializeDocumentBytes, replaceDocumentBytes]);
 
   const showLeft = state.hasDocument || !state.activeDashboardTool;
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null;
@@ -684,6 +687,7 @@ export function App() {
                 activeToolId={state.activeDashboardTool}
                 fileName={state.fileName}
                 docBytes={state.docBytes}
+                getDocumentBytes={materializeDocumentBytes}
                 totalPages={state.totalPages}
                 thumbnails={state.thumbnails}
                 annotations={state.annotations}

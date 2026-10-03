@@ -2,6 +2,7 @@ import type React from "react";
 
 interface UseCompressPdfArgs {
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   bridge: any;
   compressLevel: "high" | "medium" | "low";
   replaceDocumentBytes: (bytes: Uint8Array, nextPage?: number) => void;
@@ -12,6 +13,7 @@ interface UseCompressPdfArgs {
 export function useCompressPdf(args: UseCompressPdfArgs) {
   const {
     docBytes,
+    getDocumentBytes,
     bridge,
     compressLevel,
     replaceDocumentBytes,
@@ -20,11 +22,12 @@ export function useCompressPdf(args: UseCompressPdfArgs) {
   } = args;
 
   const handleCompressPdf = async () => {
-    if (!docBytes) return;
     setIsProcessing(true);
     setViewerError("Compressing document streams...");
     try {
-      const compressed = await bridge.compressPdf(docBytes);
+      const bytes = docBytes ?? await getDocumentBytes();
+      if (!bytes) throw new Error("PDF bytes are unavailable.");
+      const compressed = await bridge.compressPdf(bytes);
       replaceDocumentBytes(compressed);
       setViewerError(`Optimized successfully with ${compressLevel.toUpperCase()} Compression!`);
       setTimeout(() => setViewerError(null), 3500);

@@ -3,6 +3,7 @@ import type { MergeFile, SplitPart } from "./types";
 
 interface UseSplitMergeActionsArgs {
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   fileBase: string;
   splitParts: SplitPart[];
   mergeFiles: MergeFile[];
@@ -17,6 +18,7 @@ interface UseSplitMergeActionsArgs {
 export function useSplitMergeActions(args: UseSplitMergeActionsArgs) {
   const {
     docBytes,
+    getDocumentBytes,
     fileBase,
     splitParts,
     mergeFiles,
@@ -29,14 +31,16 @@ export function useSplitMergeActions(args: UseSplitMergeActionsArgs) {
   } = args;
 
   const handleSplitPdf = async () => {
-    if (!docBytes || splitParts.length === 0) return;
+    if (splitParts.length === 0) return;
     setIsProcessing(true);
     setViewerError("Splitting pages...");
     try {
+      const sourceBytes = docBytes ?? await getDocumentBytes();
+      if (!sourceBytes) throw new Error("PDF bytes are unavailable.");
       const pdfLib = await import("pdf-lib");
       const { zipSync } = await import("fflate");
       if (splitParts.length === 1) {
-        const source = await pdfLib.PDFDocument.load(docBytes);
+        const source = await pdfLib.PDFDocument.load(sourceBytes);
         const out = await pdfLib.PDFDocument.create();
         const indices = splitParts[0].pages.map((p) => p - 1).filter((idx) => idx >= 0 && idx < source.getPageCount());
         const copied = await out.copyPages(source, indices);
@@ -50,7 +54,7 @@ export function useSplitMergeActions(args: UseSplitMergeActionsArgs) {
         a.click();
         URL.revokeObjectURL(url);
       } else {
-        const source = await pdfLib.PDFDocument.load(docBytes);
+        const source = await pdfLib.PDFDocument.load(sourceBytes);
         const zipData: Record<string, Uint8Array> = {};
         for (const part of splitParts) {
           const out = await pdfLib.PDFDocument.create();

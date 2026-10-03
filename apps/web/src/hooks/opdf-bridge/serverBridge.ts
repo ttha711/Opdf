@@ -177,6 +177,28 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
       return (await expectJson<ServerUploadResult>(response)).filePath;
     },
 
+    async convertPdfOffice(bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") {
+      const response = await fetch(
+        `${baseUrl}/operations/convert-office?format=${encodeURIComponent(format)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/pdf" },
+          body: bytes as unknown as BodyInit,
+        },
+      );
+      if (!response.ok) {
+        let message = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json() as { error?: string };
+          if (payload.error) message = payload.error;
+        } catch {
+          // Keep status fallback.
+        }
+        throw new Error(message);
+      }
+      return new Uint8Array(await response.arrayBuffer());
+    },
+
     async saveFile(bytes: Uint8Array, defaultName: string, extensions: string[]) {
       const ext = extensions[0] || "pdf";
       const name = defaultName.includes(".") ? defaultName : `${defaultName}.${ext}`;

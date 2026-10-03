@@ -35,6 +35,7 @@ Requirements:
 
 - Node.js 22 or newer.
 - Git.
+- Python 3.11+ when PDF-to-DOCX/PPTX/XLSX server conversion is required.
 - Optional Cloudflare Tunnel for HTTPS/domain access.
 
 From PowerShell:
@@ -118,6 +119,34 @@ $env:OPDF_MAX_OPERATION_BYTES="536870912"
 
 Passwords for encryption/decryption are sent only to the same-origin OPDF API in an encoded request header. For remote deployments, keep OPDF behind HTTPS (for example Cloudflare Tunnel + Access) and do not configure proxies to log the `X-OPDF-Options` header.
 
+## PDF to Office server worker
+
+DOCX, PPTX, and XLSX conversion in server runtime is executed by a Python worker on the server. Install its dependencies once:
+
+```powershell
+py -m pip install -r server\requirements-office.txt
+```
+
+If `python` is not the command used by your installation:
+
+```powershell
+$env:OPDF_PYTHON_PATH="C:\Python311\python.exe"
+```
+
+The default converter is:
+
+```
+apps/desktop/tools/pdf_office_convert.py
+```
+
+It can be replaced without changing the web UI:
+
+```powershell
+$env:OPDF_OFFICE_CONVERTER_SCRIPT="D:\OPDF\workers\pdf_office_convert.py"
+```
+
+The worker receives paths and arguments through `spawn` without a shell. Conversion runs in a temporary directory and the temporary input/output files are removed after each request. Default timeout is 5 minutes; override it with `OPDF_OFFICE_WORKER_TIMEOUT_MS` if very large drawings require more time.
+
 ## Upload size
 
 Default maximum PDF upload size:
@@ -164,9 +193,7 @@ Do not expose port 8787 directly to the public Internet.
 
 The server bridge is designed so native/server workers can be added without changing the main UI. The next logical migrations are:
 
-1. QPDF compression/encryption worker.
-2. LibreOffice/Python document-conversion worker.
-3. Server OCR job queue.
-4. Server-side P12/PFX signing policy and certificate storage.
-5. Multi-user authentication, authorization, quotas, and per-user/project storage.
-6. S3-compatible object storage for multi-node deployments.
+1. Server OCR job queue with searchable-PDF output.
+2. Server-side P12/PFX signing policy and certificate storage.
+3. Multi-user authentication, authorization, quotas, and per-user/project storage.
+4. S3-compatible object storage for multi-node deployments.

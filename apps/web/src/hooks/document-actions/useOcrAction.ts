@@ -29,7 +29,7 @@ export function useOcrAction({
   async function runOcr() {
     if (!fileName) return;
     try {
-      const sourceBytes = docBytes ?? await getDocumentBytes();
+      const sourceBytes = (await getDocumentBytes()) ?? docBytes;
       if (!sourceBytes || sourceBytes.length === 0) {
         throw new Error("No document bytes loaded for OCR.");
       }

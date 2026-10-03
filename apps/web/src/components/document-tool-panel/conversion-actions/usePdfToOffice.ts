@@ -5,6 +5,7 @@ import { extractPageLines, downloadFile } from "./helpers";
 interface UsePdfToOfficeArgs {
   activeToolId: string;
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   fileName: string;
   fileBase: string;
   officeLayout: "flow" | "exact";
@@ -20,6 +21,7 @@ export function usePdfToOffice(args: UsePdfToOfficeArgs) {
   const {
     activeToolId,
     docBytes,
+    getDocumentBytes,
     fileName,
     fileBase,
     officeLayout,
@@ -44,9 +46,10 @@ export function usePdfToOffice(args: UsePdfToOfficeArgs) {
   };
 
   const handlePdfToOffice = async () => {
-    if (!docBytes) return;
     setIsProcessing(true);
     try {
+      const bytes = docBytes ?? await getDocumentBytes();
+      if (!bytes) throw new Error("PDF bytes are unavailable.");
       const targetFormat = getTargetFormat(activeToolId);
       if (!targetFormat) {
         throw new Error("Unsupported layout format: " + activeToolId);
@@ -60,14 +63,14 @@ export function usePdfToOffice(args: UsePdfToOfficeArgs) {
 
       if (isOpdfServerRuntime() && serverFormat && bridge.convertPdfOffice) {
         setViewerError(`Converting ${fileName} on OPDF Server...`);
-        const output = await bridge.convertPdfOffice(docBytes, serverFormat);
+        const output = await bridge.convertPdfOffice(bytes, serverFormat);
         await downloadFile(output, `${fileBase}.${serverFormat}`, [serverFormat]);
         setViewerError(null);
         return;
       }
 
       const { runBackgroundOcrAndExport } = await import("../../../lib/backgroundConverter");
-      await runBackgroundOcrAndExport(docBytes, fileName, targetFormat, setViewerError);
+      await runBackgroundOcrAndExport(bytes, fileName, targetFormat, setViewerError);
     } catch (err: any) {
       setViewerError("Failed to convert layout: " + (err.message || err));
     } finally {

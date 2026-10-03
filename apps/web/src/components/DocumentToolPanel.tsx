@@ -65,10 +65,23 @@ export function DocumentToolPanel({
   }, [totalPages, activeToolId]);
 
   useEffect(() => {
-    if (activeToolId === "merge-pdf" && docBytes) {
-      setMergeFiles([{ id: "active-doc", name: fileName || "document.pdf", bytes: docBytes, totalPages, size: docBytes.length }]);
-    }
-  }, [activeToolId, docBytes, fileName, totalPages]);
+    if (activeToolId !== "merge-pdf") return;
+    let cancelled = false;
+    void (async () => {
+      const bytes = docBytes ?? await getDocumentBytes();
+      if (cancelled || !bytes) return;
+      setMergeFiles([{
+        id: "active-doc",
+        name: fileName || "document.pdf",
+        bytes,
+        totalPages,
+        size: bytes.length,
+      }]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeToolId, docBytes, fileName, getDocumentBytes, totalPages]);
 
   const fileBase = useMemo(() => {
     const base = fileName.split(/[/\\]/).pop() || "document.pdf";
@@ -130,6 +143,7 @@ export function DocumentToolPanel({
     removeMergeFile,
   } = useSplitMergeActions({
     docBytes,
+    getDocumentBytes,
     fileBase,
     splitParts,
     mergeFiles,

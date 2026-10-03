@@ -442,6 +442,7 @@ export function App() {
               id: "bookmark-" + Date.now() + "-" + index,
               title: item.title,
               page: item.page,
+              parent: item.parent,
               createdAt: Date.now(),
             })));
           }

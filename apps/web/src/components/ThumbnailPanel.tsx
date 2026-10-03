@@ -7,6 +7,7 @@ interface Bookmark {
   page: number;
   title: string;
   createdAt: number;
+  parent?: number;
 }
 
 function ThumbnailImage({ blob, url: fallbackUrl, page }: { blob?: Blob; url?: string; page: number }) {
@@ -227,7 +228,18 @@ export function ThumbnailPanel({
   const deleteBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!setBookmarks) return;
-    const nextBookmarks = bookmarks.filter((b) => b.id !== id);
+    const removedIndex = bookmarks.findIndex((bookmark) => bookmark.id === id);
+    if (removedIndex < 0) return;
+    const nextBookmarks = bookmarks
+      .filter((bookmark) => bookmark.id !== id)
+      .map((bookmark) => ({
+        ...bookmark,
+        parent: bookmark.parent === removedIndex
+          ? undefined
+          : typeof bookmark.parent === "number" && bookmark.parent > removedIndex
+            ? bookmark.parent - 1
+            : bookmark.parent,
+      }));
     setBookmarks(nextBookmarks);
   };
 
@@ -245,7 +257,7 @@ export function ThumbnailPanel({
         title: `Bookmark - Page ${pageNumber}`,
         createdAt: Date.now(),
       };
-      const nextBookmarks = [...bookmarks, newBookmark].sort((a, b) => a.page - b.page);
+      const nextBookmarks = [...bookmarks, newBookmark];
       setBookmarks(nextBookmarks);
     }
   };
@@ -558,7 +570,7 @@ export function ThumbnailPanel({
             )}
 
             <div className="flex flex-col gap-1.5">
-              {bookmarks.map((b) => (
+              {bookmarks.map((b, bookmarkIndex) => (
                 <div
                   key={b.id}
                   className={`group flex items-center justify-between gap-1.5 rounded-[var(--ui-radius-sm)] border border-transparent p-1.5 text-left transition-colors cursor-pointer min-w-0 ${
@@ -567,6 +579,19 @@ export function ThumbnailPanel({
                       : "hover:bg-[var(--ui-hover-bg)]"
                   }`}
                   onClick={() => onSelectPage(b.page)}
+                  style={{
+                    marginLeft: (() => {
+                      let depth = 0;
+                      let parent = b.parent;
+                      const seen = new Set<number>();
+                      while (typeof parent === "number" && parent >= 0 && parent < bookmarkIndex && !seen.has(parent) && depth < 6) {
+                        seen.add(parent);
+                        depth += 1;
+                        parent = bookmarks[parent]?.parent;
+                      }
+                      return depth * 12;
+                    })(),
+                  }}
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-1.5">
                     <svg

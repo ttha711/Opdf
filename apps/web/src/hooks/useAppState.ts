@@ -43,7 +43,7 @@ export function useAppState() {
   const [transitionTick, setTransitionTick] = useState(0);
   const [transitionDirection, setTransitionDirection] = useState<"next" | "prev">("next");
   const [thumbnails, setThumbnails] = useState<Array<{ page: number; url: string; blob: Blob }>>([]);
-  const [bookmarks, setBookmarks] = useState<Array<{ id: string; page: number; title: string; createdAt: number }>>([]);
+  const [bookmarks, setBookmarks] = useState<Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showFindBar, setShowFindBar] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
@@ -130,7 +130,7 @@ export function useAppState() {
     docBytes?: Uint8Array | null;
     documentIdentity?: string;
     annotations?: Annotation[];
-    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
+    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>;
     pageRotations?: Record<number, number>;
   }) => {
     const fingerprint = buildDocumentFingerprint({

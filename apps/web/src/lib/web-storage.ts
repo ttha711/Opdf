@@ -12,7 +12,7 @@ export interface OpdfTab {
   page: number;
   totalPages: number;
   annotations: any[];
-  bookmarks: Array<{ id: string; page: number; title: string; createdAt: number }>;
+  bookmarks: Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>;
   group: string | null;
   groupColor: string | null;
   thumbnails?: Array<{ page: number; url: string; blob: Blob }>;
@@ -24,7 +24,7 @@ export interface WebState {
   annotations: any[];
   thumbnails: Array<{ page: number; blob: Blob }>;
   page: number;
-  bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
+  bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>;
 }
 
 function awaitTransaction(tx: IDBTransaction): Promise<void> {

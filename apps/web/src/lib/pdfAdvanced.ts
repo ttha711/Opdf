@@ -6,6 +6,7 @@ import {
   PDFName,
   PDFNumber,
   PDFOptionList,
+  PDFPage,
   PDFRadioGroup,
   PDFString,
   PDFTextField,
@@ -23,15 +24,23 @@ export type FormFieldValue = string | boolean | string[];
 export type PdfBookmarkInput = {
   title: string;
   page: number;
+  parent?: number;
 };
 
-export type PdfLinkInput = {
+export type PdfLinkRect = {
   page: number;
-  url: string;
   x: number;
   y: number;
   width: number;
   height: number;
+};
+
+export type PdfLinkInput = PdfLinkRect & {
+  url: string;
+};
+
+export type PdfInternalLinkInput = PdfLinkRect & {
+  destinationPage: number;
 };
 
 export async function inspectFormFields(bytes: Uint8Array): Promise<FormFieldDescriptor[]> {
@@ -120,13 +129,13 @@ function validateExternalUrl(value: string) {
   return parsed.toString();
 }
 
-export async function addUriLink(bytes: Uint8Array, input: PdfLinkInput): Promise<Uint8Array> {
-  const doc = await PDFDocument.load(bytes);
+function getLinkGeometry(
+  doc: PDFDocument,
+  input: PdfLinkRect,
+) {
   if (!Number.isInteger(input.page) || input.page < 1 || input.page > doc.getPageCount()) {
     throw new Error("Invalid link page.");
   }
-
-  const url = validateExternalUrl(input.url);
   const page = doc.getPage(input.page - 1);
   const { width, height } = page.getSize();
   const x = normalizeUnit(input.x) * width;
@@ -134,29 +143,98 @@ export async function addUriLink(bytes: Uint8Array, input: PdfLinkInput): Promis
   const boxWidth = Math.max(0.005, normalizeUnit(input.width)) * width;
   const boxHeight = Math.max(0.005, normalizeUnit(input.height)) * height;
   const y = height - top - boxHeight;
+  return { page, x, y, boxWidth, boxHeight };
+}
 
-  const action = doc.context.obj({
-    S: "URI",
-    URI: PDFString.of(url),
-  });
+function appendLinkAnnotation(
+  doc: PDFDocument,
+  page: PDFPage,
+  payload: Record<string, unknown>,
+  rect: [number, number, number, number],
+) {
   const annotation = doc.context.register(
     doc.context.obj({
       Type: "Annot",
       Subtype: "Link",
-      Rect: [x, y, x + boxWidth, y + boxHeight],
+      Rect: rect,
       Border: [0, 0, 0],
-      A: action,
+      ...payload,
     }),
   );
-
   const annots = page.node.lookupMaybe(PDFName.of("Annots"), PDFArray);
-  if (annots) {
-    annots.push(annotation);
-  } else {
-    page.node.set(PDFName.of("Annots"), doc.context.obj([annotation]));
-  }
+  if (annots) annots.push(annotation);
+  else page.node.set(PDFName.of("Annots"), doc.context.obj([annotation]));
+}
 
+export async function addUriLink(bytes: Uint8Array, input: PdfLinkInput): Promise<Uint8Array> {
+  const doc = await PDFDocument.load(bytes);
+  const url = validateExternalUrl(input.url);
+  const { page, x, y, boxWidth, boxHeight } = getLinkGeometry(doc, input);
+  const action = doc.context.obj({
+    S: "URI",
+    URI: PDFString.of(url),
+  });
+  appendLinkAnnotation(doc, page, { A: action }, [x, y, x + boxWidth, y + boxHeight]);
   return doc.save();
+}
+
+export async function addInternalPageLink(
+  bytes: Uint8Array,
+  input: PdfInternalLinkInput,
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.load(bytes);
+  if (
+    !Number.isInteger(input.destinationPage) ||
+    input.destinationPage < 1 ||
+    input.destinationPage > doc.getPageCount()
+  ) {
+    throw new Error("Invalid destination page.");
+  }
+  const { page, x, y, boxWidth, boxHeight } = getLinkGeometry(doc, input);
+  const destination = doc.context.obj([
+    doc.getPage(input.destinationPage - 1).ref,
+    PDFName.of("Fit"),
+  ]);
+  appendLinkAnnotation(doc, page, { Dest: destination }, [x, y, x + boxWidth, y + boxHeight]);
+  return doc.save();
+}
+
+type CleanBookmark = {
+  title: string;
+  page: number;
+  originalIndex: number;
+  parent?: number;
+};
+
+function cleanBookmarks(bookmarks: PdfBookmarkInput[], pageCount: number): CleanBookmark[] {
+  const valid = bookmarks
+    .map((bookmark, originalIndex) => ({
+      title: bookmark.title.trim(),
+      page: Math.trunc(bookmark.page),
+      originalIndex,
+      parent: Number.isInteger(bookmark.parent) ? bookmark.parent : undefined,
+    }))
+    .filter((bookmark) => bookmark.title && bookmark.page >= 1 && bookmark.page <= pageCount);
+
+  const originalToClean = new Map<number, number>();
+  valid.forEach((bookmark, cleanIndex) => originalToClean.set(bookmark.originalIndex, cleanIndex));
+
+  return valid.map((bookmark, cleanIndex) => {
+    const parentOriginal = bookmark.parent;
+    const parentClean = parentOriginal === undefined ? undefined : originalToClean.get(parentOriginal);
+    const safeParent =
+      parentClean !== undefined &&
+      parentClean >= 0 &&
+      parentClean < cleanIndex
+        ? parentClean
+        : undefined;
+    return {
+      title: bookmark.title,
+      page: bookmark.page,
+      originalIndex: bookmark.originalIndex,
+      parent: safeParent,
+    };
+  });
 }
 
 export async function addPdfBookmarks(
@@ -165,41 +243,59 @@ export async function addPdfBookmarks(
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.load(bytes);
   const pages = doc.getPages();
-  const cleaned = bookmarks
-    .map((bookmark) => ({
-      title: bookmark.title.trim(),
-      page: Math.trunc(bookmark.page),
-    }))
-    .filter((bookmark) => bookmark.title && bookmark.page >= 1 && bookmark.page <= pages.length);
-
-  if (cleaned.length === 0) {
-    throw new Error("Add at least one valid bookmark.");
-  }
+  const cleaned = cleanBookmarks(bookmarks, pages.length);
+  if (cleaned.length === 0) throw new Error("Add at least one valid bookmark.");
 
   const context = doc.context;
   const outlinesRef = context.nextRef();
   const itemRefs = cleaned.map(() => context.nextRef());
+  const children = new Map<number, number[]>();
+  const rootChildren: number[] = [];
 
   cleaned.forEach((bookmark, index) => {
+    if (bookmark.parent === undefined) {
+      rootChildren.push(index);
+      return;
+    }
+    const list = children.get(bookmark.parent) ?? [];
+    list.push(index);
+    children.set(bookmark.parent, list);
+  });
+
+  const siblingList = (bookmarkIndex: number) => {
+    const parent = cleaned[bookmarkIndex].parent;
+    return parent === undefined ? rootChildren : (children.get(parent) ?? []);
+  };
+
+  cleaned.forEach((bookmark, index) => {
+    const siblings = siblingList(index);
+    const siblingIndex = siblings.indexOf(index);
+    const ownChildren = children.get(index) ?? [];
     const destination = context.obj([pages[bookmark.page - 1].ref, PDFName.of("Fit")]);
     const item = context.obj({
       Title: PDFString.of(bookmark.title),
-      Parent: outlinesRef,
+      Parent: bookmark.parent === undefined ? outlinesRef : itemRefs[bookmark.parent],
       Dest: destination,
-      ...(index > 0 ? { Prev: itemRefs[index - 1] } : {}),
-      ...(index < itemRefs.length - 1 ? { Next: itemRefs[index + 1] } : {}),
+      ...(siblingIndex > 0 ? { Prev: itemRefs[siblings[siblingIndex - 1]] } : {}),
+      ...(siblingIndex >= 0 && siblingIndex < siblings.length - 1 ? { Next: itemRefs[siblings[siblingIndex + 1]] } : {}),
+      ...(ownChildren.length > 0
+        ? {
+            First: itemRefs[ownChildren[0]],
+            Last: itemRefs[ownChildren[ownChildren.length - 1]],
+            Count: PDFNumber.of(ownChildren.length),
+          }
+        : {}),
     });
     context.assign(itemRefs[index], item);
   });
 
   const outlines = context.obj({
     Type: PDFName.of("Outlines"),
-    First: itemRefs[0],
-    Last: itemRefs[itemRefs.length - 1],
+    First: itemRefs[rootChildren[0]],
+    Last: itemRefs[rootChildren[rootChildren.length - 1]],
     Count: PDFNumber.of(cleaned.length),
   });
   context.assign(outlinesRef, outlines);
-
   doc.catalog.set(PDFName.of("Outlines"), outlinesRef);
   doc.catalog.set(PDFName.of("PageMode"), PDFName.of("UseOutlines"));
   return doc.save();

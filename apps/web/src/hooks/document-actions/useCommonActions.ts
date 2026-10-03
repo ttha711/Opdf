@@ -1,12 +1,15 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { useOpdfBridge } from "../useOpdfBridge";
 import { toast } from "../../components/ToastProvider";
+import { getLargePdfCapabilities, runLargePdfJob } from "../../lib/largePdfJobs";
 
 export function useCommonActions({
   bridge,
   fileName,
   docBytes,
+  sourceBlob,
   getDocumentBytes,
+  replaceDocumentBytes,
   thumbnails,
   setDocBytes,
   setViewerError,
@@ -17,7 +20,9 @@ export function useCommonActions({
   bridge: ReturnType<typeof useOpdfBridge>;
   fileName: string;
   docBytes: Uint8Array | null;
+  sourceBlob: Blob | null;
   getDocumentBytes: () => Promise<Uint8Array | null>;
+  replaceDocumentBytes: (bytes: Uint8Array, nextPage?: number) => void;
   thumbnails: Array<{ page: number; url: string; blob: Blob }>;
   setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
@@ -28,11 +33,43 @@ export function useCommonActions({
   async function compressDocument() {
     if (!fileName) return;
     try {
-      const bytes = docBytes ?? await getDocumentBytes();
-      if (!bytes) return;
-      setViewerError("Compressing... (this may take a few seconds)");
-      const compressed = await bridge.compressPdf(bytes);
-      setDocBytes(compressed);
+      setViewerError("Compressing...");
+
+      // Desktop/native bridge remains the first choice where available.
+      if (bridge.capabilities?.compress !== false) {
+        const bytes = docBytes ?? await getDocumentBytes();
+        if (!bytes) return;
+        const compressed = await bridge.compressPdf(bytes);
+        replaceDocumentBytes(compressed);
+        setSaveState("idle");
+        setViewerError(null);
+        toast.success("Nén tài liệu thành công!");
+        return;
+      }
+
+      // Browser fallback: use the streaming large-PDF service if qpdf is
+      // available. Prefer Blob/File so a 300–500 MB PDF is not materialized
+      // into another Uint8Array just to upload it.
+      const capabilities = await getLargePdfCapabilities();
+      if (!capabilities?.qpdf || !capabilities.operations.includes("optimize")) {
+        throw new Error("Server-side PDF optimization is unavailable.");
+      }
+
+      const source = sourceBlob ?? docBytes ?? await getDocumentBytes();
+      if (!source) return;
+      const compressed = await runLargePdfJob({
+        source,
+        fileName,
+        operation: "optimize",
+        onStatus: (state) => {
+          if (state.status === "uploaded") {
+            setViewerError("Upload complete. Optimizing PDF...");
+          } else if (state.status === "processing") {
+            setViewerError("Optimizing large PDF on server...");
+          }
+        },
+      });
+      replaceDocumentBytes(compressed);
       setSaveState("idle");
       setViewerError(null);
       toast.success("Nén tài liệu thành công!");

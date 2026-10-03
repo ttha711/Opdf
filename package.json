@@ -18,7 +18,8 @@
     "desktop-build": "npm run build -w @opdf/desktop",
     "desktop-package": "npm run package -w @opdf/desktop",
     "smoke:ai-phase1": "powershell -ExecutionPolicy Bypass -File scripts/smoke/run-ai-phase1.ps1",
-    "share": "node scripts/share-tunnels.mjs"
+    "share": "node scripts/share-tunnels.mjs",
+    "perf:pdf": "node scripts/perf/generate-large-pdf.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

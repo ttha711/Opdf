@@ -144,6 +144,7 @@ export function PdfViewer({
     let cancelled = false;
     const unsubscribers: Array<() => void> = [];
     let timer = 0;
+    let documentReadyTimer = 0;
 
     const connect = async (attempt = 0) => {
       if (cancelled) return;
@@ -338,14 +339,49 @@ export function PdfViewer({
         if (typeof off === "function") unsubscribers.push(off);
       }
 
+      const syncDocumentReadyState = () => {
+        const latestDocumentManager =
+          registry.getPlugin?.("document-manager")?.provides?.() as any;
+        const state = latestDocumentManager?.getDocumentState?.(DOCUMENT_ID);
+        const document =
+          state?.document ?? latestDocumentManager?.getDocument?.(DOCUMENT_ID);
+        const count = document?.pageCount;
+
+        if (state?.status === "loaded" && typeof count === "number" && count > 0) {
+          onDocumentLoaded?.(count);
+          onError?.(null);
+          return true;
+        }
+
+        return false;
+      };
+
       if (documentManager?.onDocumentOpened) {
         const off = documentManager.onDocumentOpened((doc: any) => {
           if (doc?.id !== DOCUMENT_ID) return;
-          const count = doc?.pageCount ?? doc?.document?.pageCount;
-          if (typeof count === "number") onDocumentLoaded?.(count);
+          const count = doc?.document?.pageCount ?? doc?.pageCount;
+          if (typeof count === "number" && count > 0) onDocumentLoaded?.(count);
           onError?.(null);
         });
         if (typeof off === "function") unsubscribers.push(off);
+      }
+
+      // EmbedPDF v2 can expose the viewer before the React-facing scroll state
+      // receives the loaded page count. Search-state updates used to trigger an
+      // incidental re-render that masked this race. Read the canonical document
+      // state until it is loaded so totalPages never depends on unrelated UI.
+      if (!syncDocumentReadyState()) {
+        let documentReadyAttempts = 0;
+        const waitForDocumentReady = () => {
+          if (cancelled || syncDocumentReadyState()) return;
+          const latestDocumentManager =
+            registry.getPlugin?.("document-manager")?.provides?.() as any;
+          const state = latestDocumentManager?.getDocumentState?.(DOCUMENT_ID);
+          if (state?.status === "error" || documentReadyAttempts >= 300) return;
+          documentReadyAttempts += 1;
+          documentReadyTimer = window.setTimeout(waitForDocumentReady, 100);
+        };
+        documentReadyTimer = window.setTimeout(waitForDocumentReady, 100);
       }
 
       if (documentManager?.onDocumentError) {
@@ -364,6 +400,7 @@ export function PdfViewer({
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      window.clearTimeout(documentReadyTimer);
       unsubscribers.forEach((off) => off());
     };
   }, [

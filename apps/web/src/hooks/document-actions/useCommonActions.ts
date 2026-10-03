@@ -6,6 +6,7 @@ export function useCommonActions({
   bridge,
   fileName,
   docBytes,
+  getDocumentBytes,
   thumbnails,
   setDocBytes,
   setViewerError,
@@ -16,6 +17,7 @@ export function useCommonActions({
   bridge: ReturnType<typeof useOpdfBridge>;
   fileName: string;
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   thumbnails: Array<{ page: number; url: string; blob: Blob }>;
   setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
@@ -24,10 +26,12 @@ export function useCommonActions({
   setShowMergeModal?: (v: boolean) => void;
 }) {
   async function compressDocument() {
-    if (!docBytes || !fileName) return;
+    if (!fileName) return;
     try {
+      const bytes = docBytes ?? await getDocumentBytes();
+      if (!bytes) return;
       setViewerError("Compressing... (this may take a few seconds)");
-      const compressed = await bridge.compressPdf(docBytes);
+      const compressed = await bridge.compressPdf(bytes);
       setDocBytes(compressed);
       setSaveState("idle");
       setViewerError(null);
@@ -39,21 +43,25 @@ export function useCommonActions({
   }
 
   async function addWatermark() {
-    if (!docBytes) return;
     // Configuration belongs in the Watermark panel. This fallback deliberately
     // avoids native prompt() dialogs.
     toast.info("Mở Watermark trong PDF Tools để cấu hình nội dung và kiểu hiển thị.");
   }
 
   async function mergeDocuments() {
-    if (!docBytes) return;
+    const bytes = docBytes ?? await getDocumentBytes();
+    if (!bytes) return;
+    setDocBytes(bytes);
     if (setShowMergeModal) {
       setShowMergeModal(true);
     }
   }
 
   async function splitDocument() {
-    if (!docBytes || !fileName) return;
+    if (!fileName) return;
+    const bytes = docBytes ?? await getDocumentBytes();
+    if (!bytes) return;
+    setDocBytes(bytes);
     if (setShowSplitModal) {
       setShowSplitModal(true);
     }

@@ -448,7 +448,6 @@ export function App() {
           hasDocument={state.hasDocument}
           fileName={state.fileName}
           docBytes={state.docBytes}
-          thumbnails={state.thumbnails}
           onLoadConvertedPdf={(bytes, name) => {
             state.setDocBytes(bytes);
             state.setFileName(name);
@@ -487,8 +486,7 @@ export function App() {
                 className="h-full min-h-0 overflow-hidden"
               >
                 <ThumbnailPanel
-                  thumbnails={state.thumbnails}
-                  page={state.page}
+                    page={state.page}
                   totalPages={state.totalPages}
                   hasDocument={state.hasDocument}
                   onSelectPage={state.setPage}

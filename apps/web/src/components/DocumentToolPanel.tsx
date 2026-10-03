@@ -70,23 +70,23 @@ export function DocumentToolPanel({
   }, [totalPages, activeToolId]);
 
   useEffect(() => {
-    if (activeToolId !== "merge-pdf") return;
-    let cancelled = false;
-    void (async () => {
-      const bytes = docBytes ?? await getDocumentBytes();
-      if (cancelled || !bytes) return;
-      setMergeFiles([{
+    if (activeToolId !== "merge-pdf") {
+      setMergeFiles([]);
+      return;
+    }
+    setMergeFiles((current) => {
+      const active = current.find((item) => item.id === "active-doc");
+      if (active?.name === (fileName || "document.pdf")) return current;
+      return [{
         id: "active-doc",
         name: fileName || "document.pdf",
-        bytes,
+        bytes: docBytes,
         totalPages,
-        size: bytes.length,
-      }]);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeToolId, docBytes, fileName, getDocumentBytes, totalPages]);
+        size: sourceBlob?.size || docBytes?.length || 0,
+        isActiveDocument: true,
+      }];
+    });
+  }, [activeToolId, docBytes, fileName, sourceBlob, totalPages]);
 
   const fileBase = useMemo(() => {
     const base = fileName.split(/[/\\]/).pop() || "document.pdf";
@@ -157,7 +157,6 @@ export function DocumentToolPanel({
     setIsProcessing,
     setViewerError,
     onLoadConvertedPdf,
-    replaceDocumentBytes,
     fileInputRef,
   });
 

@@ -17,9 +17,10 @@ export interface DocumentToolPanelProps {
 export interface MergeFile {
   id: string;
   name: string;
-  bytes: Uint8Array;
+  bytes: Uint8Array | null;
   totalPages: number;
   size: number;
+  isActiveDocument?: boolean;
 }
 
 export interface SplitPart {

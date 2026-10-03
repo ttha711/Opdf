@@ -4,9 +4,10 @@ import { toast } from "./ToastProvider";
 interface MergeFile {
   id: string;
   name: string;
-  bytes: Uint8Array;
+  bytes: Uint8Array | null;
   totalPages: number;
   size: number;
+  isActiveDocument?: boolean;
 }
 
 interface MergeModalProps {
@@ -14,6 +15,8 @@ interface MergeModalProps {
   onClose: () => void;
   fileName: string;
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
+  sourceSize?: number;
   totalPages: number;
   onMergeComplete: (mergedBytes: Uint8Array) => void;
   setViewerError: (msg: string | null) => void;
@@ -24,6 +27,8 @@ export function MergeModal({
   onClose,
   fileName,
   docBytes,
+  getDocumentBytes,
+  sourceSize = 0,
   totalPages,
   onMergeComplete,
   setViewerError,
@@ -34,18 +39,21 @@ export function MergeModal({
 
   // Initialize with active document
   useEffect(() => {
-    if (isOpen && docBytes) {
-      setFiles([
-        {
-          id: "active-doc",
-          name: fileName || "document.pdf",
-          bytes: docBytes,
-          totalPages: totalPages,
-          size: docBytes.length,
-        },
-      ]);
-    }
-  }, [isOpen, docBytes, fileName, totalPages]);
+    if (!isOpen) return;
+    setFiles([
+      {
+        id: "active-doc",
+        name: fileName || "document.pdf",
+        bytes: docBytes,
+        totalPages,
+        size: sourceSize || docBytes?.length || 0,
+        isActiveDocument: true,
+      },
+    ]);
+    // Initialize only when the dialog opens. Materializing the active PDF later
+    // must not reset the merge stack while an operation is running.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -147,7 +155,9 @@ export function MergeModal({
       const outDoc = await pdfLib.PDFDocument.create();
 
       for (const file of files) {
-        const sourceDoc = await pdfLib.PDFDocument.load(file.bytes);
+        const bytes = file.bytes ?? (file.isActiveDocument ? (docBytes ?? await getDocumentBytes()) : null);
+        if (!bytes) throw new Error(`PDF bytes are unavailable for "${file.name}".`);
+        const sourceDoc = await pdfLib.PDFDocument.load(bytes);
         const copiedPages = await outDoc.copyPages(sourceDoc, sourceDoc.getPageIndices());
         copiedPages.forEach((page) => outDoc.addPage(page));
       }

@@ -82,9 +82,10 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
   return {
     ...browser,
     capabilities: {
-      ...browser.capabilities,
       compress: browser.capabilities?.compress ?? false,
+      encrypt: browser.capabilities?.encrypt ?? false,
       bookmarksPersist: true,
+      pdfA: browser.capabilities?.pdfA ?? false,
       digitalSignature: false,
     },
 

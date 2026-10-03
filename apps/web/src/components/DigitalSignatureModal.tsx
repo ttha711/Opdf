@@ -1,12 +1,6 @@
 import { useMemo, useState } from "react";
 import type { P12CertificateInfo, PdfSignatureInspection } from "../types/opdf";
-
-type PdfSource = Blob | Uint8Array | null;
-
-async function toBytes(source: PdfSource) {
-  if (!source) throw new Error("No PDF loaded.");
-  return source instanceof Blob ? new Uint8Array(await source.arrayBuffer()) : source;
-}
+import { pdfSourceToBytes, type PdfSource } from "../lib/documentSource";
 
 function toDate(value: string) {
   const date = new Date(value);
@@ -101,7 +95,7 @@ export function DigitalSignatureModal({
     setBusy(true);
     setError(null);
     try {
-      setSignatureInspections(await inspectSignatures(await toBytes(source)));
+      setSignatureInspections(await inspectSignatures(await pdfSourceToBytes(source)));
     } catch (reasonValue) {
       setSignatureInspections(null);
       setError(reasonValue instanceof Error ? reasonValue.message : "Could not inspect PDF signatures.");
@@ -116,7 +110,7 @@ export function DigitalSignatureModal({
     setError(null);
     try {
       const result = await signDocument(
-        await toBytes(source),
+        await pdfSourceToBytes(source),
         certificateBytes,
         {
           passphrase,

@@ -57,6 +57,16 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   await expect(viewer).toHaveAttribute("data-opdf-source", "server");
   await expect(page.getByText(/Page\s+1\s+of\s+24/i)).toBeVisible({ timeout: 30_000 });
 
+  // Read-only tools should consume the persisted server URL directly instead
+  // of forcing a full working-copy materialization.
+  await page.getByRole("button", { name: "Search & Secure Redact", exact: true }).click();
+  const redactModal = page.locator(".premium-modal").filter({ hasText: "Search & Secure Redact" });
+  await redactModal.getByPlaceholder("Text to redact…").fill("SERVER DRAWING SHEET 24");
+  await redactModal.getByRole("button", { name: "Search all pages", exact: true }).click();
+  await expect(redactModal).toContainText("1 match(es) found", { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await redactModal.locator(".premium-modal-header").getByRole("button").click();
+
   // Opening Split/Merge should stay metadata-only. Large server PDFs are
   // materialized only when the user actually starts the operation.
   const header = page.locator("header");

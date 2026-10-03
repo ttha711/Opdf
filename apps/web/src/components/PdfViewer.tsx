@@ -12,6 +12,7 @@ import {
 } from "../lib/viewer-runtime";
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
 import { resolvePdfiumPageCount } from "../lib/pdfiumDocumentState";
+import { getServerDocumentUrl } from "../lib/documentSource";
 import {
   calibrateMmPerPdfPoint,
   formatMillimeters,
@@ -22,13 +23,6 @@ import {
 } from "../lib/measurement";
 
 const DOCUMENT_ID = "opdf-active-document";
-
-function getServerDocumentUrl(identity: string) {
-  const match = /^server:\/\/([0-9a-f-]{36})\//i.exec(identity);
-  if (!match) return null;
-  const baseUrl = window.__OPDF_SERVER_BASE__ || "/api/opdf";
-  return `${baseUrl}/documents/${match[1]}`;
-}
 
 function mapAnnotationTool(activeTool?: string) {
   switch (activeTool) {

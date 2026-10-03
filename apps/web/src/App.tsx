@@ -28,6 +28,7 @@ import { RevisionCompareModal } from "./components/RevisionCompareModal";
 import { SearchRedactModal } from "./components/SearchRedactModal";
 import { AdvancedPdfModal } from "./components/AdvancedPdfModal";
 import { DigitalSignatureModal } from "./components/DigitalSignatureModal";
+import { resolvePdfSource } from "./lib/documentSource";
 import { hasFullWebAccess } from "./lib/runtimeAccess";
 
 function PageSelectionFloatingBar({
@@ -273,6 +274,11 @@ export function App() {
   });
 
   const toast = useToast();
+  const activePdfSource = resolvePdfSource({
+    sourceBlob: state.sourceBlob,
+    docBytes: state.docBytes,
+    sourceIdentity: state.sourceIdentity,
+  });
 
   // Warn before leaving the page when there are unsaved changes.
   useEffect(() => {
@@ -381,7 +387,7 @@ export function App() {
       <RevisionCompareModal
         isOpen={showRevisionCompare}
         onClose={() => setShowRevisionCompare(false)}
-        baseSource={state.sourceBlob ?? state.docBytes}
+        baseSource={activePdfSource}
         baseFileName={state.fileName}
         initialPage={state.page}
       />
@@ -389,7 +395,7 @@ export function App() {
       <SearchRedactModal
         isOpen={showSearchRedact}
         onClose={() => setShowSearchRedact(false)}
-        source={state.sourceBlob ?? state.docBytes}
+        source={activePdfSource}
         fileName={state.fileName}
         onApplied={(bytes) => {
           replaceDocumentBytes(bytes, state.page);
@@ -401,7 +407,7 @@ export function App() {
       <AdvancedPdfModal
         isOpen={showAdvancedPdf}
         onClose={() => setShowAdvancedPdf(false)}
-        source={state.sourceBlob ?? state.docBytes}
+        source={activePdfSource}
         totalPages={state.totalPages}
         currentPage={state.page}
         initialBookmarks={state.bookmarks}
@@ -424,7 +430,7 @@ export function App() {
       <DigitalSignatureModal
         isOpen={showDigitalSignature}
         onClose={() => setShowDigitalSignature(false)}
-        source={state.sourceBlob ?? state.docBytes}
+        source={activePdfSource}
         currentPage={state.page}
         totalPages={state.totalPages}
         canSign={Boolean(window.opdf?.signPdfP12 && window.opdf?.inspectP12Certificate)}

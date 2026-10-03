@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
+import type { PdfSource } from "../lib/documentSource";
 import {
   buildRevisionReportPdf,
   detectDiffRegions,
@@ -11,7 +12,6 @@ import {
 
 GlobalWorkerOptions.workerSrc = workerSrc;
 
-type PdfSource = Blob | Uint8Array | null;
 type CompareMode = "side-by-side" | "overlay" | "changes";
 
 const MAX_COMPARE_PIXELS = 10_000_000;
@@ -71,13 +71,14 @@ function usePdfDocument(source: PdfSource, enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) return;
-    const blob = toBlob(source);
-    if (!blob) {
+    if (!source) {
       setPdf(null);
       return;
     }
-    const url = URL.createObjectURL(blob);
-    const task = getDocument({ url });
+
+    const blob = typeof source === "string" ? null : toBlob(source);
+    const objectUrl = blob ? URL.createObjectURL(blob) : null;
+    const task = getDocument({ url: typeof source === "string" ? source : objectUrl! });
     let active = true;
     void task.promise.then((next) => {
       if (!active) {
@@ -95,7 +96,7 @@ function usePdfDocument(source: PdfSource, enabled: boolean) {
     return () => {
       active = false;
       void task.destroy();
-      URL.revokeObjectURL(url);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [source, enabled]);
 

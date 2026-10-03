@@ -37,10 +37,31 @@ export function createOpdfStorage(rootDir) {
     await mkdir(documentsRoot, { recursive: true });
   }
 
+  async function replaceFile(tempPath, targetPath) {
+    const backupPath = `${targetPath}.${randomUUID()}.bak`;
+    let hadOriginal = false;
+    try {
+      await rename(targetPath, backupPath);
+      hadOriginal = true;
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+
+    try {
+      await rename(tempPath, targetPath);
+      if (hadOriginal) await rm(backupPath, { force: true });
+    } catch (error) {
+      if (hadOriginal) {
+        await rename(backupPath, targetPath).catch(() => {});
+      }
+      throw error;
+    }
+  }
+
   async function writeJsonAtomic(path, value) {
     const temp = `${path}.${randomUUID()}.tmp`;
     await writeFile(temp, JSON.stringify(value, null, 2) + "\n", "utf8");
-    await rename(temp, path);
+    await replaceFile(temp, path);
   }
 
   async function readJson(path, fallback) {

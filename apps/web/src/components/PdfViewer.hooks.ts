@@ -7,6 +7,7 @@ import { type RenderedPage } from "./PdfViewer.types";
 const THUMBNAIL_CSS_WIDTH = 188;
 const THUMBNAIL_MAX_DEVICE_SCALE = 2;
 const THUMBNAIL_JPEG_QUALITY = 0.72;
+const INITIAL_THUMBNAIL_COUNT = 12;
 
 async function createFallbackThumbnail(pageNumber: number) {
   const fallbackCanvas = document.createElement("canvas");
@@ -96,7 +97,10 @@ export function usePdfDataLoader(params: {
         await new Promise<void>((r) => setTimeout(r, 300));
         if (cancelled) return;
 
-        const thumbCount = nextPdf.numPages;
+        // Do not rasterize every sheet eagerly. Large drawing sets can contain
+        // hundreds of pages; render a small startup window and fill pages as
+        // the user visits them.
+        const thumbCount = Math.min(nextPdf.numPages, INITIAL_THUMBNAIL_COUNT);
         const thumbs: Array<{ page: number; url: string; blob: Blob }> = [];
 
         // Controlled Concurrency Batching (Batch size = 4 to fully utilize CPU/GPU cores without memory issues)
@@ -212,19 +216,17 @@ export function useThumbnailRefresh(params: {
         const url = URL.createObjectURL(blob);
         setThumbnails((prev) => {
           const baseThumbs = prev.length > 0 ? prev : (initialThumbnails || []);
-          if (baseThumbs.length === 0) {
-            URL.revokeObjectURL(url);
-            return prev;
+          const existing = baseThumbs.find((t) => t.page === page);
+          if (!existing) {
+            return [...baseThumbs, { page, url, blob }].sort((a, b) => a.page - b.page);
           }
-
-          const nextThumbs = baseThumbs.map((t) => {
+          return baseThumbs.map((t) => {
             if (t.page === page) {
               URL.revokeObjectURL(t.url);
               return { page, url, blob };
             }
             return t;
           });
-          return nextThumbs;
         });
         p.cleanup();
       } catch {

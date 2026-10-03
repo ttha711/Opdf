@@ -2,6 +2,7 @@ import type React from "react";
 
 interface UseWatermarkPdfArgs {
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   watermarkText: string;
   watermarkFontSize: number;
   watermarkColor: string;
@@ -15,6 +16,7 @@ interface UseWatermarkPdfArgs {
 export function useWatermarkPdf(args: UseWatermarkPdfArgs) {
   const {
     docBytes,
+    getDocumentBytes,
     watermarkText,
     watermarkFontSize,
     watermarkColor,
@@ -26,12 +28,13 @@ export function useWatermarkPdf(args: UseWatermarkPdfArgs) {
   } = args;
 
   const handleAddWatermark = async () => {
-    if (!docBytes) return;
     setIsProcessing(true);
     setViewerError("Stamping watermarks...");
     try {
+      const bytes = docBytes ?? await getDocumentBytes();
+      if (!bytes) throw new Error("PDF bytes are unavailable.");
       const pdfLib = await import("pdf-lib");
-      const doc = await pdfLib.PDFDocument.load(docBytes);
+      const doc = await pdfLib.PDFDocument.load(bytes);
       const font = await doc.embedFont(pdfLib.StandardFonts.HelveticaBold);
       const pages = doc.getPages();
       const hex = watermarkColor.replace("#", "");

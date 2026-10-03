@@ -95,6 +95,19 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci
+      - name: Sync desktop package version from release tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          node -e '
+            const fs = require("fs");
+            const path = "apps/desktop/package.json";
+            const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+            pkg.version = process.argv[1];
+            fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
+          ' "$VERSION"
       - run: npm run build
       - run: npm run desktop-package
       - uses: actions/upload-artifact@v4

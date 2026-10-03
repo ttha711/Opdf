@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import signpdf from "@signpdf/signpdf";
+import { SignPdf } from "@signpdf/signpdf";
 import { P12Signer } from "@signpdf/signer-p12";
 import { pdflibAddPlaceholder } from "@signpdf/placeholder-pdf-lib";
 import forge from "node-forge";
@@ -39,7 +39,7 @@ function getSigningCertificate(p12: any) {
 
   const privateKey = keyBag.key as any;
   const cert = certBags
-    .map((bag) => bag.cert)
+    .map((bag: any) => bag.cert)
     .find((candidate: any) => {
       if (!candidate) return false;
       const publicKey = candidate.publicKey as any;
@@ -51,7 +51,7 @@ function getSigningCertificate(p12: any) {
 }
 
 function attributeValue(cert: any, shortName: string) {
-  const attribute = cert.subject.attributes.find((item) => item.shortName === shortName);
+  const attribute = cert.subject.attributes.find((item: any) => item.shortName === shortName);
   return attribute?.value ? String(attribute.value) : "";
 }
 
@@ -156,6 +156,6 @@ export async function signPdfWithP12(
 
   const pdfWithPlaceholder = Buffer.from(await pdfDoc.save({ useObjectStreams: false }));
   const signerImpl = new P12Signer(Buffer.from(p12Bytes), { passphrase });
-  const signed = await signpdf.sign(pdfWithPlaceholder, signerImpl, now);
+  const signerEngine = new SignPdf();\n  const signed = await signerEngine.sign(pdfWithPlaceholder, signerImpl, now);
   return { bytes: new Uint8Array(signed), certificate };
 }

@@ -107,7 +107,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   const onLoaded = useCallback((pages: number) => {
     state.setTotalPages(pages);
     state.setPage((p) => Math.min(Math.max(1, p), Math.max(1, pages)));
-  }, [state.setScale, state.setZoomPreset]);
+  }, [state.hasDocument, state.setScale, state.setZoomPreset]);
 
   const onSearchResult = useCallback((found: boolean, message: string) => {
     state.setSearchResult(found ? `Found: ${message}` : `Not found: ${message}`);
@@ -155,6 +155,11 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   // CAD-style navigation: Ctrl/Cmd+wheel zooms around the pointer; hold
   // Space + drag or middle-mouse drag to pan large drawing sheets.
   useEffect(() => {
+    // PDFium owns pan/zoom/scroll input for active documents. The legacy
+    // wrapper handlers manipulate the outer container and would otherwise
+    // double-handle Ctrl+wheel and Space/middle-button panning.
+    if (state.hasDocument) return;
+
     const viewerElement = viewerAreaRef.current;
     if (!viewerElement) return;
 

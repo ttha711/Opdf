@@ -12,6 +12,7 @@ export function DocumentToolPanel({
   activeToolId,
   fileName,
   docBytes,
+  getDocumentBytes,
   totalPages,
   thumbnails,
   annotations,
@@ -93,6 +94,7 @@ export function DocumentToolPanel({
     fileName,
     fileBase,
     docBytes,
+    getDocumentBytes,
     thumbnails,
     bridge,
     onLoadConvertedPdf,
@@ -226,7 +228,7 @@ export function DocumentToolPanel({
             compressOptimizeImages={compressOptimizeImages}
             setCompressOptimizeImages={setCompressOptimizeImages}
             isProcessing={isProcessing}
-            hasDoc={!!docBytes}
+            hasDoc={Boolean(fileName)}
             onCompress={handleCompressPdf}
           />
         )}

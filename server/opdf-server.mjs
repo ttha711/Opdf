@@ -295,7 +295,7 @@ async function mutateStoredDocument(req, res, record) {
     filePath: updated.filePath,
     size: updated.size,
     updatedAt: updated.updatedAt,
-    engine: "qpdf-wasm",
+    engine: "pdf-lib-server",
   });
 }
 

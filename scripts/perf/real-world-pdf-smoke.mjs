@@ -189,27 +189,37 @@ async function browserTest(browser, testCase, stored, fileBytes) {
   }
 
   let savedReloadOk = null;
+  let saveMs = null;
+  let saveError = null;
   if (testCase.mutateAndSave) {
     const header = page.locator("header");
     await header.getByRole("button", { name: "View", exact: true }).click();
     await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
     await viewer.waitFor({ state: "visible", timeout: 60_000 });
+    const saveStartedAt = Date.now();
     await page.getByRole("button", { name: "Save (Ctrl+S)", exact: true }).click();
-    await page.getByText("Saved to OPDF Server.", { exact: true }).first().waitFor({
-      state: "visible",
-      timeout: 120_000,
-    });
-
-    await page.goto(`${BASE}/?open=${encodeURIComponent(stored.filePath)}`, {
-      waitUntil: "domcontentloaded",
-      timeout: 60_000,
-    });
-    await page.locator('[data-opdf-engine="pdfium-wasm"]').waitFor({ state: "visible", timeout: 60_000 });
-    await page.locator("body").getByText(/Page\s+1\s+of\s+\d+/i).first().waitFor({
-      state: "visible",
-      timeout: 120_000,
-    });
-    savedReloadOk = true;
+    try {
+      await page.getByText("Saved to OPDF Server.", { exact: true }).first().waitFor({
+        state: "visible",
+        timeout: 120_000,
+      });
+      saveMs = Date.now() - saveStartedAt;
+      await page.goto(`${BASE}/?open=${encodeURIComponent(stored.filePath)}`, {
+        waitUntil: "domcontentloaded",
+        timeout: 60_000,
+      });
+      await page.locator('[data-opdf-engine="pdfium-wasm"]').waitFor({ state: "visible", timeout: 60_000 });
+      await page.locator("body").getByText(/Page\\s+1\\s+of\\s+\\d+/i).first().waitFor({
+        state: "visible",
+        timeout: 120_000,
+      });
+      savedReloadOk = true;
+    } catch (error) {
+      saveMs = Date.now() - saveStartedAt;
+      saveError = error instanceof Error ? error.message.split("\n")[0] : String(error);
+      savedReloadOk = false;
+      console.warn(`Save/reload benchmark did not complete: ${saveError}`);
+    }
   }
 
   await page.close();
@@ -223,6 +233,8 @@ async function browserTest(browser, testCase, stored, fileBytes) {
     observedTransferPercent: Number(((bytesObserved / fileBytes) * 100).toFixed(2)),
     searchMatches,
     savedReloadOk,
+    saveMs,
+    saveError,
   };
 }
 
@@ -235,12 +247,12 @@ async function writeSummary(results) {
   const lines = [
     "# OPDF real-world PDF benchmark",
     "",
-    "| Document | Size | Download | First page | Pages | Range used | Requests 206/200 | Observed transfer | Search matches | Save/reload |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    "| Document | Size | Download | First page | Pages | Range used | Requests 206/200 | Observed transfer | Search matches | Save/reload | Save time |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
   ];
   for (const result of results) {
     lines.push(
-      `| ${result.name} | ${formatMiB(result.fileBytes)} MB | ${(result.downloadMs / 1000).toFixed(1)}s | ${(result.openMs / 1000).toFixed(1)}s | ${result.pageCount} | ${result.usedRange ? "yes" : "no"} | ${result.rangeRequestCount}/${result.fullRequestCount} | ${formatMiB(result.observedTransferBytes)} MB (${result.observedTransferPercent}%) | ${result.searchMatches ?? "n/a"} | ${result.savedReloadOk ?? "n/a"} |`,
+      `| ${result.name} | ${formatMiB(result.fileBytes)} MB | ${(result.downloadMs / 1000).toFixed(1)}s | ${(result.openMs / 1000).toFixed(1)}s | ${result.pageCount} | ${result.usedRange ? "yes" : "no"} | ${result.rangeRequestCount}/${result.fullRequestCount} | ${formatMiB(result.observedTransferBytes)} MB (${result.observedTransferPercent}%) | ${result.searchMatches ?? "n/a"} | ${result.savedReloadOk ?? "n/a"} | ${result.saveMs == null ? "n/a" : (result.saveMs / 1000).toFixed(1) + "s"} |`,
     );
   }
   lines.push("");

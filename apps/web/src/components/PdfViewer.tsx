@@ -4,6 +4,7 @@ import {
   type PDFViewerRef,
 } from "@embedpdf/react-pdf-viewer";
 import type { PdfViewerProps } from "./PdfViewer.types";
+import { registerViewerBytesProvider } from "../lib/viewer-runtime";
 
 const DOCUMENT_ID = "opdf-active-document";
 
@@ -42,6 +43,7 @@ export function PdfViewer({
   onSearchResult,
   onError,
   onActivePageChange,
+  onViewerDirty,
 }: PdfViewerProps) {
   const viewerRef = useRef<PDFViewerRef>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
@@ -88,7 +90,7 @@ export function PdfViewer({
       },
       tabBar: "never",
       theme: { preference: "light" },
-      annotation: { annotationAuthor: "OPDF" },
+      annotations: { annotationAuthor: "OPDF" },
       pan: { defaultMode: "mobile" },
       zoom: {
         defaultZoomLevel: Math.max(0.05, Math.min(5, scale)),
@@ -120,6 +122,34 @@ export function PdfViewer({
 
       const scroll = registry.getPlugin?.("scroll")?.provides?.() as any;
       const documentManager = registry.getPlugin?.("document-manager")?.provides?.() as any;
+      const exportApi = registry.getPlugin?.("export")?.provides?.() as any;
+      const annotationApi = registry.getPlugin?.("annotation")?.provides?.() as any;
+      const formApi = registry.getPlugin?.("form")?.provides?.() as any;
+
+      const exportScope = exportApi?.forDocument?.(DOCUMENT_ID) ?? exportApi;
+      if (exportScope?.saveAsCopy) {
+        const unregister = registerViewerBytesProvider(async () => {
+          const buffer = await exportScope.saveAsCopy().toPromise();
+          return buffer ? new Uint8Array(buffer) : null;
+        });
+        unsubscribers.push(unregister);
+      }
+
+      if (annotationApi?.onAnnotationEvent) {
+        const off = annotationApi.onAnnotationEvent((event: any) => {
+          if (event?.documentId && event.documentId !== DOCUMENT_ID) return;
+          if (event?.type === "create" || event?.type === "update" || event?.type === "delete") {
+            onViewerDirty?.();
+          }
+        });
+        if (typeof off === "function") unsubscribers.push(off);
+      }
+
+      const formScope = formApi?.forDocument?.(DOCUMENT_ID);
+      if (formScope?.onFieldValueChange) {
+        const off = formScope.onFieldValueChange(() => onViewerDirty?.());
+        if (typeof off === "function") unsubscribers.push(off);
+      }
 
       if (scroll?.onPageChange) {
         const off = scroll.onPageChange((event: any) => {
@@ -176,7 +206,7 @@ export function PdfViewer({
       window.clearTimeout(timer);
       unsubscribers.forEach((off) => off());
     };
-  }, [sourceUrl, onActivePageChange, onDocumentLoaded, onError]);
+  }, [sourceUrl, onActivePageChange, onDocumentLoaded, onError, onViewerDirty]);
 
   useEffect(() => {
     if (!sourceUrl || suppressExternalPageRef.current || page === lastPageRef.current) return;

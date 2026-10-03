@@ -18,6 +18,7 @@ import { toast } from "./ToastProvider";
 export function AppHeader({
   fileInputRef,
   hasDesktopBridge,
+  isPublic,
   hasDocument,
   fileName,
   openFile,
@@ -90,6 +91,7 @@ export function AppHeader({
 }: {
   fileInputRef: Ref<HTMLInputElement>;
   hasDesktopBridge: boolean;
+  isPublic: boolean;
   hasDocument: boolean;
   fileName: string;
   openFile: () => void;
@@ -186,18 +188,6 @@ export function AppHeader({
         <MenuDropdown label="View" items={viewMenuItems} isOpen={openMenu === "View"} onToggle={() => toggleMenu("View")} onClose={closeMenu} />
         <MenuDropdown label="Tools" items={toolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
         {(() => {
-          const isLocal = hasDesktopBridge || (typeof window !== "undefined" && (
-            window.location.hostname === "localhost" ||
-            window.location.hostname === "127.0.0.1" ||
-            window.location.hostname === "[::1]" ||
-            window.location.hostname === "::1" ||
-            window.location.hostname.endsWith(".trycloudflare.com") ||
-            window.location.hostname.startsWith("192.168.") ||
-            window.location.hostname.startsWith("10.") ||
-            window.location.hostname.startsWith("172.")
-          ));
-          const isPublic = !isLocal;
-
           return (
             <>
               <button

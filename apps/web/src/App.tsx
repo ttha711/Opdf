@@ -447,6 +447,7 @@ export function App() {
           hasDocument={state.hasDocument}
           fileName={state.fileName}
           docBytes={state.docBytes}
+          getDocumentBytes={materializeDocumentBytes}
           onLoadConvertedPdf={(bytes, name) => {
             state.setDocBytes(bytes);
             state.setFileName(name);

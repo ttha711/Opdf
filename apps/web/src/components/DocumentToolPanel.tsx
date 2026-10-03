@@ -230,16 +230,7 @@ export function DocumentToolPanel({
           />
         )}
 
-        {activeToolId === "compress-pdf" && bridge.capabilities?.compress === false && (
-          <div
-            className="rounded-lg bg-[var(--ui-muted-bg)] p-3 border border-dashed border-[var(--border-color)] text-xs text-[var(--text-secondary)]"
-            title="Chỉ khả dụng trên bản desktop"
-          >
-            Nén PDF chỉ khả dụng trên bản desktop.
-          </div>
-        )}
-
-        {activeToolId === "compress-pdf" && bridge.capabilities?.compress !== false && (
+        {activeToolId === "compress-pdf" && (
           <CompressPanel
             compressLevel={compressLevel}
             setCompressLevel={setCompressLevel}
@@ -264,7 +255,7 @@ export function DocumentToolPanel({
             watermarkRotation={watermarkRotation}
             setWatermarkRotation={setWatermarkRotation}
             isProcessing={isProcessing}
-            hasDoc={!!docBytes}
+            hasDoc={Boolean(fileName)}
             onApply={handleAddWatermark}
           />
         )}

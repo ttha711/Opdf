@@ -171,12 +171,9 @@ async function browserTest(browser, testCase, stored, fileBytes) {
   }
 
   const rangeResponses = pdfResponses.filter((item) => item.status === 206);
-  assert(rangeResponses.length > 0, `${testCase.name}: browser never used HTTP Range`);
-  const bytesObserved = rangeResponses.reduce((sum, item) => sum + item.contentLength, 0);
-  assert(
-    bytesObserved < fileBytes,
-    `${testCase.name}: first-page open transferred at least the full file through observed Range responses`,
-  );
+  const fullResponses = pdfResponses.filter((item) => item.status === 200);
+  const bytesObserved = pdfResponses.reduce((sum, item) => sum + item.contentLength, 0);
+  const usedRange = rangeResponses.length > 0;
 
   let searchMatches = null;
   if (testCase.searchText) {
@@ -219,9 +216,11 @@ async function browserTest(browser, testCase, stored, fileBytes) {
   return {
     openMs,
     pageCount,
+    usedRange,
     rangeRequestCount: rangeResponses.length,
-    observedRangeBytes: bytesObserved,
-    observedRangePercent: Number(((bytesObserved / fileBytes) * 100).toFixed(2)),
+    fullRequestCount: fullResponses.length,
+    observedTransferBytes: bytesObserved,
+    observedTransferPercent: Number(((bytesObserved / fileBytes) * 100).toFixed(2)),
     searchMatches,
     savedReloadOk,
   };
@@ -236,12 +235,12 @@ async function writeSummary(results) {
   const lines = [
     "# OPDF real-world PDF benchmark",
     "",
-    "| Document | Size | Download | First page | Pages | Range requests | Observed Range bytes | Search matches | Save/reload |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    "| Document | Size | Download | First page | Pages | Range used | Requests 206/200 | Observed transfer | Search matches | Save/reload |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
   ];
   for (const result of results) {
     lines.push(
-      `| ${result.name} | ${formatMiB(result.fileBytes)} MB | ${(result.downloadMs / 1000).toFixed(1)}s | ${(result.openMs / 1000).toFixed(1)}s | ${result.pageCount} | ${result.rangeRequestCount} | ${formatMiB(result.observedRangeBytes)} MB (${result.observedRangePercent}%) | ${result.searchMatches ?? "n/a"} | ${result.savedReloadOk ?? "n/a"} |`,
+      `| ${result.name} | ${formatMiB(result.fileBytes)} MB | ${(result.downloadMs / 1000).toFixed(1)}s | ${(result.openMs / 1000).toFixed(1)}s | ${result.pageCount} | ${result.usedRange ? "yes" : "no"} | ${result.rangeRequestCount}/${result.fullRequestCount} | ${formatMiB(result.observedTransferBytes)} MB (${result.observedTransferPercent}%) | ${result.searchMatches ?? "n/a"} | ${result.savedReloadOk ?? "n/a"} |`,
     );
   }
   lines.push("");

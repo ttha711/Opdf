@@ -486,7 +486,8 @@ export function App() {
                 className="h-full min-h-0 overflow-hidden"
               >
                 <ThumbnailPanel
-                    page={state.page}
+                  thumbnails={state.thumbnails}
+                  page={state.page}
                   totalPages={state.totalPages}
                   hasDocument={state.hasDocument}
                   onSelectPage={state.setPage}
@@ -635,7 +636,6 @@ export function App() {
                 docBytes={state.docBytes}
                 getDocumentBytes={materializeDocumentBytes}
                 totalPages={state.totalPages}
-                thumbnails={state.thumbnails}
                 annotations={state.annotations}
                 onClose={() => {
                   state.setActiveDashboardTool(null);

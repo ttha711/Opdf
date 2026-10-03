@@ -54,6 +54,11 @@ export function DocumentToolPanel({
   const [mergeFiles, setMergeFiles] = useState<MergeFile[]>([]);
 
   useEffect(() => {
+    if (activeToolId === "pdf-to-png") setImgFormat("png");
+    if (activeToolId === "pdf-to-jpeg") setImgFormat("jpg");
+  }, [activeToolId]);
+
+  useEffect(() => {
     if (totalPages > 1) {
       setSplitRangeInput(`1-${Math.ceil(totalPages / 2)}, ${Math.ceil(totalPages / 2) + 1}-${totalPages}`);
       setSplitExtractInput(`1, ${Math.min(3, totalPages)}, ${Math.min(5, totalPages)}-${totalPages}`);

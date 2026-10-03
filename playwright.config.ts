@@ -12,7 +12,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm run web-dev -- --host 127.0.0.1",
+    command: "npm run dev -w @opdf/web -- --host 127.0.0.1",
     url: "http://127.0.0.1:5174",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

@@ -95,6 +95,7 @@ export interface OpdfBridge {
   pickAndOpenDocument: () => Promise<OpenDocumentResult | null>;
   openDocument: (filePath: string) => Promise<OpenDocumentResult>;
   saveDocument: (filePath: string, bytes: Uint8Array) => Promise<void>;
+  mutateStoredDocument?: (filePath: string, mutation: StoredDocumentMutation) => Promise<StoredDocumentMutationResult>;
   exportFlattened: (bytes: Uint8Array, annotations: Annotation[]) => Promise<Uint8Array>;
   compressPdf: (bytes: Uint8Array) => Promise<Uint8Array>;
   watermarkPdf: (bytes: Uint8Array, text: string) => Promise<Uint8Array>;

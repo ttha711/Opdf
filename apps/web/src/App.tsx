@@ -28,6 +28,7 @@ import "./types/opdf";
 import { useConfirm } from "./components/ConfirmDialog";
 import { RevisionCompareModal } from "./components/RevisionCompareModal";
 import { SearchRedactModal } from "./components/SearchRedactModal";
+import { AdvancedPdfModal } from "./components/AdvancedPdfModal";
 
 function PageSelectionFloatingBar({
   selectedPages,
@@ -222,6 +223,7 @@ export function App() {
   const [liveEditorHtml, setLiveEditorHtml] = useState<string | null>(null);
   const [showRevisionCompare, setShowRevisionCompare] = useState(false);
   const [showSearchRedact, setShowSearchRedact] = useState(false);
+  const [showAdvancedPdf, setShowAdvancedPdf] = useState(false);
 
   const {
     leftWidth,
@@ -400,6 +402,7 @@ export function App() {
         onOpenAiEditorWindow={openAiEditorWindow}
         compareRevisions={() => setShowRevisionCompare(true)}
         searchRedact={() => setShowSearchRedact(true)}
+        advancedPdf={() => setShowAdvancedPdf(true)}
       />
 
       <RevisionCompareModal
@@ -419,6 +422,28 @@ export function App() {
           replaceDocumentBytes(bytes, state.page);
           state.setViewerError("Secure redaction applied. Affected pages were rasterized to remove underlying text.");
           window.setTimeout(() => state.setViewerError(null), 5000);
+        }}
+      />
+
+      <AdvancedPdfModal
+        isOpen={showAdvancedPdf}
+        onClose={() => setShowAdvancedPdf(false)}
+        source={state.sourceBlob ?? state.docBytes}
+        totalPages={state.totalPages}
+        currentPage={state.page}
+        initialBookmarks={state.bookmarks}
+        onApplied={(bytes, message, embeddedBookmarks) => {
+          replaceDocumentBytes(bytes, state.page);
+          if (embeddedBookmarks) {
+            state.setBookmarks(embeddedBookmarks.map((item, index) => ({
+              id: "bookmark-" + Date.now() + "-" + index,
+              title: item.title,
+              page: item.page,
+              createdAt: Date.now(),
+            })));
+          }
+          state.setViewerError(message);
+          window.setTimeout(() => state.setViewerError(null), 4000);
         }}
       />
 

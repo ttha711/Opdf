@@ -1,7 +1,9 @@
 import { createReadStream } from "node:fs";
-import { mkdir, open, readFile, rename, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readFile, rename, rm, stat } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
+import { spawn } from "node:child_process";
 import http from "node:http";
 import { createOpdfStorage, assertDocumentId, sanitizeFileName } from "./opdf-storage.mjs";
 
@@ -13,6 +15,13 @@ const dataDir = resolve(process.env.OPDF_DATA_DIR || join(repoRoot, ".opdf-data"
 const webDist = resolve(process.env.OPDF_WEB_DIST || join(repoRoot, "apps", "web", "dist"));
 const maxBytes = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 750 * 1024 * 1024);
 const storage = createOpdfStorage(dataDir);
+const pythonPath = process.env.OPDF_PYTHON_PATH || (process.platform === "win32" ? "python" : "python3");
+const officeConverterScript = resolve(
+  process.env.OPDF_OFFICE_CONVERTER_SCRIPT ||
+  join(repoRoot, "apps", "desktop", "tools", "pdf_office_convert.py"),
+);
+const officeWorkerTimeoutMs = Number(process.env.OPDF_OFFICE_WORKER_TIMEOUT_MS || 5 * 60 * 1000);
+
 
 function setBaseHeaders(res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -168,6 +177,84 @@ async function replaceDocumentFromRequest(req, res, record) {
   sendJson(res, 200, { filePath: updated.filePath, size: updated.size, updatedAt: updated.updatedAt });
 }
 
+function officeMimeType(format) {
+  return ({
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  })[format] || "application/octet-stream";
+}
+
+async function runOfficeWorker(inputPath, format, outputPath, mode) {
+  return new Promise((resolveWorker, rejectWorker) => {
+    const child = spawn(
+      pythonPath,
+      [officeConverterScript, inputPath, format, outputPath, mode],
+      {
+        cwd: repoRoot,
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+        env: { ...process.env },
+      },
+    );
+
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      if (stdout.length < 20000) stdout += String(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      if (stderr.length < 20000) stderr += String(chunk);
+    });
+
+    const timer = setTimeout(() => {
+      child.kill();
+      rejectWorker(new Error("Office conversion timed out."));
+    }, officeWorkerTimeoutMs);
+
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      rejectWorker(error);
+    });
+    child.once("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0) resolveWorker();
+      else rejectWorker(new Error(stderr || stdout || `Office converter exited with code ${code}`));
+    });
+  });
+}
+
+async function handleOfficeConversion(req, res, url) {
+  if (req.method !== "POST") return sendError(res, 405, "Method not allowed.");
+
+  const format = String(url.searchParams.get("format") || "").toLowerCase();
+  if (!["docx", "pptx", "xlsx"].includes(format)) {
+    return sendError(res, 400, "format must be docx, pptx, or xlsx.");
+  }
+  const requestedMode = String(url.searchParams.get("mode") || "auto").toLowerCase();
+  const mode = /^[a-z0-9-]{1,40}$/.test(requestedMode) ? requestedMode : "auto";
+
+  const workDir = await mkdtemp(join(tmpdir(), "opdf-office-"));
+  const inputPath = join(workDir, "input.pdf");
+  const outputPath = join(workDir, `output.${format}`);
+
+  try {
+    await streamBodyToPath(req, inputPath);
+    await runOfficeWorker(inputPath, format, outputPath, mode);
+    const output = await readFile(outputPath);
+    if (output.byteLength === 0) throw new Error("Office converter returned an empty file.");
+
+    setBaseHeaders(res);
+    res.statusCode = 200;
+    res.setHeader("Content-Type", officeMimeType(format));
+    res.setHeader("Content-Length", String(output.byteLength));
+    res.setHeader("Content-Disposition", `attachment; filename="converted.${format}"`);
+    res.end(output);
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 function contentTypeFor(path) {
   const ext = extname(path).toLowerCase();
   return ({
@@ -224,8 +311,18 @@ async function handleApi(req, res, url) {
       ok: true,
       runtime: "server",
       maxUploadBytes: maxBytes,
-      capabilities: { persistence: true, rangeReads: true, annotations: true, session: true },
+      capabilities: {
+        persistence: true,
+        rangeReads: true,
+        annotations: true,
+        session: true,
+        officeConversion: true,
+      },
     });
+  }
+
+  if (url.pathname === "/api/opdf/operations/convert-office") {
+    return handleOfficeConversion(req, res, url);
   }
 
   if (url.pathname === "/api/opdf/documents" && req.method === "POST") {

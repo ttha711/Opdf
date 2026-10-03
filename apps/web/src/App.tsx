@@ -174,7 +174,8 @@ function PageSelectionFloatingBar({
 
 export function App() {
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
-  const isLocal = hasDesktopBridge || (typeof window !== "undefined" && (
+  const isServerRuntime = typeof window !== "undefined" && window.__OPDF_RUNTIME__ === "server";
+  const isLocal = hasDesktopBridge || isServerRuntime || (typeof window !== "undefined" && (
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname === "[::1]" ||

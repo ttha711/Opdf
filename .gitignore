@@ -78,3 +78,7 @@ apps/web/public/web.zip
 # IDE settings and documentation
 .claude/
 apps/editor/docs/
+
+# OPDF server runtime data
+.opdf-data/
+.opdf-e2e-data/

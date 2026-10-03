@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ChangeEvent, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { Annotation } from "@opdf/core";
-import { useOpdfBridge } from "./useOpdfBridge";
+import { isOpdfServerRuntime, useOpdfBridge } from "./useOpdfBridge";
+import { fetchServerPdfBlob, uploadPdfToServer } from "./opdf-bridge/serverBridge";
 import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmDialog";
 import { computeBlobHash, computeFileHash, loadAnnotationsByHash } from "../lib/web-storage";
@@ -14,6 +15,7 @@ export function useDocumentLifecycle({
   setFileName,
   setDocBytes,
   setSourceBlob,
+  sourceIdentity,
   setSourceIdentity,
   setPage,
   setTotalPages,
@@ -35,6 +37,7 @@ export function useDocumentLifecycle({
   setFileName: Dispatch<SetStateAction<string>>;
   setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
   setSourceBlob: Dispatch<SetStateAction<Blob | null>>;
+  sourceIdentity: string;
   setSourceIdentity: Dispatch<SetStateAction<string>>;
   setPage: Dispatch<SetStateAction<number>>;
   setTotalPages: Dispatch<SetStateAction<number>>;
@@ -60,10 +63,25 @@ export function useDocumentLifecycle({
   const confirm = useConfirm();
 
   async function loadBrowserFile(file: File) {
-    // Keep the File as the source. PDF.js can read it through a Blob URL,
-    // avoiding a full 300-500 MB Uint8Array allocation just to view it.
-    const identity = await computeBlobHash(file, file.name, file.lastModified);
-    const savedAnnotations = (await loadAnnotationsByHash(identity) ?? []) as Annotation[];
+    // Keep the File as the viewer source. PDF.js can consume the Blob directly,
+    // avoiding a second full-file Uint8Array allocation for large drawings.
+    let identity = "";
+    let savedAnnotations: Annotation[] = [];
+
+    if (isOpdfServerRuntime()) {
+      setViewerError("Uploading PDF to OPDF Server...");
+      const uploaded = await uploadPdfToServer(
+        file,
+        file.name,
+        window.__OPDF_SERVER_BASE__ || "/api/opdf",
+      );
+      identity = uploaded.filePath;
+      savedAnnotations = await bridge.listAnnotations(identity);
+    } else {
+      identity = await computeBlobHash(file, file.name, file.lastModified);
+      savedAnnotations = (await loadAnnotationsByHash(identity) ?? []) as Annotation[];
+    }
+
     setFileName(file.name);
     setDocBytes(null);
     setSourceBlob(file);
@@ -83,6 +101,10 @@ export function useDocumentLifecycle({
       bookmarks: [],
       pageRotations: {},
     });
+
+    if (isOpdfServerRuntime()) {
+      await bridge.pushRecent(identity);
+    }
   }
 
   async function openFile() {
@@ -187,11 +209,23 @@ export function useDocumentLifecycle({
 
     try {
       setViewerError("Loading file...");
-      const response = await fetch(`/@fs/${filePath.replaceAll("\\", "/")}`);
-      if (!response.ok) throw new Error(`HTTP ${response.status} when trying to load file`);
-      const blob = await response.blob();
-      const displayName = filePath.split(/[\\/]/).pop() || filePath;
-      const identity = await computeBlobHash(blob, displayName, 0);
+      const isServerDocument = filePath.startsWith("server://");
+      const blob = isServerDocument
+        ? await fetchServerPdfBlob(filePath, window.__OPDF_SERVER_BASE__ || "/api/opdf")
+        : await fetch(`/@fs/${filePath.replaceAll("\\", "/")}`).then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status} when trying to load file`);
+            return response.blob();
+          });
+      const encodedName = filePath.split("/").pop() || filePath;
+      const displayName = isServerDocument
+        ? decodeURIComponent(encodedName)
+        : encodedName;
+      const identity = isServerDocument
+        ? filePath
+        : await computeBlobHash(blob, displayName, 0);
+      const loadedAnnotations = isServerDocument
+        ? await bridge.listAnnotations(identity)
+        : ((await loadAnnotationsByHash(identity) ?? []) as Annotation[]);
       setFileName(displayName);
       setDocBytes(null);
       setSourceBlob(blob);
@@ -200,14 +234,15 @@ export function useDocumentLifecycle({
       setTotalPages(0);
       setViewerError(null);
       setThumbnails([]);
-      setAnnotations((await loadAnnotationsByHash(identity) ?? []) as Annotation[]);
+      setAnnotations(loadedAnnotations);
       setBookmarks([]);
       setPageRotations({});
+      if (isServerDocument) await bridge.pushRecent(identity);
       markDocumentSaved({
         fileName: displayName,
         docBytes: null,
         documentIdentity: identity,
-        annotations: [],
+        annotations: loadedAnnotations,
         bookmarks: [],
         pageRotations: {},
       });
@@ -225,7 +260,7 @@ export function useDocumentLifecycle({
   function replaceDocumentBytes(bytes: Uint8Array, nextPage = page) {
     setDocBytes(bytes);
     setSourceBlob(null);
-    setSourceIdentity("");
+    setSourceIdentity(sourceIdentity.startsWith("server://") ? sourceIdentity : "");
     setAnnotations([]);
     setThumbnails([]);
     setViewerError(null);
@@ -271,12 +306,22 @@ export function useDocumentLifecycle({
     let cancelled = false;
     async function loadDevFile() {
       try {
-        const response = await fetch(`/@fs/${devOpenPath.replaceAll("\\", "/")}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const blob = await response.blob();
+        const isServerDocument = devOpenPath.startsWith("server://");
+        const blob = isServerDocument
+          ? await fetchServerPdfBlob(devOpenPath, window.__OPDF_SERVER_BASE__ || "/api/opdf")
+          : await fetch(`/@fs/${devOpenPath.replaceAll("\\", "/")}`).then((response) => {
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              return response.blob();
+            });
         if (cancelled) return;
-        const displayName = devOpenPath.split(/[\\/]/).pop() || devOpenPath;
-        const identity = await computeBlobHash(blob, displayName, 0);
+        const encodedName = devOpenPath.split(/[\\/]/).pop() || devOpenPath;
+        const displayName = isServerDocument ? decodeURIComponent(encodedName) : encodedName;
+        const identity = isServerDocument
+          ? devOpenPath
+          : await computeBlobHash(blob, displayName, 0);
+        const loadedAnnotations = isServerDocument
+          ? await bridge.listAnnotations(identity)
+          : [];
         setFileName(displayName);
         setDocBytes(null);
         setSourceBlob(blob);
@@ -285,14 +330,15 @@ export function useDocumentLifecycle({
         setTotalPages(0);
         setViewerError(null);
         setThumbnails([]);
-        setAnnotations([]);
+        setAnnotations(loadedAnnotations);
         setBookmarks([]);
         setPageRotations({});
+        if (isServerDocument) await bridge.pushRecent(identity);
         markDocumentSaved({
           fileName: displayName,
           docBytes: null,
           documentIdentity: identity,
-          annotations: [],
+          annotations: loadedAnnotations,
           bookmarks: [],
           pageRotations: {},
         });

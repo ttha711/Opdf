@@ -49,6 +49,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setFileName: state.setFileName,
     setDocBytes: state.setDocBytes,
     setSourceBlob: state.setSourceBlob,
+    sourceIdentity: state.sourceIdentity,
     setSourceIdentity: state.setSourceIdentity,
     setPage: state.setPage,
     setTotalPages: state.setTotalPages,
@@ -66,6 +67,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   const { addHighlight, createToolAnnotation, undoAnnotations, redoAnnotations, removeAnnotation, updateAnnotation } = useAnnotationActions({
     bridge,
     fileName: state.fileName,
+    sourceIdentity: state.sourceIdentity,
     noteText: state.noteText,
     signatureStyle: state.signatureStyle,
     annotationToolDefaults: state.annotationToolDefaults,

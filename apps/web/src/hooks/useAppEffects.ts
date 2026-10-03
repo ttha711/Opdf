@@ -3,9 +3,18 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { Annotation } from "@opdf/core";
 import { loadFullDraft, saveTabsList, loadTabsList, saveActiveTabId, loadActiveTabId, type OpdfTab } from "../lib/web-storage";
 import type { ActiveTool } from "../lib/app-types";
+import { isOpdfServerRuntime } from "./useOpdfBridge";
 
 type AppEffectsArgs = {
-  bridge: { replaceAnnotations?: (fileName: string, annotations: Annotation[]) => Promise<unknown> };
+  bridge: {
+    replaceAnnotations?: (fileName: string, annotations: Annotation[]) => Promise<unknown>;
+    writeSession?: (session: {
+      activeFilePath: string | null;
+      openTabs: string[];
+      activeTabIndex: number;
+      updatedAt: number;
+    }) => Promise<void>;
+  };
   hasDesktopBridge: boolean;
   docBytes: Uint8Array | null;
   hasDocument: boolean;
@@ -128,7 +137,10 @@ export function useAppEffects(args: AppEffectsArgs) {
             setPageRotations(targetTab.pageRotations || {});
 
             if (bridge.replaceAnnotations) {
-              await bridge.replaceAnnotations(targetTab.fileName, targetTab.annotations || []);
+              await bridge.replaceAnnotations(
+                targetTab.sourceIdentity?.startsWith("server://") ? targetTab.sourceIdentity : targetTab.fileName,
+                targetTab.annotations || [],
+              );
             }
 
             setTimeout(() => {
@@ -167,7 +179,10 @@ export function useAppEffects(args: AppEffectsArgs) {
             setPageRotations({});
 
             if (bridge.replaceAnnotations) {
-              await bridge.replaceAnnotations(newTab.fileName, newTab.annotations || []);
+              await bridge.replaceAnnotations(
+                newTab.sourceIdentity?.startsWith("server://") ? newTab.sourceIdentity : newTab.fileName,
+                newTab.annotations || [],
+              );
             }
           } else {
             setShowDashboard(true);
@@ -204,10 +219,29 @@ export function useAppEffects(args: AppEffectsArgs) {
         if (savedTabs) {
           void saveActiveTabId(activeTabId);
         }
+
+        if (isOpdfServerRuntime() && bridge.writeSession) {
+          const serverTabs = tabs
+            .map((tab) => tab.sourceIdentity)
+            .filter((value): value is string => Boolean(value?.startsWith("server://")));
+          const activeTab = tabs.find((tab) => tab.id === activeTabId);
+          const activeFilePath = activeTab?.sourceIdentity?.startsWith("server://")
+            ? activeTab.sourceIdentity
+            : null;
+          const activeIndex = activeFilePath
+            ? Math.max(0, serverTabs.indexOf(activeFilePath))
+            : 0;
+          await bridge.writeSession({
+            activeFilePath,
+            openTabs: serverTabs,
+            activeTabIndex: activeIndex,
+            updatedAt: Date.now(),
+          });
+        }
       })();
     }, 2000);
     return () => clearTimeout(timeout);
-  }, [hasDesktopBridge, hasRestoredTabs, tabs, activeTabId]);
+  }, [bridge, hasDesktopBridge, hasRestoredTabs, tabs, activeTabId]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

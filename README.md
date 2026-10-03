@@ -51,6 +51,22 @@ Signature inspection is intentionally conservative: it reports structure and cer
 - Platform dependencies required by Electron packaging.
 - LibreOffice/Python are optional and only required by conversion paths that explicitly use them.
 
+## Server / browser runtime
+
+OPDF now supports a server runtime in addition to Electron Desktop. The same `apps/web` UI automatically selects an HTTP bridge when served by OPDF Server.
+
+```bash
+npm ci
+npm run server-build
+npm run server-start
+```
+
+Default address: `http://127.0.0.1:8787`.
+
+Server mode streams PDF uploads to disk, supports HTTP Range reads for large PDFs, persists annotations/recent/session metadata, and sends Ctrl+S saves back to server storage. Keep the server on loopback behind Cloudflare Tunnel/Access or another authenticated reverse proxy for remote use.
+
+See `docs/SERVER_DEPLOYMENT.md` for Windows Server, data-directory, Cloudflare Tunnel, upload-limit, and production guidance.
+
 ## Development
 
 ```bash

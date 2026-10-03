@@ -67,38 +67,19 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
   };
 
   const viewerProps = {
-    transitionTick: state.transitionTick,
-    transitionDirection: state.transitionDirection,
     data: state.docBytes,
     sourceBlob: state.sourceBlob,
     sourceIdentity: state.sourceIdentity,
     page: state.page,
     scale: state.scale,
-    rotation: state.rotation,
-    viewMode: state.viewMode,
-    annotations: state.annotations,
-    highlightMode: state.highlightMode,
-    shapeMode: state.activeTool === "shape",
-    redactMode: state.activeTool === "redact",
-    measureMode: state.activeTool === "measure",
-    measurementDocumentKey: state.sourceIdentity || state.fileName || "document",
     activeTool: state.activeTool,
-    annotationToolDefaults: state.annotationToolDefaults,
-    searchText: state.pageSearch,
-    onPageToolAction: actions.onPageToolAction,
     onDocumentLoaded: callbacks.onLoaded,
     onSearchResult: callbacks.onSearchResult,
     onError: state.setViewerError,
     onActivePageChange: actions.onActivePageChange,
     onViewerDirty: () => state.setSaveState("idle"),
     onViewerScaleChange: state.setScale,
-    onThumbsLoaded: state.setThumbnails,
-    setThumbnails: state.setThumbnails,
-    initialThumbnails: state.thumbnails,
-    onAnnotationUpdated: actions.updateAnnotation,
-    onAnnotationDeleted: actions.removeAnnotation,
     onPatchApplied: () => state.setActiveTool("select"),
-    createToolAnnotation: actions.createToolAnnotation,
   };
 
   return { headerProps, viewerProps };

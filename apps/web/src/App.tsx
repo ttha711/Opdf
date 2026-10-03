@@ -4,7 +4,6 @@ import { AppHeader } from "./components/AppHeader";
 import { AllToolsDashboard } from "./components/AllToolsDashboard";
 import { ThumbnailPanel } from "./components/ThumbnailPanel";
 import { RightInfoPanel } from "./components/RightInfoPanel";
-import { OverlayEditors } from "./components/OverlayEditors";
 import { SplitModal } from "./components/SplitModal";
 import { MergeModal } from "./components/MergeModal";
 import { InsertPdfModal } from "./components/InsertPdfModal";
@@ -219,7 +218,6 @@ export function App() {
 
   const [activeMarkupTool, setActiveMarkupTool] = useState<MarkupTool | null>(null);
   const [selectedThumbnailPages, setSelectedThumbnailPages] = useState<Set<number>>(new Set());
-  const lastViewerSelectedRef = useRef<number | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isLiveEditorOpen, setIsLiveEditorOpen] = useState(false);
   const [liveEditorHtml, setLiveEditorHtml] = useState<string | null>(null);
@@ -268,7 +266,6 @@ export function App() {
     runConfiguredMarkupTool,
     removeAnnotation,
     updateAnnotation,
-    createToolAnnotation,
     openAiEditorWindow,
   } = useAppControllers({ isPublic, setActiveMarkupTool });
 
@@ -295,15 +292,6 @@ export function App() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [state.hasDocument, state.saveState]);
 
-  const handleTabThumbsLoaded = useCallback((tabId: string, thumbs: Array<{ page: number; url: string; blob: Blob }>) => {
-    state.setTabs((prevTabs) =>
-      prevTabs.map((t) => (t.id === tabId ? { ...t, thumbnails: thumbs } : t))
-    );
-    if (state.activeTabId === tabId) {
-      state.setThumbnails(thumbs);
-    }
-  }, [state]);
-
   // Clear thumbnail selection when document is closed or replaced
   useEffect(() => {
     if (!state.hasDocument) setSelectedThumbnailPages(new Set());
@@ -315,26 +303,6 @@ export function App() {
     const next = await bridge.rotatePages(bytes, pages, degrees);
     replaceDocumentBytes(next, state.page);
   }, [state.docBytes, state.page, bridge, materializeDocumentBytes, replaceDocumentBytes]);
-
-  const handleViewerPageSelectionClick = useCallback((pageNum: number, ctrl: boolean, shift: boolean) => {
-    if (shift && lastViewerSelectedRef.current !== null) {
-      const start = Math.min(lastViewerSelectedRef.current, pageNum);
-      const end = Math.max(lastViewerSelectedRef.current, pageNum);
-      setSelectedThumbnailPages(prev => {
-        const next = new Set(prev);
-        for (let i = start; i <= end; i++) next.add(i);
-        return next;
-      });
-    } else {
-      setSelectedThumbnailPages(prev => {
-        const next = new Set(prev);
-        if (next.has(pageNum)) next.delete(pageNum);
-        else next.add(pageNum);
-        return next;
-      });
-      lastViewerSelectedRef.current = pageNum;
-    }
-  }, []);
 
   const handleDeletePages = useCallback(async (pages: number[]) => {
     const bytes = state.docBytes ?? await materializeDocumentBytes();
@@ -591,35 +559,12 @@ export function App() {
                     />
                   )}
                   <ViewerErrorBoundary>
-                    <PdfViewer
-                      {...viewerProps}
-                      data={state.docBytes}
-                      page={state.page}
-                      annotations={state.annotations}
-                      pageRotations={state.pageRotations}
-                      initialThumbnails={state.thumbnails}
-                      onThumbsLoaded={(thumbs) => handleTabThumbsLoaded(activeTab.id, thumbs)}
-                      selectedPages={selectedThumbnailPages}
-                      onPageSelectionClick={handleViewerPageSelectionClick}
-                    />
+                    <PdfViewer {...viewerProps} />
                   </ViewerErrorBoundary>
                 </section>
               )}
             </>
           )}
-
-          <OverlayEditors
-            pendingNote={state.pendingNote}
-            activeTool={state.activeTool}
-            noteText={state.noteText}
-            setNoteText={state.setNoteText}
-            signatureStyle={state.signatureStyle}
-            setSignatureStyle={state.setSignatureStyle}
-            showSignModal={state.showSignModal}
-            setShowSignModal={state.setShowSignModal}
-            setPendingNote={state.setPendingNote}
-            createToolAnnotation={createToolAnnotation}
-          />
 
           <SplitModal
             isOpen={state.showSplitModal}

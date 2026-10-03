@@ -1,10 +1,9 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction, WheelEvent } from "react";
-import type { ActiveTool, PendingRect, ViewMode, ZoomPreset } from "../lib/app-types";
+import type { ViewMode, ZoomPreset } from "../lib/app-types";
 import { getViewerControls } from "../lib/viewer-runtime";
 
 export function useViewerControls({
   hasDocument,
-  highlightMode,
   viewMode,
   totalPages,
   viewerAreaRef,
@@ -14,17 +13,10 @@ export function useViewerControls({
   setPage,
   setZoomPreset,
   setScale,
-  setRotation,
   setPageRotations,
   lastWheelFlipAtRef,
-  activeTool,
-  addHighlight,
-  createToolAnnotation,
-  setPendingNote,
-  setShowSignModal,
 }: {
   hasDocument: boolean;
-  highlightMode: boolean;
   viewMode: ViewMode;
   totalPages: number;
   viewerAreaRef: RefObject<HTMLElement | null>;
@@ -34,14 +26,8 @@ export function useViewerControls({
   setPage: Dispatch<SetStateAction<number>>;
   setZoomPreset: Dispatch<SetStateAction<ZoomPreset>>;
   setScale: Dispatch<SetStateAction<number>>;
-  setRotation: Dispatch<SetStateAction<number>>;
   setPageRotations: Dispatch<SetStateAction<Record<number, number>>>;
   lastWheelFlipAtRef: MutableRefObject<number>;
-  activeTool: ActiveTool;
-  addHighlight: (pageNumber: number, rect: PendingRect) => Promise<void>;
-  createToolAnnotation: (kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image", pageNumber: number, rect: PendingRect & { image?: string; imageType?: string }) => Promise<void>;
-  setPendingNote: Dispatch<SetStateAction<{ page: number; rect: PendingRect } | null>>;
-  setShowSignModal: Dispatch<SetStateAction<boolean>>;
 }) {
   function goPrevPage() {
     setTransitionDirection("prev");
@@ -157,26 +143,9 @@ export function useViewerControls({
     });
   }
 
-  async function onPageToolAction(pageNumber: number, kind: string, rect: PendingRect & { image?: string; imageType?: string }) {
-    if (!hasDocument) return;
-    if (kind === "highlight") return addHighlight(pageNumber, rect);
-    if (kind === "note") {
-      setPendingNote({ page: pageNumber, rect });
-      return;
-    }
-    if (kind === "signature") {
-      setPendingNote({ page: pageNumber, rect });
-      setShowSignModal(true);
-      return;
-    }
-    if (kind === "shape" || kind === "redact" || kind === "underline" || kind === "strike" || kind === "image") {
-      return createToolAnnotation(kind, pageNumber, rect);
-    }
-  }
-
   function onViewerWheel(event: WheelEvent<HTMLElement>) {
     if (getViewerControls()) return;
-    if (!hasDocument || highlightMode || event.ctrlKey || viewMode === "continuous") return;
+    if (!hasDocument || event.ctrlKey || viewMode === "continuous") return;
     const now = Date.now();
     if (now - lastWheelFlipAtRef.current < 180 || Math.abs(event.deltaY) < 10) return;
     if (event.deltaY > 0) goNextPage();
@@ -197,9 +166,7 @@ export function useViewerControls({
     applyZoomPreset,
     rotateLeft,
     rotateRight,
-    onPageToolAction,
     onViewerWheel,
     onActivePageChange,
-    createToolAnnotation,
   };
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation, OcrJob } from "@opdf/core";
-import type { ActiveTool, AnnotationToolDefaults, PendingNote, ViewMode, ZoomPreset } from "../lib/app-types";
+import type { ActiveTool, AnnotationToolDefaults, ViewMode, ZoomPreset } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
 import { saveActiveTabId, saveTabsList, type OpdfTab } from "../lib/web-storage";
 import { buildDocumentFingerprint } from "../lib/documentFingerprint";
@@ -29,10 +29,6 @@ export function useAppState() {
     redact: { color: "#000000", opacity: 0.85, size: 2 },
   });
   const [zoomPreset, setZoomPreset] = useState<ZoomPreset>("actual");
-  const [pendingNote, setPendingNote] = useState<PendingNote>(null);
-  const [noteText, setNoteText] = useState("New note");
-  const [showSignModal, setShowSignModal] = useState(false);
-  const [signatureStyle, setSignatureStyle] = useState("User Signature");
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [showInsertModal, setShowInsertModal] = useState(false);
@@ -185,7 +181,6 @@ export function useAppState() {
     () => Boolean(fileName && (docBytes || sourceBlob || sourceIdentity.startsWith("server://"))),
     [fileName, docBytes, sourceBlob, sourceIdentity],
   );
-  const highlightMode = activeTool === "highlight";
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
 
   // Tab operations
@@ -497,11 +492,10 @@ export function useAppState() {
   return {
     fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale, rotation, setRotation, pageRotations, setPageRotations,
     annotations, setAnnotations, ocrJobs, setOcrJobs, pageSearch, setPageSearch, searchResult, setSearchResult, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
-    zoomPreset, setZoomPreset, pendingNote, setPendingNote, noteText, setNoteText, showSignModal, setShowSignModal,
-    signatureStyle, setSignatureStyle, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
+    zoomPreset, setZoomPreset, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
     saveState, setSaveState,
     transitionTick, setTransitionTick, transitionDirection, setTransitionDirection, thumbnails, setThumbnails, bookmarks, setBookmarks, openMenu, setOpenMenu,
-    showFindBar, setShowFindBar, theme, setTheme, fileInputRef, findInputRef, lastWheelFlipAtRef, hasDocument, highlightMode, hasDesktopBridge,
+    showFindBar, setShowFindBar, theme, setTheme, fileInputRef, findInputRef, lastWheelFlipAtRef, hasDocument, hasDesktopBridge,
     showDashboard, setShowDashboard, activeDashboardTool, setActiveDashboardTool,
 
     // NEW TABS STATE & ACTIONS

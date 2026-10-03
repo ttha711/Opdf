@@ -64,13 +64,10 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     clearDocumentSaveTracking: state.clearDocumentSaveTracking,
   });
 
-  const { addHighlight, createToolAnnotation, undoAnnotations, redoAnnotations, removeAnnotation, updateAnnotation } = useAnnotationActions({
+  const { undoAnnotations, redoAnnotations, removeAnnotation, updateAnnotation } = useAnnotationActions({
     bridge,
     fileName: state.fileName,
     sourceIdentity: state.sourceIdentity,
-    noteText: state.noteText,
-    signatureStyle: state.signatureStyle,
-    annotationToolDefaults: state.annotationToolDefaults,
     setAnnotations: state.setAnnotations,
     setViewerError: state.setViewerError,
     setSaveState: state.setSaveState,
@@ -127,12 +124,10 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     applyZoomPreset,
     rotateLeft,
     rotateRight,
-    onPageToolAction,
     onViewerWheel,
     onActivePageChange,
   } = useViewerControls({
     hasDocument: state.hasDocument,
-    highlightMode: state.highlightMode,
     viewMode: state.viewMode,
     totalPages: state.totalPages,
     viewerAreaRef,
@@ -142,14 +137,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setPage: state.setPage,
     setZoomPreset: state.setZoomPreset,
     setScale: state.setScale,
-    setRotation: state.setRotation,
     setPageRotations: state.setPageRotations,
     lastWheelFlipAtRef: state.lastWheelFlipAtRef,
-    activeTool: state.activeTool,
-    addHighlight,
-    createToolAnnotation,
-    setPendingNote: state.setPendingNote,
-    setShowSignModal: state.setShowSignModal,
   });
 
   // CAD-style navigation: Ctrl/Cmd+wheel zooms around the pointer; hold
@@ -378,11 +367,9 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
       runDocumentTool,
       openDocumentMarkupTool: setActiveMarkupTool,
       onSelectLocalFile,
-      onPageToolAction,
       onActivePageChange,
       updateAnnotation,
       removeAnnotation,
-      createToolAnnotation,
     },
     menuItems: { fileMenuItems, editMenuItems, viewMenuItems, toolsMenuItems },
     callbacks: {
@@ -462,7 +449,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     runConfiguredMarkupTool,
     removeAnnotation,
     updateAnnotation,
-    createToolAnnotation,
     openAiEditorWindow,
   };
 }

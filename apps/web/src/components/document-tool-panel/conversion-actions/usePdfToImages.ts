@@ -1,10 +1,11 @@
 import type React from "react";
 import { convertBlobToGrayscale, downloadFile } from "./helpers";
 import { toast } from "../../ToastProvider";
+import { collectViewerThumbnails } from "../../../lib/viewer-runtime";
 
 interface UsePdfToImagesArgs {
   docBytes: Uint8Array | null;
-  thumbnails: Array<{ page: number; url: string; blob: Blob }>;
+  totalPages: number;
   imgFormat: "png" | "jpg";
   imgOutputOption: "one-per-page" | "all-in-one";
   imgZoom: number;
@@ -17,7 +18,7 @@ interface UsePdfToImagesArgs {
 
 export function usePdfToImages(args: UsePdfToImagesArgs) {
   const {
-    thumbnails,
+    totalPages,
     imgFormat,
     imgOutputOption,
     imgZoom,
@@ -29,13 +30,14 @@ export function usePdfToImages(args: UsePdfToImagesArgs) {
   } = args;
 
   const handlePdfToImages = async () => {
-    if (thumbnails.length === 0) {
-      toast.info("Vui lòng chờ tất cả các trang render xong trước khi chuyển đổi.");
+    if (totalPages < 1) {
+      toast.info("Không có trang PDF để chuyển đổi.");
       return;
     }
     setIsProcessing(true);
-    setViewerError("Preparing high-res images...");
+    setViewerError("Preparing page images...");
     try {
+      const thumbnails = await collectViewerThumbnails(totalPages);
       const isPng = imgFormat === "png";
       const { zipSync } = await import("fflate");
       const zipData: Record<string, Uint8Array> = {};

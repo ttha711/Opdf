@@ -3,6 +3,8 @@ name: Release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "chore/hot-update-release-artifact"
     tags:
       - "v*.*.*"
 

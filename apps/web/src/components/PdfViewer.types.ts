@@ -6,7 +6,6 @@ export interface PdfViewerProps {
   scale: number;
   activeTool?: string;
   onDocumentLoaded?: (pages: number) => void;
-  onSearchResult?: (found: boolean, message: string) => void;
   onError?: (message: string | null) => void;
   onActivePageChange?: (page: number) => void;
   onViewerDirty?: () => void;

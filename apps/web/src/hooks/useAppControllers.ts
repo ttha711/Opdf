@@ -104,10 +104,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     state.setPage((p) => Math.min(Math.max(1, p), Math.max(1, pages)));
   }, [state.hasDocument, state.setScale, state.setZoomPreset]);
 
-  const onSearchResult = useCallback((found: boolean, message: string) => {
-    state.setSearchResult(found ? `Found: ${message}` : `Not found: ${message}`);
-  }, [state]);
-
   const openWatermarkPanel = useCallback(() => {
     if (!state.hasDocument) return;
     state.setActiveDashboardTool("watermark-pdf");
@@ -299,11 +295,9 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setThumbnails: state.setThumbnails,
     setBookmarks: state.setBookmarks,
     setPageRotations: state.setPageRotations,
-    setShowFindBar: state.setShowFindBar,
     setOpenMenu: state.setOpenMenu,
     setActiveTool: state.setActiveTool,
     setTheme: state.setTheme,
-    findInputRef: state.findInputRef,
     openFile,
     savePdf,
     savePdfAs,
@@ -371,10 +365,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     callbacks: {
       closeMenu,
       toggleMenu,
-      onToggleFindBar: () => state.setShowFindBar(p => !p),
       toggleTheme,
       onLoaded,
-      onSearchResult,
     },
   });
 

@@ -34,11 +34,9 @@ type AppEffectsArgs = {
   setThumbnails: (v: Array<{ page: number; url: string; blob: Blob }>) => void;
   setBookmarks: (v: Array<{ id: string; page: number; title: string; createdAt: number }>) => void;
   setPageRotations: (v: Record<number, number>) => void;
-  setShowFindBar: Dispatch<SetStateAction<boolean>>;
   setOpenMenu: Dispatch<SetStateAction<string | null>>;
   setActiveTool: (v: ActiveTool) => void;
   setTheme: Dispatch<SetStateAction<"light" | "dark">>;
-  findInputRef: RefObject<HTMLInputElement>;
   openFile: () => void;
   savePdf: () => void;
   savePdfAs: () => void;
@@ -62,7 +60,7 @@ type AppEffectsArgs = {
 export function useAppEffects(args: AppEffectsArgs) {
   const {
     bridge, hasDesktopBridge, docBytes, hasDocument, fileName, annotations, thumbnails, bookmarks, page, theme,
-    setFileName, setDocBytes, setSourceBlob, setSourceIdentity, setAnnotations, setPage, setThumbnails, setBookmarks, setPageRotations, setShowFindBar, setOpenMenu, setActiveTool, setTheme, findInputRef,
+    setFileName, setDocBytes, setSourceBlob, setSourceIdentity, setAnnotations, setPage, setThumbnails, setBookmarks, setPageRotations, setOpenMenu, setActiveTool, setTheme,
     openFile, savePdf, savePdfAs, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage,
 
     // NEW TABS PROPS
@@ -276,15 +274,6 @@ export function useAppEffects(args: AppEffectsArgs) {
         void redoAnnotations();
         return;
       }
-      if (ctrl && e.key === "f") {
-        if (getViewerControls()) return;
-        e.preventDefault();
-        setShowFindBar(prev => {
-          if (!prev) setTimeout(() => findInputRef.current?.focus(), 50);
-          return !prev;
-        });
-        return;
-      }
       if (ctrl && e.shiftKey && e.key.toLowerCase() === "l") {
         e.preventDefault();
         setTheme(t => (t === "light" ? "dark" : "light"));
@@ -296,7 +285,7 @@ export function useAppEffects(args: AppEffectsArgs) {
       if (e.key === "-") { zoomOut(); return; }
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); goPrevPage(); return; }
       if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); goNextPage(); return; }
-      if (e.key === "Escape") { setShowFindBar(false); setOpenMenu(null); }
+      if (e.key === "Escape") { setOpenMenu(null); }
       if (e.key.toLowerCase() === "v") { setActiveTool("select"); return; }
       if (e.key.toLowerCase() === "i") { setActiveTool("highlight"); return; }
       if (e.key.toLowerCase() === "t") { setActiveTool("note"); return; }
@@ -307,5 +296,5 @@ export function useAppEffects(args: AppEffectsArgs) {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [openFile, savePdf, savePdfAs, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage, findInputRef, setActiveTool, setOpenMenu, setShowFindBar, setTheme]);
+  }, [openFile, savePdf, savePdfAs, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage, setActiveTool, setOpenMenu, setTheme]);
 }

@@ -55,7 +55,6 @@ export function PdfViewer({
   scale,
   activeTool = "select",
   onDocumentLoaded,
-  onSearchResult,
   onError,
   onActivePageChange,
   onViewerDirty,
@@ -464,11 +463,6 @@ export function PdfViewer({
       cancelled = true;
     };
   }, [activeTool, measurementMode, sourceUrl]);
-
-  useEffect(() => {
-    if (!sourceUrl || !onSearchResult) return;
-    onSearchResult(false, "Use the PDFium viewer search tool for full-document search.");
-  }, [sourceUrl, onSearchResult]);
 
   useEffect(() => {
     window.localStorage.setItem("opdf-measure-mode", measurementMode);

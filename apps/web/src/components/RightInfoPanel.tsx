@@ -25,7 +25,6 @@ export function RightInfoPanel({
   page,
   scale,
   viewerError,
-  searchResult,
   annotations,
   ocrJobs,
   onRemoveAnnotation,
@@ -40,7 +39,6 @@ export function RightInfoPanel({
   page: number;
   scale: number;
   viewerError: string | null;
-  searchResult: string;
   annotations: Annotation[];
   ocrJobs: OcrJob[];
   onRemoveAnnotation: (id: string) => void;
@@ -111,7 +109,6 @@ export function RightInfoPanel({
             </>
           ) : <p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)]">No document open</p>}
           {viewerError ? <p className="rounded p-2 text-xs" style={{ backgroundColor: "var(--ui-error-bg)", color: "var(--ui-error-text)" }}>{viewerError}</p> : null}
-          {searchResult ? <p className="mt-2 rounded px-2 py-1.5 text-xs" style={{ backgroundColor: "var(--ui-success-bg)", color: "var(--ui-success-text)" }}>{searchResult}</p> : null}
         </div>
       </div>
 

@@ -29,6 +29,7 @@ import { useConfirm } from "./components/ConfirmDialog";
 import { RevisionCompareModal } from "./components/RevisionCompareModal";
 import { SearchRedactModal } from "./components/SearchRedactModal";
 import { AdvancedPdfModal } from "./components/AdvancedPdfModal";
+import { DigitalSignatureModal } from "./components/DigitalSignatureModal";
 
 function PageSelectionFloatingBar({
   selectedPages,
@@ -224,6 +225,7 @@ export function App() {
   const [showRevisionCompare, setShowRevisionCompare] = useState(false);
   const [showSearchRedact, setShowSearchRedact] = useState(false);
   const [showAdvancedPdf, setShowAdvancedPdf] = useState(false);
+  const [showDigitalSignature, setShowDigitalSignature] = useState(false);
 
   const {
     leftWidth,
@@ -403,6 +405,7 @@ export function App() {
         compareRevisions={() => setShowRevisionCompare(true)}
         searchRedact={() => setShowSearchRedact(true)}
         advancedPdf={() => setShowAdvancedPdf(true)}
+        digitalSign={() => setShowDigitalSignature(true)}
       />
 
       <RevisionCompareModal
@@ -444,6 +447,22 @@ export function App() {
           }
           state.setViewerError(message);
           window.setTimeout(() => state.setViewerError(null), 4000);
+        }}
+      />
+
+      <DigitalSignatureModal
+        isOpen={showDigitalSignature}
+        onClose={() => setShowDigitalSignature(false)}
+        source={state.sourceBlob ?? state.docBytes}
+        currentPage={state.page}
+        totalPages={state.totalPages}
+        canSign={Boolean(window.opdf?.signPdfP12 && window.opdf?.inspectP12Certificate)}
+        inspectCertificate={bridge.inspectP12Certificate}
+        signDocument={bridge.signPdfP12}
+        onApplied={(bytes, certificate) => {
+          replaceDocumentBytes(bytes, state.page);
+          state.setViewerError("Digitally signed by " + certificate.commonName + ". Save the PDF to preserve the signature.");
+          window.setTimeout(() => state.setViewerError(null), 6000);
         }}
       />
 

@@ -31,6 +31,27 @@ export type BridgeCapabilities = {
   encrypt: boolean;
   bookmarksPersist: boolean;
   pdfA: boolean;
+  digitalSignature?: boolean;
+};
+
+export type P12CertificateInfo = {
+  commonName: string;
+  organization: string;
+  serialNumber: string;
+  validFrom: string;
+  validTo: string;
+};
+
+export type P12SignOptions = {
+  passphrase: string;
+  page: number;
+  reason: string;
+  location: string;
+  contactInfo: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 export interface OpdfBridge {
@@ -75,6 +96,12 @@ export interface OpdfBridge {
   convertToPdfA: (bytes: Uint8Array) => Promise<Uint8Array>;
   rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => Promise<Uint8Array>;
   convertPdfOffice?: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => Promise<Uint8Array>;
+  inspectP12Certificate?: (certificateBytes: Uint8Array, passphrase: string) => Promise<P12CertificateInfo>;
+  signPdfP12?: (
+    bytes: Uint8Array,
+    certificateBytes: Uint8Array,
+    options: P12SignOptions,
+  ) => Promise<{ bytes: Uint8Array; certificate: P12CertificateInfo }>;
   setAiConfig?: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => Promise<boolean>;
   getAiConfig?: () => Promise<{ mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }>;
   getAiAccessToken?: () => Promise<string | null>;

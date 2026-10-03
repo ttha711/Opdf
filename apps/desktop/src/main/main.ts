@@ -6,6 +6,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { inspectP12Certificate, signPdfWithP12, type P12SignOptions } from "./pdf-signature.js";
 import {
   AnnotationService,
   DocumentService,
@@ -607,6 +608,18 @@ function registerIpcHandlers(): void {
   ipcMain.handle("opdf:convert-to-pdfa", async (_event, bytes: Uint8Array) => documentService.convertToPdfA(bytes));
   ipcMain.handle("opdf:rotate-pages", async (_event, bytes: Uint8Array, pageNumbers: number[], degrees: number) => documentService.rotatePages(bytes, pageNumbers, degrees));
   ipcMain.handle("opdf:show-item-in-folder", async (_event, filePath: string) => { shell.showItemInFolder(filePath); });
+  ipcMain.handle("opdf:inspect-p12", async (_event, certificateBytes: Uint8Array, passphrase: string) => {
+    return inspectP12Certificate(certificateBytes, passphrase || "");
+  });
+  ipcMain.handle("opdf:sign-p12", async (
+    _event,
+    bytes: Uint8Array,
+    certificateBytes: Uint8Array,
+    options: P12SignOptions,
+  ) => {
+    return signPdfWithP12(bytes, certificateBytes, options);
+  });
+
   ipcMain.handle("opdf:convert-pdf-office", async (_event, bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => {
     const payload = toNodeBuffer(bytes);
     if (payload.byteLength === 0) throw new Error("Cannot convert empty PDF payload.");

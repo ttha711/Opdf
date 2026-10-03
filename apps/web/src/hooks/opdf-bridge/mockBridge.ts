@@ -222,7 +222,7 @@ export function createMockBridge(): OpdfBridge {
   return {
     // Browser runtime: these features are stubbed (compress returns input unchanged,
     // encrypt/decrypt/bookmarks/PDF-A throw). Only available on the desktop build.
-    capabilities: { compress: false, encrypt: false, bookmarksPersist: false, pdfA: false },
+    capabilities: { compress: false, encrypt: false, bookmarksPersist: false, pdfA: false, digitalSignature: false },
     async openProjectFolder() { return false; },
     async pickAndOpenDocument() { return null; },
     async openDocument(_filePath: string): Promise<OpenDocumentResult> {
@@ -513,6 +513,12 @@ export function createMockBridge(): OpdfBridge {
     async listOcrJobs() { return [...ocrJobs.values()]; },
 
     /* ----- NEW MOCK BRIDGE ----- */
+    async inspectP12Certificate() {
+      throw new Error("Digital certificate inspection requires OPDF Desktop.");
+    },
+    async signPdfP12() {
+      throw new Error("Cryptographic P12/PFX signing requires OPDF Desktop.");
+    },
     async encryptPdf(_bytes, _opts: PasswordOptions) {
       throw new Error("Password encryption requires the desktop runtime.");
     },

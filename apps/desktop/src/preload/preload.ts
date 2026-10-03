@@ -36,6 +36,38 @@ const api = {
   rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => ipcRenderer.invoke("opdf:rotate-pages", bytes, pageNumbers, degrees) as Promise<Uint8Array>,
   showItemInFolder: (filePath: string) => ipcRenderer.invoke("opdf:show-item-in-folder", filePath) as Promise<void>,
   convertPdfOffice: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => ipcRenderer.invoke("opdf:convert-pdf-office", bytes, format) as Promise<Uint8Array>,
+  inspectP12Certificate: (certificateBytes: Uint8Array, passphrase: string) =>
+    ipcRenderer.invoke("opdf:inspect-p12", certificateBytes, passphrase) as Promise<{
+      commonName: string;
+      organization: string;
+      serialNumber: string;
+      validFrom: string;
+      validTo: string;
+    }>,
+  signPdfP12: (
+    bytes: Uint8Array,
+    certificateBytes: Uint8Array,
+    options: {
+      passphrase: string;
+      page: number;
+      reason: string;
+      location: string;
+      contactInfo: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    },
+  ) => ipcRenderer.invoke("opdf:sign-p12", bytes, certificateBytes, options) as Promise<{
+    bytes: Uint8Array;
+    certificate: {
+      commonName: string;
+      organization: string;
+      serialNumber: string;
+      validFrom: string;
+      validTo: string;
+    };
+  }>,
   applyAiPatch: (payload: { prompt: string; selectedBlocks: unknown[]; allBlocks: unknown[]; referenceImage: string | null }) =>
     ipcRenderer.invoke("opdf:ai-patch", payload) as Promise<{ updates: Array<Record<string, unknown> & { id: string }> }>,
   saveDocumentAs: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:save-as", bytes) as Promise<string | null>,

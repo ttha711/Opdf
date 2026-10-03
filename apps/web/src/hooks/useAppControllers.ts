@@ -40,6 +40,44 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     }
   }, [state.hasDocument, state.setShowDashboard]);
 
+  useEffect(() => {
+    const onStoredMutation = (event: Event) => {
+      const detail = (event as CustomEvent<{ sourceIdentity?: string; updatedAt?: number }>).detail;
+      if (!detail?.sourceIdentity || !detail.updatedAt) return;
+      const currentId = /^server:\/\/([0-9a-f-]{36})\//i.exec(state.sourceIdentity)?.[1];
+      const mutatedId = /^server:\/\/([0-9a-f-]{36})\//i.exec(detail.sourceIdentity)?.[1];
+      if (!currentId || currentId !== mutatedId) return;
+      const baseIdentity = state.sourceIdentity.replace(/[?&]v=\d+.*$/i, "");
+      const nextIdentity = `${baseIdentity}?v=${detail.updatedAt}`;
+      state.setDocBytes(null);
+      state.setSourceBlob(null);
+      state.setSourceIdentity(nextIdentity);
+      state.markDocumentSaved({
+        fileName: state.fileName,
+        docBytes: null,
+        documentIdentity: nextIdentity,
+        annotations: state.annotations,
+        bookmarks: state.bookmarks,
+        pageRotations: state.pageRotations,
+      });
+      state.setViewerError("Saved to OPDF Server.");
+      window.setTimeout(() => state.setViewerError(null), 3000);
+    };
+    window.addEventListener("opdf:server-document-mutated", onStoredMutation);
+    return () => window.removeEventListener("opdf:server-document-mutated", onStoredMutation);
+  }, [
+    state.sourceIdentity,
+    state.fileName,
+    state.annotations,
+    state.bookmarks,
+    state.pageRotations,
+    state.setDocBytes,
+    state.setSourceBlob,
+    state.setSourceIdentity,
+    state.setViewerError,
+    state.markDocumentSaved,
+  ]);
+
   const { openFile, openFileWithPath, onSelectLocalFile, replaceDocumentBytes, closeDocument } = useDocumentLifecycle({
     bridge,
     hasDesktopBridge: state.hasDesktopBridge,

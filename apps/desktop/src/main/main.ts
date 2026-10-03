@@ -76,15 +76,9 @@ let deviceAuthState: DeviceAuthState = {
 };
 
 function getAiGatewayBaseUrl(): string {
-  const raw = (
-    process.env.OPDF_AI_GATEWAY_URL ||
-    process.env.OPDF_LIVE_EDITOR_AI_ENDPOINT ||
-    aiProviderConfig.difyUrl ||
-    ""
-  ).trim();
+  const raw = (process.env.OPDF_AI_GATEWAY_URL || "").trim();
   if (!raw) return "";
-  // Accept existing Dify-style /v1 URL and map to host root for unified gateway routes.
-  return raw.replace(/\/chat-messages\/?$/i, "").replace(/\/v1\/?$/i, "").replace(/\/+$/, "");
+  return raw.replace(/\/+$/, "");
 }
 
 function parseExpiryIso(input: unknown): string | undefined {

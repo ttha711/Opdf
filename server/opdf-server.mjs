@@ -144,7 +144,7 @@ async function streamBodyToPath(req, tempPath) {
 }
 
 function parseDocumentRoute(pathname) {
-  const match = pathname.match(/^\/api\/opdf\/documents\/([^/]+)(?:\/(annotations))?$/);
+  const match = pathname.match(/^\/api\/opdf\/documents\/([^/]+)(?:\/(annotations|mutations))?$/);
   if (!match) return null;
   return { id: assertDocumentId(match[1]), child: match[2] || null };
 }
@@ -234,6 +234,69 @@ async function replaceDocumentFromRequest(req, res, record) {
   await replaceStoredFile(tempPath, record.pdfPath);
   const updated = await storage.finalizeDocument(record.id, size);
   sendJson(res, 200, { filePath: updated.filePath, size: updated.size, updatedAt: updated.updatedAt });
+}
+
+async function mutateStoredDocument(req, res, record) {
+  if (req.method !== "POST") return sendError(res, 405, "Method not allowed.");
+  const body = await readJsonBody(req, 1024 * 1024);
+  const input = new Uint8Array(await readFile(record.pdfPath));
+  let output;
+
+  if (body.type === "rotate-pages") {
+    const pageNumbers = Array.isArray(body.pageNumbers)
+      ? body.pageNumbers.filter((value) => Number.isInteger(value) && value > 0)
+      : [];
+    const degrees = Number(body.degrees);
+    if (![90, -90, 180, -180, 270, -270].includes(degrees)) {
+      return sendError(res, 400, "degrees must be a 90-degree increment.");
+    }
+    const { PDFDocument, degrees: pdfDegrees } = await import("pdf-lib");
+    const doc = await PDFDocument.load(input, { updateMetadata: false });
+    const pages = doc.getPages();
+    const targets = pageNumbers.length > 0
+      ? pageNumbers
+      : Array.from({ length: pages.length }, (_, index) => index + 1);
+    for (const pageNumber of targets) {
+      if (pageNumber < 1 || pageNumber > pages.length) continue;
+      const page = pages[pageNumber - 1];
+      page.setRotation(pdfDegrees(page.getRotation().angle + degrees));
+    }
+    output = new Uint8Array(await doc.save({ useObjectStreams: false, addDefaultPage: false }));
+  } else if (body.type === "delete-pages") {
+    const pageNumbers = Array.isArray(body.pageNumbers)
+      ? body.pageNumbers.filter((value) => Number.isInteger(value) && value > 0)
+      : [];
+    if (pageNumbers.length === 0) return sendError(res, 400, "pageNumbers is required.");
+    const { PDFDocument } = await import("pdf-lib");
+    const source = await PDFDocument.load(input, { updateMetadata: false });
+    const totalPages = source.getPageCount();
+    const remove = new Set(pageNumbers.filter((value) => value <= totalPages).map((value) => value - 1));
+    const keep = source.getPageIndices().filter((index) => !remove.has(index));
+    if (keep.length === 0) return sendError(res, 400, "Cannot delete all pages.");
+    const outputDoc = await PDFDocument.create();
+    const copied = await outputDoc.copyPages(source, keep);
+    copied.forEach((page) => outputDoc.addPage(page));
+    output = new Uint8Array(await outputDoc.save({ useObjectStreams: false, addDefaultPage: false }));
+  } else {
+    return sendError(res, 400, "Unsupported stored document mutation.");
+  }
+
+  const tempPath = join(dataDir, "documents", record.id, `mutate-${Date.now()}.tmp`);
+  await mkdir(resolve(tempPath, ".."), { recursive: true });
+  const handle = await open(tempPath, "wx");
+  try {
+    await handle.write(output);
+  } finally {
+    await handle.close();
+  }
+  await replaceStoredFile(tempPath, record.pdfPath);
+  const updated = await storage.finalizeDocument(record.id, output.byteLength);
+  return sendJson(res, 200, {
+    filePath: updated.filePath,
+    size: updated.size,
+    updatedAt: updated.updatedAt,
+    engine: "qpdf-wasm",
+  });
 }
 
 function officeMimeType(format) {
@@ -387,6 +450,8 @@ async function handleApi(req, res, url) {
         encrypt: true,
         decrypt: true,
         officeConversion: true,
+        storedMutations: true,
+        rangePreview: true,
       },
     });
   }
@@ -431,7 +496,20 @@ async function handleApi(req, res, url) {
       }
       return sendError(res, 405, "Method not allowed.");
     }
+    if (route.child === "mutations") {
+      return mutateStoredDocument(req, res, record);
+    }
 
+    if (req.method === "HEAD") {
+      const size = await storage.getDocumentSize(record.id);
+      if (size == null) return sendError(res, 404, "Document file not found.");
+      setBaseHeaders(res);
+      res.statusCode = 200;
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", String(size));
+      return res.end();
+    }
     if (req.method === "GET") return serveDocument(req, res, record, url.searchParams.get("download") === "1");
     if (req.method === "PUT") return replaceDocumentFromRequest(req, res, record);
     return sendError(res, 405, "Method not allowed.");

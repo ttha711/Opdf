@@ -151,6 +151,13 @@ export function useAppState() {
   }, []);
 
   const materializeDocumentBytes = useCallback(async (): Promise<Uint8Array | null> => {
+    const { getViewerDocumentBytes } = await import("../lib/viewer-runtime");
+    const viewerBytes = await getViewerDocumentBytes();
+    if (viewerBytes) {
+      setDocBytes(viewerBytes);
+      return viewerBytes;
+    }
+
     if (docBytes) return docBytes;
 
     if (sourceBlob) {

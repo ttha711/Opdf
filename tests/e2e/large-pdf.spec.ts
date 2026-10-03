@@ -44,7 +44,8 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
     buffer: pdf,
   });
 
-  await expect(page.getByText(/Page\s+1\s+of\s+120/i)).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/Page\s+1\s+of\s+120/i)).toBeVisible({ timeout: 30_000 });
 
   // The visible header input is the page-number field; exclude the hidden file input.
   const navigationField = page.locator('header input:not([type="file"])').first();

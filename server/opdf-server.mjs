@@ -139,10 +139,31 @@ async function createDocumentFromRequest(req, res, url) {
   }
 }
 
+async function replaceStoredFile(tempPath, targetPath) {
+  const backupPath = `${targetPath}.${Date.now()}.bak`;
+  let hadOriginal = false;
+  try {
+    await rename(targetPath, backupPath);
+    hadOriginal = true;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+
+  try {
+    await rename(tempPath, targetPath);
+    if (hadOriginal) await rm(backupPath, { force: true });
+  } catch (error) {
+    if (hadOriginal) {
+      await rename(backupPath, targetPath).catch(() => {});
+    }
+    throw error;
+  }
+}
+
 async function replaceDocumentFromRequest(req, res, record) {
   const tempPath = join(dataDir, "documents", record.id, `save-${Date.now()}.tmp`);
   const size = await streamBodyToPath(req, tempPath);
-  await rename(tempPath, record.pdfPath);
+  await replaceStoredFile(tempPath, record.pdfPath);
   const updated = await storage.finalizeDocument(record.id, size);
   sendJson(res, 200, { filePath: updated.filePath, size: updated.size, updatedAt: updated.updatedAt });
 }

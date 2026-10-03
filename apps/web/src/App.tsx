@@ -441,6 +441,7 @@ export function App() {
                 <ThumbnailPanel
                   thumbnails={state.thumbnails}
                   page={state.page}
+                  totalPages={state.totalPages}
                   hasDocument={state.hasDocument}
                   onSelectPage={state.setPage}
                   bookmarks={state.bookmarks}

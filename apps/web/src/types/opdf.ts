@@ -32,6 +32,19 @@ export type BridgeCapabilities = {
   bookmarksPersist: boolean;
   pdfA: boolean;
   digitalSignature?: boolean;
+  storedMutations?: boolean;
+  rangePreview?: boolean;
+};
+
+export type StoredDocumentMutation =
+  | { type: "rotate-pages"; pageNumbers?: number[]; degrees: number }
+  | { type: "delete-pages"; pageNumbers: number[]; totalPages: number };
+
+export type StoredDocumentMutationResult = {
+  filePath: string;
+  size: number;
+  updatedAt: number;
+  engine: "qpdf-native" | "qpdf-wasm";
 };
 
 export type P12CertificateInfo = {

@@ -46,13 +46,9 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
 
   await expect(page.getByText(/Page\s+1\s+of\s+120/i)).toBeVisible({ timeout: 20_000 });
 
-  const pageField = page.locator('input[type="number"], input').filter({ hasValue: "1" }).first();
-  // The viewer also supports direct navigation through the visible page-number input.
-  const navigationField = page.locator('header input').filter({ hasValue: "1" }).first();
+  // The visible header input is the page-number field; exclude the hidden file input.
+  const navigationField = page.locator('header input:not([type="file"])').first();
   await navigationField.fill("100");
   await navigationField.press("Enter");
   await expect(page.getByText(/Page\s+100\s+of\s+120/i)).toBeVisible({ timeout: 15_000 });
-
-  // Avoid an unused locator warning while keeping the fallback selector documented.
-  void pageField;
 });

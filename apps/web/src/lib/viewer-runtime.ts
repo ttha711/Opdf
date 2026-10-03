@@ -6,6 +6,10 @@ export type ActiveViewerControls = {
   fitPage?: () => void;
   rotateForward?: () => void;
   rotateBackward?: () => void;
+  undo?: () => void;
+  redo?: () => void;
+  canUndo?: () => boolean;
+  canRedo?: () => boolean;
 };
 
 type ViewerBytesProvider = () => Promise<Uint8Array | null>;

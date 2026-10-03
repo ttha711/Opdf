@@ -166,9 +166,11 @@ export function PdfViewer({
       const rotateApi = registry.getPlugin?.("rotate")?.provides?.() as any;
       const thumbnailApi = registry.getPlugin?.("thumbnail")?.provides?.() as any;
       const captureApi = registry.getPlugin?.("capture")?.provides?.() as any;
+      const historyApi = registry.getPlugin?.("history")?.provides?.() as any;
 
       const zoomScope = zoomApi?.forDocument?.(DOCUMENT_ID) ?? zoomApi;
       const rotateScope = rotateApi?.forDocument?.(DOCUMENT_ID) ?? rotateApi;
+      const historyScope = historyApi?.forDocument?.(DOCUMENT_ID) ?? historyApi;
       const unregisterControls = registerViewerControls({
         zoomIn: () => zoomScope?.zoomIn?.(),
         zoomOut: () => zoomScope?.zoomOut?.(),
@@ -177,6 +179,10 @@ export function PdfViewer({
         fitPage: () => zoomScope?.requestZoom?.(ZoomMode.FitPage),
         rotateForward: () => rotateScope?.rotateForward?.(),
         rotateBackward: () => rotateScope?.rotateBackward?.(),
+        undo: () => historyScope?.undo?.(),
+        redo: () => historyScope?.redo?.(),
+        canUndo: () => Boolean(historyScope?.canUndo?.()),
+        canRedo: () => Boolean(historyScope?.canRedo?.()),
       });
       unsubscribers.push(unregisterControls);
 

@@ -43,7 +43,9 @@ export function AllToolsDashboard({
   onTriggerSplit,
   onSelectTool,
 }: AllToolsDashboardProps) {
-  const canCompress = useOpdfBridge().capabilities?.compress !== false;
+  // Compression may use either the desktop bridge or streaming server API.
+  useOpdfBridge();
+  const canCompress = true;
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -392,7 +394,7 @@ export function AllToolsDashboard({
           <button
             key={tool.id}
             disabled={tool.id === "compress-pdf" && !canCompress}
-            title={tool.id === "compress-pdf" && !canCompress ? "Chỉ khả dụng trên bản desktop" : undefined}
+            title={undefined}
             onClick={() => {
               if (hasDocument) {
                 tool.action();

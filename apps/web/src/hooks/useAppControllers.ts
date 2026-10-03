@@ -80,6 +80,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     hasDesktopBridge: state.hasDesktopBridge,
     fileName: state.fileName,
     docBytes: state.docBytes,
+    sourceBlob: state.sourceBlob,
     sourceIdentity: state.sourceIdentity,
     getDocumentBytes: state.materializeDocumentBytes,
     page: state.page,

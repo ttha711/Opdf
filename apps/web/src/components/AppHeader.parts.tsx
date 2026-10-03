@@ -505,6 +505,7 @@ interface FileUtilitiesGroupProps {
   splitDocument: () => void;
   mergeDocuments: () => void;
   convertToImages: () => void;
+  compareRevisions: () => void;
   capabilities?: BridgeCapabilities;
 }
 
@@ -517,15 +518,19 @@ export function FileUtilitiesGroup({
   splitDocument,
   mergeDocuments,
   convertToImages,
+  compareRevisions,
   capabilities,
 }: FileUtilitiesGroupProps) {
-  // Absent capabilities (desktop bridge) means everything is supported
-  const canCompress = capabilities?.compress !== false;
+  // Browser compression can fall back to the streaming /api/pdf-jobs service.
+  // Keep the action available and let the runtime capability check report a
+  // clear error only when neither native nor server processing exists.
+  const canCompress = true;
+  void capabilities;
   return (
     <div className="flex flex-col items-center gap-1 rounded-[var(--ui-radius-md)] border border-[var(--border-color)] bg-[var(--bg-toolbar)] p-[var(--ui-pad-sm)] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
       <span className="text-center text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--text-secondary)] opacity-70">File Utilities</span>
       <div className="flex flex-1 items-center gap-[var(--ui-gap-xs)]">
-        <ToolIconButton label={canCompress ? "Compress" : `Compress — ${DESKTOP_ONLY_TITLE}`} disabled={!hasDocument || !canCompress} onClick={compressDocument}>
+        <ToolIconButton label="Compress" disabled={!hasDocument || !canCompress} onClick={compressDocument}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="4" y="2" width="16" height="20" rx="2" />
             <path d="m12 8-3 3h6l-3-3zm0 8 3-3H9l3 3z" />
@@ -548,6 +553,13 @@ export function FileUtilitiesGroup({
             <path d="M5 17H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2" />
             <rect x="9" y="9" width="12" height="14" rx="2" />
             <path d="M15 13v6M12 16h6" />
+          </svg>
+        </ToolIconButton>
+        <ToolIconButton label="Compare revisions" disabled={!hasDocument} onClick={compareRevisions}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="8" height="16" rx="1" />
+            <rect x="13" y="4" width="8" height="16" rx="1" />
+            <path d="M7 8h1M7 12h1M16 8h1M16 15h1" />
           </svg>
         </ToolIconButton>
         <ToolIconButton label="To Images" disabled={!hasDocument} onClick={convertToImages}>

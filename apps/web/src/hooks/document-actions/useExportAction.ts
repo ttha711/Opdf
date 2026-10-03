@@ -66,8 +66,8 @@ export function useExportAction({
       await saveWebState({ fileName, annotations, thumbnails: [], page: 1 });
       markDocumentSaved({ fileName, docBytes, annotations });
       setSaveState("saved");
-      setViewerError("File saved successfully!");
-      setTimeout(() => setViewerError(null), 3000);
+      setViewerError("Review state saved locally. Reopen the same PDF to restore annotations; use Export PDF to embed them.");
+      setTimeout(() => setViewerError(null), 5000);
     } catch (err) {
       console.error(err);
       setViewerError("Failed to save PDF.");
@@ -137,6 +137,8 @@ export function useExportAction({
       URL.revokeObjectURL(url);
       markDocumentSaved({ fileName, docBytes, annotations });
       setSaveState("saved");
+      setViewerError("Original PDF downloaded without embedded OPDF annotations. Use Export PDF for a reviewed copy.");
+      setTimeout(() => setViewerError(null), 5000);
     } catch (err) {
       console.error(err);
       setViewerError("Failed to save PDF.");

@@ -16,6 +16,7 @@ export function useDocumentActions({
   hasDesktopBridge,
   fileName,
   docBytes,
+  sourceBlob,
   sourceIdentity,
   getDocumentBytes,
   page,
@@ -41,6 +42,7 @@ export function useDocumentActions({
   hasDesktopBridge: boolean;
   fileName: string;
   docBytes: Uint8Array | null;
+  sourceBlob: Blob | null;
   sourceIdentity: string;
   getDocumentBytes: () => Promise<Uint8Array | null>;
   page: number;
@@ -108,7 +110,9 @@ export function useDocumentActions({
     bridge,
     fileName,
     docBytes,
+    sourceBlob,
     getDocumentBytes,
+    replaceDocumentBytes,
     thumbnails,
     setDocBytes,
     setViewerError,

@@ -280,7 +280,7 @@ export function DocumentToolPanel({
 
       <div className="absolute bottom-6 left-4 right-4 p-2.5 rounded bg-[var(--ui-muted-bg)] border border-[var(--border-color)] text-[10px] text-[var(--text-secondary)] leading-normal flex gap-2 items-start">
         <span className="text-[12px] relative top-px">🔒</span>
-        <span>Processed 100% locally client-side. Complete file security.</span>
+        <span>Processing location depends on the selected tool. Large conversions may use a configured service; PDF viewing and annotations stay in the browser.</span>
       </div>
     </aside>
   );

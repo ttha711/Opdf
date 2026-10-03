@@ -186,7 +186,7 @@ interface AnnotationsHistoryGroupProps {
 const STYLE_TOOLS: AnnotationStyleTool[] = ["highlight", "note", "shape", "redact"];
 
 function toolLabel(tool: AnnotationStyleTool) {
-  return tool === "highlight" ? "Highlight" : tool === "note" ? "Text" : tool === "shape" ? "Rectangle" : "Redact";
+  return tool === "highlight" ? "Highlight" : tool === "note" ? "Text" : tool === "shape" ? "Rectangle" : "Blackout";
 }
 
 function toolShortLabel(tool: AnnotationStyleTool) {
@@ -271,7 +271,7 @@ export function AnnotationsHistoryGroup({
             <path d="M5 16l3 3" />
           </svg>
         </ToolIconButton>
-        <ToolIconButton label="Redact" active={activeTool === "redact"} disabled={!hasDocument} onClick={() => pickTool("redact")}>
+        <ToolIconButton label="Blackout overlay (not secure redaction)" active={activeTool === "redact"} disabled={!hasDocument} onClick={() => pickTool("redact")}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="5" width="18" height="14" rx="2" />
             <line x1="3" y1="12" x2="21" y2="12" />
@@ -505,7 +505,6 @@ interface FileUtilitiesGroupProps {
   splitDocument: () => void;
   mergeDocuments: () => void;
   convertToImages: () => void;
-  runDocumentTool: (tool: DocumentTool) => void;
   capabilities?: BridgeCapabilities;
 }
 
@@ -518,13 +517,10 @@ export function FileUtilitiesGroup({
   splitDocument,
   mergeDocuments,
   convertToImages,
-  runDocumentTool,
   capabilities,
 }: FileUtilitiesGroupProps) {
   // Absent capabilities (desktop bridge) means everything is supported
   const canCompress = capabilities?.compress !== false;
-  const canEncrypt = capabilities?.encrypt !== false;
-  const canPdfA = capabilities?.pdfA !== false;
   return (
     <div className="flex flex-col items-center gap-1 rounded-[var(--ui-radius-md)] border border-[var(--border-color)] bg-[var(--bg-toolbar)] p-[var(--ui-pad-sm)] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
       <span className="text-center text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--text-secondary)] opacity-70">File Utilities</span>
@@ -559,24 +555,6 @@ export function FileUtilitiesGroup({
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <circle cx="8" cy="8" r="2" />
             <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-          </svg>
-        </ToolIconButton>
-        <ToolIconButton label={canEncrypt ? "Encrypt" : `Encrypt — ${DESKTOP_ONLY_TITLE}`} disabled={!hasDocument || !canEncrypt} onClick={() => runDocumentTool("encrypt")}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-        </ToolIconButton>
-        <ToolIconButton label={canEncrypt ? "Decrypt" : `Decrypt — ${DESKTOP_ONLY_TITLE}`} disabled={!hasDocument || !canEncrypt} onClick={() => runDocumentTool("decrypt")}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" />
-            <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-          </svg>
-        </ToolIconButton>
-        <ToolIconButton label={canPdfA ? "PDF/A" : `PDF/A — ${DESKTOP_ONLY_TITLE}`} disabled={!hasDocument || !canPdfA} onClick={() => runDocumentTool("normalize")}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            <path d="m9 10 2 2 4-4" />
           </svg>
         </ToolIconButton>
       </div>

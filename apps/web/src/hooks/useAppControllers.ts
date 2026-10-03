@@ -72,7 +72,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setSaveState: state.setSaveState,
   });
 
-  const { runOcr, savePdf, savePdfAs, exportPdf, compressDocument, addWatermark, mergeDocuments, splitDocument, convertToImages, runDocumentTool, runConfiguredDocumentTool, runConfiguredMarkupTool, runConfiguredWatermark } = useDocumentActions({
+  const { runOcr, savePdf, savePdfAs, exportPdf, compressDocument, mergeDocuments, splitDocument, convertToImages, runDocumentTool, runConfiguredDocumentTool, runConfiguredMarkupTool, runConfiguredWatermark } = useDocumentActions({
     bridge,
     hasDocument: state.hasDocument,
     hasDesktopBridge: state.hasDesktopBridge,
@@ -105,6 +105,11 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   const onSearchResult = useCallback((found: boolean, message: string) => {
     state.setSearchResult(found ? `Found: ${message}` : `Not found: ${message}`);
   }, [state]);
+
+  const openWatermarkPanel = useCallback(() => {
+    if (!state.hasDocument) return;
+    state.setActiveDashboardTool("watermark-pdf");
+  }, [state.hasDocument, state.setActiveDashboardTool]);
 
   const {
     goPrevPage,
@@ -259,7 +264,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     savePdfAs,
     exportPdf,
     compressDocument,
-    addWatermark,
+    addWatermark: openWatermarkPanel,
     mergeDocuments,
     splitDocument,
     convertToImages,
@@ -350,7 +355,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
       rotateLeft,
       rotateRight,
       compressDocument,
-      addWatermark,
+      addWatermark: openWatermarkPanel,
       splitDocument,
       mergeDocuments,
       convertToImages,

@@ -154,39 +154,10 @@ export function AllToolsDashboard({
         return;
       }
 
-      // 3. Office Mock PDF generator (Word/Excel/PPT/RTF to PDF)
+      // Office -> PDF conversion is not implemented in the web viewer.
+      // Never generate a placeholder PDF and report a fake successful conversion.
       if (activeAction.endsWith("-to-pdf")) {
-        const pdfLib = await import("pdf-lib");
-        const doc = await pdfLib.PDFDocument.create();
-        const page = doc.addPage([595.276, 841.890]);
-        const fontBold = await doc.embedFont(pdfLib.StandardFonts.HelveticaBold);
-        const fontOblique = await doc.embedFont(pdfLib.StandardFonts.HelveticaOblique);
-        const fontNormal = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
-
-        page.drawText(`OPDF Premium Office Conversion`, { x: 50, y: 780, size: 16, font: fontBold, color: pdfLib.rgb(0.87, 0.24, 0.18) });
-        page.drawText(`Document converted successfully offline!`, { x: 50, y: 750, size: 12, font: fontBold });
-        
-        page.drawText(`File details:`, { x: 50, y: 700, size: 12, font: fontBold });
-        page.drawText(`• Name: ${file.name}`, { x: 70, y: 675, size: 11, font: fontNormal });
-        page.drawText(`• Size: ${(file.size / 1024).toFixed(2)} KB`, { x: 70, y: 655, size: 11, font: fontNormal });
-        page.drawText(`• Format: ${activeAction.split("-")[0].toUpperCase()}`, { x: 70, y: 635, size: 11, font: fontNormal });
-
-        page.drawText(`Conversion Information:`, { x: 50, y: 580, size: 12, font: fontBold });
-        page.drawText(`This A4 PDF represents the original office document processed by the Opdf engine.`, { x: 50, y: 555, size: 10, font: fontOblique });
-        page.drawText(`To perform direct native edits, you can double-click this page or add note annotations.`, { x: 50, y: 535, size: 10, font: fontOblique });
-
-        // Decorative background elements
-        page.drawRectangle({
-          x: 40,
-          y: 60,
-          width: 515,
-          height: 10,
-          color: pdfLib.rgb(0.87, 0.24, 0.18)
-        });
-
-        const pdfBytes = await doc.save();
-        onLoadConvertedPdf(pdfBytes, file.name.replace(/\.[^/.]+$/, "") + ".pdf");
-        onClose();
+        toast.error("Office → PDF chưa được hỗ trợ trong web viewer. Hãy dùng một converter thực hoặc mở Office Editor riêng.");
         return;
       }
 
@@ -203,7 +174,7 @@ export function AllToolsDashboard({
         } else if (activeAction === "pdf-to-png" || activeAction === "pdf-to-jpg") {
           toast.info("Để chuyển PDF sang ảnh, hãy mở tệp trong Opdf rồi bấm nút 'To Images' để xuất các trang đã render.");
         } else {
-          runPdfToOfficeMock(activeAction, file.name);
+          toast.error("Định dạng chuyển đổi này chưa có engine thực trong web viewer.");
         }
       } else {
         toast.error("Vui lòng chọn một tệp PDF hợp lệ cho thao tác này.");
@@ -307,21 +278,6 @@ export function AllToolsDashboard({
     }
   };
 
-  const runPdfToOfficeMock = (actionId: string, name: string) => {
-    const format = actionId.split("-").pop()?.toUpperCase() || "DOCX";
-    const extension = format === "WORD" ? "docx" : format === "EXCEL" ? "xlsx" : format === "PPT" ? "pptx" : format.toLowerCase();
-    
-    // Create a mock content file representation
-    const text = `OPDF Offline Office Export\nConverted from: ${name}\nFormat: ${format}\nDate: ${new Date().toLocaleDateString()}\n\nAll structural text and layouts parsed and saved successfully.`;
-    const blob = new Blob([text], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${name.replace(/\.[^/.]+$/, "")}.${extension}`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const launchPdfToHtmlEditorWithBytes = (bytes: Uint8Array, name: string, targetFormat?: string) => {
     const editorUrl = localStorage.getItem("opdf-editor-url") || "http://localhost:5175";
     const editorWin = window.open(editorUrl, "_blank");
@@ -355,11 +311,7 @@ export function AllToolsDashboard({
     { id: "pdf-to-xml", name: getDocumentToolLabel("pdf-to-xml"), icon: "👾", color: "#0ca678", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: () => convertPdfToOffice("pdf-to-xml") },
 
     // ROW 2: X to PDF (Convert to PDF) & PDF Utilities
-    { id: "word-to-pdf", name: "Word to PDF", icon: "📝", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => triggerFileInput("word-to-pdf") },
-    { id: "excel-to-pdf", name: "Excel to PDF", icon: "📈", color: "#0f7f45", bgColor: "#e2f9ed", borderColor: "#a9ecbe", action: () => triggerFileInput("excel-to-pdf") },
-    { id: "ppt-to-pdf", name: "PPT to PDF", icon: "📉", color: "#e8590c", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => triggerFileInput("ppt-to-pdf") },
     { id: "image-to-pdf", name: "Image to PDF", icon: "🖼️", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => triggerFileInput("image-to-pdf") },
-    { id: "rtf-to-pdf", name: "RTF to PDF", icon: "🖋️", color: "#3b5bdb", bgColor: "#edf2ff", borderColor: "#bac8ff", action: () => triggerFileInput("rtf-to-pdf") },
     { id: "txt-to-pdf", name: "TXT to PDF", icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: () => triggerFileInput("txt-to-pdf") },
     { id: "compress-pdf", name: "Compress PDF", icon: "🗜️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerCompress },
     { id: "merge-pdf", name: "Merge PDF", icon: "📚", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerMerge },

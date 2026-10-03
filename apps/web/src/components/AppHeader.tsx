@@ -314,7 +314,6 @@ export function AppHeader({
           splitDocument={splitDocument}
           mergeDocuments={mergeDocuments}
           convertToImages={convertToImages}
-          runDocumentTool={runDocumentTool}
           capabilities={bridgeCapabilities}
         />
       </div>

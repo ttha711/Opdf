@@ -40,6 +40,9 @@ jobs:
       - run: npx playwright test --project=chromium
         env:
           CI: true
+      - run: npx playwright test -c playwright.server.config.ts --project=chromium
+        env:
+          CI: true
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

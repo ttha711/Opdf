@@ -495,7 +495,7 @@ export function ThumbnailPanel({
                         next.add(pageNumber);
                       }
                       onSelectionChange(next);
-                      lastSelectedRef.current = t.page;
+                      lastSelectedRef.current = pageNumber;
                     }}
                     title={isSelected ? "Bỏ chọn trang" : "Chọn trang"}
                   >

@@ -15,7 +15,6 @@ export function useAppState() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1);
-  const [rotation, setRotation] = useState(0);
   const [pageRotations, setPageRotations] = useState<Record<number, number>>({});
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [ocrJobs, setOcrJobs] = useState<OcrJob[]>([]);
@@ -36,8 +35,6 @@ export function useAppState() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [viewMode, setViewMode] = useState<ViewMode>("continuous");
   const [documentTool, setDocumentTool] = useState<DocumentTool>("delete-pages");
-  const [transitionTick, setTransitionTick] = useState(0);
-  const [transitionDirection, setTransitionDirection] = useState<"next" | "prev">("next");
   const [thumbnails, setThumbnails] = useState<Array<{ page: number; url: string; blob: Blob }>>([]);
   const [bookmarks, setBookmarks] = useState<Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -490,11 +487,11 @@ export function useAppState() {
   });
 
   return {
-    fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale, rotation, setRotation, pageRotations, setPageRotations,
+    fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale, pageRotations, setPageRotations,
     annotations, setAnnotations, ocrJobs, setOcrJobs, pageSearch, setPageSearch, searchResult, setSearchResult, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
     saveState, setSaveState,
-    transitionTick, setTransitionTick, transitionDirection, setTransitionDirection, thumbnails, setThumbnails, bookmarks, setBookmarks, openMenu, setOpenMenu,
+    thumbnails, setThumbnails, bookmarks, setBookmarks, openMenu, setOpenMenu,
     showFindBar, setShowFindBar, theme, setTheme, fileInputRef, findInputRef, lastWheelFlipAtRef, hasDocument, hasDesktopBridge,
     showDashboard, setShowDashboard, activeDashboardTool, setActiveDashboardTool,
 

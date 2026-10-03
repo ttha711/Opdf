@@ -7,8 +7,6 @@ export function useViewerControls({
   viewMode,
   totalPages,
   viewerAreaRef,
-  setTransitionDirection,
-  setTransitionTick,
   page,
   setPage,
   setZoomPreset,
@@ -20,8 +18,6 @@ export function useViewerControls({
   viewMode: ViewMode;
   totalPages: number;
   viewerAreaRef: RefObject<HTMLElement | null>;
-  setTransitionDirection: Dispatch<SetStateAction<"next" | "prev">>;
-  setTransitionTick: Dispatch<SetStateAction<number>>;
   page: number;
   setPage: Dispatch<SetStateAction<number>>;
   setZoomPreset: Dispatch<SetStateAction<ZoomPreset>>;
@@ -30,14 +26,10 @@ export function useViewerControls({
   lastWheelFlipAtRef: MutableRefObject<number>;
 }) {
   function goPrevPage() {
-    setTransitionDirection("prev");
-    setTransitionTick((n) => n + 1);
     setPage((p) => Math.max(1, p - 1));
   }
 
   function goNextPage() {
-    setTransitionDirection("next");
-    setTransitionTick((n) => n + 1);
     setPage((p) => (totalPages > 0 ? Math.min(totalPages, p + 1) : p + 1));
   }
 

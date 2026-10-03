@@ -24,7 +24,6 @@ export function useDocumentLifecycle({
   setAnnotations,
   setBookmarks,
   setPageRotations,
-  setTransitionTick,
   setSaveState,
   markDocumentSaved,
   clearDocumentSaveTracking,
@@ -46,7 +45,6 @@ export function useDocumentLifecycle({
   setAnnotations: Dispatch<SetStateAction<Annotation[]>>;
   setBookmarks: Dispatch<SetStateAction<Array<{ id: string; page: number; title: string; createdAt: number }>>>;
   setPageRotations: Dispatch<SetStateAction<Record<number, number>>>;
-  setTransitionTick: Dispatch<SetStateAction<number>>;
   setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
   markDocumentSaved: (snapshot?: {
     fileName?: string;
@@ -265,7 +263,6 @@ export function useDocumentLifecycle({
     setThumbnails([]);
     setViewerError(null);
     setPage(Math.max(1, nextPage));
-    setTransitionTick((n) => n + 1);
     setSaveState("idle");
   }
 

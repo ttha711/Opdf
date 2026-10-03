@@ -16,6 +16,9 @@ interface UseFabricDrawingParams {
   pageNumber: number;
   onAnnotationCreated?: (page: number, kind: string, payload: Record<string, unknown>) => void;
   setMeasureResult: (value: string | null) => void;
+  pageScale: number;
+  drawingScale: number;
+  measurementUnit: "mm" | "m";
   /** Called right after an ai-patch image is placed so the parent can switch back to 'select' mode */
   onPatchApplied?: () => void;
 }
@@ -32,6 +35,9 @@ export function useFabricDrawing({
   pageNumber,
   onAnnotationCreated,
   setMeasureResult,
+  pageScale,
+  drawingScale,
+  measurementUnit,
   onPatchApplied,
 }: UseFabricDrawingParams) {
   useEffect(() => {
@@ -61,6 +67,12 @@ export function useFabricDrawing({
           : null;
 
     const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+    const formatMeasurement = (canvasDistance: number) => {
+      const pdfPoints = canvasDistance / Math.max(pageScale, 0.0001);
+      const millimeters = pdfPoints * (25.4 / 72) * Math.max(1, drawingScale);
+      if (measurementUnit === "mm") return `${millimeters.toFixed(1)} mm`;
+      return `${(millimeters / 1000).toFixed(3)} m`;
+    };
 
     const drawingSurface =
       ((canvas as any).upperCanvasEl as HTMLCanvasElement | undefined) ?? canvasRef.current;
@@ -102,9 +114,9 @@ export function useFabricDrawing({
           const dx = endX - sx;
           const dy = endY - sy;
           const distance = Math.sqrt(dx * dx + dy * dy);
-          const value = distance.toFixed(2);
-          text.set({ text: `${value} px`, left: endX + 10, top: endY + 10 });
-          setMeasureResult(`${value} px`);
+          const value = formatMeasurement(distance);
+          text.set({ text: value, left: endX + 10, top: endY + 10 });
+          setMeasureResult(value);
           canvas.renderAll();
         }
         return;
@@ -331,7 +343,7 @@ export function useFabricDrawing({
           selectable: false,
           evented: false,
         });
-        const text = new fabric.Text("0.00 px", {
+        const text = new fabric.Text(formatMeasurement(0), {
           left: pointer.x + 10,
           top: pointer.y + 10,
           fontSize: 14,
@@ -419,7 +431,7 @@ export function useFabricDrawing({
         isDrawingRef.current = false;
       }
     };
-  }, [highlightMode, shapeMode, redactMode, measureMode, aiPatchMode, annotationToolDefaults, onAnnotationCreated, pageNumber, setMeasureResult, fabricRef, canvasRef, onPatchApplied]);
+  }, [highlightMode, shapeMode, redactMode, measureMode, aiPatchMode, annotationToolDefaults, onAnnotationCreated, pageNumber, setMeasureResult, fabricRef, canvasRef, pageScale, drawingScale, measurementUnit, onPatchApplied]);
 }
 
 const showPromptPopup = (clientX: number, clientY: number, onConfirm: (text: string) => void, onCancel: () => void) => {

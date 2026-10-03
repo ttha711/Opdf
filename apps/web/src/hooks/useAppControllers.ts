@@ -123,6 +123,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     highlightMode: state.highlightMode,
     viewMode: state.viewMode,
     totalPages: state.totalPages,
+    viewerAreaRef,
     setTransitionDirection: state.setTransitionDirection,
     setTransitionTick: state.setTransitionTick,
     page: state.page,
@@ -139,25 +140,110 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setShowSignModal: state.setShowSignModal,
   });
 
-  // Handle Ctrl + mouse wheel zoom natively to prevent default browser page zooming
+  // CAD-style navigation: Ctrl/Cmd+wheel zooms around the pointer; hold
+  // Space + drag or middle-mouse drag to pan large drawing sheets.
   useEffect(() => {
     const viewerElement = viewerAreaRef.current;
     if (!viewerElement) return;
 
-    const handleNativeWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault();
-        state.setZoomPreset("actual");
-        const nextFactor = Math.exp(-e.deltaY * 0.0015);
-        state.setScale((current) => Math.min(3, Math.max(0.5, Number((current * nextFactor).toFixed(3)))));
-      }
+    let spaceHeld = false;
+    let panning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let scrollStartLeft = 0;
+    let scrollStartTop = 0;
+
+    const isTypingTarget = (target: EventTarget | null) => {
+      const element = target as HTMLElement | null;
+      return Boolean(
+        element &&
+        (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.isContentEditable),
+      );
     };
 
-    viewerElement.addEventListener("wheel", handleNativeWheel, { passive: false });
-    return () => {
-      viewerElement.removeEventListener("wheel", handleNativeWheel);
+    const refreshCursor = () => {
+      viewerElement.style.cursor = panning ? "grabbing" : spaceHeld ? "grab" : "";
     };
-  }, [state]);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space" || isTypingTarget(event.target)) return;
+      spaceHeld = true;
+      refreshCursor();
+      event.preventDefault();
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      spaceHeld = false;
+      if (!panning) refreshCursor();
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const shouldPan = event.button === 1 || (event.button === 0 && spaceHeld);
+      if (!shouldPan) return;
+      event.preventDefault();
+      panning = true;
+      panStartX = event.clientX;
+      panStartY = event.clientY;
+      scrollStartLeft = viewerElement.scrollLeft;
+      scrollStartTop = viewerElement.scrollTop;
+      refreshCursor();
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!panning) return;
+      viewerElement.scrollLeft = scrollStartLeft - (event.clientX - panStartX);
+      viewerElement.scrollTop = scrollStartTop - (event.clientY - panStartY);
+    };
+
+    const stopPan = () => {
+      if (!panning) return;
+      panning = false;
+      refreshCursor();
+    };
+
+    const handleNativeWheel = (event: WheelEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      state.setZoomPreset("actual");
+
+      const rect = viewerElement.getBoundingClientRect();
+      const localX = event.clientX - rect.left;
+      const localY = event.clientY - rect.top;
+      const contentX = viewerElement.scrollLeft + localX;
+      const contentY = viewerElement.scrollTop + localY;
+      const factor = Math.exp(-event.deltaY * 0.0015);
+
+      state.setScale((current) => {
+        const nextScale = Math.min(5, Math.max(0.05, Number((current * factor).toFixed(4))));
+        const ratio = nextScale / Math.max(current, 0.0001);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            viewerElement.scrollLeft = contentX * ratio - localX;
+            viewerElement.scrollTop = contentY * ratio - localY;
+          });
+        });
+        return nextScale;
+      });
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    viewerElement.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopPan);
+    viewerElement.addEventListener("wheel", handleNativeWheel, { passive: false });
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+      viewerElement.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopPan);
+      viewerElement.removeEventListener("wheel", handleNativeWheel);
+      viewerElement.style.cursor = "";
+    };
+  }, [state.setScale, state.setZoomPreset]);
 
   const closeMenu = useCallback(() => state.setOpenMenu(null), [state]);
   const toggleMenu = useCallback((name: string) => state.setOpenMenu(prev => prev === name ? null : name), [state]);

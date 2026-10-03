@@ -17,6 +17,7 @@ export function FabricPage({
   width,
   height,
   imageUrl,
+  pageScale,
   annotations,
   highlightMode,
   shapeMode,
@@ -35,6 +36,16 @@ export function FabricPage({
 
   const [selectedAnn, setSelectedAnn] = useState<SelectedAnnotationState | null>(null);
   const [measureResult, setMeasureResult] = useState<string | null>(null);
+  const [drawingScale, setDrawingScale] = useState<number>(() => {
+    if (typeof window === "undefined") return 1;
+    const saved = Number(window.localStorage.getItem("opdf-measure-scale"));
+    return Number.isFinite(saved) && saved > 0 ? saved : 1;
+  });
+  const [measurementUnit, setMeasurementUnit] = useState<"mm" | "m">("m");
+
+  useEffect(() => {
+    window.localStorage.setItem("opdf-measure-scale", String(drawingScale));
+  }, [drawingScale]);
 
   const isAnyDrawMode = highlightMode || shapeMode || redactMode || measureMode || aiPatchMode;
 
@@ -48,24 +59,17 @@ export function FabricPage({
       selection: false,
       // Prevent the default browser selection behavior
       preserveObjectStacking: true,
-      enableRetinaScaling: true,
+      // The Fabric layer contains vector annotations only. Keeping retina
+      // scaling off avoids another multi-megapixel backing store on A0/A1 sheets.
+      enableRetinaScaling: false,
     });
     fabricRef.current = canvas;
-
-    // Load background image
-    fabric.Image.fromURL(imageUrl, { crossOrigin: "anonymous" }).then((img) => {
-      img.set({ originX: "left", originY: "top", selectable: false, evented: false });
-      img.scaleToWidth(width);
-      img.scaleToHeight(height);
-      canvas.backgroundImage = img;
-      canvas.renderAll();
-    });
 
     return () => {
       canvas.dispose();
       fabricRef.current = null;
     };
-  }, [width, height, imageUrl]);
+  }, [width, height]);
 
   // ─── Sync draw-mode cursor / selection capability ──────────────────────
   useEffect(() => {
@@ -163,6 +167,9 @@ export function FabricPage({
     pageNumber,
     onAnnotationCreated,
     setMeasureResult,
+    pageScale,
+    drawingScale,
+    measurementUnit,
     onPatchApplied,
   });
 
@@ -182,7 +189,47 @@ export function FabricPage({
 
   return (
     <div ref={containerRef} style={{ position: "relative", width, height }} className="fabric-page-container">
+      <img
+        src={imageUrl}
+        alt=""
+        draggable={false}
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          width,
+          height,
+          objectFit: "fill",
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+      />
       <canvas ref={canvasRef} />
+
+      {measureMode && (
+        <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 rounded-md border border-emerald-300 bg-white/95 px-2 py-1 text-[11px] font-semibold text-emerald-800 shadow-sm">
+          <span>Tỷ lệ</span>
+          <select
+            value={drawingScale}
+            onChange={(event) => setDrawingScale(Number(event.target.value))}
+            className="rounded border border-emerald-200 bg-white px-1 py-0.5"
+            aria-label="Drawing scale"
+          >
+            {[1, 20, 50, 100, 200, 500].map((value) => (
+              <option key={value} value={value}>1:{value}</option>
+            ))}
+          </select>
+          <select
+            value={measurementUnit}
+            onChange={(event) => setMeasurementUnit(event.target.value as "mm" | "m")}
+            className="rounded border border-emerald-200 bg-white px-1 py-0.5"
+            aria-label="Measurement unit"
+          >
+            <option value="m">m</option>
+            <option value="mm">mm</option>
+          </select>
+        </div>
+      )}
 
       {measureMode && measureResult && (
         <div 

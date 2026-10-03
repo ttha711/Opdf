@@ -39,7 +39,11 @@ export function useAiAssistant() {
   const handleSaveSettings = () => {
     localStorage.setItem("opdf_ai_mode", engineMode);
     localStorage.setItem("opdf_dify_url", difyUrl);
-    localStorage.setItem("opdf_dify_key", difyKey);
+    if (window.opdf?.setAiConfig) {
+      localStorage.removeItem("opdf_dify_key");
+    } else {
+      localStorage.setItem("opdf_dify_key", difyKey);
+    }
     localStorage.setItem("opdf_iframe_url", iframeUrl);
     setShowSettings(false);
     void syncAiConfigToDesktop("dify", difyUrl, difyKey);

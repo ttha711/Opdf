@@ -62,6 +62,7 @@ export function AppHeader({
   compareRevisions,
   searchRedact,
   advancedPdf,
+  digitalSign,
   documentTool,
   setDocumentTool,
   runDocumentTool,
@@ -137,6 +138,7 @@ export function AppHeader({
   compareRevisions: () => void;
   searchRedact: () => void;
   advancedPdf: () => void;
+  digitalSign: () => void;
   documentTool: DocumentTool;
   setDocumentTool: (tool: DocumentTool) => void;
   runDocumentTool: (tool?: DocumentTool) => void;
@@ -323,6 +325,8 @@ export function AppHeader({
           compareRevisions={compareRevisions}
           searchRedact={searchRedact}
           advancedPdf={advancedPdf}
+          digitalSign={digitalSign}
+          canDigitalSign={hasDesktopBridge && bridgeCapabilities?.digitalSignature !== false}
           capabilities={bridgeCapabilities}
         />
       </div>

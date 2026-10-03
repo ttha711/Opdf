@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       - run: npm run build -w @opdf/core
       - run: npm run build -w @opdf/web
+      - run: npm run build -w @opdf/desktop
+      - run: node apps/desktop/dist/main/pdf-signature.smoke.js
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist

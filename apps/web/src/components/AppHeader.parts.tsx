@@ -508,6 +508,8 @@ interface FileUtilitiesGroupProps {
   compareRevisions: () => void;
   searchRedact: () => void;
   advancedPdf: () => void;
+  digitalSign: () => void;
+  canDigitalSign: boolean;
   capabilities?: BridgeCapabilities;
 }
 
@@ -523,6 +525,8 @@ export function FileUtilitiesGroup({
   compareRevisions,
   searchRedact,
   advancedPdf,
+  digitalSign,
+  canDigitalSign,
   capabilities,
 }: FileUtilitiesGroupProps) {
   // Browser compression can fall back to the streaming /api/pdf-jobs service.
@@ -571,6 +575,18 @@ export function FileUtilitiesGroup({
             <circle cx="10" cy="10" r="5" />
             <path d="m14 14 6 6" />
             <path d="M4 20h8" strokeWidth="3" />
+          </svg>
+        </ToolIconButton>
+        <ToolIconButton
+          label={canDigitalSign ? "Digital Sign" : `Digital Sign · ${DESKTOP_ONLY_TITLE}`}
+          disabled={!hasDocument || !canDigitalSign}
+          onClick={digitalSign}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 17c3-5 5-7 7-7 2.5 0-.5 6 2 6 1.5 0 2.5-2 4-2 1 0 2 .8 3 2" />
+            <path d="M5 20h14" />
+            <path d="M16 4l4 4" />
+            <path d="M14 6l4 4" />
           </svg>
         </ToolIconButton>
         <ToolIconButton label="Advanced PDF" disabled={!hasDocument} onClick={advancedPdf}>

@@ -65,6 +65,18 @@ try {
   assert(range.status === 206, "range request must return 206");
   assert(Buffer.from(await range.arrayBuffer()).toString("ascii") === "%PDF-", "range bytes differ");
 
+  const updatedSample = Buffer.from("%PDF-1.4\n2 0 obj\n<< /Updated true >>\nendobj\n%%EOF\n", "ascii");
+  const replace = await fetch(`${base}/api/opdf/documents/${document.id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/pdf" },
+    body: updatedSample,
+  });
+  assert(replace.ok, "repeat PDF save failed");
+  const replacedBytes = Buffer.from(
+    await fetch(`${base}/api/opdf/documents/${document.id}`).then((r) => r.arrayBuffer()),
+  );
+  assert(Buffer.compare(replacedBytes, updatedSample) === 0, "repeat PDF save did not replace stored bytes");
+
   const annotation = {
     id: "smoke-annotation",
     page: 1,
@@ -83,6 +95,16 @@ try {
   const annotations = await fetch(`${base}/api/opdf/documents/${document.id}/annotations`).then((r) => r.json());
   assert(annotations.length === 1 && annotations[0].id === annotation.id, "annotation round-trip failed");
 
+  const annotation2 = { ...annotation, id: "smoke-annotation-2", updatedAt: Date.now() };
+  const replaceAnnotations = await fetch(`${base}/api/opdf/documents/${document.id}/annotations`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ annotations: [annotation2] }),
+  });
+  assert(replaceAnnotations.ok, "repeat annotation write failed");
+  const annotations2 = await fetch(`${base}/api/opdf/documents/${document.id}/annotations`).then((r) => r.json());
+  assert(annotations2.length === 1 && annotations2[0].id === annotation2.id, "repeat annotation write did not replace state");
+
   const sessionPut = await fetch(`${base}/api/opdf/session`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -95,6 +117,19 @@ try {
   assert(sessionPut.ok, "session write failed");
   const session = await fetch(`${base}/api/opdf/session`).then((r) => r.json());
   assert(session.activeFilePath === document.filePath, "session round-trip failed");
+
+  const sessionPut2 = await fetch(`${base}/api/opdf/session`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      activeFilePath: null,
+      openTabs: [],
+      activeTabIndex: 0,
+    }),
+  });
+  assert(sessionPut2.ok, "repeat session write failed");
+  const session2 = await fetch(`${base}/api/opdf/session`).then((r) => r.json());
+  assert(session2.activeFilePath === null, "repeat session write did not replace state");
 
   const recent = await fetch(`${base}/api/opdf/recent`).then((r) => r.json());
   assert(recent.some((item) => item.filePath === document.filePath), "recent document missing");

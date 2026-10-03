@@ -8,14 +8,6 @@ import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmDialog";
 
 export function useAppState() {
-  const cloneBytes = (bytes: Uint8Array | null): Uint8Array | null => {
-    if (!bytes) return null;
-    try {
-      return new Uint8Array(bytes);
-    } catch {
-      return null;
-    }
-  };
   const [fileName, setFileName] = useState("");
   const [docBytes, setDocBytes] = useState<Uint8Array | null>(null);
   const [page, setPage] = useState(1);
@@ -166,7 +158,9 @@ export function useAppState() {
     pendingSwitchTabIdRef.current = tabId;
     setActiveTabId(tabId);
     setFileName(targetTab.fileName);
-    setDocBytes(cloneBytes(targetTab.docBytes));
+    // Share the immutable source byte reference between tab state and viewer.
+    // Structural edits replace the Uint8Array instead of mutating it in place.
+    setDocBytes(targetTab.docBytes);
     setPage(targetTab.page || 1);
     setTotalPages(targetTab.totalPages || 0);
     setAnnotations(targetTab.annotations || []);
@@ -400,7 +394,7 @@ export function useAppState() {
             ) {
               return {
                 ...t,
-                docBytes: cloneBytes(docBytes),
+                docBytes,
                 page,
                 totalPages,
                 annotations,
@@ -422,7 +416,7 @@ export function useAppState() {
       const newTab: OpdfTab = {
         id: newTabId,
         fileName,
-        docBytes: cloneBytes(docBytes),
+        docBytes,
         page,
         totalPages: 0,
         annotations,

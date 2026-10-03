@@ -563,6 +563,39 @@ function createMainWindow(): BrowserWindow {
   });
 
   const devServer = process.env.OPDF_DEV_SERVER;
+  const allowedDevOrigin = (() => {
+    if (!devServer) return null;
+    try {
+      return new URL(devServer).origin;
+    } catch {
+      return null;
+    }
+  })();
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https://")) {
+      void shell.openExternal(url);
+    }
+    return { action: "deny" };
+  });
+
+  win.webContents.on("will-navigate", (event, url) => {
+    let allowed = url.startsWith("file://");
+    if (!allowed && allowedDevOrigin) {
+      try {
+        allowed = new URL(url).origin === allowedDevOrigin;
+      } catch {
+        allowed = false;
+      }
+    }
+    if (!allowed) {
+      event.preventDefault();
+      if (url.startsWith("https://")) {
+        void shell.openExternal(url);
+      }
+    }
+  });
+
   if (devServer) {
     void win.loadURL(devServer);
   } else {

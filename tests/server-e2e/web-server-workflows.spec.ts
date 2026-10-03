@@ -68,7 +68,7 @@ test("server structural edits and secure redaction survive Save + reload", async
   await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy", { timeout: 30_000 });
 
   await page.getByRole("button", { name: "Save (Ctrl+S)", exact: true }).click();
-  await expect(page.getByText("Saved to OPDF Server.", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Saved to OPDF Server.", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
 
   const persistedRotation = await request.get(`/api/opdf/documents/${stored.id}`);
   expect(persistedRotation.ok()).toBeTruthy();
@@ -86,7 +86,7 @@ test("server structural edits and secure redaction survive Save + reload", async
   await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy", { timeout: 30_000 });
 
   await page.getByRole("button", { name: "Save (Ctrl+S)", exact: true }).click();
-  await expect(page.getByText("Saved to OPDF Server.", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Saved to OPDF Server.", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
 
   await openStored(page, stored.filePath, 6);
   await page.getByRole("button", { name: "Search & Secure Redact", exact: true }).click();
@@ -190,11 +190,8 @@ test("server review annotations persist and browser export paths stay usable", a
   const exported = await PDFDocument.load(await readFile(exportPath!));
   expect(exported.getPageCount()).toBe(2);
 
-  await page.getByRole("button", { name: "To Images", exact: true }).click();
-  const imagePanel = page.locator(".acrobat-tool-panel");
-  await expect(imagePanel.getByRole("button", { name: "Convert to PNG", exact: true })).toBeVisible();
   const imageDownloadPromise = page.waitForEvent("download");
-  await imagePanel.getByRole("button", { name: "Convert to PNG", exact: true }).click();
+  await page.getByRole("button", { name: "To Images", exact: true }).click();
   const imageDownload = await imageDownloadPromise;
   expect(imageDownload.suggestedFilename()).toMatch(/-images\.zip$/i);
 });

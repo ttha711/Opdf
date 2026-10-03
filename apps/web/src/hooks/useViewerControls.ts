@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, SetStateAction, WheelEvent } from "react";
+import type { Dispatch, MutableRefObject, RefObject, SetStateAction, WheelEvent } from "react";
 import type { ActiveTool, PendingRect, ViewMode, ZoomPreset } from "../lib/app-types";
 
 export function useViewerControls({
@@ -6,6 +6,7 @@ export function useViewerControls({
   highlightMode,
   viewMode,
   totalPages,
+  viewerAreaRef,
   setTransitionDirection,
   setTransitionTick,
   page,
@@ -25,6 +26,7 @@ export function useViewerControls({
   highlightMode: boolean;
   viewMode: ViewMode;
   totalPages: number;
+  viewerAreaRef: RefObject<HTMLElement | null>;
   setTransitionDirection: Dispatch<SetStateAction<"next" | "prev">>;
   setTransitionTick: Dispatch<SetStateAction<number>>;
   page: number;
@@ -52,18 +54,20 @@ export function useViewerControls({
     setPage((p) => (totalPages > 0 ? Math.min(totalPages, p + 1) : p + 1));
   }
 
+  const clampScale = (value: number) => Math.min(5, Math.max(0.05, value));
+
   function zoomIn(customScale?: number) {
     setZoomPreset("actual");
     if (typeof customScale === "number" && !isNaN(customScale)) {
-      setScale(Math.max(0.5, Math.min(3, customScale)));
+      setScale(clampScale(customScale));
     } else {
-      setScale((s) => Math.min(3, Number((s + 0.1).toFixed(2))));
+      setScale((s) => clampScale(Number((s * 1.15).toFixed(3))));
     }
   }
 
   function zoomOut() {
     setZoomPreset("actual");
-    setScale((s) => Math.max(0.5, Number((s - 0.1).toFixed(2))));
+    setScale((s) => clampScale(Number((s / 1.15).toFixed(3))));
   }
 
   function resetZoom() {
@@ -73,9 +77,29 @@ export function useViewerControls({
 
   function applyZoomPreset(preset: ZoomPreset) {
     setZoomPreset(preset);
-    if (preset === "actual") setScale(1);
-    if (preset === "fit-width") setScale(1.35);
-    if (preset === "fit-page") setScale(0.85);
+    if (preset === "actual") {
+      setScale(1);
+      return;
+    }
+
+    const viewer = viewerAreaRef.current;
+    const pageElement = viewer?.querySelector<HTMLElement>(`[data-page="${page}"]`);
+    if (!viewer || !pageElement) return;
+
+    const pageRect = pageElement.getBoundingClientRect();
+    if (pageRect.width <= 0 || pageRect.height <= 0) return;
+
+    const horizontalPadding = 32;
+    const verticalPadding = 32;
+    const availableWidth = Math.max(1, viewer.clientWidth - horizontalPadding);
+    const availableHeight = Math.max(1, viewer.clientHeight - verticalPadding);
+
+    setScale((current) => {
+      const widthRatio = availableWidth / pageRect.width;
+      const heightRatio = availableHeight / pageRect.height;
+      const ratio = preset === "fit-width" ? widthRatio : Math.min(widthRatio, heightRatio);
+      return clampScale(Number((current * ratio).toFixed(4)));
+    });
   }
 
   function rotateLeft() {

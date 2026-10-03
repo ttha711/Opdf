@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PdfViewer } from "./components/PdfViewer";
+import { AdaptivePdfViewer } from "./components/AdaptivePdfViewer";
 import { AppHeader } from "./components/AppHeader";
 import { AllToolsDashboard } from "./components/AllToolsDashboard";
 import { ThumbnailPanel } from "./components/ThumbnailPanel";
@@ -298,18 +298,30 @@ export function App() {
   }, [state.hasDocument]);
 
   const handleRotatePages = useCallback(async (pages: number[], degrees: number) => {
+    if (state.sourceIdentity.startsWith("server://") && bridge.mutateStoredDocument) {
+      const result = await bridge.mutateStoredDocument(state.sourceIdentity, { type: "rotate-pages", pageNumbers: pages, degrees });
+      window.dispatchEvent(new CustomEvent("opdf:server-document-mutated", { detail: { sourceIdentity: state.sourceIdentity, updatedAt: result.updatedAt } }));
+      return;
+    }
     const bytes = state.docBytes ?? await materializeDocumentBytes();
     if (!bytes) return;
     const next = await bridge.rotatePages(bytes, pages, degrees);
     replaceDocumentBytes(next, state.page);
-  }, [state.docBytes, state.page, bridge, materializeDocumentBytes, replaceDocumentBytes]);
+  }, [state.docBytes, state.page, state.sourceIdentity, bridge, materializeDocumentBytes, replaceDocumentBytes]);
 
   const handleDeletePages = useCallback(async (pages: number[]) => {
+    if (state.sourceIdentity.startsWith("server://") && bridge.mutateStoredDocument) {
+      const result = await bridge.mutateStoredDocument(state.sourceIdentity, { type: "delete-pages", pageNumbers: pages, totalPages: state.totalPages });
+      window.dispatchEvent(new CustomEvent("opdf:server-document-mutated", { detail: { sourceIdentity: state.sourceIdentity, updatedAt: result.updatedAt } }));
+      state.setPage((current) => Math.min(current, Math.max(1, state.totalPages - pages.length)));
+      state.setTotalPages((current) => Math.max(1, current - pages.length));
+      return;
+    }
     const bytes = state.docBytes ?? await materializeDocumentBytes();
     if (!bytes) return;
     const next = await bridge.deletePages(bytes, pages);
     replaceDocumentBytes(next, Math.min(state.page, state.totalPages - pages.length));
-  }, [state.docBytes, state.page, state.totalPages, bridge, materializeDocumentBytes, replaceDocumentBytes]);
+  }, [state.docBytes, state.page, state.totalPages, state.sourceIdentity, state.setPage, state.setTotalPages, bridge, materializeDocumentBytes, replaceDocumentBytes]);
 
   // Keep OPDF's page-management rail available for active PDFs. Thumbnails
   // are now rendered lazily by the PDFium viewer, so this no longer revives
@@ -550,7 +562,7 @@ export function App() {
                     runDocumentTool={(tool) => headerProps.runDocumentTool(tool as import("./lib/document-tools").DocumentTool)}
                   />}
                   <ViewerErrorBoundary>
-                    <PdfViewer {...viewerProps} />
+                    <AdaptivePdfViewer {...viewerProps} />
                   </ViewerErrorBoundary>
                 </section>
               )}

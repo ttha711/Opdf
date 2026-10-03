@@ -64,11 +64,13 @@ test("server structural edits and secure redaction survive Save + reload", async
   const header = page.locator("header");
 
   await header.getByRole("button", { name: "View", exact: true }).click();
+  const mutationResponsePromise = page.waitForResponse(
+    (response) => response.url().includes(`/api/opdf/documents/${stored.id}/mutations`) && response.request().method() === "POST",
+  );
   await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
-  await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy", { timeout: 30_000 });
-
-  await page.getByRole("button", { name: "Save (Ctrl+S)", exact: true }).click();
-  await expect(page.getByText("Saved to OPDF Server.", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+  const mutationResponse = await mutationResponsePromise;
+  expect(mutationResponse.ok()).toBeTruthy();
+  await expect(viewer).toHaveAttribute("data-opdf-source", "server", { timeout: 30_000 });
 
   const persistedRotation = await request.get(`/api/opdf/documents/${stored.id}`);
   expect(persistedRotation.ok()).toBeTruthy();

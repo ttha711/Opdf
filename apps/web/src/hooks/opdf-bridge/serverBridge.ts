@@ -122,6 +122,8 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
       bookmarksPersist: true,
       pdfA: browser.capabilities?.pdfA ?? false,
       digitalSignature: false,
+      storedMutations: true,
+      rangePreview: true,
     },
 
     async compressPdf(bytes: Uint8Array) {
@@ -165,6 +167,17 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
         body: bytes as unknown as BodyInit,
       });
       await expectJson(response);
+    },
+
+    async mutateStoredDocument(filePath, mutation) {
+      const id = parseServerId(filePath);
+      if (!id) throw new Error("Document is not stored on the OPDF server yet.");
+      const response = await fetch(`${baseUrl}/documents/${id}/mutations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mutation),
+      });
+      return expectJson(response);
     },
 
     async saveDocumentAs(bytes: Uint8Array) {

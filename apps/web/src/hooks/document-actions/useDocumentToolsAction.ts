@@ -8,6 +8,7 @@ export function useDocumentToolsAction({
   bridge,
   fileName,
   docBytes,
+  sourceIdentity,
   getDocumentBytes,
   page,
   totalPages,
@@ -20,6 +21,7 @@ export function useDocumentToolsAction({
   bridge: ReturnType<typeof useOpdfBridge>;
   fileName: string;
   docBytes: Uint8Array | null;
+  sourceIdentity: string;
   getDocumentBytes: () => Promise<Uint8Array | null>;
   page: number;
   totalPages: number;
@@ -43,9 +45,14 @@ export function useDocumentToolsAction({
 
     if (activeTool === "rotate-all-left" || activeTool === "rotate-all-right") {
       try {
+        const degrees = activeTool === "rotate-all-left" ? -90 : 90;
+        if (sourceIdentity.startsWith("server://") && bridge.mutateStoredDocument) {
+          const result = await bridge.mutateStoredDocument(sourceIdentity, { type: "rotate-pages", degrees });
+          window.dispatchEvent(new CustomEvent("opdf:server-document-mutated", { detail: { sourceIdentity, updatedAt: result.updatedAt } }));
+          return;
+        }
         const bytes = (await getDocumentBytes()) ?? docBytes;
         if (!bytes) return;
-        const degrees = activeTool === "rotate-all-left" ? -90 : 90;
         const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
         const next = await bridge.rotatePages(bytes, pages, degrees);
         replaceDocumentBytes(next, page);

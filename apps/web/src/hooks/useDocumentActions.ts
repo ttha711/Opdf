@@ -139,6 +139,7 @@ export function useDocumentActions({
     bridge,
     fileName,
     docBytes,
+    sourceIdentity,
     getDocumentBytes,
     page,
     totalPages,

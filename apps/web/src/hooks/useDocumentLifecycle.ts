@@ -82,7 +82,7 @@ export function useDocumentLifecycle({
 
     setFileName(file.name);
     setDocBytes(null);
-    setSourceBlob(file);
+    setSourceBlob(isOpdfServerRuntime() ? null : file);
     setSourceIdentity(identity);
     setPage(1);
     setTotalPages(0);

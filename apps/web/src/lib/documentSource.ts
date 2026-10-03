@@ -8,7 +8,9 @@ export function getServerDocumentUrl(
 ) {
   const match = /^server:\/\/([0-9a-f-]{36})\//i.exec(identity);
   if (!match) return null;
-  return `${baseUrl.replace(/\/$/, "")}/documents/${match[1]}`;
+  const revision = /[?&]v=(\d+)/.exec(identity)?.[1];
+  const url = `${baseUrl.replace(/\/$/, "")}/documents/${match[1]}`;
+  return revision ? `${url}?v=${encodeURIComponent(revision)}` : url;
 }
 
 export function resolvePdfSource({

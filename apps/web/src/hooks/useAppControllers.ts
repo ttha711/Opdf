@@ -302,6 +302,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     theme: state.theme,
     setFileName: state.setFileName,
     setDocBytes: state.setDocBytes,
+    setSourceBlob: state.setSourceBlob,
+    setSourceIdentity: state.setSourceIdentity,
     setAnnotations: state.setAnnotations,
     setPage: state.setPage,
     setThumbnails: state.setThumbnails,

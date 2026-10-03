@@ -44,7 +44,7 @@ export type StoredDocumentMutationResult = {
   filePath: string;
   size: number;
   updatedAt: number;
-  engine: "qpdf-native" | "qpdf-wasm";
+  engine: "pdf-lib-server";
 };
 
 export type P12CertificateInfo = {

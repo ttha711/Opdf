@@ -100,6 +100,24 @@ OPDF_DATA_DIR/
 
 Set `OPDF_DATA_DIR` outside the Git checkout for production so upgrades do not touch user data.
 
+## Server PDF workers
+
+Server mode now routes these operations through the Node backend instead of the browser:
+
+- QPDF compression.
+- AES-256 PDF encryption.
+- PDF decryption.
+
+These endpoints reuse the same `@opdf/core` `DocumentService` used by Desktop, so the PDF engine is not duplicated.
+
+The operation payload limit defaults to 250 MiB and can be changed independently from the persistent upload limit:
+
+```powershell
+$env:OPDF_MAX_OPERATION_BYTES="536870912"
+```
+
+Passwords for encryption/decryption are sent only to the same-origin OPDF API in an encoded request header. For remote deployments, keep OPDF behind HTTPS (for example Cloudflare Tunnel + Access) and do not configure proxies to log the `X-OPDF-Options` header.
+
 ## Upload size
 
 Default maximum PDF upload size:

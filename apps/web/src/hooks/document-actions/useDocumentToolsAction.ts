@@ -47,8 +47,8 @@ export function useDocumentToolsAction({
       try {
         const degrees = activeTool === "rotate-all-left" ? -90 : 90;
         if (sourceIdentity.startsWith("server://") && bridge.mutateStoredDocument) {
-          await bridge.mutateStoredDocument(sourceIdentity, { type: "rotate-pages", degrees });
-          window.dispatchEvent(new CustomEvent("opdf:server-document-mutated", { detail: { sourceIdentity } }));
+          const result = await bridge.mutateStoredDocument(sourceIdentity, { type: "rotate-pages", degrees });
+          window.dispatchEvent(new CustomEvent("opdf:server-document-mutated", { detail: { sourceIdentity, updatedAt: result.updatedAt } }));
           return;
         }
         const bytes = (await getDocumentBytes()) ?? docBytes;

@@ -8,6 +8,7 @@ import { createOpdfStorage, assertDocumentId, sanitizeFileName } from "./opdf-st
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
 const port = Number(process.env.OPDF_PORT || process.env.PORT || 8787);
+const host = process.env.OPDF_HOST || "127.0.0.1";
 const dataDir = resolve(process.env.OPDF_DATA_DIR || join(repoRoot, ".opdf-data"));
 const webDist = resolve(process.env.OPDF_WEB_DIST || join(repoRoot, "apps", "web", "dist"));
 const maxBytes = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 750 * 1024 * 1024);
@@ -263,7 +264,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(port, "0.0.0.0", () => {
-  console.log(`OPDF Server listening on http://0.0.0.0:${port}`);
+server.listen(port, host, () => {
+  console.log(`OPDF Server listening on http://${host}:${port}`);
   console.log(`Data directory: ${dataDir}`);
 });

@@ -1,0 +1,35 @@
+name: Refresh EmbedPDF lockfile
+
+on:
+  push:
+    branches: ["refactor/web-pdfium-viewer"]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/web-pdfium-viewer
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Refresh package-lock.json
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Commit lockfile
+        shell: bash
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json is already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: refresh lockfile for EmbedPDF"
+          git push origin HEAD:refactor/web-pdfium-viewer

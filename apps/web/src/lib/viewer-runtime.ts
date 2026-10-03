@@ -51,3 +51,29 @@ export function registerViewerControls(controls: ActiveViewerControls) {
 export function getViewerControls() {
   return activeControls;
 }
+
+
+export type ViewerThumbnail = {
+  page: number;
+  blob: Blob;
+};
+
+export async function collectViewerThumbnails(pageCount: number): Promise<ViewerThumbnail[]> {
+  if (!Number.isFinite(pageCount) || pageCount < 1) return [];
+
+  const thumbnails: ViewerThumbnail[] = [];
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    let blob: Blob | null = null;
+    for (let attempt = 0; attempt < 20 && !blob; attempt += 1) {
+      blob = await getViewerThumbnail(pageNumber);
+      if (!blob && attempt < 19) {
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
+      }
+    }
+    if (!blob) {
+      throw new Error(`Unable to render page ${pageNumber} from the active PDFium viewer.`);
+    }
+    thumbnails.push({ page: pageNumber, blob });
+  }
+  return thumbnails;
+}

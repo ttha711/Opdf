@@ -562,6 +562,11 @@ function createMainWindow(): BrowserWindow {
     },
   });
 
+  win.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
+    console.warn(`Denied renderer permission request: ${permission}`);
+    callback(false);
+  });
+
   const devServer = process.env.OPDF_DEV_SERVER;
   const allowedDevOrigin = (() => {
     if (!devServer) return null;

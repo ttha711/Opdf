@@ -15,6 +15,7 @@ export function useDocumentLifecycle({
   setFileName,
   setDocBytes,
   setSourceBlob,
+  sourceIdentity,
   setSourceIdentity,
   setPage,
   setTotalPages,
@@ -36,6 +37,7 @@ export function useDocumentLifecycle({
   setFileName: Dispatch<SetStateAction<string>>;
   setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
   setSourceBlob: Dispatch<SetStateAction<Blob | null>>;
+  sourceIdentity: string;
   setSourceIdentity: Dispatch<SetStateAction<string>>;
   setPage: Dispatch<SetStateAction<number>>;
   setTotalPages: Dispatch<SetStateAction<number>>;
@@ -258,7 +260,7 @@ export function useDocumentLifecycle({
   function replaceDocumentBytes(bytes: Uint8Array, nextPage = page) {
     setDocBytes(bytes);
     setSourceBlob(null);
-    setSourceIdentity("");
+    setSourceIdentity(sourceIdentity.startsWith("server://") ? sourceIdentity : "");
     setAnnotations([]);
     setThumbnails([]);
     setViewerError(null);

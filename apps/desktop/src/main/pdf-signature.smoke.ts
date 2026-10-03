@@ -1,6 +1,6 @@
 import forge from "node-forge";
 import { PDFDocument } from "pdf-lib";
-import { inspectP12Certificate, signPdfWithP12 } from "./pdf-signature.js";
+import { inspectP12Certificate, inspectPdfSignatures, signPdfWithP12 } from "./pdf-signature.js";
 
 function buildTestP12(passphrase: string) {
   const keys = forge.pki.rsa.generateKeyPair({ bits: 1024, e: 0x10001 });
@@ -66,7 +66,29 @@ async function main() {
   }
 
   await PDFDocument.load(signed.bytes);
-  process.stdout.write("Digital signature smoke test passed\n");
+
+  const inspections = inspectPdfSignatures(signed.bytes);
+  if (inspections.length !== 1) {
+    throw new Error("Expected one inspected PDF signature.");
+  }
+  const inspected = inspections[0];
+  if (!inspected.byteRangeWellFormed || !inspected.cmsParsed) {
+    throw new Error("Signature inspector could not parse the generated signature.");
+  }
+  if (inspected.certificates[0]?.commonName !== "OPDF CI Test") {
+    throw new Error("Signature inspector did not recover the signer certificate.");
+  }
+  if (inspected.hasLaterRevision) {
+    throw new Error("Freshly signed PDF unexpectedly reports a later revision.");
+  }
+
+  const withLaterBytes = new Uint8Array(Buffer.concat([Buffer.from(signed.bytes), Buffer.from("\n% OPDF later revision marker\n")]));
+  const laterInspection = inspectPdfSignatures(withLaterBytes)[0];
+  if (!laterInspection?.hasLaterRevision || laterInspection.bytesAfterSignedRevision <= 0) {
+    throw new Error("Signature inspector did not detect bytes after the signed revision.");
+  }
+
+  process.stdout.write("Digital signature + inspection smoke test passed\n");
 }
 
 void main().catch((error) => {

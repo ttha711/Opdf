@@ -517,6 +517,9 @@ export function createMockBridge(): OpdfBridge {
     async inspectP12Certificate() {
       throw new Error("Digital certificate inspection requires OPDF Desktop.");
     },
+    async inspectPdfSignatures() {
+      throw new Error("PDF signature inspection requires OPDF Desktop.");
+    },
     async signPdfP12() {
       throw new Error("Cryptographic P12/PFX signing requires OPDF Desktop.");
     },

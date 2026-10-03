@@ -24,6 +24,27 @@ export type P12SignOptions = {
   height?: number;
 };
 
+export type PdfSignatureCertificateInfo = P12CertificateInfo & {
+  issuerCommonName: string;
+  currentlyWithinValidity: boolean;
+};
+
+export type PdfSignatureInspection = {
+  index: number;
+  byteRange: [number, number, number, number];
+  byteRangeWellFormed: boolean;
+  signedRevisionEnd: number;
+  fileLength: number;
+  bytesAfterSignedRevision: number;
+  hasLaterRevision: boolean;
+  cmsParsed: boolean;
+  pdfSignerName: string;
+  reason: string;
+  signingTime: string;
+  certificates: PdfSignatureCertificateInfo[];
+  verification: "not-verified";
+};
+
 function parseP12(p12Bytes: Uint8Array, passphrase = "") {
   const binary = Buffer.from(p12Bytes).toString("binary");
   const asn1 = forge.asn1.fromDer(binary);
@@ -53,6 +74,113 @@ function getSigningCertificate(p12: any) {
 function attributeValue(cert: any, shortName: string) {
   const attribute = cert.subject.attributes.find((item: any) => item.shortName === shortName);
   return attribute?.value ? String(attribute.value) : "";
+}
+
+function issuerAttributeValue(cert: any, shortName: string) {
+  const attribute = cert.issuer?.attributes?.find((item: any) => item.shortName === shortName);
+  return attribute?.value ? String(attribute.value) : "";
+}
+
+function certificateInfo(cert: any): PdfSignatureCertificateInfo {
+  const now = Date.now();
+  const validFrom = cert.validity.notBefore.toISOString();
+  const validTo = cert.validity.notAfter.toISOString();
+  return {
+    commonName: attributeValue(cert, "CN") || "Unknown certificate subject",
+    organization: attributeValue(cert, "O"),
+    issuerCommonName: issuerAttributeValue(cert, "CN"),
+    serialNumber: cert.serialNumber || "",
+    validFrom,
+    validTo,
+    currentlyWithinValidity:
+      now >= cert.validity.notBefore.getTime() &&
+      now <= cert.validity.notAfter.getTime(),
+  };
+}
+
+function unescapePdfLiteral(value: string) {
+  return value
+    .replace(/\\([()\\])/g, "$1")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t");
+}
+
+function extractPdfLiteralMetadata(pdf: Buffer, start: number) {
+  const sample = pdf
+    .slice(Math.max(0, start), Math.min(pdf.length, start + 32_768))
+    .toString("latin1");
+  const read = (key: string) => {
+    const match = new RegExp("\\/" + key + "\\s*\\(([^)]*(?:\\\\\\)[^)]*)*)\\)").exec(sample);
+    return match?.[1] ? unescapePdfLiteral(match[1]) : "";
+  };
+  return {
+    pdfSignerName: read("Name"),
+    reason: read("Reason"),
+    signingTime: read("M"),
+  };
+}
+
+export function inspectPdfSignatures(pdfBytes: Uint8Array): PdfSignatureInspection[] {
+  const pdf = Buffer.from(pdfBytes);
+  const text = pdf.toString("latin1");
+  const pattern = /\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g;
+  const inspections: PdfSignatureInspection[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    const byteRange = match.slice(1, 5).map(Number) as [number, number, number, number];
+    const [firstStart, firstLength, secondStart, secondLength] = byteRange;
+    const signedRevisionEnd = secondStart + secondLength;
+    const gapStart = firstStart + firstLength;
+    const byteRangeWellFormed =
+      firstStart === 0 &&
+      firstLength >= 0 &&
+      secondStart > gapStart &&
+      secondLength >= 0 &&
+      signedRevisionEnd <= pdf.length;
+
+    let cmsParsed = false;
+    let certificates: PdfSignatureCertificateInfo[] = [];
+    if (byteRangeWellFormed && gapStart + 1 < secondStart) {
+      try {
+        const rawHex = pdf
+          .slice(gapStart + 1, secondStart)
+          .toString("latin1")
+          .replace(/(?:00|>)+$/g, "")
+          .replace(/\s+/g, "");
+        if (rawHex && /^[0-9a-f]+$/i.test(rawHex) && rawHex.length % 2 === 0) {
+          const cms = Buffer.from(rawHex, "hex");
+          const asn1 = forge.asn1.fromDer(cms.toString("binary"));
+          const message = forge.pkcs7.messageFromAsn1(asn1) as any;
+          certificates = Array.isArray(message.certificates)
+            ? message.certificates.map((cert: any) => certificateInfo(cert))
+            : [];
+          cmsParsed = true;
+        }
+      } catch {
+        cmsParsed = false;
+      }
+    }
+
+    const metadata = extractPdfLiteralMetadata(pdf, secondStart);
+    const bytesAfterSignedRevision = Math.max(0, pdf.length - signedRevisionEnd);
+    inspections.push({
+      index: inspections.length + 1,
+      byteRange,
+      byteRangeWellFormed,
+      signedRevisionEnd,
+      fileLength: pdf.length,
+      bytesAfterSignedRevision,
+      hasLaterRevision: bytesAfterSignedRevision > 0,
+      cmsParsed,
+      ...metadata,
+      certificates,
+      verification: "not-verified",
+    });
+  }
+
+  return inspections;
 }
 
 export function inspectP12Certificate(p12Bytes: Uint8Array, passphrase = ""): P12CertificateInfo {

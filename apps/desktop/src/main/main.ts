@@ -6,7 +6,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { inspectP12Certificate, signPdfWithP12, type P12SignOptions } from "./pdf-signature.js";
+import { inspectP12Certificate, inspectPdfSignatures, signPdfWithP12, type P12SignOptions } from "./pdf-signature.js";
 import {
   AnnotationService,
   DocumentService,
@@ -610,6 +610,9 @@ function registerIpcHandlers(): void {
   ipcMain.handle("opdf:show-item-in-folder", async (_event, filePath: string) => { shell.showItemInFolder(filePath); });
   ipcMain.handle("opdf:inspect-p12", async (_event, certificateBytes: Uint8Array, passphrase: string) => {
     return inspectP12Certificate(certificateBytes, passphrase || "");
+  });
+  ipcMain.handle("opdf:inspect-pdf-signatures", async (_event, bytes: Uint8Array) => {
+    return inspectPdfSignatures(bytes);
   });
   ipcMain.handle("opdf:sign-p12", async (
     _event,

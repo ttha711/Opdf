@@ -448,7 +448,6 @@ export function App() {
           hasDocument={state.hasDocument}
           fileName={state.fileName}
           docBytes={state.docBytes}
-          thumbnails={state.thumbnails}
           onLoadConvertedPdf={(bytes, name) => {
             state.setDocBytes(bytes);
             state.setFileName(name);
@@ -637,7 +636,6 @@ export function App() {
                 docBytes={state.docBytes}
                 getDocumentBytes={materializeDocumentBytes}
                 totalPages={state.totalPages}
-                thumbnails={state.thumbnails}
                 annotations={state.annotations}
                 onClose={() => {
                   state.setActiveDashboardTool(null);

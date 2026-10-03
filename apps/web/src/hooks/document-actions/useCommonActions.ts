@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { useOpdfBridge } from "../useOpdfBridge";
 import { toast } from "../../components/ToastProvider";
 import { getLargePdfCapabilities, runLargePdfJob } from "../../lib/largePdfJobs";
+import { collectViewerThumbnails } from "../../lib/viewer-runtime";
 
 export function useCommonActions({
   bridge,
@@ -10,7 +11,7 @@ export function useCommonActions({
   sourceBlob,
   getDocumentBytes,
   replaceDocumentBytes,
-  thumbnails,
+  totalPages,
   setDocBytes,
   setViewerError,
   setSaveState,
@@ -23,7 +24,7 @@ export function useCommonActions({
   sourceBlob: Blob | null;
   getDocumentBytes: () => Promise<Uint8Array | null>;
   replaceDocumentBytes: (bytes: Uint8Array, nextPage?: number) => void;
-  thumbnails: Array<{ page: number; url: string; blob: Blob }>;
+  totalPages: number;
   setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
   setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
@@ -105,17 +106,17 @@ export function useCommonActions({
   }
 
   async function convertToImages() {
-    if (!fileName || thumbnails.length === 0) {
-      toast.info("Vui lòng chờ tất cả các trang render xong trước khi chuyển đổi.");
-      return;
-    }
+    if (!fileName || totalPages < 1) return;
     try {
+      setViewerError("Rendering page images...");
+      const thumbnails = await collectViewerThumbnails(totalPages);
       setViewerError("Zipping images...");
       const { zipSync } = await import("fflate");
       const zipData: Record<string, Uint8Array> = {};
       for (const thumb of thumbnails) {
         const buf = await thumb.blob.arrayBuffer();
-        zipData[`page-${thumb.page}.jpg`] = new Uint8Array(buf);
+        const extension = thumb.blob.type.includes("png") ? "png" : "jpg";
+        zipData[`page-${thumb.page}.${extension}`] = new Uint8Array(buf);
       }
       const zipped = zipSync(zipData);
       const blob = new Blob([zipped as unknown as BlobPart], { type: "application/zip" });

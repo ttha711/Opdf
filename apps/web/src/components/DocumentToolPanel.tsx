@@ -14,7 +14,6 @@ export function DocumentToolPanel({
   docBytes,
   getDocumentBytes,
   totalPages,
-  thumbnails,
   annotations,
   onClose,
   onLoadConvertedPdf,
@@ -53,6 +52,11 @@ export function DocumentToolPanel({
   const [splitRangeInput, setSplitRangeInput] = useState("");
   const [splitExtractInput, setSplitExtractInput] = useState("");
   const [mergeFiles, setMergeFiles] = useState<MergeFile[]>([]);
+
+  useEffect(() => {
+    if (activeToolId === "pdf-to-png") setImgFormat("png");
+    if (activeToolId === "pdf-to-jpeg") setImgFormat("jpg");
+  }, [activeToolId]);
 
   useEffect(() => {
     if (totalPages > 1) {
@@ -108,7 +112,7 @@ export function DocumentToolPanel({
     fileBase,
     docBytes,
     getDocumentBytes,
-    thumbnails,
+    totalPages,
     bridge,
     onLoadConvertedPdf,
     onOpenHtmlEditor,

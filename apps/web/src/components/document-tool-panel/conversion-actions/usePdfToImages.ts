@@ -1,10 +1,11 @@
 import type React from "react";
-import { convertBlobToGrayscale, downloadFile } from "./helpers";
+import { convertBlobToImage, downloadFile } from "./helpers";
 import { toast } from "../../ToastProvider";
+import { collectViewerThumbnails } from "../../../lib/viewer-runtime";
 
 interface UsePdfToImagesArgs {
   docBytes: Uint8Array | null;
-  thumbnails: Array<{ page: number; url: string; blob: Blob }>;
+  totalPages: number;
   imgFormat: "png" | "jpg";
   imgOutputOption: "one-per-page" | "all-in-one";
   imgZoom: number;
@@ -17,7 +18,7 @@ interface UsePdfToImagesArgs {
 
 export function usePdfToImages(args: UsePdfToImagesArgs) {
   const {
-    thumbnails,
+    totalPages,
     imgFormat,
     imgOutputOption,
     imgZoom,
@@ -29,13 +30,14 @@ export function usePdfToImages(args: UsePdfToImagesArgs) {
   } = args;
 
   const handlePdfToImages = async () => {
-    if (thumbnails.length === 0) {
-      toast.info("Vui lòng chờ tất cả các trang render xong trước khi chuyển đổi.");
+    if (totalPages < 1) {
+      toast.info("Không có trang PDF để chuyển đổi.");
       return;
     }
     setIsProcessing(true);
-    setViewerError("Preparing high-res images...");
+    setViewerError("Preparing page images...");
     try {
+      const thumbnails = await collectViewerThumbnails(totalPages);
       const isPng = imgFormat === "png";
       const { zipSync } = await import("fflate");
       const zipData: Record<string, Uint8Array> = {};
@@ -80,29 +82,12 @@ export function usePdfToImages(args: UsePdfToImagesArgs) {
         }
       } else {
         for (const thumb of thumbnails) {
-          let processedBlob = thumb.blob;
-          if (imgColorMode === "grayscale") {
-            processedBlob = await convertBlobToGrayscale(thumb.blob, isPng);
-          }
-          if (imgZoom !== 100) {
-            processedBlob = await new Promise<Blob>((resolve) => {
-              const img = new Image();
-              img.onload = () => {
-                const canvas = document.createElement("canvas");
-                canvas.width = img.width * (imgZoom / 100);
-                canvas.height = img.height * (imgZoom / 100);
-                const ctx = canvas.getContext("2d");
-                if (ctx) {
-                  if (imgColorMode === "grayscale") ctx.filter = "grayscale(100%)";
-                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                  canvas.toBlob((b) => resolve(b || processedBlob), isPng ? "image/png" : "image/jpeg");
-                } else {
-                  resolve(processedBlob);
-                }
-              };
-              img.src = URL.createObjectURL(processedBlob);
-            });
-          }
+          const processedBlob = await convertBlobToImage(
+            thumb.blob,
+            isPng,
+            imgZoom / 100,
+            imgColorMode === "grayscale",
+          );
           const buf = await processedBlob.arrayBuffer();
           zipData[`page-${thumb.page}.${imgFormat}`] = new Uint8Array(buf);
         }

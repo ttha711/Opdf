@@ -83,7 +83,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     getDocumentBytes: state.materializeDocumentBytes,
     page: state.page,
     totalPages: state.totalPages,
-    thumbnails: state.thumbnails,
     annotations: state.annotations,
     setFileName: state.setFileName,
     setAnnotations: state.setAnnotations,

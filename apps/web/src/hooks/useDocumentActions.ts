@@ -21,7 +21,6 @@ export function useDocumentActions({
   getDocumentBytes,
   page,
   totalPages,
-  thumbnails,
   annotations,
   setFileName,
   setAnnotations,
@@ -47,7 +46,6 @@ export function useDocumentActions({
   getDocumentBytes: () => Promise<Uint8Array | null>;
   page: number;
   totalPages: number;
-  thumbnails: Array<{ page: number; url: string; blob: Blob }>;
   annotations: any[];
   setFileName: Dispatch<SetStateAction<string>>;
   setAnnotations: Dispatch<SetStateAction<any[]>>;
@@ -113,7 +111,7 @@ export function useDocumentActions({
     sourceBlob,
     getDocumentBytes,
     replaceDocumentBytes,
-    thumbnails,
+    totalPages,
     setDocBytes,
     setViewerError,
     setShowSplitModal,

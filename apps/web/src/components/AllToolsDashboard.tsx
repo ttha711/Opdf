@@ -10,7 +10,6 @@ interface AllToolsDashboardProps {
   hasDocument: boolean;
   fileName: string;
   docBytes: Uint8Array | null;
-  thumbnails: Array<{ page: number; url: string; blob: Blob }>;
   onLoadConvertedPdf: (bytes: Uint8Array, fileName: string) => void;
   onClose: () => void;
   onTriggerCompress: () => void;
@@ -35,7 +34,6 @@ export function AllToolsDashboard({
   hasDocument,
   fileName,
   docBytes,
-  thumbnails,
   onLoadConvertedPdf,
   onClose,
   onTriggerCompress,
@@ -239,34 +237,16 @@ export function AllToolsDashboard({
     }
   };
 
-  // Run PDF to PNG/JPEG download if PDF is already open
+  // Keep the active PDF viewer mounted for PDFium-backed image export.
+  // The dedicated tool panel owns format/zoom/grayscale options.
   const convertPdfToImages = (isPng: boolean) => {
-    if (hasDocument && thumbnails.length > 0) {
-      downloadZippedImages(isPng);
-    } else {
-      triggerFileInput(isPng ? "pdf-to-png" : "pdf-to-jpg");
+    const toolId = isPng ? "pdf-to-png" : "pdf-to-jpeg";
+    if (hasDocument && onSelectTool) {
+      onSelectTool(toolId);
+      onClose();
+      return;
     }
-  };
-
-  const downloadZippedImages = async (isPng: boolean) => {
-    try {
-      const { zipSync } = await import("fflate");
-      const zipData: Record<string, Uint8Array> = {};
-      for (const thumb of thumbnails) {
-        const buf = await thumb.blob.arrayBuffer();
-        zipData[`page-${thumb.page}.${isPng ? "png" : "jpg"}`] = new Uint8Array(buf);
-      }
-      const zipped = zipSync(zipData);
-      const blob = new Blob([zipped as any], { type: "application/zip" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${fileName}-images.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      toast.error("Không thể nén ảnh: " + err);
-    }
+    triggerFileInput(toolId);
   };
 
   // Open the dedicated AI document editor for deep content edits and Office export.

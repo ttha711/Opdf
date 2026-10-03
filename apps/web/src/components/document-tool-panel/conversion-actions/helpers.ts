@@ -60,23 +60,37 @@ export const downloadFile = async (
   }, 20000);
 };
 
-export const convertBlobToGrayscale = async (blob: Blob, isPng: boolean): Promise<Blob> => {
+export const convertBlobToImage = async (
+  blob: Blob,
+  isPng: boolean,
+  scale = 1,
+  grayscale = false,
+): Promise<Blob> => {
   return new Promise((resolve) => {
     const img = new Image();
+    const url = URL.createObjectURL(blob);
+    const finish = (result: Blob) => {
+      URL.revokeObjectURL(url);
+      resolve(result);
+    };
+
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
       const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.filter = "grayscale(100%)";
-        ctx.drawImage(img, 0, 0);
-        canvas.toBlob((b) => resolve(b || blob), isPng ? "image/png" : "image/jpeg");
-      } else {
-        resolve(blob);
+      if (!ctx) {
+        finish(blob);
+        return;
       }
+      if (grayscale) ctx.filter = "grayscale(100%)";
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((result) => finish(result || blob), isPng ? "image/png" : "image/jpeg");
     };
-    img.onerror = () => resolve(blob);
-    img.src = URL.createObjectURL(blob);
+    img.onerror = () => finish(blob);
+    img.src = url;
   });
 };
+
+export const convertBlobToGrayscale = async (blob: Blob, isPng: boolean): Promise<Blob> =>
+  convertBlobToImage(blob, isPng, 1, true);

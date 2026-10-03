@@ -1,10 +1,10 @@
 import { PDFDocument } from "pdf-lib";
 import { getDocument, GlobalWorkerOptions, Util, type PDFDocumentProxy } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
+import { pdfSourceToBytes, type PdfSource } from "./documentSource";
+export type { PdfSource } from "./documentSource";
 
 GlobalWorkerOptions.workerSrc = workerSrc;
-
-export type PdfSource = Blob | Uint8Array | null;
 
 export type TextRedactionMatch = {
   id: string;
@@ -23,10 +23,10 @@ function toBlob(source: PdfSource): Blob | null {
 }
 
 async function withPdf<T>(source: PdfSource, action: (pdf: PDFDocumentProxy) => Promise<T>): Promise<T> {
-  const blob = toBlob(source);
-  if (!blob) throw new Error("No PDF source loaded");
-  const url = URL.createObjectURL(blob);
-  const task = getDocument({ url });
+  if (!source) throw new Error("No PDF source loaded");
+  const blob = typeof source === "string" ? null : toBlob(source);
+  const objectUrl = blob ? URL.createObjectURL(blob) : null;
+  const task = getDocument({ url: typeof source === "string" ? source : objectUrl! });
   try {
     const pdf = await task.promise;
     try {
@@ -35,7 +35,7 @@ async function withPdf<T>(source: PdfSource, action: (pdf: PDFDocumentProxy) => 
       await pdf.destroy();
     }
   } finally {
-    URL.revokeObjectURL(url);
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
   }
 }
 
@@ -100,11 +100,10 @@ export async function applySecureRasterRedactions(
   matches: TextRedactionMatch[],
   onProgress?: (page: number, total: number) => void,
 ): Promise<Uint8Array> {
-  const blob = toBlob(source);
-  if (!blob) throw new Error("No PDF source loaded");
+  if (!source) throw new Error("No PDF source loaded");
   if (matches.length === 0) throw new Error("No redactions selected");
 
-  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const bytes = await pdfSourceToBytes(source);
   const original = await PDFDocument.load(bytes);
   const output = await PDFDocument.create();
   const byPage = new Map<number, TextRedactionMatch[]>();
@@ -114,8 +113,11 @@ export async function applySecureRasterRedactions(
     byPage.set(match.page, current);
   });
 
-  const url = URL.createObjectURL(blob);
-  const task = getDocument({ url });
+  const renderBlob = typeof source === "string"
+    ? null
+    : new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
+  const objectUrl = renderBlob ? URL.createObjectURL(renderBlob) : null;
+  const task = getDocument({ url: typeof source === "string" ? source : objectUrl! });
   const renderPdf = await task.promise;
   try {
     for (let pageIndex = 0; pageIndex < original.getPageCount(); pageIndex += 1) {
@@ -171,7 +173,7 @@ export async function applySecureRasterRedactions(
     }
   } finally {
     await renderPdf.destroy();
-    URL.revokeObjectURL(url);
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
   }
 
   return output.save();

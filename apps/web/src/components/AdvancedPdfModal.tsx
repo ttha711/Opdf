@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { pdfSourceToBytes, type PdfSource } from "../lib/documentSource";
 import {
   addInternalPageLink,
   addPdfBookmarks,
@@ -10,14 +11,7 @@ import {
   type PdfBookmarkInput,
 } from "../lib/pdfAdvanced";
 
-type PdfSource = Blob | Uint8Array | null;
 type Tab = "forms" | "bookmarks" | "links";
-
-async function toBytes(source: PdfSource): Promise<Uint8Array> {
-  if (!source) throw new Error("No PDF loaded.");
-  if (source instanceof Blob) return new Uint8Array(await source.arrayBuffer());
-  return source;
-}
 
 export function AdvancedPdfModal({
   isOpen,
@@ -68,7 +62,7 @@ export function AdvancedPdfModal({
     let cancelled = false;
     setBusy(true);
     setError(null);
-    void toBytes(source)
+    void pdfSourceToBytes(source)
       .then((bytes) => inspectFormFields(bytes))
       .then((nextFields) => {
         if (cancelled) return;
@@ -94,7 +88,7 @@ export function AdvancedPdfModal({
     setBusy(true);
     setError(null);
     try {
-      const bytes = await fillFormFields(await toBytes(source), fieldValues, flatten);
+      const bytes = await fillFormFields(await pdfSourceToBytes(source), fieldValues, flatten);
       onApplied(bytes, flatten ? "Form values applied and flattened." : "Form values applied.");
       onClose();
     } catch (reason) {
@@ -108,7 +102,7 @@ export function AdvancedPdfModal({
     setBusy(true);
     setError(null);
     try {
-      const bytes = await addPdfBookmarks(await toBytes(source), validBookmarks);
+      const bytes = await addPdfBookmarks(await pdfSourceToBytes(source), validBookmarks);
       onApplied(bytes, validBookmarks.length + " PDF bookmark(s) embedded.", validBookmarks);
       onClose();
     } catch (reason) {
@@ -130,8 +124,8 @@ export function AdvancedPdfModal({
         height: linkRect.height / 100,
       };
       const bytes = linkMode === "internal"
-        ? await addInternalPageLink(await toBytes(source), { ...common, destinationPage })
-        : await addUriLink(await toBytes(source), { ...common, url: linkUrl });
+        ? await addInternalPageLink(await pdfSourceToBytes(source), { ...common, destinationPage })
+        : await addUriLink(await pdfSourceToBytes(source), { ...common, url: linkUrl });
       onApplied(
         bytes,
         linkMode === "internal"

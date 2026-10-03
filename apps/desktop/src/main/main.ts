@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { mkdtemp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
@@ -499,9 +499,9 @@ async function checkAndDownloadUpdates(win: BrowserWindow) {
     }
 
     const indexPath = join(destDir, "index.html");
-    if (!existsSync(indexPath)) {
+    if (!isRegularNonSymlinkFile(indexPath)) {
       await rm(destDir, { recursive: true, force: true });
-      throw new Error("Downloaded update does not contain index.html");
+      throw new Error("Downloaded update does not contain a safe regular index.html file");
     }
 
     pendingUpdate = { version: manifest.version, path: indexPath };
@@ -527,6 +527,15 @@ function compareVersions(v1: string, v2: string): number {
   return 0;
 }
 
+function isRegularNonSymlinkFile(filePath: string): boolean {
+  try {
+    const stat = lstatSync(filePath);
+    return stat.isFile() && !stat.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
 function resolveIndexHtmlPath(): string {
   const userDataPath = app.getPath("userData");
   const updatesRoot = resolve(join(userDataPath, "web-updates"));
@@ -545,7 +554,7 @@ function resolveIndexHtmlPath(): string {
       ) {
         const expectedIndexPath = resolve(join(updatesRoot, config.version, "index.html"));
         const configuredPath = resolve(config.path);
-        if (configuredPath === expectedIndexPath && existsSync(configuredPath)) {
+        if (configuredPath === expectedIndexPath && isRegularNonSymlinkFile(configuredPath)) {
           console.log(`Loading updated web assets from: ${configuredPath}`);
           return configuredPath;
         }

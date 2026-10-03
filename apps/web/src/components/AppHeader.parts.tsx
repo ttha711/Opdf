@@ -521,13 +521,16 @@ export function FileUtilitiesGroup({
   compareRevisions,
   capabilities,
 }: FileUtilitiesGroupProps) {
-  // Absent capabilities (desktop bridge) means everything is supported
-  const canCompress = capabilities?.compress !== false;
+  // Browser compression can fall back to the streaming /api/pdf-jobs service.
+  // Keep the action available and let the runtime capability check report a
+  // clear error only when neither native nor server processing exists.
+  const canCompress = true;
+  void capabilities;
   return (
     <div className="flex flex-col items-center gap-1 rounded-[var(--ui-radius-md)] border border-[var(--border-color)] bg-[var(--bg-toolbar)] p-[var(--ui-pad-sm)] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
       <span className="text-center text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--text-secondary)] opacity-70">File Utilities</span>
       <div className="flex flex-1 items-center gap-[var(--ui-gap-xs)]">
-        <ToolIconButton label={canCompress ? "Compress" : `Compress — ${DESKTOP_ONLY_TITLE}`} disabled={!hasDocument || !canCompress} onClick={compressDocument}>
+        <ToolIconButton label="Compress" disabled={!hasDocument || !canCompress} onClick={compressDocument}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="4" y="2" width="16" height="20" rx="2" />
             <path d="m12 8-3 3h6l-3-3zm0 8 3-3H9l3 3z" />

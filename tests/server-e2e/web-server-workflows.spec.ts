@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 async function createPdf(pageCount: number, prefix: string, revision = false) {
   const pdf = await PDFDocument.create();
@@ -105,7 +105,7 @@ test("server compare, split and merge workflows execute end to end", async ({ pa
   const viewer = await openStored(page, stored.filePath, 3);
 
   await page.getByRole("button", { name: "Compare revisions", exact: true }).click();
-  const compare = page.getByText("Compare revisions V2", { exact: true }).locator("..").locator("..");
+  const compare = page.locator("div.fixed.inset-0").filter({ hasText: "Compare revisions V2" });
   const revision = await createPdf(3, "BASE", true);
   await compare.locator('input[type="file"]').setInputFiles({
     name: "revision-b.pdf",
@@ -148,6 +148,9 @@ test("server compare, split and merge workflows execute end to end", async ({ pa
 
 test("server review annotations persist and browser export paths stay usable", async ({ page, request }) => {
   test.setTimeout(120_000);
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "showSaveFilePicker", { value: undefined, configurable: true });
+  });
   const stored = await uploadPdf(request, "review-export.pdf", await createPdf(2, "REVIEW"));
   const now = Date.now();
   const annotations = [{
@@ -169,10 +172,12 @@ test("server review annotations persist and browser export paths stay usable", a
   await page.getByRole("button", { name: "Resolve", exact: true }).click();
   await expect(page.getByText("RESOLVED", { exact: true })).toBeVisible();
 
-  const savedAnnotations = await request.get(`/api/opdf/documents/${stored.id}/annotations`);
-  expect(savedAnnotations.ok()).toBeTruthy();
-  const rows = await savedAnnotations.json() as Array<{ payload?: Record<string, unknown> }>;
-  expect(rows[0]?.payload?.reviewResolved).toBe(true);
+  await expect.poll(async () => {
+    const savedAnnotations = await request.get(`/api/opdf/documents/${stored.id}/annotations`);
+    if (!savedAnnotations.ok()) return false;
+    const rows = await savedAnnotations.json() as Array<{ payload?: Record<string, unknown> }>;
+    return rows[0]?.payload?.reviewResolved === true;
+  }).toBe(true);
 
   const header = page.locator("header");
   await header.getByRole("button", { name: "File", exact: true }).click();

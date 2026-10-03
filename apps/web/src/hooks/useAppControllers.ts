@@ -66,6 +66,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   const { addHighlight, createToolAnnotation, undoAnnotations, redoAnnotations, removeAnnotation, updateAnnotation } = useAnnotationActions({
     bridge,
     fileName: state.fileName,
+    sourceIdentity: state.sourceIdentity,
     noteText: state.noteText,
     signatureStyle: state.signatureStyle,
     annotationToolDefaults: state.annotationToolDefaults,

@@ -6,6 +6,7 @@ import { basename, join } from "node:path";
 import { Readable } from "node:stream";
 import { spawn } from "node:child_process";
 import { chromium } from "@playwright/test";
+import { PDFDocument } from "pdf-lib";
 
 const HOST = "127.0.0.1";
 const PORT = 8797;
@@ -152,7 +153,7 @@ async function browserTest(browser, testCase, stored, fileBytes) {
     timeout: 60_000,
   });
 
-  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  const viewer = page.locator('[data-opdf-engine="pdfjs-range"], [data-opdf-engine="pdfium-wasm"]');
   await viewer.waitFor({ state: "visible", timeout: 60_000 });
   await page.locator("body").getByText(/Page\s+1\s+of\s+\d+/i).first().waitFor({
     state: "visible",
@@ -174,6 +175,12 @@ async function browserTest(browser, testCase, stored, fileBytes) {
   const fullResponses = pdfResponses.filter((item) => item.status === 200);
   const bytesObserved = pdfResponses.reduce((sum, item) => sum + item.contentLength, 0);
   const usedRange = rangeResponses.length > 0;
+  const viewerEngine = await viewer.getAttribute("data-opdf-engine");
+  if (fileBytes >= 32 * MiB) {
+    assert(viewerEngine === "pdfjs-range", `${testCase.name}: expected pdfjs-range for large server PDF, got ${viewerEngine}`);
+    assert(usedRange, `${testCase.name}: large server PDF did not use HTTP Range`);
+    assert(bytesObserved < fileBytes, `${testCase.name}: range preview transferred the full file before first-page readiness`);
+  }
 
   let searchMatches = null;
   if (testCase.searchText) {
@@ -193,32 +200,39 @@ async function browserTest(browser, testCase, stored, fileBytes) {
   let saveError = null;
   if (testCase.mutateAndSave) {
     const header = page.locator("header");
+    const mutateStartedAt = Date.now();
     await header.getByRole("button", { name: "View", exact: true }).click();
     await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
-    await viewer.waitFor({ state: "visible", timeout: 60_000 });
-    const saveStartedAt = Date.now();
-    await page.getByRole("button", { name: "Save (Ctrl+S)", exact: true }).click();
     try {
       await page.getByText("Saved to OPDF Server.", { exact: true }).first().waitFor({
         state: "visible",
-        timeout: 120_000,
+        timeout: 30_000,
       });
-      saveMs = Date.now() - saveStartedAt;
+      saveMs = Date.now() - mutateStartedAt;
+      assert(saveMs < 30_000, `${testCase.name}: server-side rotate took too long (${saveMs} ms)`);
+
+      const persisted = await fetch(`${BASE}/api/opdf/documents/${stored.id}`);
+      assert(persisted.ok, `${testCase.name}: unable to reload mutated PDF`);
+      const persistedDoc = await PDFDocument.load(new Uint8Array(await persisted.arrayBuffer()));
+      assert(
+        persistedDoc.getPage(0).getRotation().angle % 360 === 90,
+        `${testCase.name}: server-side rotation was not persisted`,
+      );
+
       await page.goto(`${BASE}/?open=${encodeURIComponent(stored.filePath)}`, {
         waitUntil: "domcontentloaded",
         timeout: 60_000,
       });
-      await page.locator('[data-opdf-engine="pdfium-wasm"]').waitFor({ state: "visible", timeout: 60_000 });
-      await page.locator("body").getByText(/Page\\s+1\\s+of\\s+\\d+/i).first().waitFor({
+      await page.locator('[data-opdf-engine="pdfjs-range"], [data-opdf-engine="pdfium-wasm"]').waitFor({
         state: "visible",
-        timeout: 120_000,
+        timeout: 60_000,
       });
       savedReloadOk = true;
     } catch (error) {
-      saveMs = Date.now() - saveStartedAt;
+      saveMs = Date.now() - mutateStartedAt;
       saveError = error instanceof Error ? error.message.split("\n")[0] : String(error);
       savedReloadOk = false;
-      console.warn(`Save/reload benchmark did not complete: ${saveError}`);
+      throw error;
     }
   }
 
@@ -226,6 +240,7 @@ async function browserTest(browser, testCase, stored, fileBytes) {
   return {
     openMs,
     pageCount,
+    viewerEngine,
     usedRange,
     rangeRequestCount: rangeResponses.length,
     fullRequestCount: fullResponses.length,

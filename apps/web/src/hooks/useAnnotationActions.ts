@@ -2,6 +2,7 @@ import type { Annotation } from "@opdf/core";
 import type { Dispatch, SetStateAction } from "react";
 import type { AnnotationToolDefaults, PendingRect } from "../lib/app-types";
 import { useOpdfBridge } from "./useOpdfBridge";
+import { getViewerControls } from "../lib/viewer-runtime";
 
 export function useAnnotationActions({
   bridge,
@@ -97,12 +98,24 @@ export function useAnnotationActions({
   }
 
   async function undoAnnotations() {
+    const viewer = getViewerControls();
+    if (viewer?.undo && viewer.canUndo?.()) {
+      viewer.undo();
+      setSaveState("idle");
+      return;
+    }
     if (!documentKey) return;
     setAnnotations(await bridge.undoAnnotation(documentKey));
     setSaveState("idle");
   }
 
   async function redoAnnotations() {
+    const viewer = getViewerControls();
+    if (viewer?.redo && viewer.canRedo?.()) {
+      viewer.redo();
+      setSaveState("idle");
+      return;
+    }
     if (!documentKey) return;
     setAnnotations(await bridge.redoAnnotation(documentKey));
     setSaveState("idle");

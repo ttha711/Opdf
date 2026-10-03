@@ -61,6 +61,7 @@ export function AppHeader({
   convertToImages,
   compareRevisions,
   searchRedact,
+  advancedPdf,
   documentTool,
   setDocumentTool,
   runDocumentTool,
@@ -135,6 +136,7 @@ export function AppHeader({
   convertToImages: () => void;
   compareRevisions: () => void;
   searchRedact: () => void;
+  advancedPdf: () => void;
   documentTool: DocumentTool;
   setDocumentTool: (tool: DocumentTool) => void;
   runDocumentTool: (tool?: DocumentTool) => void;
@@ -320,6 +322,7 @@ export function AppHeader({
           convertToImages={convertToImages}
           compareRevisions={compareRevisions}
           searchRedact={searchRedact}
+          advancedPdf={advancedPdf}
           capabilities={bridgeCapabilities}
         />
       </div>

@@ -507,6 +507,7 @@ interface FileUtilitiesGroupProps {
   convertToImages: () => void;
   compareRevisions: () => void;
   searchRedact: () => void;
+  advancedPdf: () => void;
   capabilities?: BridgeCapabilities;
 }
 
@@ -521,6 +522,7 @@ export function FileUtilitiesGroup({
   convertToImages,
   compareRevisions,
   searchRedact,
+  advancedPdf,
   capabilities,
 }: FileUtilitiesGroupProps) {
   // Browser compression can fall back to the streaming /api/pdf-jobs service.
@@ -569,6 +571,12 @@ export function FileUtilitiesGroup({
             <circle cx="10" cy="10" r="5" />
             <path d="m14 14 6 6" />
             <path d="M4 20h8" strokeWidth="3" />
+          </svg>
+        </ToolIconButton>
+        <ToolIconButton label="Advanced PDF" disabled={!hasDocument} onClick={advancedPdf}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h16v16H4z" />
+            <path d="M8 8h8M8 12h5M8 16h8" />
           </svg>
         </ToolIconButton>
         <ToolIconButton label="To Images" disabled={!hasDocument} onClick={convertToImages}>

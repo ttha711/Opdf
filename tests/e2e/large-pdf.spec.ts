@@ -34,6 +34,10 @@ async function createDrawingSet(pageCount = 120) {
 }
 
 test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
+  // Large generated drawings plus PDFium WASM can exceed the global
+  // Playwright test budget on shared runners. Assertions remain tighter.
+  test.setTimeout(90_000);
+
   await page.goto("/");
   const pdf = await createDrawingSet();
 

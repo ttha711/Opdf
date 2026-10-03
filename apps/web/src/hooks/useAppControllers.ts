@@ -102,7 +102,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   const onLoaded = useCallback((pages: number) => {
     state.setTotalPages(pages);
     state.setPage((p) => Math.min(Math.max(1, p), Math.max(1, pages)));
-  }, [state.hasDocument, state.setScale, state.setZoomPreset]);
+  }, [state.setPage, state.setTotalPages]);
 
   const openWatermarkPanel = useCallback(() => {
     if (!state.hasDocument) return;
@@ -243,8 +243,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     };
   }, [state.setScale, state.setZoomPreset]);
 
-  const closeMenu = useCallback(() => state.setOpenMenu(null), [state]);
-  const toggleMenu = useCallback((name: string) => state.setOpenMenu(prev => prev === name ? null : name), [state]);
+  const closeMenu = useCallback(() => state.setOpenMenu(null), [state.setOpenMenu]);
+  const toggleMenu = useCallback((name: string) => state.setOpenMenu(prev => prev === name ? null : name), [state.setOpenMenu]);
 
   const { fileMenuItems, editMenuItems, viewMenuItems, toolsMenuItems } = useAppMenus({
     hasDocument: state.hasDocument,
@@ -318,7 +318,9 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setShowDashboard: state.setShowDashboard,
   });
 
-  const toggleTheme = useCallback(() => state.setTheme(t => (t === "light" ? "dark" : "light")), [state]);
+  const toggleTheme = useCallback(() => state.setTheme(t => (t === "light" ? "dark" : "light")), [state.setTheme]);
+  const onViewerDirty = useCallback(() => state.setSaveState("idle"), [state.setSaveState]);
+  const onPatchApplied = useCallback(() => state.setActiveTool("select"), [state.setActiveTool]);
   const { onDragOver, onDrop } = usePdfDrop({
     setFileName: state.setFileName,
     setDocBytes: state.setDocBytes,
@@ -367,6 +369,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
       toggleMenu,
       toggleTheme,
       onLoaded,
+      onViewerDirty,
+      onPatchApplied,
     },
   });
 

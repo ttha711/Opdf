@@ -72,9 +72,9 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     onDocumentLoaded: callbacks.onLoaded,
     onError: state.setViewerError,
     onActivePageChange: actions.onActivePageChange,
-    onViewerDirty: () => state.setSaveState("idle"),
+    onViewerDirty: callbacks.onViewerDirty,
     onViewerScaleChange: state.setScale,
-    onPatchApplied: () => state.setActiveTool("select"),
+    onPatchApplied: callbacks.onPatchApplied,
   };
 
   return { headerProps, viewerProps };

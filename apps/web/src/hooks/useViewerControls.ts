@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, RefObject, SetStateAction, WheelEvent } from "react";
+import { useCallback, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction, type WheelEvent } from "react";
 import type { ViewMode, ZoomPreset } from "../lib/app-types";
 import { getViewerControls } from "../lib/viewer-runtime";
 
@@ -145,9 +145,9 @@ export function useViewerControls({
     lastWheelFlipAtRef.current = now;
   }
 
-  function onActivePageChange(nextPage: number) {
+  const onActivePageChange = useCallback((nextPage: number) => {
     setPage((p) => (p === nextPage ? p : nextPage));
-  }
+  }, [setPage]);
 
   return {
     goPrevPage,

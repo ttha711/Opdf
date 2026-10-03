@@ -306,12 +306,22 @@ export function useDocumentLifecycle({
     let cancelled = false;
     async function loadDevFile() {
       try {
-        const response = await fetch(`/@fs/${devOpenPath.replaceAll("\\", "/")}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const blob = await response.blob();
+        const isServerDocument = devOpenPath.startsWith("server://");
+        const blob = isServerDocument
+          ? await fetchServerPdfBlob(devOpenPath, window.__OPDF_SERVER_BASE__ || "/api/opdf")
+          : await fetch(`/@fs/${devOpenPath.replaceAll("\\", "/")}`).then((response) => {
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              return response.blob();
+            });
         if (cancelled) return;
-        const displayName = devOpenPath.split(/[\\/]/).pop() || devOpenPath;
-        const identity = await computeBlobHash(blob, displayName, 0);
+        const encodedName = devOpenPath.split(/[\\/]/).pop() || devOpenPath;
+        const displayName = isServerDocument ? decodeURIComponent(encodedName) : encodedName;
+        const identity = isServerDocument
+          ? devOpenPath
+          : await computeBlobHash(blob, displayName, 0);
+        const loadedAnnotations = isServerDocument
+          ? await bridge.listAnnotations(identity)
+          : [];
         setFileName(displayName);
         setDocBytes(null);
         setSourceBlob(blob);
@@ -320,14 +330,15 @@ export function useDocumentLifecycle({
         setTotalPages(0);
         setViewerError(null);
         setThumbnails([]);
-        setAnnotations([]);
+        setAnnotations(loadedAnnotations);
         setBookmarks([]);
         setPageRotations({});
+        if (isServerDocument) await bridge.pushRecent(identity);
         markDocumentSaved({
           fileName: displayName,
           docBytes: null,
           documentIdentity: identity,
-          annotations: [],
+          annotations: loadedAnnotations,
           bookmarks: [],
           pageRotations: {},
         });

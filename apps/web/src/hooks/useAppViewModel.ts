@@ -39,8 +39,6 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     scale: state.scale,
     zoomPreset: state.zoomPreset,
     applyZoomPreset: actions.applyZoomPreset,
-    pageSearch: state.pageSearch,
-    setPageSearch: state.setPageSearch,
     viewMode: state.viewMode,
     setViewMode: state.setViewMode,
     undoAnnotations: actions.undoAnnotations,
@@ -58,8 +56,6 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     runDocumentTool: actions.runDocumentTool,
     openDocumentMarkupTool: actions.openDocumentMarkupTool,
     onSelectLocalFile: actions.onSelectLocalFile,
-    showFindBar: state.showFindBar,
-    onToggleFindBar: callbacks.onToggleFindBar,
     theme: state.theme,
     toggleTheme: callbacks.toggleTheme,
     showDashboard: state.showDashboard,
@@ -74,12 +70,11 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     scale: state.scale,
     activeTool: state.activeTool,
     onDocumentLoaded: callbacks.onLoaded,
-    onSearchResult: callbacks.onSearchResult,
     onError: state.setViewerError,
     onActivePageChange: actions.onActivePageChange,
-    onViewerDirty: () => state.setSaveState("idle"),
+    onViewerDirty: callbacks.onViewerDirty,
     onViewerScaleChange: state.setScale,
-    onPatchApplied: () => state.setActiveTool("select"),
+    onPatchApplied: callbacks.onPatchApplied,
   };
 
   return { headerProps, viewerProps };

@@ -102,23 +102,4 @@
     line-height: 1.2;
   }
 
-  .find-bar {
-    @apply absolute top-4 right-8 z-30 flex items-center gap-2 rounded-lg border p-2 shadow-xl;
-    background: var(--bg-toolbar);
-    border-color: var(--border-color);
-    color: var(--text-primary);
-  }
-  .find-bar-input {
-    @apply border-none bg-transparent text-sm focus:outline-none;
-    color: var(--text-primary);
-    width: 180px;
-  }
-  .find-bar-result {
-    @apply border-l px-2 text-xs text-[var(--text-secondary)];
-    border-color: var(--border-color);
-  }
-  .find-bar-close {
-    @apply flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[var(--ui-hover-bg)];
-    color: var(--text-secondary);
-  }
 }

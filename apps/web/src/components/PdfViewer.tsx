@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PDFViewer as EmbedPdfViewer,
-  type PDFViewerRef,
   ZoomMode,
   PdfAnnotationSubtype,
 } from "@embedpdf/react-pdf-viewer";
@@ -12,6 +11,7 @@ import {
   registerViewerThumbnailProvider,
 } from "../lib/viewer-runtime";
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
+import { resolvePdfiumPageCount } from "../lib/pdfiumDocumentState";
 import {
   calibrateMmPerPdfPoint,
   formatMillimeters,
@@ -55,14 +55,13 @@ export function PdfViewer({
   scale,
   activeTool = "select",
   onDocumentLoaded,
-  onSearchResult,
   onError,
   onActivePageChange,
   onViewerDirty,
   onViewerScaleChange,
   onPatchApplied,
 }: PdfViewerProps) {
-  const viewerRef = useRef<PDFViewerRef>(null);
+  const [readyViewer, setReadyViewer] = useState<{ sourceUrl: string; registry: any } | null>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const suppressExternalPageRef = useRef(false);
   const lastPageRef = useRef(page);
@@ -110,6 +109,7 @@ export function PdfViewer({
   }, [data, sourceBlob, serverUrl]);
 
   const sourceUrl = serverUrl ?? localUrl;
+  const activeRegistry = readyViewer?.sourceUrl === sourceUrl ? readyViewer.registry : null;
 
   const config = useMemo(() => {
     if (!sourceUrl) return null;
@@ -140,21 +140,10 @@ export function PdfViewer({
   }, [sourceUrl]);
 
   useEffect(() => {
-    if (!sourceUrl) return;
+    if (!sourceUrl || !activeRegistry) return;
 
-    let cancelled = false;
     const unsubscribers: Array<() => void> = [];
-    let timer = 0;
-
-    const connect = async (attempt = 0) => {
-      if (cancelled) return;
-      const registry = await viewerRef.current?.registry;
-      if (!registry) {
-        if (attempt < 40) {
-          timer = window.setTimeout(() => void connect(attempt + 1), 50);
-        }
-        return;
-      }
+    const registry = activeRegistry;
 
       const scroll = registry.getPlugin?.("scroll")?.provides?.() as any;
       const documentManager = registry.getPlugin?.("document-manager")?.provides?.() as any;
@@ -312,15 +301,30 @@ export function PdfViewer({
         if (typeof off === "function") unsubscribers.push(off);
       }
 
+      const scrollScope = scroll?.forDocument?.(DOCUMENT_ID) ?? scroll;
+      const syncPageCount = (openedDocument?: any) => {
+        const count = resolvePdfiumPageCount({
+          documentId: DOCUMENT_ID,
+          scrollScope,
+          documentManager,
+          openedDocument,
+        });
+        if (!count) return null;
+        onDocumentLoaded?.(count);
+        return count;
+      };
+
       if (scroll?.onPageChange) {
         const off = scroll.onPageChange((event: any) => {
           if (event.documentId !== DOCUMENT_ID) return;
           suppressExternalPageRef.current = true;
           lastPageRef.current = event.pageNumber;
           onActivePageChange?.(event.pageNumber);
-          if (typeof event.totalPages === "number") {
-            onDocumentLoaded?.(event.totalPages);
-          }
+          const eventTotal = typeof event.totalPages === "number" && event.totalPages > 0
+            ? event.totalPages
+            : null;
+          if (eventTotal) onDocumentLoaded?.(eventTotal);
+          else syncPageCount();
           queueMicrotask(() => {
             suppressExternalPageRef.current = false;
           });
@@ -331,7 +335,8 @@ export function PdfViewer({
       if (scroll?.onLayoutReady) {
         const off = scroll.onLayoutReady((event: any) => {
           if (event.documentId !== DOCUMENT_ID) return;
-          scroll.forDocument?.(DOCUMENT_ID)?.scrollToPage?.({
+          syncPageCount();
+          scrollScope?.scrollToPage?.({
             pageNumber: Math.max(1, page),
             behavior: "instant",
           });
@@ -341,13 +346,17 @@ export function PdfViewer({
 
       if (documentManager?.onDocumentOpened) {
         const off = documentManager.onDocumentOpened((doc: any) => {
-          if (doc?.id !== DOCUMENT_ID) return;
-          const count = doc?.pageCount ?? doc?.document?.pageCount;
-          if (typeof count === "number") onDocumentLoaded?.(count);
+          const openedId = doc?.id ?? doc?.document?.id;
+          if (openedId && openedId !== DOCUMENT_ID) return;
+          syncPageCount(doc);
           onError?.(null);
         });
         if (typeof off === "function") unsubscribers.push(off);
       }
+
+      // If document-open/layout events happened before this bridge attached,
+      // the live plugin state still contains the authoritative page count.
+      syncPageCount();
 
       if (documentManager?.onDocumentError) {
         const off = documentManager.onDocumentError((event: any) => {
@@ -359,16 +368,12 @@ export function PdfViewer({
         });
         if (typeof off === "function") unsubscribers.push(off);
       }
-    };
-
-    void connect();
     return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
       unsubscribers.forEach((off) => off());
     };
   }, [
     sourceUrl,
+    activeRegistry,
     activeTool,
     calibratedMmPerPdfPoint,
     drawingScale,
@@ -383,44 +388,25 @@ export function PdfViewer({
   ]);
 
   useEffect(() => {
-    if (!sourceUrl || suppressExternalPageRef.current || page === lastPageRef.current) return;
-    let cancelled = false;
-    void (async () => {
-      const registry = await viewerRef.current?.registry;
-      if (cancelled || !registry) return;
-      const scroll = registry.getPlugin?.("scroll")?.provides?.() as any;
-      scroll?.forDocument?.(DOCUMENT_ID)?.scrollToPage?.({
-        pageNumber: Math.max(1, page),
-        behavior: "instant",
-      });
-      lastPageRef.current = page;
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [page, sourceUrl]);
+    if (!sourceUrl || !activeRegistry || suppressExternalPageRef.current || page === lastPageRef.current) return;
+    const scroll = activeRegistry.getPlugin?.("scroll")?.provides?.() as any;
+    scroll?.forDocument?.(DOCUMENT_ID)?.scrollToPage?.({
+      pageNumber: Math.max(1, page),
+      behavior: "instant",
+    });
+    lastPageRef.current = page;
+  }, [activeRegistry, page, sourceUrl]);
 
   useEffect(() => {
-    if (!sourceUrl || scale === lastScaleRef.current) return;
-    let cancelled = false;
-    void (async () => {
-      const registry = await viewerRef.current?.registry;
-      if (cancelled || !registry) return;
-      const zoom = registry.getPlugin?.("zoom")?.provides?.() as any;
-      zoom?.forDocument?.(DOCUMENT_ID)?.requestZoom?.(Math.max(0.05, Math.min(5, scale)));
-      lastScaleRef.current = scale;
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [scale, sourceUrl]);
+    if (!sourceUrl || !activeRegistry || scale === lastScaleRef.current) return;
+    const zoom = activeRegistry.getPlugin?.("zoom")?.provides?.() as any;
+    zoom?.forDocument?.(DOCUMENT_ID)?.requestZoom?.(Math.max(0.05, Math.min(5, scale)));
+    lastScaleRef.current = scale;
+  }, [activeRegistry, scale, sourceUrl]);
 
   useEffect(() => {
-    if (!sourceUrl) return;
-    let cancelled = false;
-    void (async () => {
-      const registry = await viewerRef.current?.registry;
-      if (cancelled || !registry) return;
+    if (!sourceUrl || !activeRegistry) return;
+    const registry = activeRegistry;
 
       const annotation = registry.getPlugin?.("annotation")?.provides?.() as any;
       const redaction = registry.getPlugin?.("redaction")?.provides?.() as any;
@@ -458,17 +444,8 @@ export function PdfViewer({
         return;
       }
 
-      annotationScope?.setActiveTool?.(mapAnnotationTool(activeTool));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTool, measurementMode, sourceUrl]);
-
-  useEffect(() => {
-    if (!sourceUrl || !onSearchResult) return;
-    onSearchResult(false, "Use the PDFium viewer search tool for full-document search.");
-  }, [sourceUrl, onSearchResult]);
+    annotationScope?.setActiveTool?.(mapAnnotationTool(activeTool));
+  }, [activeRegistry, activeTool, measurementMode, sourceUrl]);
 
   useEffect(() => {
     window.localStorage.setItem("opdf-measure-mode", measurementMode);
@@ -546,8 +523,8 @@ export function PdfViewer({
       ) : null}
       <EmbedPdfViewer
         key={sourceUrl}
-        ref={viewerRef}
         config={config as any}
+        onReady={(registry: any) => setReadyViewer({ sourceUrl, registry })}
         style={{ width: "100%", height: "100%", display: "block" }}
       />
     </div>

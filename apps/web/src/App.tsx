@@ -9,7 +9,6 @@ import { MergeModal } from "./components/MergeModal";
 import { InsertPdfModal } from "./components/InsertPdfModal";
 import { DocumentMarkupModal } from "./components/DocumentMarkupModal";
 import { StatusBar } from "./components/StatusBar";
-import { FindBar } from "./components/FindBar";
 import { DocumentToolPanel } from "./components/DocumentToolPanel";
 import { IntegratedUploadWorkspace } from "./components/IntegratedUploadWorkspace";
 import type { MarkupTool } from "./hooks/useDocumentActions";
@@ -545,18 +544,6 @@ export function App() {
                     }}
                     runDocumentTool={(tool) => headerProps.runDocumentTool(tool as import("./lib/document-tools").DocumentTool)}
                   />}
-                  {state.showFindBar && (
-                    <FindBar
-                      searchText={state.pageSearch}
-                      searchResult={state.searchResult}
-                      findInputRef={state.findInputRef}
-                      onChangeSearch={state.setPageSearch}
-                      onClose={() => {
-                        state.setShowFindBar(false);
-                        state.setPageSearch("");
-                      }}
-                    />
-                  )}
                   <ViewerErrorBoundary>
                     <PdfViewer {...viewerProps} />
                   </ViewerErrorBoundary>
@@ -661,7 +648,6 @@ export function App() {
                 page={state.page}
                 scale={state.scale}
                 viewerError={state.viewerError}
-                searchResult={state.searchResult}
                 annotations={state.annotations}
                 ocrJobs={state.ocrJobs}
                 onRemoveAnnotation={removeAnnotation}

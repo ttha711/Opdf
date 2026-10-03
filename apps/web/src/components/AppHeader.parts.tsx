@@ -15,8 +15,6 @@ interface FileViewGroupProps {
   setActiveTool: (tool: ActiveTool) => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
-  showFindBar: boolean;
-  onToggleFindBar: () => void;
 }
 
 export function FileViewGroup({
@@ -29,8 +27,6 @@ export function FileViewGroup({
   setActiveTool,
   viewMode,
   setViewMode,
-  showFindBar,
-  onToggleFindBar,
 }: FileViewGroupProps) {
   return (
     <div className="flex flex-col items-center gap-1 rounded-[var(--ui-radius-md)] border border-[var(--border-color)] bg-[var(--bg-toolbar)] p-[var(--ui-pad-sm)] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
@@ -67,12 +63,6 @@ export function FileViewGroup({
             <rect x="5" y="3" width="14" height="7" rx="1" />
             <rect x="5" y="14" width="14" height="7" rx="1" />
             <path d="M12 10v4" strokeDasharray="2 2" />
-          </svg>
-        </ToolIconButton>
-        <ToolIconButton label="Find Text (Ctrl+F)" active={showFindBar} onClick={onToggleFindBar}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="6" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
         </ToolIconButton>
       </div>

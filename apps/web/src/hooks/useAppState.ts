@@ -18,8 +18,6 @@ export function useAppState() {
   const [pageRotations, setPageRotations] = useState<Record<number, number>>({});
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [ocrJobs, setOcrJobs] = useState<OcrJob[]>([]);
-  const [pageSearch, setPageSearch] = useState("");
-  const [searchResult, setSearchResult] = useState("");
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
   const [annotationToolDefaults, setAnnotationToolDefaults] = useState<AnnotationToolDefaults>({
     highlight: { color: "#facc15", opacity: 0.4, size: 2 },
@@ -38,7 +36,6 @@ export function useAppState() {
   const [thumbnails, setThumbnails] = useState<Array<{ page: number; url: string; blob: Blob }>>([]);
   const [bookmarks, setBookmarks] = useState<Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [showFindBar, setShowFindBar] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [activeDashboardTool, setActiveDashboardTool] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
@@ -62,7 +59,6 @@ export function useAppState() {
   });
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const findInputRef = useRef<HTMLInputElement>(null);
   const lastWheelFlipAtRef = useRef(0);
   const savedFingerprintRef = useRef<string>("");
   
@@ -488,11 +484,11 @@ export function useAppState() {
 
   return {
     fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale, pageRotations, setPageRotations,
-    annotations, setAnnotations, ocrJobs, setOcrJobs, pageSearch, setPageSearch, searchResult, setSearchResult, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
+    annotations, setAnnotations, ocrJobs, setOcrJobs, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
     saveState, setSaveState,
     thumbnails, setThumbnails, bookmarks, setBookmarks, openMenu, setOpenMenu,
-    showFindBar, setShowFindBar, theme, setTheme, fileInputRef, findInputRef, lastWheelFlipAtRef, hasDocument, hasDesktopBridge,
+    theme, setTheme, fileInputRef, lastWheelFlipAtRef, hasDocument, hasDesktopBridge,
     showDashboard, setShowDashboard, activeDashboardTool, setActiveDashboardTool,
 
     // NEW TABS STATE & ACTIONS

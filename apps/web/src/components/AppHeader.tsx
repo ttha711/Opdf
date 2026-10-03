@@ -45,8 +45,6 @@ export function AppHeader({
   scale,
   zoomPreset,
   applyZoomPreset,
-  pageSearch,
-  setPageSearch,
   viewMode,
   setViewMode,
   undoAnnotations,
@@ -68,8 +66,6 @@ export function AppHeader({
   runDocumentTool,
   openDocumentMarkupTool,
   onSelectLocalFile,
-  showFindBar,
-  onToggleFindBar,
   theme,
   toggleTheme,
   showDashboard,
@@ -121,8 +117,6 @@ export function AppHeader({
   scale: number;
   zoomPreset: ZoomPreset;
   applyZoomPreset: (preset: ZoomPreset) => void;
-  pageSearch: string;
-  setPageSearch: (value: string) => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   undoAnnotations: () => void;
@@ -144,8 +138,6 @@ export function AppHeader({
   runDocumentTool: (tool?: DocumentTool) => void;
   openDocumentMarkupTool: (tool: "page-numbers" | "header" | "footer" | "bates") => void;
   onSelectLocalFile: (event: ChangeEvent<HTMLInputElement>) => void;
-  showFindBar: boolean;
-  onToggleFindBar: () => void;
   theme: "light" | "dark";
   toggleTheme: () => void;
   showDashboard: boolean;
@@ -280,8 +272,6 @@ export function AppHeader({
           setActiveTool={setActiveTool}
           viewMode={viewMode}
           setViewMode={setViewMode}
-          showFindBar={showFindBar}
-          onToggleFindBar={onToggleFindBar}
         />
 
         <NavigationZoomGroup

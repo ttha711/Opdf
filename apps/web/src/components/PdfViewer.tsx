@@ -127,6 +127,7 @@ export function PdfViewer({
       const exportApi = registry.getPlugin?.("export")?.provides?.() as any;
       const annotationApi = registry.getPlugin?.("annotation")?.provides?.() as any;
       const formApi = registry.getPlugin?.("form")?.provides?.() as any;
+      const redactionApi = registry.getPlugin?.("redaction")?.provides?.() as any;
       const zoomApi = registry.getPlugin?.("zoom")?.provides?.() as any;
       const rotateApi = registry.getPlugin?.("rotate")?.provides?.() as any;
 
@@ -175,6 +176,15 @@ export function PdfViewer({
       const formScope = formApi?.forDocument?.(DOCUMENT_ID);
       if (formScope?.onFieldValueChange) {
         const off = formScope.onFieldValueChange(() => onViewerDirty?.());
+        if (typeof off === "function") unsubscribers.push(off);
+      }
+
+      const redactionScope = redactionApi?.forDocument?.(DOCUMENT_ID) ?? redactionApi;
+      if (redactionScope?.onRedactionEvent) {
+        const off = redactionScope.onRedactionEvent((event: any) => {
+          if (event?.documentId && event.documentId !== DOCUMENT_ID) return;
+          onViewerDirty?.();
+        });
         if (typeof off === "function") unsubscribers.push(off);
       }
 

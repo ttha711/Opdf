@@ -1,6 +1,9 @@
 # 🏢 Adobe Acrobat Pro DC — Tổng hợp Tools so sánh với D:\Opdf
 
 > Ngày: 15-05-2026
+> [!IMPORTANT]
+> **Historical snapshot only (15-05-2026).** The "Existing Features", "Tools Còn Thiếu", and build phases below no longer describe the current repository state. Since this audit, OPDF has added large-PDF lazy loading, Compare Revisions V2, calibrated distance/perimeter/area measurement, secure search/redaction, review replies/resolution, AcroForm filling, hierarchical bookmarks, external/internal PDF links, P12/PFX cryptographic signing, and PDF signature inspection. Use the current README and code/CI as the source of truth before planning new work.
+
 > Mục đích: Liệt kê toàn bộ tools Adobe Acrobat Pro DC, so sánh với Opdf đã có,
 > tìm opensource thay thế, phân loại offline/online, ưu tiên assemble.
 

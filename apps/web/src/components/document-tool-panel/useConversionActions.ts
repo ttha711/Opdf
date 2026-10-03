@@ -11,7 +11,7 @@ interface UseConversionActionsArgs {
   fileBase: string;
   docBytes: Uint8Array | null;
   getDocumentBytes: () => Promise<Uint8Array | null>;
-  thumbnails: Array<{ page: number; url: string; blob: Blob }>;
+  totalPages: number;
   bridge: any;
   onLoadConvertedPdf: (bytes: Uint8Array, fileName: string) => void;
   onOpenHtmlEditor?: (html: string) => void;

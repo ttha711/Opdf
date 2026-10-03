@@ -3,7 +3,7 @@ import type { Annotation } from "@opdf/core";
 import { useOpdfBridge } from "./useOpdfBridge";
 import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmDialog";
-import { computeFileHash, loadAnnotationsByHash } from "../lib/web-storage";
+import { computeBlobHash, computeFileHash, loadAnnotationsByHash } from "../lib/web-storage";
 
 export function useDocumentLifecycle({
   bridge,
@@ -13,6 +13,8 @@ export function useDocumentLifecycle({
   saveState,
   setFileName,
   setDocBytes,
+  setSourceBlob,
+  setSourceIdentity,
   setPage,
   setTotalPages,
   setViewerError,
@@ -32,6 +34,8 @@ export function useDocumentLifecycle({
   saveState: "idle" | "saving" | "saved";
   setFileName: Dispatch<SetStateAction<string>>;
   setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
+  setSourceBlob: Dispatch<SetStateAction<Blob | null>>;
+  setSourceIdentity: Dispatch<SetStateAction<string>>;
   setPage: Dispatch<SetStateAction<number>>;
   setTotalPages: Dispatch<SetStateAction<number>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
@@ -44,6 +48,7 @@ export function useDocumentLifecycle({
   markDocumentSaved: (snapshot?: {
     fileName?: string;
     docBytes?: Uint8Array | null;
+    documentIdentity?: string;
     annotations?: Annotation[];
     bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
     pageRotations?: Record<number, number>;
@@ -55,12 +60,14 @@ export function useDocumentLifecycle({
   const confirm = useConfirm();
 
   async function loadBrowserFile(file: File) {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    // Restore annotations saved for this exact file content (hash-based).
-    const hash = await computeFileHash(bytes);
-    const savedAnnotations = (await loadAnnotationsByHash(hash) ?? []) as Annotation[];
+    // Keep the File as the source. PDF.js can read it through a Blob URL,
+    // avoiding a full 300-500 MB Uint8Array allocation just to view it.
+    const identity = await computeBlobHash(file, file.name, file.lastModified);
+    const savedAnnotations = (await loadAnnotationsByHash(identity) ?? []) as Annotation[];
     setFileName(file.name);
-    setDocBytes(bytes);
+    setDocBytes(null);
+    setSourceBlob(file);
+    setSourceIdentity(identity);
     setPage(1);
     setTotalPages(0);
     setViewerError(null);
@@ -68,7 +75,14 @@ export function useDocumentLifecycle({
     setAnnotations(savedAnnotations);
     setBookmarks([]);
     setPageRotations({});
-    markDocumentSaved({ fileName: file.name, docBytes: bytes, annotations: savedAnnotations, bookmarks: [], pageRotations: {} });
+    markDocumentSaved({
+      fileName: file.name,
+      docBytes: null,
+      documentIdentity: identity,
+      annotations: savedAnnotations,
+      bookmarks: [],
+      pageRotations: {},
+    });
   }
 
   async function openFile() {
@@ -107,6 +121,8 @@ export function useDocumentLifecycle({
           : ((await loadAnnotationsByHash(hash) ?? []) as Annotation[]);
         setFileName(result.filePath);
         setDocBytes(result.bytes);
+        setSourceBlob(null);
+        setSourceIdentity("");
         setPage(1);
         setTotalPages(0);
         setViewerError(null);
@@ -144,6 +160,8 @@ export function useDocumentLifecycle({
             : ((await loadAnnotationsByHash(hash) ?? []) as Annotation[]);
           setFileName(result.filePath);
           setDocBytes(result.bytes);
+          setSourceBlob(null);
+          setSourceIdentity("");
           setPage(1);
           setTotalPages(0);
           setViewerError(null);
@@ -171,20 +189,24 @@ export function useDocumentLifecycle({
       setViewerError("Loading file...");
       const response = await fetch(`/@fs/${filePath.replaceAll("\\", "/")}`);
       if (!response.ok) throw new Error(`HTTP ${response.status} when trying to load file`);
-      const bytes = new Uint8Array(await response.arrayBuffer());
+      const blob = await response.blob();
       const displayName = filePath.split(/[\\/]/).pop() || filePath;
+      const identity = await computeBlobHash(blob, displayName, 0);
       setFileName(displayName);
-      setDocBytes(bytes);
+      setDocBytes(null);
+      setSourceBlob(blob);
+      setSourceIdentity(identity);
       setPage(1);
       setTotalPages(0);
       setViewerError(null);
       setThumbnails([]);
-      setAnnotations([]);
+      setAnnotations((await loadAnnotationsByHash(identity) ?? []) as Annotation[]);
       setBookmarks([]);
       setPageRotations({});
       markDocumentSaved({
         fileName: displayName,
-        docBytes: bytes,
+        docBytes: null,
+        documentIdentity: identity,
         annotations: [],
         bookmarks: [],
         pageRotations: {},
@@ -202,6 +224,8 @@ export function useDocumentLifecycle({
 
   function replaceDocumentBytes(bytes: Uint8Array, nextPage = page) {
     setDocBytes(bytes);
+    setSourceBlob(null);
+    setSourceIdentity("");
     setAnnotations([]);
     setThumbnails([]);
     setViewerError(null);
@@ -223,6 +247,8 @@ export function useDocumentLifecycle({
       if (!ok) return;
     }
     setDocBytes(null);
+    setSourceBlob(null);
+    setSourceIdentity("");
     setFileName("");
     setPage(1);
     setTotalPages(0);
@@ -247,11 +273,14 @@ export function useDocumentLifecycle({
       try {
         const response = await fetch(`/@fs/${devOpenPath.replaceAll("\\", "/")}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const bytes = new Uint8Array(await response.arrayBuffer());
+        const blob = await response.blob();
         if (cancelled) return;
         const displayName = devOpenPath.split(/[\\/]/).pop() || devOpenPath;
+        const identity = await computeBlobHash(blob, displayName, 0);
         setFileName(displayName);
-        setDocBytes(bytes);
+        setDocBytes(null);
+        setSourceBlob(blob);
+        setSourceIdentity(identity);
         setPage(1);
         setTotalPages(0);
         setViewerError(null);
@@ -261,7 +290,8 @@ export function useDocumentLifecycle({
         setPageRotations({});
         markDocumentSaved({
           fileName: displayName,
-          docBytes: bytes,
+          docBytes: null,
+          documentIdentity: identity,
           annotations: [],
           bookmarks: [],
           pageRotations: {},
@@ -275,7 +305,7 @@ export function useDocumentLifecycle({
     return () => {
       cancelled = true;
     };
-  }, [hasDesktopBridge, setAnnotations, setDocBytes, setFileName, setPage, setThumbnails, setViewerError]);
+  }, [hasDesktopBridge, setAnnotations, setDocBytes, setSourceBlob, setSourceIdentity, setFileName, setPage, setThumbnails, setViewerError]);
 
   return { openFile, openFileWithPath, onSelectLocalFile, replaceDocumentBytes, closeDocument };
 }

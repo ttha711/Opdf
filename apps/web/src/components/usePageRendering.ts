@@ -3,6 +3,10 @@ import { Util, type PDFDocumentProxy } from "pdfjs-dist";
 import { canvasToBlob, isRenderingCancelled } from "./PdfViewer.utils";
 import { type RenderedPage, type RenderedTextItem, type ViewMode } from "./PdfViewer.types";
 
+const MAX_RENDERED_PAGES = 7;
+const MAX_CANVAS_PIXELS = 16_000_000;
+const MAX_DEVICE_SCALE = 2;
+
 export function usePageRendering(params: {
   pdf: PDFDocumentProxy | null;
   page: number;
@@ -89,7 +93,12 @@ export function usePageRendering(params: {
         const c = document.createElement("canvas");
         const ctx = c.getContext("2d");
         if (!ctx) { p.cleanup(); continue; }
-        const outputScale = Math.max(1, window.devicePixelRatio || 1);
+        const basePixels = Math.max(1, cssWidth * cssHeight);
+        const pixelBudgetScale = Math.sqrt(MAX_CANVAS_PIXELS / basePixels);
+        const outputScale = Math.max(
+          0.35,
+          Math.min(MAX_DEVICE_SCALE, window.devicePixelRatio || 1, pixelBudgetScale),
+        );
         c.width = Math.max(1, Math.round(cssWidth * outputScale));
         c.height = Math.max(1, Math.round(cssHeight * outputScale));
         const renderTask = p.render({
@@ -144,9 +153,23 @@ export function usePageRendering(params: {
         setRenderedPages((prev) => {
           const base = replacingPages && !replacedExistingPages ? [] : prev;
           const withoutCurrent = base.filter((pageData) => pageData.pageNumber !== renderedPage.pageNumber);
-          const next = [...withoutCurrent, renderedPage].sort((a, b) => a.pageNumber - b.pageNumber);
+          const all = [...withoutCurrent, renderedPage];
+          const ranked = [...all].sort(
+            (a, b) => Math.abs(a.pageNumber - page) - Math.abs(b.pageNumber - page),
+          );
+          const keep = new Set(ranked.slice(0, MAX_RENDERED_PAGES).map((item) => item.pageNumber));
+          const evicted = all.filter((item) => !keep.has(item.pageNumber));
+          const next = all.filter((item) => keep.has(item.pageNumber)).sort((a, b) => a.pageNumber - b.pageNumber);
           renderedPagesRef.current = next;
-          renderedUrlsRef.current = next.map((p) => p.imageUrl);
+          renderedUrlsRef.current = next.map((item) => item.imageUrl);
+          if (evicted.length > 0) {
+            window.setTimeout(() => {
+              const activeUrls = new Set(renderedUrlsRef.current);
+              evicted.forEach((item) => {
+                if (!activeUrls.has(item.imageUrl)) URL.revokeObjectURL(item.imageUrl);
+              });
+            }, 0);
+          }
           return next;
         });
         if (previousUrls.length > 0) {

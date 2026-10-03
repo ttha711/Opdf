@@ -38,7 +38,6 @@ export function PdfViewer({
   page,
   scale,
   activeTool = "select",
-  viewMode = "continuous",
   onDocumentLoaded,
   onSearchResult,
   onError,
@@ -119,8 +118,8 @@ export function PdfViewer({
         return;
       }
 
-      const scroll = registry.getPlugin("scroll")?.provides() as any;
-      const documentManager = registry.getPlugin("document-manager")?.provides() as any;
+      const scroll = registry.getPlugin?.("scroll")?.provides?.() as any;
+      const documentManager = registry.getPlugin?.("document-manager")?.provides?.() as any;
 
       if (scroll?.onPageChange) {
         const off = scroll.onPageChange((event: any) => {
@@ -185,7 +184,7 @@ export function PdfViewer({
     void (async () => {
       const registry = await viewerRef.current?.registry;
       if (cancelled || !registry) return;
-      const scroll = registry.getPlugin("scroll")?.provides() as any;
+      const scroll = registry.getPlugin?.("scroll")?.provides?.() as any;
       scroll?.forDocument?.(DOCUMENT_ID)?.scrollToPage?.({
         pageNumber: Math.max(1, page),
         behavior: "instant",
@@ -203,7 +202,7 @@ export function PdfViewer({
     void (async () => {
       const registry = await viewerRef.current?.registry;
       if (cancelled || !registry) return;
-      const zoom = registry.getPlugin("zoom")?.provides() as any;
+      const zoom = registry.getPlugin?.("zoom")?.provides?.() as any;
       zoom?.forDocument?.(DOCUMENT_ID)?.requestZoom?.(Math.max(0.05, Math.min(5, scale)));
       lastScaleRef.current = scale;
     })();
@@ -218,7 +217,7 @@ export function PdfViewer({
     void (async () => {
       const registry = await viewerRef.current?.registry;
       if (cancelled || !registry) return;
-      const annotation = registry.getPlugin("annotation")?.provides() as any;
+      const annotation = registry.getPlugin?.("annotation")?.provides?.() as any;
       annotation?.setActiveTool?.(mapAnnotationTool(activeTool));
     })();
     return () => {

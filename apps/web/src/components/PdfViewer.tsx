@@ -1,332 +1,252 @@
-import { useDeferredValue, useEffect, useRef, useState } from "react";
-import { GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist";
-import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
-import { type PageDimension, type PdfViewerProps, type RenderedPage, type ViewMode } from "./PdfViewer.types";
-import { usePdfDataLoader, useThumbnailRefresh } from "./PdfViewer.hooks";
-import { PdfPageStage, PdfViewerEmpty } from "./PdfViewer.parts";
-import { usePageRendering } from "./usePageRendering";
-import { usePageLayout } from "./usePageLayout";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  PDFViewer as EmbedPdfViewer,
+  type PDFViewerRef,
+} from "@embedpdf/react-pdf-viewer";
+import type { PdfViewerProps } from "./PdfViewer.types";
 
-GlobalWorkerOptions.workerSrc = workerSrc;
+const DOCUMENT_ID = "opdf-active-document";
+
+function getServerDocumentUrl(identity: string) {
+  const match = /^server:\/\/([0-9a-f-]{36})\//i.exec(identity);
+  if (!match) return null;
+  const baseUrl = window.__OPDF_SERVER_BASE__ || "/api/opdf";
+  return `${baseUrl}/documents/${match[1]}`;
+}
+
+function mapAnnotationTool(activeTool?: string) {
+  switch (activeTool) {
+    case "highlight":
+      return "highlight";
+    case "underline":
+      return "underline";
+    case "strike":
+      return "strikeout";
+    case "shape":
+      return "square";
+    case "note":
+      return "text";
+    default:
+      return null;
+  }
+}
 
 export function PdfViewer({
-  transitionTick = 0,
-  transitionDirection = "next",
   data,
   sourceBlob = null,
+  sourceIdentity = "",
   page,
   scale,
-  rotation = 0,
-  viewMode = "continuous",
-  annotations = [],
-  highlightMode = false,
-  searchText,
   activeTool = "select",
-  annotationToolDefaults = {
-    highlight: { color: "#facc15", opacity: 0.4, size: 2 },
-    note: { color: "#fff8d6", opacity: 1, size: 16 },
-    shape: { color: "#ef4444", opacity: 1, size: 2 },
-    redact: { color: "#000000", opacity: 0.85, size: 2 },
-  },
-  onPageToolAction,
-  shapeMode = false,
-  redactMode = false,
-  measureMode = false,
-  measurementDocumentKey = "document",
+  viewMode = "continuous",
   onDocumentLoaded,
   onSearchResult,
   onError,
   onActivePageChange,
-  onThumbsLoaded,
-  setThumbnails,
-  initialThumbnails,
-  onAnnotationUpdated,
-  onAnnotationDeleted,
-  onPatchApplied,
-  createToolAnnotation,
-  pageRotations = {},
-  selectedPages,
-  onPageSelectionClick,
-}: PdfViewerProps & { pageRotations?: Record<number, number>; createToolAnnotation?: (kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image", pageNumber: number, rect: any) => Promise<void> }) {
-  const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
-  const [renderedPages, setRenderedPages] = useState<RenderedPage[]>([]);
-  const [visiblePageNums, setVisiblePageNums] = useState<Set<number>>(() => new Set());
-  const renderScale = useDeferredValue(scale);
-  const renderedPagesRef = useRef<RenderedPage[]>([]);
-  const lastParamsRef = useRef<{ pdf: PDFDocumentProxy | null; scale: number; rotation: number; pageRotations?: Record<number, number>; viewMode: ViewMode }>({ pdf: null, scale, rotation, pageRotations, viewMode });
-  const pageElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
-  const scrollSentinelRef = useRef<HTMLDivElement | null>(null);
-  const programmingScrollRef = useRef(false);
-  const renderedUrlsRef = useRef<string[]>([]);
-  const thumbnailUrlsRef = useRef<string[]>([]);
-  const onDocumentLoadedRef = useRef(onDocumentLoaded);
-  const onErrorRef = useRef(onError);
-  const onThumbsLoadedRef = useRef(onThumbsLoaded);
-  const onSearchResultRef = useRef(onSearchResult);
+}: PdfViewerProps) {
+  const viewerRef = useRef<PDFViewerRef>(null);
+  const [localUrl, setLocalUrl] = useState<string | null>(null);
+  const suppressExternalPageRef = useRef(false);
+  const lastPageRef = useRef(page);
+  const lastScaleRef = useRef(scale);
 
-  useEffect(() => {
-    onDocumentLoadedRef.current = onDocumentLoaded;
-    onErrorRef.current = onError;
-    onThumbsLoadedRef.current = onThumbsLoaded;
-    onSearchResultRef.current = onSearchResult;
-  }, [onDocumentLoaded, onError, onThumbsLoaded, onSearchResult]);
-
-  // Fast dimension fetch for ALL pages — shows full document layout immediately
-  const pageLayout = usePageLayout({ pdf, scale: renderScale, rotation, pageRotations });
-
-  usePdfDataLoader({
-    data,
-    sourceBlob,
-    annotations,
-    initialThumbnails,
-    onThumbsLoaded,
-    onDocumentLoadedRef,
-    onErrorRef,
-    onThumbsLoadedRef,
-    thumbnailUrlsRef,
-    renderedPagesRef,
-    renderedUrlsRef,
-    setPdf,
-    setRenderedPages,
-  });
-
-  usePageRendering({
-    pdf,
-    page,
-    scale: renderScale,
-    rotation,
-    pageRotations,
-    searchText,
-    viewMode,
-    visiblePages: visiblePageNums,
-    setRenderedPages,
-    renderedPagesRef,
-    renderedUrlsRef,
-    lastParamsRef,
-    onSearchResultRef,
-  });
-
-  // Clean up PDF Document memory when pdf object changes or component unmounts
-  useEffect(
-    () => () => {
-      pdf?.destroy();
-    },
-    [pdf]
+  const serverUrl = useMemo(
+    () => (sourceIdentity.startsWith("server://") ? getServerDocumentUrl(sourceIdentity) : null),
+    [sourceIdentity],
   );
 
-  // Clean up Blob URLs ONLY when the viewer is completely unmounted
-  useEffect(
-    () => () => {
-      renderedUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      renderedUrlsRef.current = [];
-      thumbnailUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      thumbnailUrlsRef.current = [];
-    },
-    []
-  );
-
-  useThumbnailRefresh({ pdf, annotations, page, initialThumbnails, setThumbnails });
-
-  // IntersectionObserver: track which pages are in/near the viewport and render only those
   useEffect(() => {
-    if (viewMode !== "continuous") return;
-    if (pageLayout.length === 0) return;
+    if (serverUrl) {
+      setLocalUrl(null);
+      return;
+    }
 
-    const scrollContainer = scrollSentinelRef.current?.closest(".viewer-area");
-    const root = scrollContainer instanceof HTMLElement ? scrollContainer : null;
+    const blob = sourceBlob ?? (data ? new Blob([data as unknown as BlobPart], { type: "application/pdf" }) : null);
+    if (!blob) {
+      setLocalUrl(null);
+      return;
+    }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        setVisiblePageNums((prev) => {
-          const next = new Set(prev);
-          let changed = false;
-          for (const entry of entries) {
-            const pageNum = parseInt((entry.target as HTMLElement).dataset.page ?? "0");
-            if (!pageNum) continue;
-            if (entry.isIntersecting) {
-              if (!next.has(pageNum)) { next.add(pageNum); changed = true; }
-            } else {
-              if (next.has(pageNum)) { next.delete(pageNum); changed = true; }
-            }
-          }
-          return changed ? next : prev;
-        });
+    const url = URL.createObjectURL(blob);
+    setLocalUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [data, sourceBlob, serverUrl]);
+
+  const sourceUrl = serverUrl ?? localUrl;
+
+  const config = useMemo(() => {
+    if (!sourceUrl) return null;
+    return {
+      documentManager: {
+        initialDocuments: [
+          {
+            url: sourceUrl,
+            documentId: DOCUMENT_ID,
+            autoActivate: true,
+          },
+        ],
+        maxDocuments: 1,
       },
-      { root, rootMargin: "600px 0px", threshold: 0 }
-    );
+      tabBar: "never",
+      theme: { preference: "light" },
+      annotation: { annotationAuthor: "OPDF" },
+      pan: { defaultMode: "mobile" },
+      zoom: {
+        defaultZoomLevel: Math.max(0.05, Math.min(5, scale)),
+        minZoom: 0.05,
+        maxZoom: 5,
+      },
+      scroll: {
+        defaultPageGap: 16,
+      },
+    };
+  }, [sourceUrl]);
 
-    // Observe all placeholder/page elements that are currently in the DOM
-    pageElementsRef.current.forEach((el) => observer.observe(el));
-
-    return () => observer.disconnect();
-  }, [viewMode, pageLayout]);
-
-  // Sync active page indicator while scrolling in continuous mode
   useEffect(() => {
-    if (viewMode !== "continuous") return;
-    if (pageLayout.length === 0) return;
-    if (!onActivePageChange) return;
+    if (!sourceUrl) return;
 
-    const scrollContainer = scrollSentinelRef.current?.closest(".viewer-area");
-    if (!(scrollContainer instanceof HTMLElement)) return;
+    let cancelled = false;
+    const unsubscribers: Array<() => void> = [];
+    let timer = 0;
 
-    let frameId = 0;
-
-    const syncActivePage = () => {
-      frameId = 0;
-      if (document.body.dataset.opdfSelecting === "1") return;
-      if (programmingScrollRef.current) return;
-
-      const containerRect = scrollContainer.getBoundingClientRect();
-      const containerCenter = containerRect.top + containerRect.height / 2;
-
-      let nearestPage = page;
-      let nearestDistance = Number.POSITIVE_INFINITY;
-
-      for (const [pageNumber, element] of pageElementsRef.current.entries()) {
-        const rect = element.getBoundingClientRect();
-        if (rect.bottom < containerRect.top || rect.top > containerRect.bottom) continue;
-
-        const pageCenter = rect.top + rect.height / 2;
-        const distance = Math.abs(pageCenter - containerCenter);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearestPage = pageNumber;
+    const connect = async (attempt = 0) => {
+      if (cancelled) return;
+      const registry = await viewerRef.current?.registry;
+      if (!registry) {
+        if (attempt < 40) {
+          timer = window.setTimeout(() => void connect(attempt + 1), 50);
         }
-      }
-
-      if (nearestPage !== page) {
-        onActivePageChange(nearestPage);
-      }
-    };
-
-    const scheduleSync = () => {
-      if (frameId !== 0) return;
-      frameId = window.requestAnimationFrame(syncActivePage);
-    };
-
-    scrollContainer.addEventListener("scroll", scheduleSync, { passive: true });
-    window.addEventListener("resize", scheduleSync);
-    scheduleSync();
-
-    return () => {
-      if (frameId !== 0) window.cancelAnimationFrame(frameId);
-      scrollContainer.removeEventListener("scroll", scheduleSync);
-      window.removeEventListener("resize", scheduleSync);
-    };
-  }, [onActivePageChange, page, pageLayout.length, viewMode]);
-
-  // Scroll to target page — works immediately in continuous (placeholder in DOM) and after render in page mode
-  useEffect(() => {
-    if (viewMode !== "continuous") return;
-    if (document.body.dataset.opdfSelecting === "1") return;
-    
-    // Lock syncActivePage synchronously to prevent the active page from being reset
-    // by scroll events fired before our scrollToPage runs in the next animation frame.
-    programmingScrollRef.current = true;
-    
-    let frameId = 0;
-    let lockTimeout = 0;
-    let attempts = 0;
-    const scrollToPage = () => {
-      attempts += 1;
-      const target = pageElementsRef.current.get(page);
-      const scrollContainer = target?.closest(".viewer-area");
-      if (target && scrollContainer instanceof HTMLElement) {
-        const containerRect = scrollContainer.getBoundingClientRect();
-        const targetRect = target.getBoundingClientRect();
-        const nextTop = scrollContainer.scrollTop + (targetRect.top - containerRect.top) - 12;
-        // Lock syncActivePage for the duration of the smooth scroll (~500ms)
-        programmingScrollRef.current = true;
-        window.clearTimeout(lockTimeout);
-        lockTimeout = window.setTimeout(() => { programmingScrollRef.current = false; }, 600);
-        scrollContainer.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
         return;
       }
-      if (attempts < 8) {
-        frameId = window.requestAnimationFrame(scrollToPage);
-      } else {
-        programmingScrollRef.current = false;
+
+      const scroll = registry.getPlugin("scroll")?.provides() as any;
+      const documentManager = registry.getPlugin("document-manager")?.provides() as any;
+
+      if (scroll?.onPageChange) {
+        const off = scroll.onPageChange((event: any) => {
+          if (event.documentId !== DOCUMENT_ID) return;
+          suppressExternalPageRef.current = true;
+          lastPageRef.current = event.pageNumber;
+          onActivePageChange?.(event.pageNumber);
+          if (typeof event.totalPages === "number") {
+            onDocumentLoaded?.(event.totalPages);
+          }
+          queueMicrotask(() => {
+            suppressExternalPageRef.current = false;
+          });
+        });
+        if (typeof off === "function") unsubscribers.push(off);
+      }
+
+      if (scroll?.onLayoutReady) {
+        const off = scroll.onLayoutReady((event: any) => {
+          if (event.documentId !== DOCUMENT_ID) return;
+          scroll.forDocument?.(DOCUMENT_ID)?.scrollToPage?.({
+            pageNumber: Math.max(1, page),
+            behavior: "instant",
+          });
+        });
+        if (typeof off === "function") unsubscribers.push(off);
+      }
+
+      if (documentManager?.onDocumentOpened) {
+        const off = documentManager.onDocumentOpened((doc: any) => {
+          if (doc?.id !== DOCUMENT_ID) return;
+          const count = doc?.pageCount ?? doc?.document?.pageCount;
+          if (typeof count === "number") onDocumentLoaded?.(count);
+          onError?.(null);
+        });
+        if (typeof off === "function") unsubscribers.push(off);
+      }
+
+      if (documentManager?.onDocumentError) {
+        const off = documentManager.onDocumentError((event: any) => {
+          if (event?.documentId !== DOCUMENT_ID) return;
+          const message = event?.error instanceof Error
+            ? event.error.message
+            : String(event?.error ?? "Unable to open PDF");
+          onError?.(message);
+        });
+        if (typeof off === "function") unsubscribers.push(off);
       }
     };
-    frameId = window.requestAnimationFrame(scrollToPage);
+
+    void connect();
     return () => {
-      window.cancelAnimationFrame(frameId);
-      window.clearTimeout(lockTimeout);
-      programmingScrollRef.current = false;
+      cancelled = true;
+      window.clearTimeout(timer);
+      unsubscribers.forEach((off) => off());
     };
-  }, [page, viewMode, pageLayout.length]);
+  }, [sourceUrl, onActivePageChange, onDocumentLoaded, onError]);
 
-  const renderedPageMap = new Map(renderedPages.map((p) => [p.pageNumber, p]));
+  useEffect(() => {
+    if (!sourceUrl || suppressExternalPageRef.current || page === lastPageRef.current) return;
+    let cancelled = false;
+    void (async () => {
+      const registry = await viewerRef.current?.registry;
+      if (cancelled || !registry) return;
+      const scroll = registry.getPlugin("scroll")?.provides() as any;
+      scroll?.forDocument?.(DOCUMENT_ID)?.scrollToPage?.({
+        pageNumber: Math.max(1, page),
+        behavior: "instant",
+      });
+      lastPageRef.current = page;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [page, sourceUrl]);
 
-  const isEmpty = pageLayout.length === 0 && renderedPages.length === 0;
+  useEffect(() => {
+    if (!sourceUrl || scale === lastScaleRef.current) return;
+    let cancelled = false;
+    void (async () => {
+      const registry = await viewerRef.current?.registry;
+      if (cancelled || !registry) return;
+      const zoom = registry.getPlugin("zoom")?.provides() as any;
+      zoom?.forDocument?.(DOCUMENT_ID)?.requestZoom?.(Math.max(0.05, Math.min(5, scale)));
+      lastScaleRef.current = scale;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [scale, sourceUrl]);
+
+  useEffect(() => {
+    if (!sourceUrl) return;
+    let cancelled = false;
+    void (async () => {
+      const registry = await viewerRef.current?.registry;
+      if (cancelled || !registry) return;
+      const annotation = registry.getPlugin("annotation")?.provides() as any;
+      annotation?.setActiveTool?.(mapAnnotationTool(activeTool));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTool, sourceUrl]);
+
+  useEffect(() => {
+    if (!sourceUrl || !onSearchResult) return;
+    onSearchResult(false, "Use the PDFium viewer search tool for full-document search.");
+  }, [sourceUrl, onSearchResult]);
+
+  if (!sourceUrl || !config) {
+    return (
+      <div className="viewer-shell flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">
+        Open a PDF to start viewing.
+      </div>
+    );
+  }
 
   return (
-    <div className="viewer-shell">
-      {isEmpty ? (
-        <PdfViewerEmpty />
-      ) : (
-        <div className={`doc-column ${viewMode === "page" ? "single" : "continuous"}`} key={transitionTick}>
-          {viewMode === "continuous"
-            ? pageLayout.map((dim) => (
-                <PdfPageStage
-                  key={`${dim.pageNumber}-${transitionDirection}-${viewMode}`}
-                  dimension={dim}
-                  pageData={renderedPageMap.get(dim.pageNumber)}
-                  isSelected={selectedPages?.has(dim.pageNumber) ?? false}
-                  targetScale={scale}
-                  targetRotation={dim.rotation}
-                  transitionDirection={transitionDirection}
-                  viewMode={viewMode}
-                  highlightMode={highlightMode}
-                  shapeMode={shapeMode}
-                  redactMode={redactMode}
-                  measureMode={measureMode}
-                  measurementDocumentKey={measurementDocumentKey}
-                  activeTool={activeTool}
-                  annotationToolDefaults={annotationToolDefaults}
-                  annotations={annotations}
-                  pageElementsRef={pageElementsRef}
-                  onActivePageChange={onActivePageChange}
-                  onPageToolAction={onPageToolAction}
-                  onAnnotationUpdated={onAnnotationUpdated}
-                  onAnnotationDeleted={onAnnotationDeleted}
-                  onPatchApplied={onPatchApplied}
-                  createToolAnnotation={createToolAnnotation}
-                  onPageSelectionClick={onPageSelectionClick}
-                />
-              ))
-            : renderedPages.map((p) => (
-                <PdfPageStage
-                  key={`${p.pageNumber}-${transitionDirection}-${viewMode}`}
-                  dimension={{ pageNumber: p.pageNumber, cssWidth: p.width, cssHeight: p.height, rotation: p.rotation }}
-                  pageData={p}
-                  isSelected={selectedPages?.has(p.pageNumber) ?? false}
-                  targetScale={scale}
-                  targetRotation={p.rotation}
-                  transitionDirection={transitionDirection}
-                  viewMode={viewMode}
-                  highlightMode={highlightMode}
-                  shapeMode={shapeMode}
-                  redactMode={redactMode}
-                  measureMode={measureMode}
-                  measurementDocumentKey={measurementDocumentKey}
-                  activeTool={activeTool}
-                  annotationToolDefaults={annotationToolDefaults}
-                  annotations={annotations}
-                  pageElementsRef={pageElementsRef}
-                  onActivePageChange={onActivePageChange}
-                  onPageToolAction={onPageToolAction}
-                  onAnnotationUpdated={onAnnotationUpdated}
-                  onAnnotationDeleted={onAnnotationDeleted}
-                  onPatchApplied={onPatchApplied}
-                  createToolAnnotation={createToolAnnotation}
-                  onPageSelectionClick={onPageSelectionClick}
-                />
-              ))}
-          {viewMode === "continuous" ? <div ref={scrollSentinelRef} style={{ height: "1px" }} aria-hidden="true" /> : null}
-        </div>
-      )}
+    <div className="viewer-shell h-full min-h-0 overflow-hidden" data-opdf-engine="pdfium-wasm">
+      <EmbedPdfViewer
+        key={sourceUrl}
+        ref={viewerRef}
+        config={config as any}
+        style={{ width: "100%", height: "100%", display: "block" }}
+      />
     </div>
   );
 }

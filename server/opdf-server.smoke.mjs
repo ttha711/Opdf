@@ -12,6 +12,8 @@ const child = spawn(process.execPath, ["server/opdf-server.mjs"], {
     OPDF_PORT: String(port),
     OPDF_DATA_DIR: dataDir,
     OPDF_WEB_DIST: join(process.cwd(), "apps", "web", "dist"),
+    OPDF_PYTHON_PATH: process.platform === "win32" ? "python" : "python3",
+    OPDF_OFFICE_CONVERTER_SCRIPT: join(process.cwd(), "server", "office-converter-smoke.py"),
   },
   stdio: ["ignore", "pipe", "pipe"],
 });
@@ -133,6 +135,18 @@ try {
 
   const recent = await fetch(`${base}/api/opdf/recent`).then((r) => r.json());
   assert(recent.some((item) => item.filePath === document.filePath), "recent document missing");
+
+  const officeResponse = await fetch(`${base}/api/opdf/operations/convert-office?format=docx`, {
+    method: "POST",
+    headers: { "Content-Type": "application/pdf" },
+    body: updatedSample,
+  });
+  assert(officeResponse.ok, `Office conversion worker failed: ${officeResponse.status}`);
+  const officeBytes = Buffer.from(await officeResponse.arrayBuffer());
+  assert(
+    officeBytes.toString("ascii") === "OPDF-OFFICE-STUB:docx",
+    "Office conversion worker returned unexpected output",
+  );
 
   console.log("OPDF server smoke test passed.");
 } finally {

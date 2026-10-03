@@ -1,6 +1,7 @@
 type FingerprintInput = {
   fileName: string;
   docBytes: Uint8Array | null;
+  documentIdentity?: string;
   annotations?: unknown;
   bookmarks?: unknown;
   pageRotations?: unknown;
@@ -34,15 +35,16 @@ function hashBytes(hash: number, bytes: Uint8Array) {
 export function buildDocumentFingerprint({
   fileName,
   docBytes,
+  documentIdentity = "",
   annotations = [],
   bookmarks = [],
   pageRotations = {},
 }: FingerprintInput): string {
-  if (!fileName || !docBytes) return "";
+  if (!fileName || (!docBytes && !documentIdentity)) return "";
 
   let hash = 0x811c9dc5;
   hash = hashString(hash, fileName);
-  hash = hashBytes(hash, docBytes);
+  hash = docBytes ? hashBytes(hash, docBytes) : hashString(hash, documentIdentity);
   hash = hashString(hash, JSON.stringify(annotations));
   hash = hashString(hash, JSON.stringify(bookmarks));
   hash = hashString(hash, JSON.stringify(pageRotations));

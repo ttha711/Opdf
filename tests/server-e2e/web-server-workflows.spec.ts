@@ -65,10 +65,8 @@ test("server structural edits and secure redaction survive Save + reload", async
 
   await header.getByRole("button", { name: "View", exact: true }).click();
   await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
-  await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy", { timeout: 30_000 });
-
-  await page.getByRole("button", { name: "Save (Ctrl+S)", exact: true }).click();
   await expect(page.getByText("Saved to OPDF Server.", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-opdf-source", "server", { timeout: 30_000 });
 
   const persistedRotation = await request.get(`/api/opdf/documents/${stored.id}`);
   expect(persistedRotation.ok()).toBeTruthy();

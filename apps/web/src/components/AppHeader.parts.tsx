@@ -506,6 +506,7 @@ interface FileUtilitiesGroupProps {
   mergeDocuments: () => void;
   convertToImages: () => void;
   compareRevisions: () => void;
+  searchRedact: () => void;
   capabilities?: BridgeCapabilities;
 }
 
@@ -519,6 +520,7 @@ export function FileUtilitiesGroup({
   mergeDocuments,
   convertToImages,
   compareRevisions,
+  searchRedact,
   capabilities,
 }: FileUtilitiesGroupProps) {
   // Browser compression can fall back to the streaming /api/pdf-jobs service.
@@ -560,6 +562,13 @@ export function FileUtilitiesGroup({
             <rect x="3" y="4" width="8" height="16" rx="1" />
             <rect x="13" y="4" width="8" height="16" rx="1" />
             <path d="M7 8h1M7 12h1M16 8h1M16 15h1" />
+          </svg>
+        </ToolIconButton>
+        <ToolIconButton label="Search & Secure Redact" disabled={!hasDocument} onClick={searchRedact}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="10" cy="10" r="5" />
+            <path d="m14 14 6 6" />
+            <path d="M4 20h8" strokeWidth="3" />
           </svg>
         </ToolIconButton>
         <ToolIconButton label="To Images" disabled={!hasDocument} onClick={convertToImages}>

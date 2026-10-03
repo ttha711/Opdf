@@ -27,6 +27,7 @@ import aiAvatar from "./assets/ai-avatar.jpg";
 import "./types/opdf";
 import { useConfirm } from "./components/ConfirmDialog";
 import { RevisionCompareModal } from "./components/RevisionCompareModal";
+import { SearchRedactModal } from "./components/SearchRedactModal";
 
 function PageSelectionFloatingBar({
   selectedPages,
@@ -220,6 +221,7 @@ export function App() {
   const [isLiveEditorOpen, setIsLiveEditorOpen] = useState(false);
   const [liveEditorHtml, setLiveEditorHtml] = useState<string | null>(null);
   const [showRevisionCompare, setShowRevisionCompare] = useState(false);
+  const [showSearchRedact, setShowSearchRedact] = useState(false);
 
   const {
     leftWidth,
@@ -259,6 +261,7 @@ export function App() {
     replaceDocumentBytes,
     runConfiguredMarkupTool,
     removeAnnotation,
+    updateAnnotation,
     createToolAnnotation,
     openAiEditorWindow,
   } = useAppControllers({ isPublic, setActiveMarkupTool });
@@ -396,6 +399,7 @@ export function App() {
         ungroupGroup={state.ungroupGroup}
         onOpenAiEditorWindow={openAiEditorWindow}
         compareRevisions={() => setShowRevisionCompare(true)}
+        searchRedact={() => setShowSearchRedact(true)}
       />
 
       <RevisionCompareModal
@@ -404,6 +408,18 @@ export function App() {
         baseSource={state.sourceBlob ?? state.docBytes}
         baseFileName={state.fileName}
         initialPage={state.page}
+      />
+
+      <SearchRedactModal
+        isOpen={showSearchRedact}
+        onClose={() => setShowSearchRedact(false)}
+        source={state.sourceBlob ?? state.docBytes}
+        fileName={state.fileName}
+        onApplied={(bytes) => {
+          replaceDocumentBytes(bytes, state.page);
+          state.setViewerError("Secure redaction applied. Affected pages were rasterized to remove underlying text.");
+          window.setTimeout(() => state.setViewerError(null), 5000);
+        }}
       />
 
       {state.showDashboard && !isPublic ? (
@@ -652,6 +668,8 @@ export function App() {
                 annotations={state.annotations}
                 ocrJobs={state.ocrJobs}
                 onRemoveAnnotation={removeAnnotation}
+                onUpdateAnnotation={updateAnnotation}
+                onGoToPage={state.setPage}
                 isCollapsed={isRightCollapsed}
                 setIsCollapsed={setIsRightCollapsed}
               />

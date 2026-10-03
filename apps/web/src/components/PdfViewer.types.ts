@@ -21,6 +21,7 @@ export interface PdfViewerProps {
   shapeMode?: boolean;
   redactMode?: boolean;
   measureMode?: boolean;
+  measurementDocumentKey?: string;
   onDocumentLoaded?: (pages: number) => void;
   onSearchResult?: (found: boolean, message: string) => void;
   onError?: (message: string | null) => void;

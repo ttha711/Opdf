@@ -452,6 +452,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     materializeDocumentBytes: state.materializeDocumentBytes,
     runConfiguredMarkupTool,
     removeAnnotation,
+    updateAnnotation,
     createToolAnnotation,
     openAiEditorWindow,
   };

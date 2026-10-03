@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   calibrateMmPerPdfPoint,
   formatCanvasMeasurement,
+  formatPathMeasurement,
+  polygonCanvasArea,
+  polylineCanvasDistance,
   presetMmPerPdfPoint,
   toMillimeters,
 } from "./measurement";
@@ -22,5 +25,12 @@ describe("technical drawing measurement", () => {
     expect(toMillimeters(2.5, "m")).toBe(2500);
     expect(toMillimeters(25, "cm")).toBe(250);
     expect(toMillimeters(250, "mm")).toBe(250);
+  });
+
+  it("calculates perimeter and polygon area", () => {
+    const points = [{ x: 0, y: 0 }, { x: 30, y: 0 }, { x: 30, y: 40 }];
+    expect(polylineCanvasDistance(points)).toBe(70);
+    expect(polygonCanvasArea([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }])).toBe(100);
+    expect(formatPathMeasurement(points, 1, 1, "mm", "perimeter")).toBe("70.0 mm");
   });
 });

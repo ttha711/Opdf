@@ -60,6 +60,7 @@ export function AppHeader({
   mergeDocuments,
   convertToImages,
   compareRevisions,
+  searchRedact,
   documentTool,
   setDocumentTool,
   runDocumentTool,
@@ -133,6 +134,7 @@ export function AppHeader({
   mergeDocuments: () => void;
   convertToImages: () => void;
   compareRevisions: () => void;
+  searchRedact: () => void;
   documentTool: DocumentTool;
   setDocumentTool: (tool: DocumentTool) => void;
   runDocumentTool: (tool?: DocumentTool) => void;
@@ -317,6 +319,7 @@ export function AppHeader({
           mergeDocuments={mergeDocuments}
           convertToImages={convertToImages}
           compareRevisions={compareRevisions}
+          searchRedact={searchRedact}
           capabilities={bridgeCapabilities}
         />
       </div>

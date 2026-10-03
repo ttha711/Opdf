@@ -3,7 +3,14 @@ import * as fabric from "fabric";
 import type { MutableRefObject } from "react";
 import type { AnnotationToolDefaults } from "../lib/app-types";
 import { normalizeTextAlign } from "./PdfTextSelection.editStyle";
-import { canvasDistanceToPdfPoints, formatCanvasMeasurement, type MeasurementUnit } from "../lib/measurement";
+import {
+  canvasDistanceToPdfPoints,
+  formatCanvasMeasurement,
+  formatPathMeasurement,
+  type MeasurementMode,
+  type MeasurementPoint,
+  type MeasurementUnit,
+} from "../lib/measurement";
 
 interface UseFabricDrawingParams {
   fabricRef: MutableRefObject<fabric.Canvas | null>;
@@ -20,6 +27,7 @@ interface UseFabricDrawingParams {
   pageScale: number;
   mmPerPdfPoint: number;
   measurementUnit: MeasurementUnit;
+  measurementMode: MeasurementMode;
   onMeasureCommitted?: (pdfPoints: number) => void;
   /** Called right after an ai-patch image is placed so the parent can switch back to 'select' mode */
   onPatchApplied?: () => void;
@@ -40,6 +48,7 @@ export function useFabricDrawing({
   pageScale,
   mmPerPdfPoint,
   measurementUnit,
+  measurementMode,
   onMeasureCommitted,
   onPatchApplied,
 }: UseFabricDrawingParams) {
@@ -55,6 +64,9 @@ export function useFabricDrawing({
     const drawStartRef = { current: { x: 0, y: 0 } };
     const draftBoundsRef = { current: { left: 0, top: 0, width: 0, height: 0 } };
     const lastMeasureCanvasDistanceRef = { current: 0 };
+    const measurePathPointsRef = { current: [] as MeasurementPoint[] };
+    const measurePathShapeRef = { current: null as fabric.Object | null };
+    const measurePathTextRef = { current: null as fabric.Text | null };
 
     const drawingHighlight = highlightMode;
     const drawingShape = shapeMode;
@@ -73,6 +85,8 @@ export function useFabricDrawing({
     const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
     const formatMeasurement = (canvasDistance: number) =>
       formatCanvasMeasurement(canvasDistance, pageScale, mmPerPdfPoint, measurementUnit);
+    const formatPath = (points: MeasurementPoint[]) =>
+      formatPathMeasurement(points, pageScale, mmPerPdfPoint, measurementUnit, measurementMode);
 
     const drawingSurface =
       ((canvas as any).upperCanvasEl as HTMLCanvasElement | undefined) ?? canvasRef.current;
@@ -90,13 +104,78 @@ export function useFabricDrawing({
       };
     };
 
+    const clearPathPreview = () => {
+      if (measurePathShapeRef.current) canvas.remove(measurePathShapeRef.current);
+      if (measurePathTextRef.current) canvas.remove(measurePathTextRef.current);
+      measurePathShapeRef.current = null;
+      measurePathTextRef.current = null;
+      measurePathPointsRef.current = [];
+      canvas.renderAll();
+    };
+
+    const updatePathPreview = (pointer?: MeasurementPoint) => {
+      if (measurementMode === "distance") return;
+      const committed = measurePathPointsRef.current;
+      if (committed.length === 0) return;
+      const displayPoints = pointer ? [...committed, pointer] : [...committed];
+      if (measurePathShapeRef.current) canvas.remove(measurePathShapeRef.current);
+      if (measurePathTextRef.current) canvas.remove(measurePathTextRef.current);
+
+      const shape = measurementMode === "area"
+        ? new fabric.Polygon(displayPoints, {
+            fill: "rgba(16,185,129,0.12)",
+            stroke: "#10b981",
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+          })
+        : new fabric.Polyline(displayPoints, {
+            fill: "transparent",
+            stroke: "#10b981",
+            strokeWidth: 2,
+            selectable: false,
+            evented: false,
+          });
+      measurePathShapeRef.current = shape;
+      canvas.add(shape);
+
+      const enoughPoints = measurementMode === "area" ? displayPoints.length >= 3 : displayPoints.length >= 2;
+      if (enoughPoints) {
+        const value = formatPath(displayPoints);
+        const last = displayPoints[displayPoints.length - 1];
+        const text = new fabric.Text(value, {
+          left: last.x + 10,
+          top: last.y + 10,
+          fontSize: 14,
+          fill: "#ffffff",
+          backgroundColor: "rgba(16, 185, 129, 0.92)",
+          fontFamily: "monospace",
+          selectable: false,
+          evented: false,
+        });
+        measurePathTextRef.current = text;
+        canvas.add(text);
+        setMeasureResult(value);
+      }
+      canvas.renderAll();
+    };
+
+    const commitPathMeasurement = () => {
+      const points = measurePathPointsRef.current;
+      const minimum = measurementMode === "area" ? 3 : 2;
+      if (points.length >= minimum) {
+        setMeasureResult(formatPath(points));
+      }
+      clearPathPreview();
+    };
+
     const updatePreview = (pointer: { x: number; y: number }, shiftKey = false) => {
       const { x: sx, y: sy } = drawStartRef.current;
       if (!isDrawingRef.current) return;
 
       let endX = pointer.x;
       let endY = pointer.y;
-      if (drawingMeasure && shiftKey) {
+      if (drawingMeasure && measurementMode === "distance" && shiftKey) {
         const dx = endX - sx;
         const dy = endY - sy;
         const angle = Math.atan2(dy, dx);
@@ -336,6 +415,16 @@ export function useFabricDrawing({
       drawingSurface?.setPointerCapture?.(event.pointerId);
       const pointer = getCanvasPoint(event);
       if (!pointer) return;
+      if (drawingMeasure && measurementMode !== "distance") {
+        if (event.detail >= 2 && measurePathPointsRef.current.length >= (measurementMode === "area" ? 3 : 2)) {
+          commitPathMeasurement();
+          return;
+        }
+        measurePathPointsRef.current = [...measurePathPointsRef.current, pointer];
+        updatePathPreview();
+        return;
+      }
+
       drawStartRef.current = { x: pointer.x, y: pointer.y };
       draftBoundsRef.current = { left: pointer.x, top: pointer.y, width: 0, height: 0 };
       isDrawingRef.current = true;
@@ -391,19 +480,25 @@ export function useFabricDrawing({
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      const pointer = getCanvasPoint(event);
+      if (drawingMeasure && measurementMode !== "distance" && measurePathPointsRef.current.length > 0) {
+        if (pointer) updatePathPreview(pointer);
+        return;
+      }
       if (!isDrawingRef.current) return;
       event.preventDefault();
-      const pointer = getCanvasPoint(event);
       if (pointer) updatePreview(pointer, event.shiftKey);
     };
 
     const onDocumentPointerMove = (event: PointerEvent) => {
+      if (drawingMeasure && measurementMode !== "distance") return;
       if (!isDrawingRef.current) return;
       const pointer = getCanvasPoint(event);
       if (pointer) updatePreview(pointer, event.shiftKey);
     };
 
     const onPointerUp = (event: PointerEvent) => {
+      if (drawingMeasure && measurementMode !== "distance") return;
       if (!isDrawingRef.current) return;
       const pointer = getCanvasPoint(event);
       if (pointer) updatePreview(pointer, event.shiftKey);
@@ -412,7 +507,20 @@ export function useFabricDrawing({
     };
 
     const onDocumentPointerUp = () => {
+      if (drawingMeasure && measurementMode !== "distance") return;
       if (isDrawingRef.current) commitDraw();
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!drawingMeasure || measurementMode === "distance") return;
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitPathMeasurement();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        clearPathPreview();
+        setMeasureResult(null);
+      }
     };
 
     drawingSurface?.addEventListener("pointerdown", onPointerDown);
@@ -420,6 +528,7 @@ export function useFabricDrawing({
     drawingSurface?.addEventListener("pointerup", onPointerUp);
     document.addEventListener("pointermove", onDocumentPointerMove);
     document.addEventListener("pointerup", onDocumentPointerUp);
+    document.addEventListener("keydown", onKeyDown);
 
     return () => {
       drawingSurface?.removeEventListener("pointerdown", onPointerDown);
@@ -427,6 +536,11 @@ export function useFabricDrawing({
       drawingSurface?.removeEventListener("pointerup", onPointerUp);
       document.removeEventListener("pointermove", onDocumentPointerMove);
       document.removeEventListener("pointerup", onDocumentPointerUp);
+      document.removeEventListener("keydown", onKeyDown);
+
+      if (measurePathShapeRef.current) canvas.remove(measurePathShapeRef.current);
+      if (measurePathTextRef.current) canvas.remove(measurePathTextRef.current);
+      measurePathPointsRef.current = [];
 
       if (isDrawingRef.current && activeRectRef.current) {
         canvas.remove(activeRectRef.current);
@@ -435,7 +549,7 @@ export function useFabricDrawing({
         isDrawingRef.current = false;
       }
     };
-  }, [highlightMode, shapeMode, redactMode, measureMode, aiPatchMode, annotationToolDefaults, onAnnotationCreated, pageNumber, setMeasureResult, fabricRef, canvasRef, pageScale, mmPerPdfPoint, measurementUnit, onMeasureCommitted, onPatchApplied]);
+  }, [highlightMode, shapeMode, redactMode, measureMode, aiPatchMode, annotationToolDefaults, onAnnotationCreated, pageNumber, setMeasureResult, fabricRef, canvasRef, pageScale, mmPerPdfPoint, measurementUnit, measurementMode, onMeasureCommitted, onPatchApplied]);
 }
 
 const showPromptPopup = (clientX: number, clientY: number, onConfirm: (text: string) => void, onCancel: () => void) => {

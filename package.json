@@ -2,7 +2,7 @@
   "name": "opdf",
   "version": "0.1.0",
   "private": true,
-  "description": "Offline-first PDF desktop app (web-first dev, desktop runtime)",
+  "description": "OPDF PDF workspace with web/server and desktop runtimes",
   "engines": {
     "node": ">=22"
   },
@@ -22,7 +22,10 @@
     "desktop-package": "npm run package -w @opdf/desktop",
     "smoke:ai-phase1": "powershell -ExecutionPolicy Bypass -File scripts/smoke/run-ai-phase1.ps1",
     "share": "node scripts/share-tunnels.mjs",
-    "perf:pdf": "node scripts/perf/generate-large-pdf.mjs"
+    "perf:pdf": "node scripts/perf/generate-large-pdf.mjs",
+    "server-build": "npm run build -w @opdf/core && npm run build -w @opdf/web",
+    "server-start": "node server/opdf-server.mjs",
+    "server-smoke": "node server/opdf-server.smoke.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

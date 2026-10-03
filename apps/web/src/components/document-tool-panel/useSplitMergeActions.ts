@@ -11,7 +11,6 @@ interface UseSplitMergeActionsArgs {
   setIsProcessing: React.Dispatch<React.SetStateAction<boolean>>;
   setViewerError: (msg: string | null) => void;
   onLoadConvertedPdf: (bytes: Uint8Array, fileName: string) => void;
-  replaceDocumentBytes: (bytes: Uint8Array, nextPage?: number) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
@@ -26,7 +25,6 @@ export function useSplitMergeActions(args: UseSplitMergeActionsArgs) {
     setIsProcessing,
     setViewerError,
     onLoadConvertedPdf,
-    replaceDocumentBytes,
     fileInputRef,
   } = args;
 
@@ -89,14 +87,15 @@ export function useSplitMergeActions(args: UseSplitMergeActionsArgs) {
       const pdfLib = await import("pdf-lib");
       const merged = await pdfLib.PDFDocument.create();
       for (const file of mergeFiles) {
-        const src = await pdfLib.PDFDocument.load(file.bytes);
+        const bytes = file.bytes ?? (file.isActiveDocument ? (docBytes ?? await getDocumentBytes()) : null);
+        if (!bytes) throw new Error(`PDF bytes are unavailable for "${file.name}".`);
+        const src = await pdfLib.PDFDocument.load(bytes);
         const pages = await merged.copyPages(src, src.getPageIndices());
         pages.forEach((page) => merged.addPage(page));
       }
       const mergedBytes = await merged.save();
       if (mode === "view") {
         onLoadConvertedPdf(mergedBytes, `${fileBase}-merged.pdf`);
-        replaceDocumentBytes(mergedBytes, 1);
       } else {
         const blob = new Blob([mergedBytes as any], { type: "application/pdf" });
         const url = URL.createObjectURL(blob);

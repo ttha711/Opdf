@@ -57,9 +57,23 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   await expect(viewer).toHaveAttribute("data-opdf-source", "server");
   await expect(page.getByText(/Page\s+1\s+of\s+24/i)).toBeVisible({ timeout: 30_000 });
 
+  // Opening Split/Merge should stay metadata-only. Large server PDFs are
+  // materialized only when the user actually starts the operation.
+  const header = page.locator("header");
+  await header.getByRole("button", { name: "File", exact: true }).click();
+  await header.getByRole("button", { name: "Split PDF", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("Advanced Split Document");
+  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await page.getByRole("button", { name: "Close dialog" }).click();
+
+  await header.getByRole("button", { name: "File", exact: true }).click();
+  await header.getByRole("button", { name: "Merge PDFs", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("Advanced Merge Documents");
+  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await page.getByRole("button", { name: "Close dialog" }).click();
+
   // Structural edits create an unsaved working copy. The viewer must render
   // that copy instead of continuing to prefer the persisted server URL.
-  const header = page.locator("header");
   await header.getByRole("button", { name: "View", exact: true }).click();
   await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
   await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy", { timeout: 30_000 });

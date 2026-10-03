@@ -5,6 +5,7 @@ interface SplitModalProps {
   onClose: () => void;
   fileName: string;
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   totalPages: number;
   setViewerError: (msg: string | null) => void;
 }
@@ -21,6 +22,7 @@ export function SplitModal({
   onClose,
   fileName,
   docBytes,
+  getDocumentBytes,
   totalPages,
   setViewerError,
 }: SplitModalProps) {
@@ -124,12 +126,14 @@ export function SplitModal({
   if (!isOpen) return null;
 
   async function handleSplit() {
-    if (!docBytes || splitParts.length === 0) return;
+    if (splitParts.length === 0) return;
     setIsProcessing(true);
     setViewerError("Processing split...");
     try {
+      const sourceBytes = docBytes ?? await getDocumentBytes();
+      if (!sourceBytes) throw new Error("PDF bytes are unavailable.");
       const pdfLib = await import("pdf-lib");
-      const sourceDoc = await pdfLib.PDFDocument.load(docBytes);
+      const sourceDoc = await pdfLib.PDFDocument.load(sourceBytes);
       const generatedFiles: Array<{ name: string; bytes: Uint8Array }> = [];
 
       for (const part of splitParts) {

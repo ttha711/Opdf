@@ -12,7 +12,6 @@ export function useCommonActions({
   getDocumentBytes,
   replaceDocumentBytes,
   totalPages,
-  setDocBytes,
   setViewerError,
   setSaveState,
   setShowSplitModal,
@@ -25,7 +24,6 @@ export function useCommonActions({
   getDocumentBytes: () => Promise<Uint8Array | null>;
   replaceDocumentBytes: (bytes: Uint8Array, nextPage?: number) => void;
   totalPages: number;
-  setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
   setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
   setShowSplitModal?: (v: boolean) => void;
@@ -86,23 +84,14 @@ export function useCommonActions({
     toast.info("Mở Watermark trong PDF Tools để cấu hình nội dung và kiểu hiển thị.");
   }
 
-  async function mergeDocuments() {
-    const bytes = (await getDocumentBytes()) ?? docBytes;
-    if (!bytes) return;
-    setDocBytes(bytes);
-    if (setShowMergeModal) {
-      setShowMergeModal(true);
-    }
+  function mergeDocuments() {
+    if (!fileName) return;
+    setShowMergeModal?.(true);
   }
 
-  async function splitDocument() {
+  function splitDocument() {
     if (!fileName) return;
-    const bytes = (await getDocumentBytes()) ?? docBytes;
-    if (!bytes) return;
-    setDocBytes(bytes);
-    if (setShowSplitModal) {
-      setShowSplitModal(true);
-    }
+    setShowSplitModal?.(true);
   }
 
   async function convertToImages() {

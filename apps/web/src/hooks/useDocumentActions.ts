@@ -112,7 +112,6 @@ export function useDocumentActions({
     getDocumentBytes,
     replaceDocumentBytes,
     totalPages,
-    setDocBytes,
     setViewerError,
     setShowSplitModal,
     setShowMergeModal,

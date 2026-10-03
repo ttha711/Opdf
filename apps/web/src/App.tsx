@@ -560,6 +560,7 @@ export function App() {
             onClose={() => state.setShowSplitModal(false)}
             fileName={state.fileName}
             docBytes={state.docBytes}
+            getDocumentBytes={materializeDocumentBytes}
             totalPages={state.totalPages}
             setViewerError={state.setViewerError}
           />
@@ -569,6 +570,8 @@ export function App() {
             onClose={() => state.setShowMergeModal(false)}
             fileName={state.fileName}
             docBytes={state.docBytes}
+            getDocumentBytes={materializeDocumentBytes}
+            sourceSize={state.sourceBlob?.size ?? state.docBytes?.length ?? 0}
             totalPages={state.totalPages}
             onMergeComplete={(mergedBytes) => {
               replaceDocumentBytes(mergedBytes, 1, {

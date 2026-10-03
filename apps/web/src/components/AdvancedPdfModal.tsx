@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  addInternalPageLink,
   addPdfBookmarks,
   addUriLink,
   fillFormFields,
@@ -32,7 +33,7 @@ export function AdvancedPdfModal({
   source: PdfSource;
   totalPages: number;
   currentPage: number;
-  initialBookmarks: Array<{ title: string; page: number }>;
+  initialBookmarks: Array<{ title: string; page: number; parent?: number }>;
   onApplied: (bytes: Uint8Array, message: string, bookmarks?: PdfBookmarkInput[]) => void;
 }) {
   const [tab, setTab] = useState<Tab>("forms");
@@ -40,7 +41,9 @@ export function AdvancedPdfModal({
   const [fieldValues, setFieldValues] = useState<Record<string, FormFieldValue>>({});
   const [flatten, setFlatten] = useState(false);
   const [bookmarks, setBookmarks] = useState<PdfBookmarkInput[]>([]);
+  const [linkMode, setLinkMode] = useState<"external" | "internal">("external");
   const [linkPage, setLinkPage] = useState(currentPage);
+  const [destinationPage, setDestinationPage] = useState(Math.min(totalPages, currentPage + 1));
   const [linkUrl, setLinkUrl] = useState("https://");
   const [linkRect, setLinkRect] = useState({ x: 10, y: 10, width: 30, height: 8 });
   const [busy, setBusy] = useState(false);
@@ -50,14 +53,15 @@ export function AdvancedPdfModal({
   useEffect(() => {
     if (!isOpen) return;
     setLinkPage(currentPage);
+    setDestinationPage(Math.min(Math.max(1, totalPages), currentPage < totalPages ? currentPage + 1 : currentPage));
     setBookmarks(
       initialBookmarks.length
-        ? initialBookmarks.map((item) => ({ title: item.title, page: item.page }))
+        ? initialBookmarks.map((item) => ({ title: item.title, page: item.page, parent: item.parent }))
         : [{ title: "Page " + currentPage, page: currentPage }],
     );
     setStatus("");
     setError(null);
-  }, [isOpen, currentPage, initialBookmarks]);
+  }, [isOpen, currentPage, initialBookmarks, totalPages]);
 
   useEffect(() => {
     if (!isOpen || tab !== "forms" || !source) return;
@@ -118,15 +122,22 @@ export function AdvancedPdfModal({
     setBusy(true);
     setError(null);
     try {
-      const bytes = await addUriLink(await toBytes(source), {
+      const common = {
         page: linkPage,
-        url: linkUrl,
         x: linkRect.x / 100,
         y: linkRect.y / 100,
         width: linkRect.width / 100,
         height: linkRect.height / 100,
-      });
-      onApplied(bytes, "Hyperlink embedded on page " + linkPage + ".");
+      };
+      const bytes = linkMode === "internal"
+        ? await addInternalPageLink(await toBytes(source), { ...common, destinationPage })
+        : await addUriLink(await toBytes(source), { ...common, url: linkUrl });
+      onApplied(
+        bytes,
+        linkMode === "internal"
+          ? "Internal link from page " + linkPage + " to page " + destinationPage + " embedded."
+          : "Hyperlink embedded on page " + linkPage + ".",
+      );
       onClose();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not add hyperlink");
@@ -227,16 +238,16 @@ export function AdvancedPdfModal({
           {tab === "bookmarks" ? (
             <div>
               <div className="mb-3 rounded border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
-                These are real PDF outline bookmarks and will appear in compatible PDF readers.
+                These are real PDF outline bookmarks. Choose a previous bookmark as Parent to create a hierarchy.
               </div>
               <div className="space-y-2">
                 {bookmarks.map((bookmark, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                  <div key={index} className="grid grid-cols-[minmax(0,1fr)_80px_150px_auto] items-center gap-2">
                     <input
                       value={bookmark.title}
                       onChange={(event) => setBookmarks((current) => current.map((item, i) => i === index ? { ...item, title: event.target.value } : item))}
                       placeholder="Bookmark title"
-                      className="min-w-0 flex-1 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-2 text-sm"
+                      className="min-w-0 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-2 text-sm"
                     />
                     <input
                       type="number"
@@ -244,10 +255,41 @@ export function AdvancedPdfModal({
                       max={Math.max(1, totalPages)}
                       value={bookmark.page}
                       onChange={(event) => setBookmarks((current) => current.map((item, i) => i === index ? { ...item, page: Number(event.target.value) || 1 } : item))}
-                      className="w-20 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-2 text-sm"
+                      className="rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-2 text-sm"
                       title="Page"
                     />
-                    <button type="button" onClick={() => setBookmarks((current) => current.filter((_, i) => i !== index))} className="rounded border border-red-200 px-2 py-2 text-xs text-red-600">Remove</button>
+                    <select
+                      value={bookmark.parent ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        setBookmarks((current) => current.map((item, i) => i === index
+                          ? { ...item, parent: raw === "" ? undefined : Number(raw) }
+                          : item));
+                      }}
+                      className="rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-2 text-xs"
+                      title="Parent bookmark"
+                    >
+                      <option value="">Top level</option>
+                      {bookmarks.slice(0, index).map((candidate, parentIndex) => (
+                        <option key={parentIndex} value={parentIndex}>{candidate.title || "Bookmark " + (parentIndex + 1)}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setBookmarks((current) => current
+                        .filter((_, i) => i !== index)
+                        .map((item) => ({
+                          ...item,
+                          parent: item.parent === index
+                            ? undefined
+                            : typeof item.parent === "number" && item.parent > index
+                              ? item.parent - 1
+                              : item.parent,
+                        })))}
+                      className="rounded border border-red-200 px-2 py-2 text-xs text-red-600"
+                    >
+                      Remove
+                    </button>
                   </div>
                 ))}
               </div>
@@ -266,12 +308,26 @@ export function AdvancedPdfModal({
               <div className="rounded border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
                 Coordinates are percentages of the page, measured from the top-left. The link area itself is invisible in the exported PDF.
               </div>
-              <label className="block text-xs font-semibold">URL
-                <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
-              </label>
-              <label className="block text-xs font-semibold">Page
-                <input type="number" min={1} max={Math.max(1, totalPages)} value={linkPage} onChange={(event) => setLinkPage(Number(event.target.value) || 1)} className="mt-1 w-28 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
-              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-xs font-semibold">Link type
+                  <select value={linkMode} onChange={(event) => setLinkMode(event.target.value as "external" | "internal")} className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal">
+                    <option value="external">External URL</option>
+                    <option value="internal">Internal page</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold">Source page
+                  <input type="number" min={1} max={Math.max(1, totalPages)} value={linkPage} onChange={(event) => setLinkPage(Number(event.target.value) || 1)} className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
+                </label>
+              </div>
+              {linkMode === "external" ? (
+                <label className="block text-xs font-semibold">URL
+                  <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
+                </label>
+              ) : (
+                <label className="block text-xs font-semibold">Destination page
+                  <input type="number" min={1} max={Math.max(1, totalPages)} value={destinationPage} onChange={(event) => setDestinationPage(Number(event.target.value) || 1)} className="mt-1 w-32 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
+                </label>
+              )}
               <div className="grid grid-cols-4 gap-2">
                 {(["x", "y", "width", "height"] as const).map((key) => (
                   <label key={key} className="text-xs font-semibold capitalize">{key} %
@@ -297,7 +353,7 @@ export function AdvancedPdfModal({
           ) : tab === "bookmarks" ? (
             <button type="button" disabled={busy || validBookmarks.length === 0} onClick={() => void applyBookmarks()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Embed bookmarks</button>
           ) : (
-            <button type="button" disabled={busy || !linkUrl.trim()} onClick={() => void applyLink()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Add hyperlink</button>
+            <button type="button" disabled={busy || (linkMode === "external" && !linkUrl.trim())} onClick={() => void applyLink()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{linkMode === "internal" ? "Add internal link" : "Add hyperlink"}</button>
           )}
         </div>
       </div>

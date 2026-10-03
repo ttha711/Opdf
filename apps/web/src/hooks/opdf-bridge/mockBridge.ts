@@ -6,6 +6,7 @@ import type {
 import type { OpdfBridge } from "../../types/opdf";
 import { loadPdfLib, loadPdfLibWithFontkit, loadUnicodeFontBytes, parseColor } from "./pdfHelpers";
 import { runBrowserOcrWithTextLayer } from "./ocrHelpers";
+import { addPdfBookmarks } from "../../lib/pdfAdvanced";
 
 export function createMockBridge(): OpdfBridge {
   let recents: RecentDocument[] = [];
@@ -222,7 +223,7 @@ export function createMockBridge(): OpdfBridge {
   return {
     // Browser runtime: these features are stubbed (compress returns input unchanged,
     // encrypt/decrypt/bookmarks/PDF-A throw). Only available on the desktop build.
-    capabilities: { compress: false, encrypt: false, bookmarksPersist: false, pdfA: false, digitalSignature: false },
+    capabilities: { compress: false, encrypt: false, bookmarksPersist: true, pdfA: false, digitalSignature: false },
     async openProjectFolder() { return false; },
     async pickAndOpenDocument() { return null; },
     async openDocument(_filePath: string): Promise<OpenDocumentResult> {
@@ -596,8 +597,8 @@ export function createMockBridge(): OpdfBridge {
       }
       return doc.save();
     },
-    async addBookmarks(_bytes, _bookmarks) {
-      throw new Error("Bookmark outline creation requires a desktop PDF engine that is not bundled yet.");
+    async addBookmarks(bytes, bookmarks) {
+      return addPdfBookmarks(bytes, bookmarks);
     },
     async addBatesNumbering(bytes, prefix: string, startNumber: number, suffix = "") {
       const pdfLib = await loadPdfLib();

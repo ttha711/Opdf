@@ -444,13 +444,89 @@ export class DocumentService {
     return doc.save();
   }
 
-  /** Add bookmarks (outlines) to PDF */
+  /** Add hierarchical bookmarks (PDF Outlines) */
   async addBookmarks(pdfBytes: Uint8Array, bookmarks: BookmarkType[]): Promise<Uint8Array> {
-    if (bookmarks.length === 0) {
-      return pdfBytes;
-    }
+    if (bookmarks.length === 0) return pdfBytes;
 
-    throw new Error("Bookmark outline creation is not supported by the current PDF engine");
+    const module = await import("pdf-lib");
+    const doc = await module.PDFDocument.load(pdfBytes);
+    const pages = doc.getPages();
+    const cleaned = bookmarks
+      .map((bookmark, originalIndex) => ({
+        title: bookmark.title.trim(),
+        page: Math.trunc(bookmark.page),
+        originalIndex,
+        parent: Number.isInteger(bookmark.parent) ? bookmark.parent : undefined,
+      }))
+      .filter((bookmark) => bookmark.title && bookmark.page >= 1 && bookmark.page <= pages.length);
+
+    if (cleaned.length === 0) return pdfBytes;
+
+    const originalToClean = new Map<number, number>();
+    cleaned.forEach((bookmark, index) => originalToClean.set(bookmark.originalIndex, index));
+
+    const normalized = cleaned.map((bookmark, index) => {
+      const parentIndex = bookmark.parent === undefined ? undefined : originalToClean.get(bookmark.parent);
+      return {
+        ...bookmark,
+        parent: parentIndex !== undefined && parentIndex >= 0 && parentIndex < index
+          ? parentIndex
+          : undefined,
+      };
+    });
+
+    const context = doc.context;
+    const outlinesRef = context.nextRef();
+    const itemRefs = normalized.map(() => context.nextRef());
+    const rootChildren: number[] = [];
+    const childMap = new Map<number, number[]>();
+
+    normalized.forEach((bookmark, index) => {
+      if (bookmark.parent === undefined) {
+        rootChildren.push(index);
+        return;
+      }
+      const list = childMap.get(bookmark.parent) ?? [];
+      list.push(index);
+      childMap.set(bookmark.parent, list);
+    });
+
+    normalized.forEach((bookmark, index) => {
+      const siblings = bookmark.parent === undefined
+        ? rootChildren
+        : (childMap.get(bookmark.parent) ?? []);
+      const siblingIndex = siblings.indexOf(index);
+      const ownChildren = childMap.get(index) ?? [];
+      const destination = context.obj([pages[bookmark.page - 1].ref, module.PDFName.of("Fit")]);
+
+      context.assign(itemRefs[index], context.obj({
+        Title: module.PDFString.of(bookmark.title),
+        Parent: bookmark.parent === undefined ? outlinesRef : itemRefs[bookmark.parent],
+        Dest: destination,
+        ...(siblingIndex > 0 ? { Prev: itemRefs[siblings[siblingIndex - 1]] } : {}),
+        ...(siblingIndex >= 0 && siblingIndex < siblings.length - 1
+          ? { Next: itemRefs[siblings[siblingIndex + 1]] }
+          : {}),
+        ...(ownChildren.length > 0
+          ? {
+              First: itemRefs[ownChildren[0]],
+              Last: itemRefs[ownChildren[ownChildren.length - 1]],
+              Count: module.PDFNumber.of(ownChildren.length),
+            }
+          : {}),
+      }));
+    });
+
+    context.assign(outlinesRef, context.obj({
+      Type: module.PDFName.of("Outlines"),
+      First: itemRefs[rootChildren[0]],
+      Last: itemRefs[rootChildren[rootChildren.length - 1]],
+      Count: module.PDFNumber.of(normalized.length),
+    }));
+
+    doc.catalog.set(module.PDFName.of("Outlines"), outlinesRef);
+    doc.catalog.set(module.PDFName.of("PageMode"), module.PDFName.of("UseOutlines"));
+    return doc.save();
   }
 
   /** Bates numbering: add sequential numbers to each page */

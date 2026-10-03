@@ -85,8 +85,12 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   // Structural edits on stored server PDFs persist immediately without
   // materializing a browser working copy.
   await header.getByRole("button", { name: "View", exact: true }).click();
+  const mutationResponsePromise = page.waitForResponse(
+    (response) => response.url().includes("/mutations") && response.request().method() === "POST",
+  );
   await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
-  await expect(page.getByText("Saved to OPDF Server.", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+  const mutationResponse = await mutationResponsePromise;
+  expect(mutationResponse.ok()).toBeTruthy();
   await expect(viewer).toHaveAttribute("data-opdf-source", "server", { timeout: 30_000 });
   await expect(page.getByText(/Page\s+1\s+of\s+24/i)).toBeVisible({ timeout: 30_000 });
 });

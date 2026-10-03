@@ -60,6 +60,7 @@ export function PdfViewer({
   onActivePageChange,
   onViewerDirty,
   onViewerScaleChange,
+  onPatchApplied,
 }: PdfViewerProps) {
   const viewerRef = useRef<PDFViewerRef>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
@@ -164,6 +165,7 @@ export function PdfViewer({
       const zoomApi = registry.getPlugin?.("zoom")?.provides?.() as any;
       const rotateApi = registry.getPlugin?.("rotate")?.provides?.() as any;
       const thumbnailApi = registry.getPlugin?.("thumbnail")?.provides?.() as any;
+      const captureApi = registry.getPlugin?.("capture")?.provides?.() as any;
 
       const zoomScope = zoomApi?.forDocument?.(DOCUMENT_ID) ?? zoomApi;
       const rotateScope = rotateApi?.forDocument?.(DOCUMENT_ID) ?? rotateApi;
@@ -207,6 +209,40 @@ export function PdfViewer({
           return buffer ? new Uint8Array(buffer) : null;
         });
         unsubscribers.push(unregister);
+      }
+
+      const captureScope = captureApi?.forDocument?.(DOCUMENT_ID) ?? captureApi;
+      if (captureScope?.onCaptureArea) {
+        const off = captureScope.onCaptureArea((event: any) => {
+          if (event?.documentId && event.documentId !== DOCUMENT_ID) return;
+          if (activeTool !== "ai-patch") return;
+
+          const replacement = window.prompt("Replace selected text with:", "");
+          if (!replacement?.trim()) {
+            captureScope.enableMarqueeCapture?.();
+            return;
+          }
+
+          const annotationScope = annotationApi?.forDocument?.(DOCUMENT_ID) ?? annotationApi;
+          const defaults = annotationApi?.getTool?.("freeText")?.defaults ?? {};
+          const patch = {
+            ...defaults,
+            id: crypto.randomUUID(),
+            type: PdfAnnotationSubtype.FREETEXT,
+            pageIndex: event.pageIndex,
+            rect: event.rect,
+            contents: replacement.trim(),
+            color: "#ffffff",
+            backgroundColor: "#ffffff",
+            fontColor: defaults.fontColor ?? "#000000",
+            opacity: 1,
+          };
+          annotationScope?.createAnnotation?.(event.pageIndex, patch);
+          annotationScope?.selectAnnotation?.(event.pageIndex, patch.id);
+          onViewerDirty?.();
+          onPatchApplied?.();
+        });
+        if (typeof off === "function") unsubscribers.push(off);
       }
 
       if (annotationApi?.onAnnotationEvent) {
@@ -337,6 +373,7 @@ export function PdfViewer({
     onError,
     onViewerDirty,
     onViewerScaleChange,
+    onPatchApplied,
   ]);
 
   useEffect(() => {
@@ -382,8 +419,10 @@ export function PdfViewer({
       const annotation = registry.getPlugin?.("annotation")?.provides?.() as any;
       const redaction = registry.getPlugin?.("redaction")?.provides?.() as any;
       const commands = registry.getPlugin?.("commands")?.provides?.() as any;
+      const capture = registry.getPlugin?.("capture")?.provides?.() as any;
       const redactionScope = redaction?.forDocument?.(DOCUMENT_ID) ?? redaction;
       const annotationScope = annotation?.forDocument?.(DOCUMENT_ID) ?? annotation;
+      const captureScope = capture?.forDocument?.(DOCUMENT_ID) ?? capture;
 
       if (activeTool === "redact") {
         annotationScope?.setActiveTool?.(null);
@@ -392,6 +431,14 @@ export function PdfViewer({
       }
 
       if (redactionScope?.isRedactActive?.()) redactionScope?.toggleRedact?.();
+
+      if (activeTool === "ai-patch") {
+        annotationScope?.setActiveTool?.(null);
+        captureScope?.enableMarqueeCapture?.();
+        return;
+      }
+
+      if (captureScope?.isMarqueeCaptureActive?.()) captureScope?.disableMarqueeCapture?.();
 
       if (activeTool === "signature") {
         annotationScope?.setActiveTool?.(null);

@@ -63,8 +63,6 @@ export function useAppMenus({
 }) {
   // Absent capabilities (desktop bridge) means everything is supported
   const canCompress = capabilities?.compress !== false;
-  const canEncrypt = capabilities?.encrypt !== false;
-  const canPdfA = capabilities?.pdfA !== false;
   const fileMenuItems: MenuItemDef[] = [
     { kind: "action", label: "Open...", shortcut: "Ctrl+O", onClick: openFile },
     { kind: "action", label: "Close", disabled: !hasDocument, onClick: closeDocument },

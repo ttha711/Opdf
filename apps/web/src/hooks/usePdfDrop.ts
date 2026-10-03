@@ -1,9 +1,12 @@
 import { useCallback } from "react";
 import type { Annotation } from "@opdf/core";
+import { computeBlobHash, loadAnnotationsByHash } from "../lib/web-storage";
 
 type UsePdfDropArgs = {
   setFileName: (name: string) => void;
   setDocBytes: (bytes: Uint8Array | null) => void;
+  setSourceBlob: (blob: Blob | null) => void;
+  setSourceIdentity: (identity: string) => void;
   setPage: (page: number) => void;
   setViewerError: (error: string | null) => void;
   setThumbnails: (thumbs: Array<{ page: number; url: string; blob: Blob }>) => void;
@@ -13,30 +16,48 @@ type UsePdfDropArgs = {
 export function usePdfDrop({
   setFileName,
   setDocBytes,
+  setSourceBlob,
+  setSourceIdentity,
   setPage,
   setViewerError,
   setThumbnails,
   setAnnotations,
 }: UsePdfDropArgs) {
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
   }, []);
 
-  const onDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = Array.from(e.dataTransfer.files).find(
-      f => f.type === "application/pdf" || f.name.endsWith(".pdf")
+  const onDrop = useCallback(async (event: React.DragEvent) => {
+    event.preventDefault();
+    const file = Array.from(event.dataTransfer.files).find(
+      (candidate) =>
+        candidate.type === "application/pdf" ||
+        candidate.name.toLowerCase().endsWith(".pdf"),
     );
     if (!file) return;
-    const bytes = new Uint8Array(await file.arrayBuffer());
+
+    const identity = await computeBlobHash(file, file.name, file.lastModified);
+    const savedAnnotations = (await loadAnnotationsByHash(identity) ?? []) as Annotation[];
+
     setFileName(file.name);
-    setDocBytes(bytes);
+    setDocBytes(null);
+    setSourceBlob(file);
+    setSourceIdentity(identity);
     setPage(1);
     setViewerError(null);
     setThumbnails([]);
-    setAnnotations([]);
-  }, [setAnnotations, setDocBytes, setFileName, setPage, setThumbnails, setViewerError]);
+    setAnnotations(savedAnnotations);
+  }, [
+    setAnnotations,
+    setDocBytes,
+    setFileName,
+    setPage,
+    setSourceBlob,
+    setSourceIdentity,
+    setThumbnails,
+    setViewerError,
+  ]);
 
   return { onDragOver, onDrop };
 }

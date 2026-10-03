@@ -8,6 +8,8 @@ export function useExportAction({
   hasDesktopBridge,
   fileName,
   docBytes,
+  sourceIdentity,
+  getDocumentBytes,
   annotations,
   replaceDocumentBytes,
   setDocBytes,
@@ -22,6 +24,8 @@ export function useExportAction({
   hasDesktopBridge: boolean;
   fileName: string;
   docBytes: Uint8Array | null;
+  sourceIdentity: string;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   annotations: any[];
   replaceDocumentBytes: (bytes: Uint8Array, nextPage?: number) => void;
   setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
@@ -32,6 +36,7 @@ export function useExportAction({
   markDocumentSaved: (snapshot?: {
     fileName?: string;
     docBytes?: Uint8Array | null;
+    documentIdentity?: string;
     annotations?: any[];
     bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
     pageRotations?: Record<number, number>;
@@ -41,30 +46,44 @@ export function useExportAction({
   // Desktop: writes docBytes to existing path + saves annotations. No flatten.
   // Web: saves docBytes + annotations to IndexedDB draft. No download, no flatten.
   async function savePdf() {
-    if (!hasDocument || !fileName || !docBytes) return;
+    if (!hasDocument || !fileName) return;
     try {
       setSaveState("saving");
 
-      // Persist annotations keyed by file hash — works for both web and desktop restarts.
-      const hash = await computeFileHash(docBytes);
-      await saveAnnotationsByHash(hash, annotations);
+      let bytes = docBytes;
+      let storageKey = sourceIdentity;
 
       if (hasDesktopBridge) {
-        await bridge.saveDocument(fileName, docBytes);
+        bytes = bytes ?? await getDocumentBytes();
+        if (!bytes) throw new Error("Document bytes are unavailable.");
+        storageKey = await computeFileHash(bytes);
+        await bridge.saveDocument(fileName, bytes);
         if (bridge.replaceAnnotations) {
           await bridge.replaceAnnotations(fileName, annotations);
         }
-        markDocumentSaved({ fileName, docBytes, annotations });
+      } else if (!storageKey && bytes) {
+        storageKey = await computeFileHash(bytes);
+      }
+
+      if (storageKey) {
+        await saveAnnotationsByHash(storageKey, annotations);
+      }
+
+      if (hasDesktopBridge) {
+        markDocumentSaved({ fileName, docBytes: bytes, annotations });
         setSaveState("saved");
         setViewerError("File saved successfully!");
         setTimeout(() => setViewerError(null), 3000);
         return;
       }
 
-      // Web: persist only lightweight session state. Keeping another full PDF
-      // copy in IndexedDB is prohibitively expensive for technical drawings.
       await saveWebState({ fileName, annotations, thumbnails: [], page: 1 });
-      markDocumentSaved({ fileName, docBytes, annotations });
+      markDocumentSaved({
+        fileName,
+        docBytes,
+        documentIdentity: sourceIdentity,
+        annotations,
+      });
       setSaveState("saved");
       setViewerError("Review state saved locally. Reopen the same PDF to restore annotations; use Export PDF to embed them.");
       setTimeout(() => setViewerError(null), 5000);
@@ -79,19 +98,21 @@ export function useExportAction({
   // Lets the user pick a new location/name. Saves raw docBytes (no flatten).
   // Annotations are kept in state so editing continues on the new file.
   async function savePdfAs() {
-    if (!hasDocument || !fileName || !docBytes) return;
+    if (!hasDocument || !fileName) return;
     try {
       setSaveState("saving");
+      const bytes = docBytes ?? await getDocumentBytes();
+      if (!bytes) throw new Error("Document bytes are unavailable.");
 
       if (hasDesktopBridge) {
-        const savedPath = await bridge.saveDocumentAs(docBytes);
+        const savedPath = await bridge.saveDocumentAs(bytes);
         if (!savedPath) { setSaveState("idle"); return; }
         if (bridge.replaceAnnotations) {
           await bridge.replaceAnnotations(savedPath, annotations);
         }
-        setDocBytes(docBytes);
+        setDocBytes(bytes);
         setFileName(savedPath);
-        markDocumentSaved({ fileName: savedPath, docBytes, annotations });
+        markDocumentSaved({ fileName: savedPath, docBytes: bytes, annotations });
         setSaveState("saved");
         setViewerError("File saved successfully!");
         setTimeout(() => setViewerError(null), 3000);
@@ -107,11 +128,11 @@ export function useExportAction({
             types: [{ description: "PDF Document", accept: { "application/pdf": [".pdf"] } }],
           });
           const writable = await handle.createWritable();
-          await writable.write(docBytes);
+          await writable.write(bytes);
           await writable.close();
           const newName = handle.name ?? fileName;
           setFileName(newName);
-          markDocumentSaved({ fileName: newName, docBytes, annotations });
+          markDocumentSaved({ fileName: newName, docBytes: bytes, annotations });
           setSaveState("saved");
           setViewerError("File saved successfully!");
           setTimeout(() => setViewerError(null), 3000);
@@ -125,7 +146,7 @@ export function useExportAction({
       // Fallback: download raw (non-flattened) bytes with current filename.
       const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
       const finalName = baseName.toLowerCase().endsWith(".pdf") ? baseName : `${baseName}.pdf`;
-      const blob = new Blob([docBytes as unknown as BlobPart], { type: "application/pdf" });
+      const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.style.display = "none";
@@ -135,7 +156,7 @@ export function useExportAction({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      markDocumentSaved({ fileName, docBytes, annotations });
+      markDocumentSaved({ fileName, docBytes: bytes, annotations });
       setSaveState("saved");
       setViewerError("Original PDF downloaded without embedded OPDF annotations. Use Export PDF for a reviewed copy.");
       setTimeout(() => setViewerError(null), 5000);
@@ -150,10 +171,12 @@ export function useExportAction({
   // Flattens annotations into the PDF bytes, then downloads / saves to a new file.
   // This is the ONLY operation that flattens.
   async function exportPdf() {
-    if (!hasDocument || !fileName || !docBytes) return;
+    if (!hasDocument || !fileName) return;
     try {
       setSaveState("saving");
-      const flattenedBytes = await bridge.exportFlattened(docBytes, annotations);
+      const bytes = docBytes ?? await getDocumentBytes();
+      if (!bytes) throw new Error("Document bytes are unavailable.");
+      const flattenedBytes = await bridge.exportFlattened(bytes, annotations);
 
       if (hasDesktopBridge) {
         const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";

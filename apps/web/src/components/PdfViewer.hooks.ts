@@ -37,6 +37,7 @@ function getThumbnailScale(pageWidth: number) {
 
 export function usePdfDataLoader(params: {
   data: Uint8Array | null;
+  sourceBlob?: Blob | null;
   annotations: Annotation[];
   initialThumbnails?: Array<{ page: number; url: string; blob: Blob }>;
   onThumbsLoaded?: (thumbs: Array<{ page: number; url: string; blob: Blob }>) => void;
@@ -49,10 +50,10 @@ export function usePdfDataLoader(params: {
   setPdf: Dispatch<SetStateAction<PDFDocumentProxy | null>>;
   setRenderedPages: Dispatch<SetStateAction<RenderedPage[]>>;
 }) {
-  const { data, annotations, initialThumbnails, onThumbsLoaded, onDocumentLoadedRef, onErrorRef, onThumbsLoadedRef, thumbnailUrlsRef, renderedPagesRef, renderedUrlsRef, setPdf, setRenderedPages } = params;
+  const { data, sourceBlob = null, annotations, initialThumbnails, onThumbsLoaded, onDocumentLoadedRef, onErrorRef, onThumbsLoadedRef, thumbnailUrlsRef, renderedPagesRef, renderedUrlsRef, setPdf, setRenderedPages } = params;
 
   useEffect(() => {
-    if (!data) {
+    if (!data && !sourceBlob) {
       renderedUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       renderedUrlsRef.current = [];
       setPdf(null);
@@ -66,8 +67,8 @@ export function usePdfDataLoader(params: {
     let loadingResolved = false;
     // Keep the source outside the JS typed-array transfer path. Passing
     // data.slice() duplicated hundreds of MB before PDF.js could start.
-    const sourceBlob = new Blob([data as unknown as BlobPart], { type: "application/pdf" });
-    const sourceUrl = URL.createObjectURL(sourceBlob);
+    const viewerBlob = sourceBlob ?? new Blob([data as unknown as BlobPart], { type: "application/pdf" });
+    const sourceUrl = URL.createObjectURL(viewerBlob);
     const loadingTask = getDocument({ url: sourceUrl });
 
     (async () => {
@@ -184,7 +185,7 @@ export function usePdfDataLoader(params: {
       if (!loadingResolved) loadingTask.destroy();
       URL.revokeObjectURL(sourceUrl);
     };
-  }, [data]);
+  }, [data, sourceBlob]);
 }
 
 

@@ -13,6 +13,7 @@ export function PdfViewer({
   transitionTick = 0,
   transitionDirection = "next",
   data,
+  sourceBlob = null,
   page,
   scale,
   rotation = 0,
@@ -74,6 +75,7 @@ export function PdfViewer({
 
   usePdfDataLoader({
     data,
+    sourceBlob,
     annotations,
     initialThumbnails,
     onThumbsLoaded,

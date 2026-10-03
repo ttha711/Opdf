@@ -7,6 +7,8 @@ export interface OpdfTab {
   id: string;
   fileName: string;
   docBytes: Uint8Array | null;
+  sourceBlob?: Blob | null;
+  sourceIdentity?: string;
   page: number;
   totalPages: number;
   annotations: any[];
@@ -54,6 +56,7 @@ export async function saveTabsList(tabs: OpdfTab[]): Promise<boolean> {
     const safeTabs: OpdfTab[] = tabs.map((tab) => ({
       ...tab,
       docBytes: null,
+      sourceBlob: null,
       thumbnails: [],
     }));
     const db = await getDB();
@@ -132,6 +135,36 @@ export async function computeFileHash(bytes: Uint8Array): Promise<string> {
   hash ^= bytes.byteLength;
   hash = Math.imul(hash, 16777619) >>> 0;
   return `sample-${bytes.byteLength}-${hash.toString(16).padStart(8, "0")}`;
+}
+
+export async function computeBlobHash(
+  blob: Blob,
+  name = "",
+  lastModified = 0,
+): Promise<string> {
+  // Read only small slices from the beginning/middle/end. This gives stable
+  // local annotation identity without materializing a 300-500 MB File.
+  let hash = 0x811c9dc5;
+  const sampleSize = 4096;
+  const starts = [
+    0,
+    Math.max(0, Math.floor(blob.size / 2) - Math.floor(sampleSize / 2)),
+    Math.max(0, blob.size - sampleSize),
+  ];
+
+  for (const start of starts) {
+    const bytes = new Uint8Array(await blob.slice(start, Math.min(blob.size, start + sampleSize)).arrayBuffer());
+    for (const value of bytes) {
+      hash ^= value;
+      hash = Math.imul(hash, 16777619) >>> 0;
+    }
+  }
+
+  for (const char of `${name}:${blob.size}:${lastModified}`) {
+    hash ^= char.charCodeAt(0) & 0xff;
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return `blob-${blob.size}-${lastModified}-${hash.toString(16).padStart(8, "0")}`;
 }
 
 export async function saveAnnotationsByHash(hash: string, annotations: unknown[]): Promise<void> {

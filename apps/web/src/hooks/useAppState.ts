@@ -10,6 +10,8 @@ import { useConfirm } from "../components/ConfirmDialog";
 export function useAppState() {
   const [fileName, setFileName] = useState("");
   const [docBytes, setDocBytes] = useState<Uint8Array | null>(null);
+  const [sourceBlob, setSourceBlob] = useState<Blob | null>(null);
+  const [sourceIdentity, setSourceIdentity] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1);
@@ -86,6 +88,7 @@ export function useAppState() {
     const currentFingerprint = buildDocumentFingerprint({
       fileName,
       docBytes,
+      documentIdentity: sourceIdentity,
       annotations,
       bookmarks,
       pageRotations,
@@ -120,11 +123,12 @@ export function useAppState() {
     } else if (saveState !== "idle") {
       setSaveState("idle");
     }
-  }, [annotations, bookmarks, docBytes, fileName, pageRotations, saveState]);
+  }, [annotations, bookmarks, docBytes, fileName, pageRotations, saveState, sourceIdentity]);
 
   const markDocumentSaved = useCallback((snapshot?: {
     fileName?: string;
     docBytes?: Uint8Array | null;
+    documentIdentity?: string;
     annotations?: Annotation[];
     bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
     pageRotations?: Record<number, number>;
@@ -132,20 +136,32 @@ export function useAppState() {
     const fingerprint = buildDocumentFingerprint({
       fileName: snapshot?.fileName ?? fileName,
       docBytes: snapshot?.docBytes ?? docBytes,
+      documentIdentity: snapshot?.documentIdentity ?? sourceIdentity,
       annotations: snapshot?.annotations ?? annotations,
       bookmarks: snapshot?.bookmarks ?? bookmarks,
       pageRotations: snapshot?.pageRotations ?? pageRotations,
     });
     savedFingerprintRef.current = fingerprint;
     setSaveState(fingerprint ? "saved" : "idle");
-  }, [annotations, bookmarks, docBytes, fileName, pageRotations]);
+  }, [annotations, bookmarks, docBytes, fileName, pageRotations, sourceIdentity]);
 
   const clearDocumentSaveTracking = useCallback(() => {
     savedFingerprintRef.current = "";
     setSaveState("idle");
   }, []);
 
-  const hasDocument = useMemo(() => Boolean(fileName && docBytes), [fileName, docBytes]);
+  const materializeDocumentBytes = useCallback(async (): Promise<Uint8Array | null> => {
+    if (docBytes) return docBytes;
+    if (!sourceBlob) return null;
+    const bytes = new Uint8Array(await sourceBlob.arrayBuffer());
+    setDocBytes(bytes);
+    return bytes;
+  }, [docBytes, sourceBlob]);
+
+  const hasDocument = useMemo(
+    () => Boolean(fileName && (docBytes || sourceBlob)),
+    [fileName, docBytes, sourceBlob],
+  );
   const highlightMode = activeTool === "highlight";
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
 
@@ -161,6 +177,8 @@ export function useAppState() {
     // Share the immutable source byte reference between tab state and viewer.
     // Structural edits replace the Uint8Array instead of mutating it in place.
     setDocBytes(targetTab.docBytes);
+    setSourceBlob(targetTab.sourceBlob ?? null);
+    setSourceIdentity(targetTab.sourceIdentity ?? "");
     setPage(targetTab.page || 1);
     setTotalPages(targetTab.totalPages || 0);
     setAnnotations(targetTab.annotations || []);
@@ -170,6 +188,7 @@ export function useAppState() {
     markDocumentSaved({
       fileName: targetTab.fileName,
       docBytes: targetTab.docBytes,
+      documentIdentity: targetTab.sourceIdentity ?? "",
       annotations: targetTab.annotations || [],
       bookmarks: targetTab.bookmarks || [],
       pageRotations: targetTab.pageRotations || {},
@@ -184,7 +203,7 @@ export function useAppState() {
     if (!tabToClose) return;
 
     // Guard: closing the active tab while it has unsaved changes requires confirmation.
-    if (activeTabId === tabId && docBytes && saveState === "idle") {
+    if (activeTabId === tabId && (docBytes || sourceBlob) && saveState === "idle") {
       const ok = await confirm({
         title: "Đóng tab",
         message: `"${tabToClose.fileName || fileName}" có thay đổi chưa lưu. Bạn vẫn muốn đóng tab này?`,
@@ -231,6 +250,8 @@ export function useAppState() {
         setActiveTabId(null);
         setFileName("");
         setDocBytes(null);
+        setSourceBlob(null);
+        setSourceIdentity("");
         setPage(1);
         setTotalPages(0);
         setAnnotations([]);
@@ -241,7 +262,7 @@ export function useAppState() {
         clearDocumentSaveTracking();
       }
     }
-  }, [activeTabId, switchTab, clearDocumentSaveTracking, confirm, toast, docBytes, saveState, fileName, hasDesktopBridge]);
+  }, [activeTabId, switchTab, clearDocumentSaveTracking, confirm, toast, docBytes, sourceBlob, saveState, fileName, hasDesktopBridge]);
 
   const addTabToGroup = useCallback((tabId: string, groupName: string, groupColor?: string) => {
     const colors = ["#ff5a5f", "#e03e2d", "#10b981", "#0061d5", "#8b5cf6", "#f59e0b"];
@@ -374,7 +395,7 @@ export function useAppState() {
   // Automatic sync of active document properties into its tab
   useEffect(() => {
     if (isSwitchingRef.current) return;
-    if (!fileName || !docBytes) return;
+    if (!fileName || (!docBytes && !sourceBlob)) return;
 
     const currentTabs = tabsRef.current;
     const activeTab = currentTabs.find(t => t.id === activeTabId);
@@ -385,6 +406,8 @@ export function useAppState() {
           if (t.id === activeTabId) {
             if (
               t.docBytes !== docBytes ||
+              t.sourceBlob !== sourceBlob ||
+              t.sourceIdentity !== sourceIdentity ||
               t.page !== page ||
               t.totalPages !== totalPages ||
               t.annotations !== annotations ||
@@ -395,6 +418,8 @@ export function useAppState() {
               return {
                 ...t,
                 docBytes,
+                sourceBlob,
+                sourceIdentity,
                 page,
                 totalPages,
                 annotations,
@@ -417,6 +442,8 @@ export function useAppState() {
         id: newTabId,
         fileName,
         docBytes,
+        sourceBlob,
+        sourceIdentity,
         page,
         totalPages: 0,
         annotations,
@@ -430,7 +457,7 @@ export function useAppState() {
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTabId);
     }
-  }, [fileName, docBytes, page, totalPages, annotations, bookmarks, thumbnails, pageRotations, activeTabId, activeGroupFilter]);
+  }, [fileName, docBytes, sourceBlob, sourceIdentity, page, totalPages, annotations, bookmarks, thumbnails, pageRotations, activeTabId, activeGroupFilter]);
 
   // Deterministic release of the tab-switch lock: once the render carrying the
   // switched-to activeTabId has committed (this effect runs after the sync
@@ -445,7 +472,7 @@ export function useAppState() {
   });
 
   return {
-    fileName, setFileName, docBytes, setDocBytes, page, setPage, totalPages, setTotalPages, scale, setScale, rotation, setRotation, pageRotations, setPageRotations,
+    fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale, rotation, setRotation, pageRotations, setPageRotations,
     annotations, setAnnotations, ocrJobs, setOcrJobs, pageSearch, setPageSearch, searchResult, setSearchResult, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, pendingNote, setPendingNote, noteText, setNoteText, showSignModal, setShowSignModal,
     signatureStyle, setSignatureStyle, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,

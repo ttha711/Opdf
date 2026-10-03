@@ -6,6 +6,7 @@ export function useMarkupActions({
   bridge,
   fileName,
   docBytes,
+  getDocumentBytes,
   page,
   totalPages,
   replaceDocumentBytes,
@@ -14,16 +15,18 @@ export function useMarkupActions({
   bridge: ReturnType<typeof useOpdfBridge>;
   fileName: string;
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   page: number;
   totalPages: number;
   replaceDocumentBytes: (bytes: Uint8Array, nextPage?: number) => void;
   setViewerError: Dispatch<SetStateAction<string | null>>;
 }) {
   async function runConfiguredWatermark(options: WatermarkOptions) {
-    if (!docBytes) return;
+    const bytes = docBytes ?? await getDocumentBytes();
+    if (!bytes) return;
     if (!options.text?.trim()) throw new Error("Watermark text is required");
     try {
-      const watermarked = await bridge.watermarkPdf(docBytes, options.text.trim());
+      const watermarked = await bridge.watermarkPdf(bytes, options.text.trim());
       replaceDocumentBytes(watermarked, page);
       setViewerError("Watermark applied.");
       setTimeout(() => setViewerError(null), 3000);
@@ -34,13 +37,15 @@ export function useMarkupActions({
   }
 
   async function runConfiguredMarkupTool(tool: MarkupTool, options: MarkupOptions) {
-    if (!docBytes || !fileName) return;
+    if (!fileName) return;
+    const bytes = docBytes ?? await getDocumentBytes();
+    if (!bytes) return;
     const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
     try {
       setViewerError("Applying document markup...");
       let next: Uint8Array;
       if (tool === "page-numbers") {
-        next = await bridge.addPageNumbers(docBytes, {
+        next = await bridge.addPageNumbers(bytes, {
           position: options.position || "bottom-center",
           startNumber: options.startNumber ?? 1,
           fontSize: options.fontSize || 11,
@@ -50,14 +55,14 @@ export function useMarkupActions({
           pages: { start: options.pageStart || 1, end: options.pageEnd || totalPages },
         });
       } else if (tool === "header") {
-        next = await bridge.addHeaderFooter(docBytes, [{
+        next = await bridge.addHeaderFooter(bytes, [{
           align: options.align || "center",
           text: options.text?.trim() || baseName,
           fontSize: options.fontSize || 10,
           fontColor: options.fontColor || "#374151",
         }], true);
       } else if (tool === "footer") {
-        next = await bridge.addHeaderFooter(docBytes, [{
+        next = await bridge.addHeaderFooter(bytes, [{
           align: options.align || "center",
           text: options.text?.trim() || baseName,
           fontSize: options.fontSize || 10,
@@ -65,7 +70,7 @@ export function useMarkupActions({
         }], false);
       } else {
         next = await bridge.addBatesNumbering(
-          docBytes,
+          bytes,
           options.prefix ?? "OPDF-",
           options.startNumber ?? 1,
           options.suffix ?? ""

@@ -35,6 +35,7 @@ Requirements:
 
 - Node.js 22 or newer.
 - Git.
+- Python 3.11+ when PDF-to-DOCX/PPTX/XLSX server conversion is required.
 - Optional Cloudflare Tunnel for HTTPS/domain access.
 
 From PowerShell:
@@ -99,6 +100,34 @@ OPDF_DATA_DIR/
 ```
 
 Set `OPDF_DATA_DIR` outside the Git checkout for production so upgrades do not touch user data.
+
+## PDF to Office server worker
+
+DOCX, PPTX, and XLSX conversion in server runtime is executed by a Python worker on the server. Install its dependencies once:
+
+```powershell
+py -m pip install -r server\requirements-office.txt
+```
+
+If `python` is not the command used by your installation:
+
+```powershell
+$env:OPDF_PYTHON_PATH="C:\Python311\python.exe"
+```
+
+The default converter is:
+
+```
+apps/desktop/tools/pdf_office_convert.py
+```
+
+It can be replaced without changing the web UI:
+
+```powershell
+$env:OPDF_OFFICE_CONVERTER_SCRIPT="D:\OPDF\workers\pdf_office_convert.py"
+```
+
+The worker receives paths and arguments through `spawn` without a shell. Conversion runs in a temporary directory and the temporary input/output files are removed after each request. Default timeout is 5 minutes; override it with `OPDF_OFFICE_WORKER_TIMEOUT_MS` if very large drawings require more time.
 
 ## Upload size
 

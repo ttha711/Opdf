@@ -11,6 +11,8 @@ import {
   registerViewerThumbnailProvider,
 } from "../lib/viewer-runtime";
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
+import { AiPatchDialog } from "./AiPatchDialog";
+import { MeasurementCalibrationDialog } from "./MeasurementCalibrationDialog";
 import { resolvePdfiumPageCount } from "../lib/pdfiumDocumentState";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import {
@@ -78,6 +80,8 @@ export function PdfViewer({
     return Number.isFinite(saved) && saved > 0 ? saved : null;
   });
   const [measurementResult, setMeasurementResult] = useState<string | null>(null);
+  const [pendingAiPatch, setPendingAiPatch] = useState<{ pageIndex: number; rect: any } | null>(null);
+  const [showCalibrationDialog, setShowCalibrationDialog] = useState(false);
   const lastMeasuredPdfValueRef = useRef<number | null>(null);
 
   const serverUrl = useMemo(
@@ -204,30 +208,7 @@ export function PdfViewer({
           if (event?.documentId && event.documentId !== DOCUMENT_ID) return;
           if (activeTool !== "ai-patch") return;
 
-          const replacement = window.prompt("Replace selected text with:", "");
-          if (!replacement?.trim()) {
-            captureScope.enableMarqueeCapture?.();
-            return;
-          }
-
-          const annotationScope = annotationApi?.forDocument?.(DOCUMENT_ID) ?? annotationApi;
-          const defaults = annotationApi?.getTool?.("freeText")?.defaults ?? {};
-          const patch = {
-            ...defaults,
-            id: crypto.randomUUID(),
-            type: PdfAnnotationSubtype.FREETEXT,
-            pageIndex: event.pageIndex,
-            rect: event.rect,
-            contents: replacement.trim(),
-            color: "#ffffff",
-            backgroundColor: "#ffffff",
-            fontColor: defaults.fontColor ?? "#000000",
-            opacity: 1,
-          };
-          annotationScope?.createAnnotation?.(event.pageIndex, patch);
-          annotationScope?.selectAnnotation?.(event.pageIndex, patch.id);
-          onViewerDirty?.();
-          onPatchApplied?.();
+          setPendingAiPatch({ pageIndex: event.pageIndex, rect: event.rect });
         });
         if (typeof off === "function") unsubscribers.push(off);
       }
@@ -461,22 +442,63 @@ export function PdfViewer({
   const calibrateLastDistance = () => {
     const pdfDistance = lastMeasuredPdfValueRef.current;
     if (!pdfDistance || pdfDistance <= 0) return;
-    const input = window.prompt(`Known distance in ${measurementUnit}:`, "1");
-    if (!input) return;
-    const numeric = Number(input);
-    if (!Number.isFinite(numeric) || numeric <= 0) return;
+    setShowCalibrationDialog(true);
+  };
+
+  const applyCalibration = (numeric: number) => {
+    const pdfDistance = lastMeasuredPdfValueRef.current;
+    if (!pdfDistance || pdfDistance <= 0 || !Number.isFinite(numeric) || numeric <= 0) return;
     const knownMillimeters = measurementUnit === "m" ? numeric * 1000 : measurementUnit === "cm" ? numeric * 10 : numeric;
     const next = calibrateMmPerPdfPoint(pdfDistance, knownMillimeters);
     if (!next) return;
     setCalibratedMmPerPdfPoint(next);
     window.localStorage.setItem(calibrationKey, String(next));
     setMeasurementResult(formatMillimeters(pdfDistance * next, measurementUnit));
+    setShowCalibrationDialog(false);
   };
 
   const resetCalibration = () => {
     setCalibratedMmPerPdfPoint(null);
     window.localStorage.removeItem(calibrationKey);
     setMeasurementResult(null);
+  };
+
+  const resumeAiPatchCapture = () => {
+    const capture = activeRegistry?.getPlugin?.("capture")?.provides?.() as any;
+    const captureScope = capture?.forDocument?.(DOCUMENT_ID) ?? capture;
+    captureScope?.enableMarqueeCapture?.();
+  };
+
+  const cancelAiPatch = () => {
+    setPendingAiPatch(null);
+    resumeAiPatchCapture();
+  };
+
+  const applyAiPatch = (replacement: string) => {
+    const value = replacement.trim();
+    if (!pendingAiPatch || !value || !activeRegistry) return;
+
+    const annotationApi = activeRegistry.getPlugin?.("annotation")?.provides?.() as any;
+    const annotationScope = annotationApi?.forDocument?.(DOCUMENT_ID) ?? annotationApi;
+    const defaults = annotationApi?.getTool?.("freeText")?.defaults ?? {};
+    const patch = {
+      ...defaults,
+      id: crypto.randomUUID(),
+      type: PdfAnnotationSubtype.FREETEXT,
+      pageIndex: pendingAiPatch.pageIndex,
+      rect: pendingAiPatch.rect,
+      contents: value,
+      color: "#ffffff",
+      backgroundColor: "#ffffff",
+      fontColor: defaults.fontColor ?? "#000000",
+      opacity: 1,
+    };
+    annotationScope?.createAnnotation?.(pendingAiPatch.pageIndex, patch);
+    annotationScope?.selectAnnotation?.(pendingAiPatch.pageIndex, patch.id);
+    setPendingAiPatch(null);
+    onViewerDirty?.();
+    onPatchApplied?.();
+    resumeAiPatchCapture();
   };
 
   if (!sourceUrl || !config) {
@@ -493,6 +515,17 @@ export function PdfViewer({
       data-opdf-engine="pdfium-wasm"
       data-opdf-source={localUrl ? "working-copy" : serverUrl ? "server" : "none"}
     >
+      <AiPatchDialog
+        open={Boolean(pendingAiPatch)}
+        onCancel={cancelAiPatch}
+        onApply={applyAiPatch}
+      />
+      <MeasurementCalibrationDialog
+        open={showCalibrationDialog}
+        unit={measurementUnit}
+        onCancel={() => setShowCalibrationDialog(false)}
+        onApply={applyCalibration}
+      />
       {activeTool === "measure" ? (
         <PdfMeasurementToolbar
           mode={measurementMode}

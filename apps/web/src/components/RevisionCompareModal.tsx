@@ -279,7 +279,7 @@ export function RevisionCompareModal({
           <input type="checkbox" checked={autoAlign} onChange={(event) => setAutoAlign(event.target.checked)} />
           Auto align
         </label>
-        <button type="button" disabled={!revisionFile || analyzing} onClick={() => void analyze()} className="rounded bg-amber-500 px-3 py-1.5 text-xs font-bold text-slate-950 disabled:opacity-40">
+        <button type="button" disabled={!revisionFile || !basePdf || !revisionPdf || analyzing} onClick={() => void analyze()} className="rounded bg-amber-500 px-3 py-1.5 text-xs font-bold text-slate-950 disabled:opacity-40">
           {analyzing ? "Analyzing…" : "Detect changes"}
         </button>
         {regions.length > 0 ? (

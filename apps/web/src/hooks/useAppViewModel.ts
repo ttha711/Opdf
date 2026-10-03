@@ -91,6 +91,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     onError: state.setViewerError,
     onActivePageChange: actions.onActivePageChange,
     onViewerDirty: () => state.setSaveState("idle"),
+    onViewerScaleChange: state.setScale,
     onThumbsLoaded: state.setThumbnails,
     setThumbnails: state.setThumbnails,
     initialThumbnails: state.thumbnails,

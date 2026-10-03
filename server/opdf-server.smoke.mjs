@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PDFDocument } from "pdf-lib";
@@ -47,6 +47,18 @@ function assert(condition, message) {
 try {
   const health = await waitForHealth();
   assert(health.runtime === "server", "health runtime must be server");
+
+  const assetNames = await readdir(join(process.cwd(), "apps", "web", "dist", "assets"));
+  const pdfWorkerAsset = assetNames.find((name) => name.startsWith("pdf.worker-") && name.endsWith(".mjs"));
+  assert(pdfWorkerAsset, "built PDF.js worker asset is missing");
+  const workerResponse = await fetch(`${base}/assets/${pdfWorkerAsset}`);
+  assert(workerResponse.ok, `PDF.js worker asset failed: ${workerResponse.status}`);
+  assert(
+    (workerResponse.headers.get("content-type") || "").includes("javascript"),
+    "PDF.js .mjs worker must be served with a JavaScript MIME type",
+  );
+  const missingAsset = await fetch(`${base}/assets/opdf-missing-worker.mjs`);
+  assert(missingAsset.status === 404, "missing static assets must not fall back to index.html");
 
   const sampleDoc = await PDFDocument.create();
   sampleDoc.addPage([200, 200]);

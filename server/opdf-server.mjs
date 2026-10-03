@@ -319,6 +319,7 @@ function contentTypeFor(path) {
   return ({
     ".html": "text/html; charset=utf-8",
     ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
     ".css": "text/css; charset=utf-8",
     ".json": "application/json; charset=utf-8",
     ".svg": "image/svg+xml",
@@ -338,6 +339,12 @@ async function serveWeb(req, res, pathname) {
 
   let info = await stat(filePath).catch(() => null);
   if (!info?.isFile()) {
+    // Never send the SPA shell for a missing static asset. ES module imports
+    // require a real JavaScript response and otherwise fail with misleading
+    // "dynamically imported module" errors.
+    if (extname(normalized)) {
+      return sendError(res, 404, "Static asset not found.");
+    }
     filePath = join(webDist, "index.html");
     info = await stat(filePath).catch(() => null);
   }

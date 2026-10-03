@@ -43,6 +43,7 @@ function ThumbnailImage({ blob, url: fallbackUrl, page }: { blob?: Blob; url?: s
 export function ThumbnailPanel({
   thumbnails,
   page,
+  totalPages,
   hasDocument,
   onSelectPage,
   bookmarks = [],
@@ -58,6 +59,7 @@ export function ThumbnailPanel({
 }: {
   thumbnails: Array<{ page: number; url: string; blob: Blob }>;
   page: number;
+  totalPages: number;
   hasDocument: boolean;
   onSelectPage: (page: number) => void;
   bookmarks?: Array<Bookmark>;
@@ -89,15 +91,15 @@ export function ThumbnailPanel({
 
   // Clear selection when document changes (thumbnails reset)
   useEffect(() => {
-    if (thumbnails.length === 0) {
+    if (!hasDocument || totalPages === 0) {
       onSelectionChange(new Set());
       lastSelectedRef.current = null;
     }
-  }, [thumbnails.length === 0]);
+  }, [hasDocument, totalPages, onSelectionChange]);
 
   // Keyboard shortcuts: Escape = clear selection, Ctrl+A = select all
   useEffect(() => {
-    if (!hasDocument || thumbnails.length === 0) return;
+    if (!hasDocument || totalPages === 0) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && selectedPages.size > 0) {
         onSelectionChange(new Set());
@@ -105,15 +107,15 @@ export function ThumbnailPanel({
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "a" && activeTab === "pages") {
         e.preventDefault();
-        onSelectionChange(new Set(thumbnails.map((t) => t.page)));
+        onSelectionChange(new Set(Array.from({ length: totalPages }, (_, index) => index + 1)));
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedPages.size, onSelectionChange, hasDocument, thumbnails, activeTab]);
+  }, [selectedPages.size, onSelectionChange, hasDocument, totalPages, activeTab]);
 
   useEffect(() => {
-    if (activeTab !== "pages" || !hasDocument || thumbnails.length === 0) return;
+    if (activeTab !== "pages" || !hasDocument || totalPages === 0) return;
 
     const target = thumbnailRefs.current.get(page);
     if (!target) return;
@@ -127,7 +129,7 @@ export function ThumbnailPanel({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeTab, hasDocument, page, thumbnails.length]);
+  }, [activeTab, hasDocument, page, totalPages]);
 
   function handleThumbnailClick(pageNum: number, e: React.MouseEvent) {
     if (e.shiftKey && lastSelectedRef.current !== null) {
@@ -303,7 +305,7 @@ export function ThumbnailPanel({
       {activeTab === "pages" && selectedPages.size > 0 && (
         <div className="flex items-center gap-1 px-2 py-1.5 bg-violet-50 border-b border-violet-200 shrink-0 flex-wrap">
           <span className="text-[11px] font-semibold text-violet-700 mr-0.5 shrink-0">
-            {selectedPages.size === thumbnails.length ? "Tất cả" : selectedPages.size} trang
+            {selectedPages.size === totalPages ? "Tất cả" : selectedPages.size} trang
           </span>
 
           {/* Rotate selected pages */}
@@ -339,7 +341,7 @@ export function ThumbnailPanel({
           )}
 
           {/* Rotate All — chỉ khi đã chọn tất cả trang */}
-          {onRotatePages && selectedPages.size === thumbnails.length && runDocumentTool && (
+          {onRotatePages && selectedPages.size === totalPages && runDocumentTool && (
             <>
               <div className="mx-0.5 h-3.5 w-px bg-violet-200" />
               <button
@@ -428,7 +430,7 @@ export function ThumbnailPanel({
       )}
 
       {/* Selection hint */}
-      {activeTab === "pages" && selectedPages.size === 0 && hasDocument && thumbnails.length > 0 && (
+      {activeTab === "pages" && selectedPages.size === 0 && hasDocument && totalPages > 0 && (
         <div className="px-2 py-1 border-b border-[var(--border-color)] shrink-0">
           <p className="text-[10px] text-[var(--text-secondary)] text-center">
             Ctrl+click or Shift+click to select pages
@@ -440,12 +442,17 @@ export function ThumbnailPanel({
       <div className="flex-1 overflow-y-auto min-h-0">
         {activeTab === "pages" ? (
           <div className="grid gap-[var(--ui-gap-lg)] p-3">
-            {thumbnails.map((t) => {
-              const isCurrentPage = page === t.page;
-              const isSelected = selectedPages.has(t.page);
-              const isBookmarked = bookmarks.some((b) => b.page === t.page);
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => {
+              const t = thumbnails.find((thumb) => thumb.page === pageNumber);
+              const isCurrentPage = page === pageNumber;
+              const isSelected = selectedPages.has(pageNumber);
+              const isBookmarked = bookmarks.some((b) => b.page === pageNumber);
               return (
-                <div key={t.page} className="relative group w-full">
+                <div
+                  key={pageNumber}
+                  className="relative group w-full"
+                  style={{ contentVisibility: "auto", containIntrinsicSize: "220px" }}
+                >
                   <button
                     className={`flex cursor-pointer flex-col items-center gap-[var(--ui-gap-sm)] rounded-[var(--ui-radius-sm)] border-2 p-1 w-full text-center transition-colors ${
                       isSelected
@@ -454,18 +461,18 @@ export function ThumbnailPanel({
                           ? "border-[var(--acrobat-blue)] bg-[var(--ui-accent-bg)]"
                           : "border-transparent bg-transparent hover:bg-[var(--ui-hover-bg)]"
                     }`}
-                    onClick={(e) => handleThumbnailClick(t.page, e)}
-                    ref={(el) => setThumbnailRef(t.page, el)}
+                    onClick={(e) => handleThumbnailClick(pageNumber, e)}
+                    ref={(el) => setThumbnailRef(pageNumber, el)}
                     type="button"
                     title={
                       selectedPages.size > 0
-                        ? `Trang ${t.page} — click để ${isSelected ? "bỏ chọn" : "thêm vào chọn"}`
-                        : `Trang ${t.page}`
+                        ? `Trang ${pageNumber} — click để ${isSelected ? "bỏ chọn" : "thêm vào chọn"}`
+                        : `Trang ${pageNumber}`
                     }
                   >
-                    <ThumbnailImage blob={t.blob} url={t.url} page={t.page} />
+                    <ThumbnailImage blob={t?.blob} url={t?.url} page={pageNumber} />
                     <span className={`text-xs ${isSelected ? "text-violet-700 font-semibold" : "text-[var(--text-secondary)]"}`}>
-                      {t.page}
+                      {pageNumber}
                     </span>
                   </button>
 
@@ -482,13 +489,13 @@ export function ThumbnailPanel({
                       e.stopPropagation();
                       e.preventDefault();
                       const next = new Set(selectedPages);
-                      if (next.has(t.page)) {
-                        next.delete(t.page);
+                      if (next.has(pageNumber)) {
+                        next.delete(pageNumber);
                       } else {
-                        next.add(t.page);
+                        next.add(pageNumber);
                       }
                       onSelectionChange(next);
-                      lastSelectedRef.current = t.page;
+                      lastSelectedRef.current = pageNumber;
                     }}
                     title={isSelected ? "Bỏ chọn trang" : "Chọn trang"}
                   >
@@ -506,7 +513,7 @@ export function ThumbnailPanel({
                         ? "opacity-100 scale-100"
                         : "opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100"
                     }`}
-                    onClick={(e) => toggleBookmarkForPage(t.page, e)}
+                    onClick={(e) => toggleBookmarkForPage(pageNumber, e)}
                     title={isBookmarked ? "Remove Bookmark" : "Bookmark this Page"}
                     type="button"
                   >
@@ -529,9 +536,9 @@ export function ThumbnailPanel({
                 Open a PDF to view pages.
               </p>
             ) : null}
-            {hasDocument && thumbnails.length === 0 ? (
+            {hasDocument && totalPages === 0 ? (
               <p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)] text-center py-4">
-                Rendering pages...
+                Reading page metadata...
               </p>
             ) : null}
           </div>

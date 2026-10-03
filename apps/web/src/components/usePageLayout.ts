@@ -1,6 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { PageDimension } from "./PdfViewer.types";
+
+type BasePageDimension = {
+  pageNumber: number;
+  width: number;
+  height: number;
+  rotation: number;
+};
+
+const METADATA_BATCH_SIZE = 8;
 
 export function usePageLayout(params: {
   pdf: PDFDocumentProxy | null;
@@ -9,38 +18,67 @@ export function usePageLayout(params: {
   pageRotations: Record<number, number>;
 }): PageDimension[] {
   const { pdf, scale, rotation, pageRotations } = params;
-  const [dimensions, setDimensions] = useState<PageDimension[]>([]);
+  const [baseDimensions, setBaseDimensions] = useState<BasePageDimension[]>([]);
 
   useEffect(() => {
-    if (!pdf) return void setDimensions([]);
+    if (!pdf) {
+      setBaseDimensions([]);
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
-      // Fetch all page objects in parallel — just metadata, no pixel rendering
-      const pageObjects = await Promise.all(
-        Array.from({ length: pdf.numPages }, (_, i) => pdf.getPage(i + 1))
-      );
-      if (cancelled) return;
+      const next: BasePageDimension[] = [];
 
-      const dims: PageDimension[] = pageObjects.map((p, idx) => {
-        const pNum = idx + 1;
-        const pageRotation = p.rotate || 0;
-        const specificRotation = pageRotations[pNum] || 0;
-        const combinedRotation = (pageRotation + specificRotation + rotation) % 360;
-        const vp = p.getViewport({ scale, rotation: combinedRotation });
-        const cssWidth = Math.max(1, Math.round(vp.width));
-        const renderScale = cssWidth / vp.width;
-        const renderVp = p.getViewport({ scale: scale * renderScale, rotation: combinedRotation });
-        const cssHeight = Math.max(1, Math.round(renderVp.height));
-        p.cleanup();
-        return { pageNumber: pNum, cssWidth, cssHeight, rotation: combinedRotation };
-      });
+      // Page boxes are document metadata. Read them once per PDF rather than
+      // refetching every page whenever zoom/rotation changes.
+      for (let start = 1; start <= pdf.numPages; start += METADATA_BATCH_SIZE) {
+        if (cancelled) return;
+        const end = Math.min(pdf.numPages, start + METADATA_BATCH_SIZE - 1);
+        const pages = await Promise.all(
+          Array.from({ length: end - start + 1 }, (_, index) => pdf.getPage(start + index)),
+        );
 
-      if (!cancelled) setDimensions(dims);
-    })();
+        for (const p of pages) {
+          const viewport = p.getViewport({ scale: 1, rotation: 0 });
+          next.push({
+            pageNumber: p.pageNumber,
+            width: viewport.width,
+            height: viewport.height,
+            rotation: p.rotate || 0,
+          });
+          p.cleanup();
+        }
 
-    return () => { cancelled = true; };
-  }, [pdf, scale, rotation, pageRotations]);
+        // Publish progressively so very large sets become navigable early.
+        if (!cancelled) setBaseDimensions([...next]);
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      }
+    })().catch((error) => {
+      if (!cancelled) console.error("Failed to read PDF page layout:", error);
+    });
 
-  return dimensions;
+    return () => {
+      cancelled = true;
+    };
+  }, [pdf]);
+
+  return useMemo(
+    () =>
+      baseDimensions.map((base) => {
+        const specificRotation = pageRotations[base.pageNumber] || 0;
+        const combinedRotation = ((base.rotation + specificRotation + rotation) % 360 + 360) % 360;
+        const swapsAxes = combinedRotation === 90 || combinedRotation === 270;
+        const cssWidth = Math.max(1, Math.round((swapsAxes ? base.height : base.width) * scale));
+        const cssHeight = Math.max(1, Math.round((swapsAxes ? base.width : base.height) * scale));
+        return {
+          pageNumber: base.pageNumber,
+          cssWidth,
+          cssHeight,
+          rotation: combinedRotation,
+        };
+      }),
+    [baseDimensions, pageRotations, rotation, scale],
+  );
 }

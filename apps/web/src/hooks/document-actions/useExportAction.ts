@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { useOpdfBridge } from "../useOpdfBridge";
-import { savePdfBytes, saveWebState, computeFileHash, saveAnnotationsByHash } from "../../lib/web-storage";
+import { saveWebState, computeFileHash, saveAnnotationsByHash } from "../../lib/web-storage";
 
 export function useExportAction({
   bridge,
@@ -61,8 +61,8 @@ export function useExportAction({
         return;
       }
 
-      // Web: persist draft to IndexedDB so the session can be resumed.
-      await savePdfBytes(docBytes);
+      // Web: persist only lightweight session state. Keeping another full PDF
+      // copy in IndexedDB is prohibitively expensive for technical drawings.
       await saveWebState({ fileName, annotations, thumbnails: [], page: 1 });
       markDocumentSaved({ fileName, docBytes, annotations });
       setSaveState("saved");

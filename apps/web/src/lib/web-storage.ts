@@ -47,20 +47,15 @@ async function getDB(): Promise<IDBDatabase> {
 /** Returns true when the data was durably written, false on failure. */
 export async function saveTabsList(tabs: OpdfTab[]): Promise<boolean> {
   try {
-    const safeTabs: OpdfTab[] = tabs.map((tab) => {
-      let safeDocBytes: Uint8Array | null = null;
-      if (tab.docBytes) {
-        try {
-          safeDocBytes = new Uint8Array(tab.docBytes);
-        } catch {
-          safeDocBytes = null;
-        }
-      }
-      return {
-        ...tab,
-        docBytes: safeDocBytes,
-      };
-    });
+    // Persist only lightweight workspace metadata. Full PDF byte arrays and
+    // generated thumbnails can be hundreds of MB and must stay out of
+    // IndexedDB autosave. A future File System Access/OPFS source reference can
+    // restore local documents without copying their bytes into app state.
+    const safeTabs: OpdfTab[] = tabs.map((tab) => ({
+      ...tab,
+      docBytes: null,
+      thumbnails: [],
+    }));
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(safeTabs, "opdf_tabs");
@@ -79,7 +74,13 @@ export async function loadTabsList(): Promise<OpdfTab[] | null> {
     const store = tx.objectStore(STORE_NAME);
     const req = store.get("opdf_tabs");
     return new Promise((resolve) => {
-      req.onsuccess = () => resolve(req.result || null);
+      req.onsuccess = () => {
+      const value = req.result as OpdfTab[] | undefined;
+      // New sessions intentionally do not persist PDF bytes. Ignore lightweight
+      // metadata-only tabs on reload instead of restoring broken empty tabs.
+      const restorable = value?.filter((tab) => tab.docBytes && tab.docBytes.byteLength > 0) ?? [];
+      resolve(restorable.length > 0 ? restorable : null);
+    };
       tx.onerror = () => resolve(null);
     });
   } catch (err) {
@@ -118,8 +119,19 @@ export async function loadActiveTabId(): Promise<string | null> {
 }
 
 export async function computeFileHash(bytes: Uint8Array): Promise<string> {
-  const buffer = await crypto.subtle.digest("SHA-256", bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
-  return Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  // Identity only: do not copy/hash a 300-500 MB PDF on the UI thread.
+  // Sample evenly across the document and include byteLength. This is stable
+  // enough for local annotation lookup while keeping work bounded.
+  let hash = 0x811c9dc5;
+  const sampleCount = Math.min(4096, bytes.byteLength);
+  const step = sampleCount > 0 ? Math.max(1, Math.floor(bytes.byteLength / sampleCount)) : 1;
+  for (let i = 0, seen = 0; i < bytes.byteLength && seen < sampleCount; i += step, seen += 1) {
+    hash ^= bytes[i] ?? 0;
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  hash ^= bytes.byteLength;
+  hash = Math.imul(hash, 16777619) >>> 0;
+  return `sample-${bytes.byteLength}-${hash.toString(16).padStart(8, "0")}`;
 }
 
 export async function saveAnnotationsByHash(hash: string, annotations: unknown[]): Promise<void> {

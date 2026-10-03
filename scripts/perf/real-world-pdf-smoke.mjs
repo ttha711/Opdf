@@ -137,6 +137,7 @@ async function browserTest(browser, testCase, stored, fileBytes) {
   const page = await browser.newPage();
   const documentUrlPart = `/api/opdf/documents/${stored.id}`;
   const pdfResponses = [];
+  const finishedPdfTransfers = [];
   page.on("response", (response) => {
     if (!response.url().includes(documentUrlPart)) return;
     const headers = response.headers();
@@ -146,6 +147,15 @@ async function browserTest(browser, testCase, stored, fileBytes) {
       contentRange: headers["content-range"] || "",
       contentLength: Number(headers["content-length"] || 0),
     });
+  });
+  page.on("requestfinished", (request) => {
+    if (!request.url().includes(documentUrlPart) || request.method() !== "GET") return;
+    void request.sizes().then((sizes) => {
+      finishedPdfTransfers.push({
+        url: request.url(),
+        responseBodySize: sizes.responseBodySize,
+      });
+    }).catch(() => undefined);
   });
 
   const startedAt = Date.now();
@@ -175,13 +185,14 @@ async function browserTest(browser, testCase, stored, fileBytes) {
   const getResponses = pdfResponses.filter((item) => item.method === "GET");
   const rangeResponses = getResponses.filter((item) => item.status === 206);
   const fullResponses = getResponses.filter((item) => item.status === 200);
-  const bytesObserved = getResponses.reduce((sum, item) => sum + item.contentLength, 0);
+  await page.waitForTimeout(250);
+  const bytesObserved = finishedPdfTransfers.reduce((sum, item) => sum + item.responseBodySize, 0);
   const usedRange = rangeResponses.length > 0;
   const viewerEngine = await viewer.getAttribute("data-opdf-engine");
   if (fileBytes >= 32 * MiB) {
     assert(viewerEngine === "pdfjs-range", `${testCase.name}: expected pdfjs-range for large server PDF, got ${viewerEngine}`);
     assert(usedRange, `${testCase.name}: large server PDF did not use HTTP Range`);
-    assert(bytesObserved < fileBytes, `${testCase.name}: range preview transferred the full file before first-page readiness`);
+    assert(bytesObserved < fileBytes, `${testCase.name}: range preview transferred the full file before first-page readiness (${bytesObserved} / ${fileBytes})`);
   }
 
   let searchMatches = null;
@@ -246,6 +257,7 @@ async function browserTest(browser, testCase, stored, fileBytes) {
     usedRange,
     rangeRequestCount: rangeResponses.length,
     fullRequestCount: fullResponses.length,
+    finishedTransferCount: finishedPdfTransfers.length,
     observedTransferBytes: bytesObserved,
     observedTransferPercent: Number(((bytesObserved / fileBytes) * 100).toFixed(2)),
     searchMatches,

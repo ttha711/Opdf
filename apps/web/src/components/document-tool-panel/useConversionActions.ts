@@ -10,6 +10,7 @@ interface UseConversionActionsArgs {
   fileName: string;
   fileBase: string;
   docBytes: Uint8Array | null;
+  sourceBlob?: Blob | null;
   getDocumentBytes: () => Promise<Uint8Array | null>;
   totalPages: number;
   bridge: any;

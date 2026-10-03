@@ -4,6 +4,7 @@ import { getLargePdfCapabilities, runLargePdfJob } from "../../../lib/largePdfJo
 interface UseCompressPdfArgs {
   fileName: string;
   docBytes: Uint8Array | null;
+  sourceBlob?: Blob | null;
   getDocumentBytes: () => Promise<Uint8Array | null>;
   bridge: any;
   compressLevel: "high" | "medium" | "low";
@@ -16,6 +17,7 @@ export function useCompressPdf(args: UseCompressPdfArgs) {
   const {
     fileName,
     docBytes,
+    sourceBlob = null,
     getDocumentBytes,
     bridge,
     compressLevel,
@@ -28,19 +30,20 @@ export function useCompressPdf(args: UseCompressPdfArgs) {
     setIsProcessing(true);
     setViewerError("Compressing document streams...");
     try {
-      const bytes = docBytes ?? await getDocumentBytes();
-      if (!bytes) throw new Error("PDF bytes are unavailable.");
-
       let compressed: Uint8Array;
       if (bridge.capabilities?.compress !== false) {
+        const bytes = docBytes ?? await getDocumentBytes();
+        if (!bytes) throw new Error("PDF bytes are unavailable.");
         compressed = await bridge.compressPdf(bytes);
       } else {
         const capabilities = await getLargePdfCapabilities();
         if (!capabilities?.qpdf || !capabilities.operations.includes("optimize")) {
           throw new Error("PDF optimization service is unavailable in this web deployment.");
         }
+        const source = sourceBlob ?? docBytes ?? await getDocumentBytes();
+        if (!source) throw new Error("PDF source is unavailable.");
         compressed = await runLargePdfJob({
-          source: bytes,
+          source,
           fileName: fileName || "document.pdf",
           operation: "optimize",
           onStatus: (state) => {

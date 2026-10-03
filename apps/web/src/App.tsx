@@ -622,6 +622,7 @@ export function App() {
                 activeToolId={state.activeDashboardTool}
                 fileName={state.fileName}
                 docBytes={state.docBytes}
+                sourceBlob={state.sourceBlob}
                 getDocumentBytes={materializeDocumentBytes}
                 totalPages={state.totalPages}
                 annotations={state.annotations}

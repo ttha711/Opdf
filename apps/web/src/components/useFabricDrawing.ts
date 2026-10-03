@@ -3,6 +3,7 @@ import * as fabric from "fabric";
 import type { MutableRefObject } from "react";
 import type { AnnotationToolDefaults } from "../lib/app-types";
 import { normalizeTextAlign } from "./PdfTextSelection.editStyle";
+import { canvasDistanceToPdfPoints, formatCanvasMeasurement, type MeasurementUnit } from "../lib/measurement";
 
 interface UseFabricDrawingParams {
   fabricRef: MutableRefObject<fabric.Canvas | null>;
@@ -17,8 +18,9 @@ interface UseFabricDrawingParams {
   onAnnotationCreated?: (page: number, kind: string, payload: Record<string, unknown>) => void;
   setMeasureResult: (value: string | null) => void;
   pageScale: number;
-  drawingScale: number;
-  measurementUnit: "mm" | "m";
+  mmPerPdfPoint: number;
+  measurementUnit: MeasurementUnit;
+  onMeasureCommitted?: (pdfPoints: number) => void;
   /** Called right after an ai-patch image is placed so the parent can switch back to 'select' mode */
   onPatchApplied?: () => void;
 }
@@ -36,8 +38,9 @@ export function useFabricDrawing({
   onAnnotationCreated,
   setMeasureResult,
   pageScale,
-  drawingScale,
+  mmPerPdfPoint,
   measurementUnit,
+  onMeasureCommitted,
   onPatchApplied,
 }: UseFabricDrawingParams) {
   useEffect(() => {
@@ -51,6 +54,7 @@ export function useFabricDrawing({
     const isDrawingRef = { current: false };
     const drawStartRef = { current: { x: 0, y: 0 } };
     const draftBoundsRef = { current: { left: 0, top: 0, width: 0, height: 0 } };
+    const lastMeasureCanvasDistanceRef = { current: 0 };
 
     const drawingHighlight = highlightMode;
     const drawingShape = shapeMode;
@@ -67,12 +71,8 @@ export function useFabricDrawing({
           : null;
 
     const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
-    const formatMeasurement = (canvasDistance: number) => {
-      const pdfPoints = canvasDistance / Math.max(pageScale, 0.0001);
-      const millimeters = pdfPoints * (25.4 / 72) * Math.max(1, drawingScale);
-      if (measurementUnit === "mm") return `${millimeters.toFixed(1)} mm`;
-      return `${(millimeters / 1000).toFixed(3)} m`;
-    };
+    const formatMeasurement = (canvasDistance: number) =>
+      formatCanvasMeasurement(canvasDistance, pageScale, mmPerPdfPoint, measurementUnit);
 
     const drawingSurface =
       ((canvas as any).upperCanvasEl as HTMLCanvasElement | undefined) ?? canvasRef.current;
@@ -114,6 +114,7 @@ export function useFabricDrawing({
           const dx = endX - sx;
           const dy = endY - sy;
           const distance = Math.sqrt(dx * dx + dy * dy);
+          lastMeasureCanvasDistanceRef.current = distance;
           const value = formatMeasurement(distance);
           text.set({ text: value, left: endX + 10, top: endY + 10 });
           setMeasureResult(value);
@@ -141,10 +142,13 @@ export function useFabricDrawing({
       isDrawingRef.current = false;
 
       if (drawingMeasure) {
+        const pdfPoints = canvasDistanceToPdfPoints(lastMeasureCanvasDistanceRef.current, pageScale);
+        if (pdfPoints > 0.01) onMeasureCommitted?.(pdfPoints);
         if (measureLineRef.current) canvas.remove(measureLineRef.current);
         if (measureTextRef.current) canvas.remove(measureTextRef.current);
         measureLineRef.current = null;
         measureTextRef.current = null;
+        lastMeasureCanvasDistanceRef.current = 0;
         canvas.renderAll();
         return;
       }
@@ -431,7 +435,7 @@ export function useFabricDrawing({
         isDrawingRef.current = false;
       }
     };
-  }, [highlightMode, shapeMode, redactMode, measureMode, aiPatchMode, annotationToolDefaults, onAnnotationCreated, pageNumber, setMeasureResult, fabricRef, canvasRef, pageScale, drawingScale, measurementUnit, onPatchApplied]);
+  }, [highlightMode, shapeMode, redactMode, measureMode, aiPatchMode, annotationToolDefaults, onAnnotationCreated, pageNumber, setMeasureResult, fabricRef, canvasRef, pageScale, mmPerPdfPoint, measurementUnit, onMeasureCommitted, onPatchApplied]);
 }
 
 const showPromptPopup = (clientX: number, clientY: number, onConfirm: (text: string) => void, onCancel: () => void) => {

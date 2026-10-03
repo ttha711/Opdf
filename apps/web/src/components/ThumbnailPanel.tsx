@@ -45,7 +45,20 @@ function ThumbnailImage({ blob, url: fallbackUrl, page }: { blob?: Blob; url?: s
 
     const load = async () => {
       if (!shouldLoad) return;
-      const sourceBlob = blob ?? (!fallbackUrl ? await getViewerThumbnail(page) : null);
+
+      let sourceBlob = blob ?? null;
+      if (!sourceBlob && !fallbackUrl) {
+        // The sidebar can become visible a few frames before the EmbedPDF
+        // registry has exposed its thumbnail capability. Retry briefly so the
+        // first visible pages do not get stuck on "Loading...".
+        for (let attempt = 0; attempt < 40 && !cancelled && !sourceBlob; attempt += 1) {
+          sourceBlob = await getViewerThumbnail(page);
+          if (!sourceBlob) {
+            await new Promise<void>((resolve) => window.setTimeout(resolve, 100));
+          }
+        }
+      }
+
       if (cancelled || !sourceBlob) return;
       objectUrl = URL.createObjectURL(sourceBlob);
       setGeneratedUrl(objectUrl);

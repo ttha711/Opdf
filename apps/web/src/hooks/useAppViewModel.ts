@@ -71,6 +71,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     transitionDirection: state.transitionDirection,
     data: state.docBytes,
     sourceBlob: state.sourceBlob,
+    sourceIdentity: state.sourceIdentity,
     page: state.page,
     scale: state.scale,
     rotation: state.rotation,

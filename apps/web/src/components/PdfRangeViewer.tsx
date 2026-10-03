@@ -60,7 +60,7 @@ export function PdfRangeViewer(props: PdfViewerProps) {
   useEffect(() => {
     if (!pdf || !canvasRef.current) return;
     const token = ++renderTokenRef.current;
-    let renderTask: { cancel: () => void; promise: Promise<unknown> } | null = null;
+    let renderTask: any = null;
     void (async () => {
       try {
         const pdfPage = await pdf.getPage(Math.min(Math.max(1, page), pdf.numPages));
@@ -78,8 +78,8 @@ export function PdfRangeViewer(props: PdfViewerProps) {
           canvasContext: context,
           viewport,
           transform: ratio === 1 ? undefined : [ratio, 0, 0, ratio, 0, 0],
-        }) as unknown as typeof renderTask;
-        await renderTask?.promise;
+        });
+        await renderTask.promise;
         onActivePageChange?.(page);
       } catch (error: any) {
         if (error?.name !== "RenderingCancelledException") {

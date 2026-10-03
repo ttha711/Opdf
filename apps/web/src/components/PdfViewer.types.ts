@@ -43,6 +43,7 @@ export interface RenderedPage {
   rotation: number;
   imageUrl: string;
   textItems: RenderedTextItem[];
+  textLoaded?: boolean;
 }
 
 export interface RenderedTextItem {

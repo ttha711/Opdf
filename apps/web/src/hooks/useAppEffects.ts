@@ -128,7 +128,10 @@ export function useAppEffects(args: AppEffectsArgs) {
             setPageRotations(targetTab.pageRotations || {});
 
             if (bridge.replaceAnnotations) {
-              await bridge.replaceAnnotations(targetTab.fileName, targetTab.annotations || []);
+              await bridge.replaceAnnotations(
+                targetTab.sourceIdentity?.startsWith("server://") ? targetTab.sourceIdentity : targetTab.fileName,
+                targetTab.annotations || [],
+              );
             }
 
             setTimeout(() => {
@@ -167,7 +170,10 @@ export function useAppEffects(args: AppEffectsArgs) {
             setPageRotations({});
 
             if (bridge.replaceAnnotations) {
-              await bridge.replaceAnnotations(newTab.fileName, newTab.annotations || []);
+              await bridge.replaceAnnotations(
+                newTab.sourceIdentity?.startsWith("server://") ? newTab.sourceIdentity : newTab.fileName,
+                newTab.annotations || [],
+              );
             }
           } else {
             setShowDashboard(true);

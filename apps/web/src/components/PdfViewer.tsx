@@ -92,11 +92,6 @@ export function PdfViewer({
   );
 
   useEffect(() => {
-    if (serverUrl) {
-      setLocalUrl(null);
-      return;
-    }
-
     const blob = sourceBlob ?? (data ? new Blob([data as unknown as BlobPart], { type: "application/pdf" }) : null);
     if (!blob) {
       setLocalUrl(null);
@@ -106,9 +101,12 @@ export function PdfViewer({
     const url = URL.createObjectURL(blob);
     setLocalUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [data, sourceBlob, serverUrl]);
+  }, [data, sourceBlob]);
 
-  const sourceUrl = serverUrl ?? localUrl;
+  // A local working copy always wins over the persisted server URL. This keeps
+  // unsaved structural edits visible while sourceIdentity still points at the
+  // server document that Save should update.
+  const sourceUrl = localUrl ?? serverUrl;
   const activeRegistry = readyViewer?.sourceUrl === sourceUrl ? readyViewer.registry : null;
 
   const config = useMemo(() => {
@@ -496,7 +494,11 @@ export function PdfViewer({
   }
 
   return (
-    <div className="viewer-shell relative h-full min-h-0 overflow-hidden" data-opdf-engine="pdfium-wasm">
+    <div
+      className="viewer-shell relative h-full min-h-0 overflow-hidden"
+      data-opdf-engine="pdfium-wasm"
+      data-opdf-source={localUrl ? "working-copy" : serverUrl ? "server" : "none"}
+    >
       {activeTool === "measure" ? (
         <PdfMeasurementToolbar
           mode={measurementMode}

@@ -52,6 +52,16 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   const stored = await upload.json() as { filePath: string };
 
   await page.goto(`/?open=${encodeURIComponent(stored.filePath)}`);
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 30_000 });
+  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  await expect(viewer).toBeVisible({ timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await expect(page.getByText(/Page\s+1\s+of\s+24/i)).toBeVisible({ timeout: 30_000 });
+
+  // Structural edits create an unsaved working copy. The viewer must render
+  // that copy instead of continuing to prefer the persisted server URL.
+  const header = page.locator("header");
+  await header.getByRole("button", { name: "View", exact: true }).click();
+  await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
+  await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy", { timeout: 30_000 });
   await expect(page.getByText(/Page\s+1\s+of\s+24/i)).toBeVisible({ timeout: 30_000 });
 });

@@ -449,9 +449,11 @@ export function App() {
           docBytes={state.docBytes}
           getDocumentBytes={materializeDocumentBytes}
           onLoadConvertedPdf={(bytes, name) => {
-            state.setDocBytes(bytes);
             state.setFileName(name);
-            state.setPage(1);
+            replaceDocumentBytes(bytes, 1, {
+              preserveSourceIdentity: false,
+              resetDocumentMetadata: true,
+            });
           }}
           onClose={() => state.setShowDashboard(false)}
           onTriggerCompress={compressDocument}
@@ -569,8 +571,10 @@ export function App() {
             docBytes={state.docBytes}
             totalPages={state.totalPages}
             onMergeComplete={(mergedBytes) => {
-              state.setDocBytes(mergedBytes);
-              state.setPage(1);
+              replaceDocumentBytes(mergedBytes, 1, {
+                preserveSourceIdentity: false,
+                resetDocumentMetadata: true,
+              });
               toast.success("Ghép tài liệu PDF thành công!");
             }}
             setViewerError={state.setViewerError}
@@ -630,9 +634,11 @@ export function App() {
                   state.setActiveDashboardTool(null);
                 }}
                 onLoadConvertedPdf={(bytes, name) => {
-                  state.setDocBytes(bytes);
                   state.setFileName(name);
-                  state.setPage(1);
+                  replaceDocumentBytes(bytes, 1, {
+                    preserveSourceIdentity: false,
+                    resetDocumentMetadata: true,
+                  });
                 }}
                 onOpenHtmlEditor={(html) => {
                   setLiveEditorHtml(html);

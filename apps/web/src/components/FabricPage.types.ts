@@ -3,6 +3,7 @@ export interface FabricPageProps {
   width: number;
   height: number;
   imageUrl: string;
+  pageScale: number;
   annotations: import("@opdf/core").Annotation[];
   highlightMode: boolean;
   shapeMode: boolean;

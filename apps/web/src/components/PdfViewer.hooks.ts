@@ -63,7 +63,11 @@ export function usePdfDataLoader(params: {
 
     let cancelled = false;
     let loadingResolved = false;
-    const loadingTask = getDocument({ data: data.slice() });
+    // Keep the source outside the JS typed-array transfer path. Passing
+    // data.slice() duplicated hundreds of MB before PDF.js could start.
+    const sourceBlob = new Blob([data as unknown as BlobPart], { type: "application/pdf" });
+    const sourceUrl = URL.createObjectURL(sourceBlob);
+    const loadingTask = getDocument({ url: sourceUrl });
 
     (async () => {
       try {
@@ -174,6 +178,7 @@ export function usePdfDataLoader(params: {
     return () => {
       cancelled = true;
       if (!loadingResolved) loadingTask.destroy();
+      URL.revokeObjectURL(sourceUrl);
     };
   }, [data]);
 }

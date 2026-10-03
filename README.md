@@ -21,7 +21,7 @@ Offline-first PDF desktop app with a web-first development workflow. OPDF target
 - External URI links and internal page GoTo links.
 
 ### Review and technical drawings
-- Fabric-based annotations and flattened PDF export.
+- Native EmbedPDF/PDFium annotations with viewer-preserved PDF export.
 - Compare Revisions V2 with alignment, sensitivity control, change regions, navigation, and report export.
 - Calibrated distance, perimeter, and area measurement.
 - Review replies, resolve/reopen state, filters, and page navigation.
@@ -42,7 +42,7 @@ Signature inspection is intentionally conservative: it reports structure and cer
 
 ## Workspace
 
-- `apps/web`: React + Vite + PDF.js viewer and review UI.
+- `apps/web`: React + Vite + EmbedPDF/PDFium viewer and review UI.
 - `apps/desktop`: Electron runtime, local file operations, signing, and secure preload bridge.
 - `apps/editor`: document/editor workspace and supporting server routes.
 - `packages/core`: shared PDF, annotation, OCR, and storage services.

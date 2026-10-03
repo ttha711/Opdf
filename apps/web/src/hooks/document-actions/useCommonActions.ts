@@ -37,7 +37,7 @@ export function useCommonActions({
 
       // Desktop/native bridge remains the first choice where available.
       if (bridge.capabilities?.compress !== false) {
-        const bytes = docBytes ?? await getDocumentBytes();
+        const bytes = (await getDocumentBytes()) ?? docBytes;
         if (!bytes) return;
         const compressed = await bridge.compressPdf(bytes);
         replaceDocumentBytes(compressed);
@@ -55,7 +55,7 @@ export function useCommonActions({
         throw new Error("Server-side PDF optimization is unavailable.");
       }
 
-      const source = sourceBlob ?? docBytes ?? await getDocumentBytes();
+      const source = sourceBlob ?? (await getDocumentBytes()) ?? docBytes;
       if (!source) return;
       const compressed = await runLargePdfJob({
         source,
@@ -86,7 +86,7 @@ export function useCommonActions({
   }
 
   async function mergeDocuments() {
-    const bytes = docBytes ?? await getDocumentBytes();
+    const bytes = (await getDocumentBytes()) ?? docBytes;
     if (!bytes) return;
     setDocBytes(bytes);
     if (setShowMergeModal) {
@@ -96,7 +96,7 @@ export function useCommonActions({
 
   async function splitDocument() {
     if (!fileName) return;
-    const bytes = docBytes ?? await getDocumentBytes();
+    const bytes = (await getDocumentBytes()) ?? docBytes;
     if (!bytes) return;
     setDocBytes(bytes);
     if (setShowSplitModal) {

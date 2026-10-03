@@ -7,6 +7,7 @@ export interface PdfViewerProps {
   transitionDirection?: "next" | "prev";
   data: Uint8Array | null;
   sourceBlob?: Blob | null;
+  sourceIdentity?: string;
   page: number;
   scale: number;
   rotation?: number;
@@ -26,6 +27,8 @@ export interface PdfViewerProps {
   onSearchResult?: (found: boolean, message: string) => void;
   onError?: (message: string | null) => void;
   onActivePageChange?: (page: number) => void;
+  onViewerDirty?: () => void;
+  onViewerScaleChange?: (scale: number) => void;
   onThumbsLoaded?: (thumbs: Array<{ page: number; url: string; blob: Blob }>) => void;
   setThumbnails: Dispatch<SetStateAction<Array<{ page: number; url: string; blob: Blob }>>>;
   initialThumbnails?: Array<{ page: number; url: string; blob: Blob }>;

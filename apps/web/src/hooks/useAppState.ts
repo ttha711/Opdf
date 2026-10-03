@@ -151,16 +151,39 @@ export function useAppState() {
   }, []);
 
   const materializeDocumentBytes = useCallback(async (): Promise<Uint8Array | null> => {
+    const { getViewerDocumentBytes } = await import("../lib/viewer-runtime");
+    const viewerBytes = await getViewerDocumentBytes();
+    if (viewerBytes) {
+      setDocBytes(viewerBytes);
+      return viewerBytes;
+    }
+
     if (docBytes) return docBytes;
-    if (!sourceBlob) return null;
-    const bytes = new Uint8Array(await sourceBlob.arrayBuffer());
-    setDocBytes(bytes);
-    return bytes;
-  }, [docBytes, sourceBlob]);
+
+    if (sourceBlob) {
+      const bytes = new Uint8Array(await sourceBlob.arrayBuffer());
+      setDocBytes(bytes);
+      return bytes;
+    }
+
+    const serverMatch = /^server:\/\/([0-9a-f-]{36})\//i.exec(sourceIdentity);
+    if (serverMatch) {
+      const baseUrl = window.__OPDF_SERVER_BASE__ || "/api/opdf";
+      const response = await fetch(`${baseUrl}/documents/${serverMatch[1]}`);
+      if (!response.ok) {
+        throw new Error(`Unable to materialize server PDF: HTTP ${response.status}`);
+      }
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      setDocBytes(bytes);
+      return bytes;
+    }
+
+    return null;
+  }, [docBytes, sourceBlob, sourceIdentity]);
 
   const hasDocument = useMemo(
-    () => Boolean(fileName && (docBytes || sourceBlob)),
-    [fileName, docBytes, sourceBlob],
+    () => Boolean(fileName && (docBytes || sourceBlob || sourceIdentity.startsWith("server://"))),
+    [fileName, docBytes, sourceBlob, sourceIdentity],
   );
   const highlightMode = activeTool === "highlight";
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
@@ -395,7 +418,7 @@ export function useAppState() {
   // Automatic sync of active document properties into its tab
   useEffect(() => {
     if (isSwitchingRef.current) return;
-    if (!fileName || (!docBytes && !sourceBlob)) return;
+    if (!fileName || (!docBytes && !sourceBlob && !sourceIdentity.startsWith("server://"))) return;
 
     const currentTabs = tabsRef.current;
     const activeTab = currentTabs.find(t => t.id === activeTabId);

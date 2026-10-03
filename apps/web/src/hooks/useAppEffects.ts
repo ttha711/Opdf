@@ -4,6 +4,7 @@ import type { Annotation } from "@opdf/core";
 import { loadFullDraft, saveTabsList, loadTabsList, saveActiveTabId, loadActiveTabId, type OpdfTab } from "../lib/web-storage";
 import type { ActiveTool } from "../lib/app-types";
 import { isOpdfServerRuntime } from "./useOpdfBridge";
+import { getViewerControls } from "../lib/viewer-runtime";
 
 type AppEffectsArgs = {
   bridge: {
@@ -26,6 +27,8 @@ type AppEffectsArgs = {
   theme: "light" | "dark";
   setFileName: (v: string) => void;
   setDocBytes: (v: Uint8Array | null) => void;
+  setSourceBlob: (v: Blob | null) => void;
+  setSourceIdentity: (v: string) => void;
   setAnnotations: (v: Annotation[]) => void;
   setPage: (v: number) => void;
   setThumbnails: (v: Array<{ page: number; url: string; blob: Blob }>) => void;
@@ -59,7 +62,7 @@ type AppEffectsArgs = {
 export function useAppEffects(args: AppEffectsArgs) {
   const {
     bridge, hasDesktopBridge, docBytes, hasDocument, fileName, annotations, thumbnails, bookmarks, page, theme,
-    setFileName, setDocBytes, setAnnotations, setPage, setThumbnails, setBookmarks, setPageRotations, setShowFindBar, setOpenMenu, setActiveTool, setTheme, findInputRef,
+    setFileName, setDocBytes, setSourceBlob, setSourceIdentity, setAnnotations, setPage, setThumbnails, setBookmarks, setPageRotations, setShowFindBar, setOpenMenu, setActiveTool, setTheme, findInputRef,
     openFile, savePdf, savePdfAs, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage,
 
     // NEW TABS PROPS
@@ -130,6 +133,8 @@ export function useAppEffects(args: AppEffectsArgs) {
             setShowDashboard(false);
             setFileName(targetTab.fileName);
             setDocBytes(targetTab.docBytes);
+            setSourceBlob(targetTab.sourceBlob ?? null);
+            setSourceIdentity(targetTab.sourceIdentity ?? "");
             setPage(targetTab.page || 1);
             setAnnotations(targetTab.annotations || []);
             setBookmarks(targetTab.bookmarks || []);
@@ -173,6 +178,8 @@ export function useAppEffects(args: AppEffectsArgs) {
             setShowDashboard(false);
             setFileName(newTab.fileName);
             setDocBytes(newTab.docBytes);
+            setSourceBlob(newTab.sourceBlob ?? null);
+            setSourceIdentity(newTab.sourceIdentity ?? "");
             setPage(newTab.page);
             setAnnotations(newTab.annotations);
             setBookmarks(newTab.bookmarks);
@@ -257,9 +264,20 @@ export function useAppEffects(args: AppEffectsArgs) {
       if (ctrl && e.key === "o") { e.preventDefault(); openFile(); return; }
       if (ctrl && e.key === "s" && !e.shiftKey) { e.preventDefault(); savePdf(); return; }
       if (ctrl && e.shiftKey && e.key.toLowerCase() === "s") { e.preventDefault(); savePdfAs(); return; }
-      if (ctrl && e.key === "z") { e.preventDefault(); void undoAnnotations(); return; }
-      if (ctrl && (e.key === "y" || (e.shiftKey && e.key === "Z"))) { e.preventDefault(); void redoAnnotations(); return; }
+      if (ctrl && e.key === "z") {
+        if (getViewerControls()) return;
+        e.preventDefault();
+        void undoAnnotations();
+        return;
+      }
+      if (ctrl && (e.key === "y" || (e.shiftKey && e.key === "Z"))) {
+        if (getViewerControls()) return;
+        e.preventDefault();
+        void redoAnnotations();
+        return;
+      }
       if (ctrl && e.key === "f") {
+        if (getViewerControls()) return;
         e.preventDefault();
         setShowFindBar(prev => {
           if (!prev) setTimeout(() => findInputRef.current?.focus(), 50);

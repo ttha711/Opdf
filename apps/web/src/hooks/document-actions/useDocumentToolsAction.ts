@@ -43,7 +43,7 @@ export function useDocumentToolsAction({
 
     if (activeTool === "rotate-all-left" || activeTool === "rotate-all-right") {
       try {
-        const bytes = docBytes ?? await getDocumentBytes();
+        const bytes = (await getDocumentBytes()) ?? docBytes;
         if (!bytes) return;
         const degrees = activeTool === "rotate-all-left" ? -90 : 90;
         const pages = Array.from({ length: totalPages }, (_, index) => index + 1);
@@ -61,7 +61,7 @@ export function useDocumentToolsAction({
   async function runConfiguredDocumentTool(tool: DocumentTool, options: DocumentToolOptions = {}) {
     if (!fileName) return;
     try {
-      const bytes = docBytes ?? await getDocumentBytes();
+      const bytes = (await getDocumentBytes()) ?? docBytes;
       if (!bytes) return;
       if (tool === "delete-pages") {
         const pages = Array.isArray(options.pages)

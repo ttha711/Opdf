@@ -5,9 +5,12 @@ Offline-first PDF desktop app with a web-first development workflow. OPDF target
 ## Current capabilities
 
 ### PDF viewing and large-document workflow
-- PDF.js rendering with bounded page/raster caching and lazy Blob-backed document sources.
-- Page navigation, thumbnails, zoom, fit-page/fit-width, drawing-oriented panning, and lazy text extraction.
-- Large-PDF regression tooling and Playwright coverage for many-sheet documents.
+- Web-first PDFium/WASM rendering through the MIT-licensed EmbedPDF viewer.
+- Virtualized continuous scrolling and virtualized thumbnails for large drawing sets.
+- Progressive URL loading in the drop-in viewer; OPDF Server documents are passed to the viewer by URL instead of being copied into a full browser Blob first.
+- Native viewer zoom, fit-page/fit-width, rotation, search, forms, annotations, redaction, selection, and export are available through the PDFium plugin registry.
+- OPDF Save/Export/document tools materialize the current PDFium working copy first so viewer edits are preserved.
+- Large-PDF regression and server E2E coverage require the PDFium/WASM viewer for many-sheet technical documents.
 
 ### Document operations
 - Merge, split, insert, delete, reorder, rotate, crop, watermark, header/footer, and page-number operations.
@@ -63,7 +66,7 @@ npm run server-start
 
 Default address: `http://127.0.0.1:8787`.
 
-Server mode streams PDF uploads to disk, supports HTTP Range reads for large PDFs, persists annotations/recent/session metadata, and sends Ctrl+S saves back to server storage. Keep the server on loopback behind Cloudflare Tunnel/Access or another authenticated reverse proxy for remote use.
+Server mode streams PDF uploads to disk, supports HTTP Range reads for large PDFs, serves WebAssembly with the correct MIME type, persists recents/session metadata, and sends Ctrl+S saves back to server storage. Persisted server PDFs stay URL-backed in the browser until an editing/conversion action explicitly needs complete document bytes. Keep the server on loopback behind Cloudflare Tunnel/Access or another authenticated reverse proxy for remote use.
 
 See `docs/SERVER_DEPLOYMENT.md` for Windows Server, data-directory, Cloudflare Tunnel, upload-limit, and production guidance.
 
@@ -141,3 +144,20 @@ Before publishing an update, replace the SHA placeholder with the digest of the 
 ## Release state
 
 The repository is release-gated through typecheck, unit tests, production builds, desktop signing smoke coverage, and Playwright E2E. Platform installers should still be validated on representative real machines before broad deployment, especially OS signing/notarization, LibreOffice/Python conversion paths, and organization-specific certificates.
+
+
+## Web viewer architecture
+
+The primary viewer is browser-only and does not depend on Electron/native rendering:
+
+```
+OPDF React shell
+  -> EmbedPDF drop-in viewer
+  -> PDFium WebAssembly
+  -> virtualized page/thumbnail rendering
+  -> OPDF Server URL / HTTP Range source
+```
+
+The former custom PDF.js page-raster/WebP path is no longer the primary viewer. PDF.js remains available to document-processing features that still need its parsing/text utilities.
+
+For engineering/CAD workloads, validate performance with representative A0/A1 vector-heavy PDFs rather than file size alone. OPDF's E2E suite includes a generated many-sheet technical drawing set, but real 100-500+ MB project files remain the release benchmark.

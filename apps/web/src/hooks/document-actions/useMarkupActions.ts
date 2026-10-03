@@ -22,7 +22,7 @@ export function useMarkupActions({
   setViewerError: Dispatch<SetStateAction<string | null>>;
 }) {
   async function runConfiguredWatermark(options: WatermarkOptions) {
-    const bytes = docBytes ?? await getDocumentBytes();
+    const bytes = (await getDocumentBytes()) ?? docBytes;
     if (!bytes) return;
     if (!options.text?.trim()) throw new Error("Watermark text is required");
     try {
@@ -38,7 +38,7 @@ export function useMarkupActions({
 
   async function runConfiguredMarkupTool(tool: MarkupTool, options: MarkupOptions) {
     if (!fileName) return;
-    const bytes = docBytes ?? await getDocumentBytes();
+    const bytes = (await getDocumentBytes()) ?? docBytes;
     if (!bytes) return;
     const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
     try {

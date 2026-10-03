@@ -1,5 +1,6 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction, WheelEvent } from "react";
 import type { ActiveTool, PendingRect, ViewMode, ZoomPreset } from "../lib/app-types";
+import { getViewerControls } from "../lib/viewer-runtime";
 
 export function useViewerControls({
   hasDocument,
@@ -60,25 +61,53 @@ export function useViewerControls({
     setZoomPreset("actual");
     if (typeof customScale === "number" && !isNaN(customScale)) {
       setScale(clampScale(customScale));
-    } else {
-      setScale((s) => clampScale(Number((s * 1.15).toFixed(3))));
+      return;
     }
+    const viewer = getViewerControls();
+    if (viewer?.zoomIn) {
+      viewer.zoomIn();
+      return;
+    }
+    setScale((s) => clampScale(Number((s * 1.15).toFixed(3))));
   }
 
   function zoomOut() {
     setZoomPreset("actual");
+    const viewer = getViewerControls();
+    if (viewer?.zoomOut) {
+      viewer.zoomOut();
+      return;
+    }
     setScale((s) => clampScale(Number((s / 1.15).toFixed(3))));
   }
 
   function resetZoom() {
     setZoomPreset("actual");
+    const viewer = getViewerControls();
+    if (viewer?.resetZoom) {
+      viewer.resetZoom();
+      return;
+    }
     setScale(1);
   }
 
   function applyZoomPreset(preset: ZoomPreset) {
     setZoomPreset(preset);
+    const pdfium = getViewerControls();
     if (preset === "actual") {
+      if (pdfium?.resetZoom) {
+        pdfium.resetZoom();
+        return;
+      }
       setScale(1);
+      return;
+    }
+    if (preset === "fit-width" && pdfium?.fitWidth) {
+      pdfium.fitWidth();
+      return;
+    }
+    if (preset === "fit-page" && pdfium?.fitPage) {
+      pdfium.fitPage();
       return;
     }
 
@@ -103,6 +132,11 @@ export function useViewerControls({
   }
 
   function rotateLeft() {
+    const viewer = getViewerControls();
+    if (viewer?.rotateBackward) {
+      viewer.rotateBackward();
+      return;
+    }
     setPageRotations((prev) => {
       const currentRotation = prev[page] || 0;
       const nextRotation = (currentRotation - 90 + 360) % 360;
@@ -111,6 +145,11 @@ export function useViewerControls({
   }
 
   function rotateRight() {
+    const viewer = getViewerControls();
+    if (viewer?.rotateForward) {
+      viewer.rotateForward();
+      return;
+    }
     setPageRotations((prev) => {
       const currentRotation = prev[page] || 0;
       const nextRotation = (currentRotation + 90) % 360;
@@ -136,6 +175,7 @@ export function useViewerControls({
   }
 
   function onViewerWheel(event: WheelEvent<HTMLElement>) {
+    if (getViewerControls()) return;
     if (!hasDocument || highlightMode || event.ctrlKey || viewMode === "continuous") return;
     const now = Date.now();
     if (now - lastWheelFlipAtRef.current < 180 || Math.abs(event.deltaY) < 10) return;

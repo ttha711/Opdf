@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ChangeEvent, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { Annotation } from "@opdf/core";
 import { isOpdfServerRuntime, useOpdfBridge } from "./useOpdfBridge";
-import { fetchServerPdfBlob, uploadPdfToServer } from "./opdf-bridge/serverBridge";
+import { uploadPdfToServer } from "./opdf-bridge/serverBridge";
 import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmDialog";
 import { computeBlobHash, computeFileHash, loadAnnotationsByHash } from "../lib/web-storage";
@@ -211,7 +211,7 @@ export function useDocumentLifecycle({
       setViewerError("Loading file...");
       const isServerDocument = filePath.startsWith("server://");
       const blob = isServerDocument
-        ? await fetchServerPdfBlob(filePath, window.__OPDF_SERVER_BASE__ || "/api/opdf")
+        ? null
         : await fetch(`/@fs/${filePath.replaceAll("\\", "/")}`).then((response) => {
             if (!response.ok) throw new Error(`HTTP ${response.status} when trying to load file`);
             return response.blob();
@@ -222,7 +222,7 @@ export function useDocumentLifecycle({
         : encodedName;
       const identity = isServerDocument
         ? filePath
-        : await computeBlobHash(blob, displayName, 0);
+        : await computeBlobHash(blob as Blob, displayName, 0);
       const loadedAnnotations = isServerDocument
         ? await bridge.listAnnotations(identity)
         : ((await loadAnnotationsByHash(identity) ?? []) as Annotation[]);
@@ -308,7 +308,7 @@ export function useDocumentLifecycle({
       try {
         const isServerDocument = devOpenPath.startsWith("server://");
         const blob = isServerDocument
-          ? await fetchServerPdfBlob(devOpenPath, window.__OPDF_SERVER_BASE__ || "/api/opdf")
+          ? null
           : await fetch(`/@fs/${devOpenPath.replaceAll("\\", "/")}`).then((response) => {
               if (!response.ok) throw new Error(`HTTP ${response.status}`);
               return response.blob();
@@ -318,7 +318,7 @@ export function useDocumentLifecycle({
         const displayName = isServerDocument ? decodeURIComponent(encodedName) : encodedName;
         const identity = isServerDocument
           ? devOpenPath
-          : await computeBlobHash(blob, displayName, 0);
+          : await computeBlobHash(blob as Blob, displayName, 0);
         const loadedAnnotations = isServerDocument
           ? await bridge.listAnnotations(identity)
           : [];

@@ -50,12 +50,12 @@ export function useExportAction({
     try {
       setSaveState("saving");
 
-      let bytes = docBytes;
+      let bytes = (await getDocumentBytes()) ?? docBytes;
       let storageKey = sourceIdentity;
       const isServerDocument = sourceIdentity.startsWith("server://");
 
       if (hasDesktopBridge) {
-        bytes = bytes ?? await getDocumentBytes();
+        bytes = (await getDocumentBytes()) ?? bytes;
         if (!bytes) throw new Error("Document bytes are unavailable.");
         storageKey = await computeFileHash(bytes);
         await bridge.saveDocument(fileName, bytes);
@@ -63,7 +63,7 @@ export function useExportAction({
           await bridge.replaceAnnotations(fileName, annotations);
         }
       } else if (isServerDocument) {
-        bytes = bytes ?? await getDocumentBytes();
+        bytes = (await getDocumentBytes()) ?? bytes;
         if (!bytes) throw new Error("Document bytes are unavailable.");
         await bridge.saveDocument(sourceIdentity, bytes);
         if (bridge.replaceAnnotations) {
@@ -114,7 +114,7 @@ export function useExportAction({
     if (!hasDocument || !fileName) return;
     try {
       setSaveState("saving");
-      const bytes = docBytes ?? await getDocumentBytes();
+      const bytes = (await getDocumentBytes()) ?? docBytes;
       if (!bytes) throw new Error("Document bytes are unavailable.");
 
       if (hasDesktopBridge) {
@@ -187,7 +187,7 @@ export function useExportAction({
     if (!hasDocument || !fileName) return;
     try {
       setSaveState("saving");
-      const bytes = docBytes ?? await getDocumentBytes();
+      const bytes = (await getDocumentBytes()) ?? docBytes;
       if (!bytes) throw new Error("Document bytes are unavailable.");
       const flattenedBytes = await bridge.exportFlattened(bytes, annotations);
 

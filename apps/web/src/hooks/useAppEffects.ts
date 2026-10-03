@@ -4,6 +4,7 @@ import type { Annotation } from "@opdf/core";
 import { loadFullDraft, saveTabsList, loadTabsList, saveActiveTabId, loadActiveTabId, type OpdfTab } from "../lib/web-storage";
 import type { ActiveTool } from "../lib/app-types";
 import { isOpdfServerRuntime } from "./useOpdfBridge";
+import { getViewerControls } from "../lib/viewer-runtime";
 
 type AppEffectsArgs = {
   bridge: {
@@ -263,9 +264,20 @@ export function useAppEffects(args: AppEffectsArgs) {
       if (ctrl && e.key === "o") { e.preventDefault(); openFile(); return; }
       if (ctrl && e.key === "s" && !e.shiftKey) { e.preventDefault(); savePdf(); return; }
       if (ctrl && e.shiftKey && e.key.toLowerCase() === "s") { e.preventDefault(); savePdfAs(); return; }
-      if (ctrl && e.key === "z") { e.preventDefault(); void undoAnnotations(); return; }
-      if (ctrl && (e.key === "y" || (e.shiftKey && e.key === "Z"))) { e.preventDefault(); void redoAnnotations(); return; }
+      if (ctrl && e.key === "z") {
+        if (getViewerControls()) return;
+        e.preventDefault();
+        void undoAnnotations();
+        return;
+      }
+      if (ctrl && (e.key === "y" || (e.shiftKey && e.key === "Z"))) {
+        if (getViewerControls()) return;
+        e.preventDefault();
+        void redoAnnotations();
+        return;
+      }
       if (ctrl && e.key === "f") {
+        if (getViewerControls()) return;
         e.preventDefault();
         setShowFindBar(prev => {
           if (!prev) setTimeout(() => findInputRef.current?.focus(), 50);

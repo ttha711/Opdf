@@ -31,6 +31,41 @@ async function expectJson<T>(response: Response): Promise<T> {
   throw new Error(message);
 }
 
+function encodeOperationOptions(value: Record<string, unknown>) {
+  const json = JSON.stringify(value);
+  const bytes = new TextEncoder().encode(json);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function runPdfOperation(
+  baseUrl: string,
+  operation: "compress" | "encrypt" | "decrypt",
+  bytes: Uint8Array,
+  options?: Record<string, unknown>,
+) {
+  const response = await fetch(`${baseUrl}/operations/${operation}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/pdf",
+      ...(options ? { "X-OPDF-Options": encodeOperationOptions(options) } : {}),
+    },
+    body: bytes as unknown as BodyInit,
+  });
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+    try {
+      const payload = await response.json() as { error?: string };
+      if (payload.error) message = payload.error;
+    } catch {
+      // Keep the HTTP status as the fallback message.
+    }
+    throw new Error(message);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
+
 function downloadBytes(bytes: Uint8Array, name: string) {
   const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
@@ -82,11 +117,27 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
   return {
     ...browser,
     capabilities: {
-      compress: browser.capabilities?.compress ?? false,
-      encrypt: browser.capabilities?.encrypt ?? false,
+      compress: true,
+      encrypt: true,
       bookmarksPersist: true,
       pdfA: browser.capabilities?.pdfA ?? false,
       digitalSignature: false,
+    },
+
+    async compressPdf(bytes: Uint8Array) {
+      return runPdfOperation(baseUrl, "compress", bytes);
+    },
+
+    async encryptPdf(bytes: Uint8Array, opts: PasswordOptions) {
+      return runPdfOperation(baseUrl, "encrypt", bytes, {
+        userPassword: opts.userPassword,
+        ownerPassword: opts.ownerPassword,
+        permissions: opts.permissions,
+      });
+    },
+
+    async decryptPdf(bytes: Uint8Array, password: string) {
+      return runPdfOperation(baseUrl, "decrypt", bytes, { password });
     },
 
     async pickAndOpenDocument() {
@@ -227,12 +278,6 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
       return browser.listOcrJobs();
     },
 
-    async encryptPdf(bytes: Uint8Array, opts: PasswordOptions) {
-      return browser.encryptPdf(bytes, opts);
-    },
-    async decryptPdf(bytes: Uint8Array, password: string) {
-      return browser.decryptPdf(bytes, password);
-    },
     async insertPages(bytes: Uint8Array, opts: InsertOptions) {
       return browser.insertPages(bytes, opts);
     },

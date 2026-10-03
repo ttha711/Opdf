@@ -58,7 +58,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setAnnotations: state.setAnnotations,
     setBookmarks: state.setBookmarks,
     setPageRotations: state.setPageRotations,
-    setTransitionTick: state.setTransitionTick,
     setSaveState: state.setSaveState,
     markDocumentSaved: state.markDocumentSaved,
     clearDocumentSaveTracking: state.clearDocumentSaveTracking,

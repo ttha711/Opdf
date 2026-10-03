@@ -47,6 +47,16 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/Page\s+1\s+of\s+120/i)).toBeVisible({ timeout: 30_000 });
 
+  // OPDF's page-management rail must remain available on the PDFium path.
+  await expect(page.getByText("Ctrl+click or Shift+click to select pages")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Page 1" }).first()).toBeVisible({ timeout: 15_000 });
+
+  // Measurement is implemented with native PDFium vector annotations, not the
+  // removed PDF.js/Fabric page renderer.
+  await page.getByRole("button", { name: /Measure Tool/i }).click();
+  await expect(page.getByText("Measure", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Measurement mode")).toHaveValue("distance");
+
   // The visible header input is the page-number field; exclude the hidden file input.
   const navigationField = page.locator('header input:not([type="file"])').first();
   await navigationField.fill("100");

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "./ToastProvider";
 import { useConfirm } from "./ConfirmDialog";
+import { getViewerThumbnail } from "../lib/viewer-runtime";
 
 interface Bookmark {
   id: string;
@@ -11,33 +12,82 @@ interface Bookmark {
 }
 
 function ThumbnailImage({ blob, url: fallbackUrl, page }: { blob?: Blob; url?: string; page: number }) {
-  const [url, setUrl] = useState<string>("");
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [generatedUrl, setGeneratedUrl] = useState("");
+  const [shouldLoad, setShouldLoad] = useState(Boolean(blob || fallbackUrl));
 
   useEffect(() => {
-    if (!blob) return;
-    const objectUrl = URL.createObjectURL(blob);
-    setUrl(objectUrl);
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [blob]);
-
-  const finalUrl = url || fallbackUrl;
-
-  if (!finalUrl) {
-    return (
-      <div className="h-[140px] w-full flex items-center justify-center border border-[#ccc] bg-white text-xs text-[var(--text-secondary)]">
-        Loading...
-      </div>
+    if (blob || fallbackUrl) {
+      setShouldLoad(true);
+      return;
+    }
+    const host = hostRef.current;
+    if (!host || typeof IntersectionObserver === "undefined") {
+      setShouldLoad(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "600px 0px" },
     );
-  }
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [blob, fallbackUrl, page]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl = "";
+
+    const load = async () => {
+      if (!shouldLoad) return;
+
+      let sourceBlob = blob ?? null;
+      if (!sourceBlob && !fallbackUrl) {
+        // The sidebar can become visible a few frames before the EmbedPDF
+        // registry has exposed its thumbnail capability. Retry briefly so the
+        // first visible pages do not get stuck on "Loading...".
+        for (let attempt = 0; attempt < 40 && !cancelled && !sourceBlob; attempt += 1) {
+          sourceBlob = await getViewerThumbnail(page);
+          if (!sourceBlob) {
+            await new Promise<void>((resolve) => window.setTimeout(resolve, 100));
+          }
+        }
+      }
+
+      if (cancelled || !sourceBlob) return;
+      objectUrl = URL.createObjectURL(sourceBlob);
+      setGeneratedUrl(objectUrl);
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [blob, fallbackUrl, page, shouldLoad]);
+
+  const finalUrl = generatedUrl || fallbackUrl;
 
   return (
-    <img
-      src={finalUrl}
-      className="h-auto max-h-[140px] w-full border border-[#ccc] bg-white object-contain shadow-sm"
-      alt={`Page ${page}`}
-    />
+    <div ref={hostRef} className="min-h-[120px] w-full">
+      {finalUrl ? (
+        <img
+          src={finalUrl}
+          className="h-auto max-h-[140px] w-full border border-[#ccc] bg-white object-contain shadow-sm"
+          alt={`Page ${page}`}
+          loading="lazy"
+        />
+      ) : (
+        <div className="h-[140px] w-full flex items-center justify-center border border-[#ccc] bg-white text-xs text-[var(--text-secondary)]">
+          {shouldLoad ? "Loading..." : `Page ${page}`}
+        </div>
+      )}
+    </div>
   );
 }
 

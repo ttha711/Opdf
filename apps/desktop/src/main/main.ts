@@ -1,8 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { mkdtemp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
@@ -493,9 +493,9 @@ async function checkAndDownloadUpdates(win: BrowserWindow) {
     }
 
     const indexPath = join(destDir, "index.html");
-    if (!existsSync(indexPath)) {
+    if (!isRegularNonSymlinkFile(indexPath)) {
       await rm(destDir, { recursive: true, force: true });
-      throw new Error("Downloaded update does not contain index.html");
+      throw new Error("Downloaded update does not contain a safe regular index.html file");
     }
 
     pendingUpdate = { version: manifest.version, path: indexPath };
@@ -521,17 +521,41 @@ function compareVersions(v1: string, v2: string): number {
   return 0;
 }
 
+function isRegularNonSymlinkFile(filePath: string): boolean {
+  try {
+    const stat = lstatSync(filePath);
+    return stat.isFile() && !stat.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
 function resolveIndexHtmlPath(): string {
-  const activeConfigPath = join(app.getPath("userData"), "active-version.json");
+  const userDataPath = app.getPath("userData");
+  const updatesRoot = resolve(join(userDataPath, "web-updates"));
+  const activeConfigPath = join(userDataPath, "active-version.json");
+
   if (existsSync(activeConfigPath)) {
     try {
-      const config = JSON.parse(readFileSync(activeConfigPath, "utf-8"));
-      if (config.version && config.path && existsSync(config.path)) {
-        console.log(`Loading updated web assets from: ${config.path}`);
-        return config.path;
+      const config = JSON.parse(readFileSync(activeConfigPath, "utf-8")) as {
+        version?: unknown;
+        path?: unknown;
+      };
+      if (
+        typeof config.version === "string" &&
+        UPDATE_VERSION_PATTERN.test(config.version) &&
+        typeof config.path === "string"
+      ) {
+        const expectedIndexPath = resolve(join(updatesRoot, config.version, "index.html"));
+        const configuredPath = resolve(config.path);
+        if (configuredPath === expectedIndexPath && isRegularNonSymlinkFile(configuredPath)) {
+          console.log(`Loading updated web assets from: ${configuredPath}`);
+          return configuredPath;
+        }
       }
-    } catch (e) {
-      console.error("Failed to read active-version.json", e);
+      console.error("Ignoring invalid active-version.json update path.");
+    } catch (error) {
+      console.error("Failed to read active-version.json", error);
     }
   }
 

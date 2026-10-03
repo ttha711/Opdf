@@ -10,6 +10,7 @@ interface UseConversionActionsArgs {
   fileName: string;
   fileBase: string;
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   thumbnails: Array<{ page: number; url: string; blob: Blob }>;
   bridge: any;
   onLoadConvertedPdf: (bytes: Uint8Array, fileName: string) => void;

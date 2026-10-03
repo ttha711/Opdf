@@ -12,6 +12,7 @@ import {
 } from "../lib/viewer-runtime";
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
 import { AiPatchDialog } from "./AiPatchDialog";
+import { MeasurementCalibrationDialog } from "./MeasurementCalibrationDialog";
 import { resolvePdfiumPageCount } from "../lib/pdfiumDocumentState";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import {
@@ -80,6 +81,7 @@ export function PdfViewer({
   });
   const [measurementResult, setMeasurementResult] = useState<string | null>(null);
   const [pendingAiPatch, setPendingAiPatch] = useState<{ pageIndex: number; rect: any } | null>(null);
+  const [showCalibrationDialog, setShowCalibrationDialog] = useState(false);
   const lastMeasuredPdfValueRef = useRef<number | null>(null);
 
   const serverUrl = useMemo(
@@ -440,16 +442,19 @@ export function PdfViewer({
   const calibrateLastDistance = () => {
     const pdfDistance = lastMeasuredPdfValueRef.current;
     if (!pdfDistance || pdfDistance <= 0) return;
-    const input = window.prompt(`Known distance in ${measurementUnit}:`, "1");
-    if (!input) return;
-    const numeric = Number(input);
-    if (!Number.isFinite(numeric) || numeric <= 0) return;
+    setShowCalibrationDialog(true);
+  };
+
+  const applyCalibration = (numeric: number) => {
+    const pdfDistance = lastMeasuredPdfValueRef.current;
+    if (!pdfDistance || pdfDistance <= 0 || !Number.isFinite(numeric) || numeric <= 0) return;
     const knownMillimeters = measurementUnit === "m" ? numeric * 1000 : measurementUnit === "cm" ? numeric * 10 : numeric;
     const next = calibrateMmPerPdfPoint(pdfDistance, knownMillimeters);
     if (!next) return;
     setCalibratedMmPerPdfPoint(next);
     window.localStorage.setItem(calibrationKey, String(next));
     setMeasurementResult(formatMillimeters(pdfDistance * next, measurementUnit));
+    setShowCalibrationDialog(false);
   };
 
   const resetCalibration = () => {
@@ -514,6 +519,12 @@ export function PdfViewer({
         open={Boolean(pendingAiPatch)}
         onCancel={cancelAiPatch}
         onApply={applyAiPatch}
+      />
+      <MeasurementCalibrationDialog
+        open={showCalibrationDialog}
+        unit={measurementUnit}
+        onCancel={() => setShowCalibrationDialog(false)}
+        onApply={applyCalibration}
       />
       {activeTool === "measure" ? (
         <PdfMeasurementToolbar

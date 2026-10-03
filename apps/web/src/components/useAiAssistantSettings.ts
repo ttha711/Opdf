@@ -5,9 +5,11 @@ export function useAiAssistantSettings() {
   const [showSettings, setShowSettings] = useState(false);
   const [engineMode, setEngineMode] = useState<EngineMode>("dify");
   
-  // Dify API Settings (Defaults pre-populated from environment variables or safe fallbacks)
+  const isDesktopRuntime = typeof window !== "undefined" && Boolean(window.opdf?.setAiConfig);
+
+  // VITE_* values are browser-development fallbacks. Desktop secrets live in the main process.
   const [difyUrl, setDifyUrl] = useState(import.meta.env.VITE_DIFY_API_URL || "https://api.dify.ai/v1");
-  const [difyKey, setDifyKey] = useState(import.meta.env.VITE_DIFY_API_KEY || "");
+  const [difyKey, setDifyKey] = useState(isDesktopRuntime ? "" : (import.meta.env.VITE_DIFY_API_KEY || ""));
   const [conversationId, setConversationId] = useState("");
   
   // Iframe Integration Settings (Defaults pointing to http://localhost:3005)
@@ -22,38 +24,65 @@ export function useAiAssistantSettings() {
     }
   };
 
-  // Load settings from localStorage on mount & Register postMessage bridge
+  // Desktop keeps API secrets in the main process for the current app session.
+  // Browser development keeps the legacy localStorage fallback.
   useEffect(() => {
-    let savedMode = localStorage.getItem("opdf_ai_mode");
-    let savedUrl = localStorage.getItem("opdf_dify_url") || "";
-    let savedKey = localStorage.getItem("opdf_dify_key") || "";
-    const savedConvId = localStorage.getItem("opdf_dify_conv_id");
-    const savedIframeUrl = localStorage.getItem("opdf_iframe_url");
+    let cancelled = false;
 
-    // Resolve default environment variables or safe fallback values
-    const defaultUrl = import.meta.env.VITE_DIFY_API_URL || "https://api.dify.ai/v1";
-    const defaultKey = import.meta.env.VITE_DIFY_API_KEY || "";
+    const load = async () => {
+      let savedMode = localStorage.getItem("opdf_ai_mode");
+      let savedUrl = localStorage.getItem("opdf_dify_url") || "";
+      let savedKey = isDesktopRuntime ? "" : (localStorage.getItem("opdf_dify_key") || "");
+      const savedConvId = localStorage.getItem("opdf_dify_conv_id");
+      const savedIframeUrl = localStorage.getItem("opdf_iframe_url");
 
-    // Fall back to environment defaults when nothing is saved
-    if (!savedUrl || savedUrl === "https://api.dify.ai/v1") {
-      savedUrl = defaultUrl;
-      localStorage.setItem("opdf_dify_url", savedUrl);
-    }
-    if (!savedKey) {
-      savedKey = defaultKey;
-      if (savedKey) localStorage.setItem("opdf_dify_key", savedKey);
-    }
+      const defaultUrl = import.meta.env.VITE_DIFY_API_URL || "https://api.dify.ai/v1";
+      const defaultKey = isDesktopRuntime ? "" : (import.meta.env.VITE_DIFY_API_KEY || "");
 
-    savedMode = "dify";
-    localStorage.setItem("opdf_ai_mode", "dify");
+      if (isDesktopRuntime) {
+        localStorage.removeItem("opdf_dify_key");
+        try {
+          const desktopConfig = await window.opdf?.getAiConfig?.();
+          if (desktopConfig) {
+            savedMode = desktopConfig.mode;
+            savedUrl = desktopConfig.difyUrl || savedUrl;
+            savedKey = desktopConfig.difyKey || "";
+          }
+        } catch (error) {
+          console.warn("Failed to load AI config from desktop main process:", error);
+        }
+      }
 
-    setEngineMode("dify");
-    setDifyUrl(savedUrl);
-    setDifyKey(savedKey);
-    if (savedConvId) setConversationId(savedConvId);
-    if (savedIframeUrl) setIframeUrl(savedIframeUrl);
-    void syncAiConfigToDesktop("dify", savedUrl, savedKey);
-  }, []);
+      if (!savedUrl || savedUrl === "https://api.dify.ai/v1") {
+        savedUrl = defaultUrl;
+        localStorage.setItem("opdf_dify_url", savedUrl);
+      }
+      if (!savedKey && defaultKey) {
+        savedKey = defaultKey;
+        if (!isDesktopRuntime) localStorage.setItem("opdf_dify_key", savedKey);
+      }
+
+      savedMode = savedMode || "dify";
+      localStorage.setItem("opdf_ai_mode", savedMode);
+
+      if (cancelled) return;
+      setEngineMode(savedMode as EngineMode);
+      setDifyUrl(savedUrl);
+      setDifyKey(savedKey);
+      if (savedConvId) setConversationId(savedConvId);
+      if (savedIframeUrl) setIframeUrl(savedIframeUrl);
+
+      if (isDesktopRuntime && savedKey) {
+        void syncAiConfigToDesktop(savedMode as EngineMode, savedUrl, savedKey);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDesktopRuntime]);
+
 
   return {
     showSettings,

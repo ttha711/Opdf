@@ -70,6 +70,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     transitionTick: state.transitionTick,
     transitionDirection: state.transitionDirection,
     data: state.docBytes,
+    sourceBlob: state.sourceBlob,
     page: state.page,
     scale: state.scale,
     rotation: state.rotation,

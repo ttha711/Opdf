@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import apiRouter from "./server/routes/index";
+import largePdfJobsRouter from "./server/routes/largePdfJobs";
 import { generalLimiter } from "./server/middleware/rateLimiter";
 import { errorHandler, notFoundHandler } from "./server/middleware/errorHandler";
 
@@ -9,9 +10,14 @@ async function startServer() {
   const app = express();
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
-  // Middleware for large payloads
-  app.use(express.json({ limit: "50mb" }));
   app.get("/favicon.ico", (_req, res) => res.status(204).end());
+
+  // Stream multi-hundred-MB PDFs directly to disk before any JSON parser.
+  // This keeps large-file jobs out of Node/Express body buffers.
+  app.use("/api/pdf-jobs", generalLimiter, largePdfJobsRouter);
+
+  // JSON APIs remain intentionally bounded; large PDFs must use /api/pdf-jobs.
+  app.use(express.json({ limit: "50mb" }));
 
   // Global rate limit
   app.use("/api", generalLimiter);

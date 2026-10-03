@@ -135,11 +135,6 @@ export function useAiAssistant() {
 
   // Process remote query calling Dify API chatbot
   const processDifyQuery = async (queryText: string) => {
-    if (!difyKey) {
-      addMessage("assistant", "⚠️ **Chưa cấu hình API Key!** Vui lòng bấm vào bánh răng Settings ở góc trên bên phải để nhập Dify API Key.");
-      return;
-    }
-
     const tempId = addMessage("assistant", "AI đang suy nghĩ...", { isPending: true });
 
     let documentStateContext = "";
@@ -194,6 +189,10 @@ User: ${queryText}`;
       if (isDesktopRuntime && !gatewayBase) {
         const status = await window.opdf?.getAiDeviceStatus?.();
         gatewayBase = (status?.gatewayBaseUrl || "").replace(/\/+$/, "");
+      }
+
+      if (!gatewayBase && !difyKey) {
+        throw new Error("Chưa cấu hình AI gateway hoặc Dify API Key.");
       }
 
       let response: Response;

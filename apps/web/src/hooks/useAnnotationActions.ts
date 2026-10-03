@@ -6,6 +6,7 @@ import { useOpdfBridge } from "./useOpdfBridge";
 export function useAnnotationActions({
   bridge,
   fileName,
+  sourceIdentity,
   noteText,
   signatureStyle,
   annotationToolDefaults,
@@ -15,6 +16,7 @@ export function useAnnotationActions({
 }: {
   bridge: ReturnType<typeof useOpdfBridge>;
   fileName: string;
+  sourceIdentity: string;
   noteText: string;
   signatureStyle: string;
   annotationToolDefaults: AnnotationToolDefaults;
@@ -22,8 +24,10 @@ export function useAnnotationActions({
   setViewerError: Dispatch<SetStateAction<string | null>>;
   setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
 }) {
+  const documentKey = sourceIdentity.startsWith("server://") ? sourceIdentity : fileName;
+
   async function addHighlight(pageNumber: number, rect: PendingRect) {
-    if (!fileName) return;
+    if (!documentKey) return;
     const tempId = crypto.randomUUID();
     const defaults = annotationToolDefaults.highlight;
     const payload = { color: defaults.color, opacity: defaults.opacity, strokeWidth: defaults.size, ...rect };
@@ -38,7 +42,7 @@ export function useAnnotationActions({
     setAnnotations((prev) => [...prev, optimistic]);
     setSaveState("idle");
     try {
-      const created = await bridge.createAnnotation(fileName, {
+      const created = await bridge.createAnnotation(documentKey, {
         page: pageNumber,
         kind: "highlight",
         payload,
@@ -52,7 +56,7 @@ export function useAnnotationActions({
   }
 
   async function createToolAnnotation(kind: "note" | "shape" | "signature" | "redact" | "underline" | "strike" | "image", pageNumber: number, rect: PendingRect & { image?: string; imageType?: string }) {
-    if (!fileName) return;
+    if (!documentKey) return;
     const tempId = crypto.randomUUID();
     const payload =
       kind === "image"
@@ -83,7 +87,7 @@ export function useAnnotationActions({
     setAnnotations((prev) => [...prev, optimistic]);
     setSaveState("idle");
     try {
-      const created = await bridge.createAnnotation(fileName, { page: pageNumber, kind, payload });
+      const created = await bridge.createAnnotation(documentKey, { page: pageNumber, kind, payload });
       setAnnotations((prev) => prev.map((a) => (a.id === tempId ? created : a)));
       setSaveState("idle");
     } catch {
@@ -93,26 +97,26 @@ export function useAnnotationActions({
   }
 
   async function undoAnnotations() {
-    if (!fileName) return;
-    setAnnotations(await bridge.undoAnnotation(fileName));
+    if (!documentKey) return;
+    setAnnotations(await bridge.undoAnnotation(documentKey));
     setSaveState("idle");
   }
 
   async function redoAnnotations() {
-    if (!fileName) return;
-    setAnnotations(await bridge.redoAnnotation(fileName));
+    if (!documentKey) return;
+    setAnnotations(await bridge.redoAnnotation(documentKey));
     setSaveState("idle");
   }
 
   async function removeAnnotation(id: string) {
-    if (!fileName) return;
-    await bridge.deleteAnnotation(fileName, id);
-    setAnnotations(await bridge.listAnnotations(fileName));
+    if (!documentKey) return;
+    await bridge.deleteAnnotation(documentKey, id);
+    setAnnotations(await bridge.listAnnotations(documentKey));
     setSaveState("idle");
   }
 
   async function updateAnnotation(id: string, payload: Record<string, unknown>) {
-    if (!fileName) return;
+    if (!documentKey) return;
     setAnnotations((prev) =>
       prev.map((a) =>
         a.id === id
@@ -121,7 +125,7 @@ export function useAnnotationActions({
       )
     );
     try {
-      await bridge.updateAnnotation(fileName, id, payload);
+      await bridge.updateAnnotation(documentKey, id, payload);
       setSaveState("idle");
     } catch {
       setViewerError("Failed to update annotation");

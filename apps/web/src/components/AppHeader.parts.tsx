@@ -505,6 +505,7 @@ interface FileUtilitiesGroupProps {
   splitDocument: () => void;
   mergeDocuments: () => void;
   convertToImages: () => void;
+  compareRevisions: () => void;
   capabilities?: BridgeCapabilities;
 }
 
@@ -517,6 +518,7 @@ export function FileUtilitiesGroup({
   splitDocument,
   mergeDocuments,
   convertToImages,
+  compareRevisions,
   capabilities,
 }: FileUtilitiesGroupProps) {
   // Absent capabilities (desktop bridge) means everything is supported
@@ -548,6 +550,13 @@ export function FileUtilitiesGroup({
             <path d="M5 17H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2" />
             <rect x="9" y="9" width="12" height="14" rx="2" />
             <path d="M15 13v6M12 16h6" />
+          </svg>
+        </ToolIconButton>
+        <ToolIconButton label="Compare revisions" disabled={!hasDocument} onClick={compareRevisions}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="8" height="16" rx="1" />
+            <rect x="13" y="4" width="8" height="16" rx="1" />
+            <path d="M7 8h1M7 12h1M16 8h1M16 15h1" />
           </svg>
         </ToolIconButton>
         <ToolIconButton label="To Images" disabled={!hasDocument} onClick={convertToImages}>

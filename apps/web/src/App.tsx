@@ -264,6 +264,7 @@ export function App() {
     mergeDocuments,
     splitDocument,
     replaceDocumentBytes,
+    materializeDocumentBytes,
     runConfiguredMarkupTool,
     removeAnnotation,
     updateAnnotation,
@@ -684,6 +685,7 @@ export function App() {
                 activeToolId={state.activeDashboardTool}
                 fileName={state.fileName}
                 docBytes={state.docBytes}
+                getDocumentBytes={materializeDocumentBytes}
                 totalPages={state.totalPages}
                 thumbnails={state.thumbnails}
                 annotations={state.annotations}

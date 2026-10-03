@@ -89,7 +89,7 @@ export function useAppMenus({
     { kind: "action", label: "Add Note", disabled: !hasDocument, onClick: () => setActiveTool("note") },
     { kind: "action", label: "Add Shape", disabled: !hasDocument, onClick: () => setActiveTool("shape") },
     { kind: "action", label: "Add Signature", disabled: !hasDocument, onClick: () => setActiveTool("signature") },
-    { kind: "action", label: "Redact", disabled: !hasDocument, onClick: () => setActiveTool("redact") },
+    { kind: "action", label: "Blackout Overlay (not secure redaction)", disabled: !hasDocument, onClick: () => setActiveTool("redact") },
   ];
 
   const viewMenuItems: MenuItemDef[] = [
@@ -110,18 +110,9 @@ export function useAppMenus({
   const toolsMenuItems: MenuItemDef[] = [
     { kind: "action", label: "Run OCR", disabled: !hasDocument, onClick: runOcr },
     { kind: "separator" },
-    { kind: "action", label: "Delete Pages...", disabled: !hasDocument, onClick: () => { runDocumentTool("delete-pages"); } },
     { kind: "action", label: "Insert PDF...", disabled: !hasDocument, onClick: () => { runDocumentTool("insert-pdf"); } },
-    { kind: "action", label: "Crop Page...", disabled: !hasDocument, onClick: () => { runDocumentTool("crop-current"); } },
-    { kind: "separator" },
-    { kind: "action", label: "Add Page Numbers", disabled: !hasDocument, onClick: () => { runDocumentTool("page-numbers"); } },
-    { kind: "action", label: "Add Header", disabled: !hasDocument, onClick: () => { runDocumentTool("header"); } },
-    { kind: "action", label: "Add Footer", disabled: !hasDocument, onClick: () => { runDocumentTool("footer"); } },
-    { kind: "action", label: "Add Bates Numbering", disabled: !hasDocument, onClick: () => { runDocumentTool("bates"); } },
-    { kind: "separator" },
-    { kind: "action", label: "Encrypt PDF", disabled: !hasDocument || !canEncrypt, title: !canEncrypt ? DESKTOP_ONLY_TITLE : undefined, onClick: () => { runDocumentTool("encrypt"); } },
-    { kind: "action", label: "Decrypt PDF", disabled: !hasDocument || !canEncrypt, title: !canEncrypt ? DESKTOP_ONLY_TITLE : undefined, onClick: () => { runDocumentTool("decrypt"); } },
-    { kind: "action", label: "Convert to PDF/A", disabled: !hasDocument || !canPdfA, title: !canPdfA ? DESKTOP_ONLY_TITLE : undefined, onClick: () => { runDocumentTool("normalize"); } },
+    { kind: "action", label: "Rotate All Pages Left", disabled: !hasDocument, onClick: () => runDocumentTool("rotate-all-left") },
+    { kind: "action", label: "Rotate All Pages Right", disabled: !hasDocument, onClick: () => runDocumentTool("rotate-all-right") },
   ];
 
   return { fileMenuItems, editMenuItems, viewMenuItems, toolsMenuItems };

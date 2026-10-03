@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PDFViewer as EmbedPdfViewer,
   type PDFViewerRef,
+  ZoomMode,
 } from "@embedpdf/react-pdf-viewer";
 import type { PdfViewerProps } from "./PdfViewer.types";
-import { registerViewerBytesProvider } from "../lib/viewer-runtime";
+import { registerViewerBytesProvider, registerViewerControls } from "../lib/viewer-runtime";
 
 const DOCUMENT_ID = "opdf-active-document";
 
@@ -44,6 +45,7 @@ export function PdfViewer({
   onError,
   onActivePageChange,
   onViewerDirty,
+  onViewerScaleChange,
 }: PdfViewerProps) {
   const viewerRef = useRef<PDFViewerRef>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
@@ -125,6 +127,31 @@ export function PdfViewer({
       const exportApi = registry.getPlugin?.("export")?.provides?.() as any;
       const annotationApi = registry.getPlugin?.("annotation")?.provides?.() as any;
       const formApi = registry.getPlugin?.("form")?.provides?.() as any;
+      const zoomApi = registry.getPlugin?.("zoom")?.provides?.() as any;
+      const rotateApi = registry.getPlugin?.("rotate")?.provides?.() as any;
+
+      const zoomScope = zoomApi?.forDocument?.(DOCUMENT_ID) ?? zoomApi;
+      const rotateScope = rotateApi?.forDocument?.(DOCUMENT_ID) ?? rotateApi;
+      const unregisterControls = registerViewerControls({
+        zoomIn: () => zoomScope?.zoomIn?.(),
+        zoomOut: () => zoomScope?.zoomOut?.(),
+        resetZoom: () => zoomScope?.requestZoom?.(1),
+        fitWidth: () => zoomScope?.requestZoom?.(ZoomMode.FitWidth),
+        fitPage: () => zoomScope?.requestZoom?.(ZoomMode.FitPage),
+        rotateForward: () => rotateScope?.rotateForward?.(),
+        rotateBackward: () => rotateScope?.rotateBackward?.(),
+      });
+      unsubscribers.push(unregisterControls);
+
+      if (zoomScope?.onStateChange) {
+        const off = zoomScope.onStateChange((state: any) => {
+          const next = state?.currentZoomLevel;
+          if (typeof next !== "number" || !Number.isFinite(next)) return;
+          lastScaleRef.current = next;
+          onViewerScaleChange?.(next);
+        });
+        if (typeof off === "function") unsubscribers.push(off);
+      }
 
       const exportScope = exportApi?.forDocument?.(DOCUMENT_ID) ?? exportApi;
       if (exportScope?.saveAsCopy) {
@@ -206,7 +233,7 @@ export function PdfViewer({
       window.clearTimeout(timer);
       unsubscribers.forEach((off) => off());
     };
-  }, [sourceUrl, onActivePageChange, onDocumentLoaded, onError, onViewerDirty]);
+  }, [sourceUrl, onActivePageChange, onDocumentLoaded, onError, onViewerDirty, onViewerScaleChange]);
 
   useEffect(() => {
     if (!sourceUrl || suppressExternalPageRef.current || page === lastPageRef.current) return;

@@ -459,6 +459,7 @@ export function App() {
         totalPages={state.totalPages}
         canSign={Boolean(window.opdf?.signPdfP12 && window.opdf?.inspectP12Certificate)}
         inspectCertificate={bridge.inspectP12Certificate}
+        inspectSignatures={bridge.inspectPdfSignatures}
         signDocument={bridge.signPdfP12}
         onApplied={(bytes, certificate) => {
           replaceDocumentBytes(bytes, state.page);

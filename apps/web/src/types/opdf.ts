@@ -54,6 +54,27 @@ export type P12SignOptions = {
   height: number;
 };
 
+export type PdfSignatureCertificateInfo = P12CertificateInfo & {
+  issuerCommonName: string;
+  currentlyWithinValidity: boolean;
+};
+
+export type PdfSignatureInspection = {
+  index: number;
+  byteRange: [number, number, number, number];
+  byteRangeWellFormed: boolean;
+  signedRevisionEnd: number;
+  fileLength: number;
+  bytesAfterSignedRevision: number;
+  hasLaterRevision: boolean;
+  cmsParsed: boolean;
+  pdfSignerName: string;
+  reason: string;
+  signingTime: string;
+  certificates: PdfSignatureCertificateInfo[];
+  verification: "not-verified";
+};
+
 export interface OpdfBridge {
   /** Feature support flags. Absent (e.g. on desktop bridge) means everything is supported. */
   capabilities?: BridgeCapabilities;
@@ -102,6 +123,7 @@ export interface OpdfBridge {
     certificateBytes: Uint8Array,
     options: P12SignOptions,
   ) => Promise<{ bytes: Uint8Array; certificate: P12CertificateInfo }>;
+  inspectPdfSignatures?: (bytes: Uint8Array) => Promise<PdfSignatureInspection[]>;
   setAiConfig?: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => Promise<boolean>;
   getAiConfig?: () => Promise<{ mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }>;
   getAiAccessToken?: () => Promise<string | null>;

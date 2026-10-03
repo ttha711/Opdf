@@ -68,6 +68,30 @@ const api = {
       validTo: string;
     };
   }>,
+  inspectPdfSignatures: (bytes: Uint8Array) =>
+    ipcRenderer.invoke("opdf:inspect-pdf-signatures", bytes) as Promise<Array<{
+      index: number;
+      byteRange: [number, number, number, number];
+      byteRangeWellFormed: boolean;
+      signedRevisionEnd: number;
+      fileLength: number;
+      bytesAfterSignedRevision: number;
+      hasLaterRevision: boolean;
+      cmsParsed: boolean;
+      pdfSignerName: string;
+      reason: string;
+      signingTime: string;
+      certificates: Array<{
+        commonName: string;
+        organization: string;
+        issuerCommonName: string;
+        serialNumber: string;
+        validFrom: string;
+        validTo: string;
+        currentlyWithinValidity: boolean;
+      }>;
+      verification: "not-verified";
+    }>>,
   applyAiPatch: (payload: { prompt: string; selectedBlocks: unknown[]; allBlocks: unknown[]; referenceImage: string | null }) =>
     ipcRenderer.invoke("opdf:ai-patch", payload) as Promise<{ updates: Array<Record<string, unknown> & { id: string }> }>,
   saveDocumentAs: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:save-as", bytes) as Promise<string | null>,

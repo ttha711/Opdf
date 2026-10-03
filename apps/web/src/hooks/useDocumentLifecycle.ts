@@ -255,12 +255,26 @@ export function useDocumentLifecycle({
     await loadBrowserFile(file);
   }
 
-  function replaceDocumentBytes(bytes: Uint8Array, nextPage = page) {
+  function replaceDocumentBytes(
+    bytes: Uint8Array,
+    nextPage = page,
+    options: { preserveSourceIdentity?: boolean; resetDocumentMetadata?: boolean } = {},
+  ) {
+    const preserveSourceIdentity = options.preserveSourceIdentity ?? true;
     setDocBytes(bytes);
     setSourceBlob(null);
-    setSourceIdentity(sourceIdentity.startsWith("server://") ? sourceIdentity : "");
+    setSourceIdentity(
+      preserveSourceIdentity && sourceIdentity.startsWith("server://")
+        ? sourceIdentity
+        : "",
+    );
     setAnnotations([]);
     setThumbnails([]);
+    if (options.resetDocumentMetadata) {
+      setBookmarks([]);
+      setPageRotations({});
+    }
+    setTotalPages(0);
     setViewerError(null);
     setPage(Math.max(1, nextPage));
     setSaveState("idle");

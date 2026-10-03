@@ -52,6 +52,7 @@ export function useExportAction({
 
       let bytes = docBytes;
       let storageKey = sourceIdentity;
+      const isServerDocument = sourceIdentity.startsWith("server://");
 
       if (hasDesktopBridge) {
         bytes = bytes ?? await getDocumentBytes();
@@ -61,6 +62,13 @@ export function useExportAction({
         if (bridge.replaceAnnotations) {
           await bridge.replaceAnnotations(fileName, annotations);
         }
+      } else if (isServerDocument) {
+        bytes = bytes ?? await getDocumentBytes();
+        if (!bytes) throw new Error("Document bytes are unavailable.");
+        await bridge.saveDocument(sourceIdentity, bytes);
+        if (bridge.replaceAnnotations) {
+          await bridge.replaceAnnotations(sourceIdentity, annotations);
+        }
       } else if (!storageKey && bytes) {
         storageKey = await computeFileHash(bytes);
       }
@@ -69,10 +77,15 @@ export function useExportAction({
         await saveAnnotationsByHash(storageKey, annotations);
       }
 
-      if (hasDesktopBridge) {
-        markDocumentSaved({ fileName, docBytes: bytes, annotations });
+      if (hasDesktopBridge || isServerDocument) {
+        markDocumentSaved({
+          fileName,
+          docBytes: bytes,
+          documentIdentity: sourceIdentity,
+          annotations,
+        });
         setSaveState("saved");
-        setViewerError("File saved successfully!");
+        setViewerError(isServerDocument ? "Saved to OPDF Server." : "File saved successfully!");
         setTimeout(() => setViewerError(null), 3000);
         return;
       }

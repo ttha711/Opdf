@@ -215,12 +215,16 @@ async function browserTest(browser, testCase, stored, fileBytes) {
     const header = page.locator("header");
     const mutateStartedAt = Date.now();
     await header.getByRole("button", { name: "View", exact: true }).click();
+    const mutationResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes(`/api/opdf/documents/${stored.id}/mutations`) &&
+        response.request().method() === "POST",
+      { timeout: 30_000 },
+    );
     await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
     try {
-      await page.getByText("Saved to OPDF Server.", { exact: true }).first().waitFor({
-        state: "visible",
-        timeout: 30_000,
-      });
+      const mutationResponse = await mutationResponsePromise;
+      assert(mutationResponse.ok(), `${testCase.name}: mutation HTTP ${mutationResponse.status()}`);
       saveMs = Date.now() - mutateStartedAt;
       assert(saveMs < 30_000, `${testCase.name}: server-side rotate took too long (${saveMs} ms)`);
 

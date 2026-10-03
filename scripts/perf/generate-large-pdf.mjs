@@ -56,12 +56,19 @@ for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
 const base = await doc.save({ useObjectStreams: true });
 await mkdir(dirname(outPath), { recursive: true });
 
-const stream = createWriteStream(outPath);
-stream.write(Buffer.from(base));
+const baseBuffer = Buffer.from(base);
+const startXrefIndex = baseBuffer.lastIndexOf(Buffer.from("startxref"));
+if (startXrefIndex < 0) throw new Error("Generated PDF is missing startxref");
 
-// Padding is emitted as legal PDF comments after EOF. It deliberately stresses
-// source-byte handling/range behavior without committing giant binary fixtures.
-let remaining = Math.max(0, targetBytes - base.length);
+const prefix = baseBuffer.subarray(0, startXrefIndex);
+const trailer = baseBuffer.subarray(startXrefIndex);
+const stream = createWriteStream(outPath);
+stream.write(prefix);
+
+// Add legal PDF comment bytes after the xref data but before startxref.
+// Existing object/xref offsets remain valid, while startxref/%%EOF stay near
+// the physical end of the file so strict readers still accept the document.
+let remaining = Math.max(0, targetBytes - baseBuffer.length);
 const chunk = Buffer.alloc(1024 * 1024, 0x20);
 chunk[0] = 0x25; // %
 chunk[chunk.length - 1] = 0x0a;
@@ -70,6 +77,7 @@ while (remaining > 0) {
   stream.write(chunk.subarray(0, size));
   remaining -= size;
 }
+stream.write(trailer);
 
 await new Promise((resolvePromise, reject) => {
   stream.end(resolvePromise);

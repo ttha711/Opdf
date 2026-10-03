@@ -5,7 +5,7 @@ import { mkdtemp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { inspectP12Certificate, inspectPdfSignatures, signPdfWithP12, type P12SignOptions } from "./pdf-signature.js";
 import {
   AnnotationService,
@@ -349,7 +349,26 @@ function toNodeBuffer(bytes: unknown): Buffer {
 interface UpdateManifest {
   version: string;
   url: string;
+  sha256: string;
   description?: string;
+}
+
+const UPDATE_VERSION_PATTERN = /^\d+(?:\.\d+){1,3}$/;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
+const MAX_HOT_UPDATE_BYTES = 100 * 1024 * 1024;
+
+function resolveHotUpdateUrl(rawUrl: string, baseUrl?: string): URL {
+  const url = baseUrl ? new URL(rawUrl, baseUrl) : new URL(rawUrl);
+  const isLocalHttp =
+    url.protocol === "http:" &&
+    (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+
+  if (url.protocol !== "https:" && !(isLocalHttp && !app.isPackaged)) {
+    throw new Error(
+      "Hot-update URLs must use HTTPS (HTTP localhost is allowed only in development)."
+    );
+  }
+  return url;
 }
 
 function extractZip(zipPath: string, destDir: string): Promise<void> {
@@ -387,69 +406,110 @@ let pendingUpdate: { version: string; path: string } | null = null;
 
 async function checkAndDownloadUpdates(win: BrowserWindow) {
   try {
-    const updateUrl = process.env.OPDF_HOT_UPDATE_URL || "http://localhost:5174/update-manifest.json";
-    console.log(`Checking for hot-updates at: ${updateUrl}`);
-    const res = await fetch(updateUrl);
+    const configuredUpdateUrl = process.env.OPDF_HOT_UPDATE_URL?.trim();
+    if (!configuredUpdateUrl) {
+      console.log(
+        "Hot-update checks are disabled because OPDF_HOT_UPDATE_URL is not configured."
+      );
+      return;
+    }
+
+    const updateUrl = resolveHotUpdateUrl(configuredUpdateUrl);
+    console.log(`Checking for hot-updates at: ${updateUrl.href}`);
+    const res = await fetch(updateUrl, { redirect: "error" });
     if (!res.ok) {
       console.log("No hot-updates available or manifest server is offline.");
       return;
     }
+
     const manifest = (await res.json()) as UpdateManifest;
-    if (!manifest.version || !manifest.url) {
-      console.error("Invalid update manifest received:", manifest);
+    if (
+      !manifest.version ||
+      !UPDATE_VERSION_PATTERN.test(manifest.version) ||
+      !manifest.url ||
+      !manifest.sha256 ||
+      !SHA256_PATTERN.test(manifest.sha256)
+    ) {
+      console.error("Invalid update manifest received.");
       return;
     }
 
-    // Determine current active version
+    const packageUrl = resolveHotUpdateUrl(manifest.url, updateUrl.href);
+    if (packageUrl.origin !== updateUrl.origin) {
+      throw new Error("Hot-update package must use the same origin as the manifest.");
+    }
+
     let activeVersion = app.getVersion();
     const activeConfigPath = join(app.getPath("userData"), "active-version.json");
     if (existsSync(activeConfigPath)) {
       try {
         const config = JSON.parse(readFileSync(activeConfigPath, "utf-8"));
-        if (config.version) activeVersion = config.version;
-      } catch (e) {
-        // no-op
+        if (
+          typeof config.version === "string" &&
+          UPDATE_VERSION_PATTERN.test(config.version)
+        ) {
+          activeVersion = config.version;
+        }
+      } catch {
+        // Ignore a malformed local update marker and fall back to the app version.
       }
     }
 
     console.log(`Active version: ${activeVersion}, Server version: ${manifest.version}`);
-
-    // If server version is greater than active version, perform update
-    const isNewer = compareVersions(manifest.version, activeVersion) > 0;
-    if (!isNewer) {
+    if (compareVersions(manifest.version, activeVersion) <= 0) {
       console.log("App is up-to-date with hot-updates.");
       return;
     }
 
-    console.log(`Downloading update version ${manifest.version} from ${manifest.url}...`);
-    const zipRes = await fetch(manifest.url);
+    console.log(
+      `Downloading update version ${manifest.version} from ${packageUrl.href}...`
+    );
+    const zipRes = await fetch(packageUrl, { redirect: "error" });
     if (!zipRes.ok) {
       throw new Error(`Failed to download update ZIP: ${zipRes.statusText}`);
     }
-    const arrayBuffer = await zipRes.arrayBuffer();
-    const zipBuffer = Buffer.from(arrayBuffer);
+
+    const contentLength = Number(zipRes.headers.get("content-length") || "0");
+    if (Number.isFinite(contentLength) && contentLength > MAX_HOT_UPDATE_BYTES) {
+      throw new Error("Hot-update package exceeds the maximum allowed size.");
+    }
+
+    const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
+    if (zipBuffer.byteLength > MAX_HOT_UPDATE_BYTES) {
+      throw new Error("Hot-update package exceeds the maximum allowed size.");
+    }
+
+    const actualSha256 = createHash("sha256").update(zipBuffer).digest("hex");
+    if (actualSha256.toLowerCase() !== manifest.sha256.toLowerCase()) {
+      throw new Error("Hot-update package SHA-256 mismatch.");
+    }
 
     const tempZipPath = join(tmpdir(), `opdf-update-${manifest.version}.zip`);
-    await writeFile(tempZipPath, zipBuffer);
-
     const destDir = join(app.getPath("userData"), "web-updates", manifest.version);
+
+    await writeFile(tempZipPath, zipBuffer);
+    await rm(destDir, { recursive: true, force: true });
     await mkdir(destDir, { recursive: true });
 
     console.log(`Extracting update to: ${destDir}`);
-    await extractZip(tempZipPath, destDir);
-    await rm(tempZipPath, { force: true });
+    try {
+      await extractZip(tempZipPath, destDir);
+    } finally {
+      await rm(tempZipPath, { force: true });
+    }
 
     const indexPath = join(destDir, "index.html");
-    if (existsSync(indexPath)) {
-      pendingUpdate = { version: manifest.version, path: indexPath };
-      console.log(`Update ${manifest.version} ready. Notifying renderer...`);
-      win.webContents.send("opdf:update-ready", {
-        version: manifest.version,
-        description: manifest.description || "Bug fixes and improvements."
-      });
-    } else {
-      console.error("Downloaded update does not contain index.html");
+    if (!existsSync(indexPath)) {
+      await rm(destDir, { recursive: true, force: true });
+      throw new Error("Downloaded update does not contain index.html");
     }
+
+    pendingUpdate = { version: manifest.version, path: indexPath };
+    console.log(`Update ${manifest.version} ready. Notifying renderer...`);
+    win.webContents.send("opdf:update-ready", {
+      version: manifest.version,
+      description: manifest.description || "Bug fixes and improvements."
+    });
   } catch (error) {
     console.error("Hot-update check/download failed:", error);
   }

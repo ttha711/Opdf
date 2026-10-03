@@ -1,5 +1,6 @@
 {
   "version": "0.1.1",
-  "url": "http://localhost:5174/web.zip",
-  "description": "Thêm thanh thông báo Hot-Update tuyệt vời!"
+  "url": "./web.zip",
+  "sha256": "REPLACE_WITH_WEB_ZIP_SHA256",
+  "description": "Bug fixes and improvements."
 }

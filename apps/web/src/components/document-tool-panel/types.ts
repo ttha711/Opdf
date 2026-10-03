@@ -2,6 +2,7 @@ export interface DocumentToolPanelProps {
   activeToolId: string;
   fileName: string;
   docBytes: Uint8Array | null;
+  sourceBlob?: Blob | null;
   getDocumentBytes: () => Promise<Uint8Array | null>;
   totalPages: number;
   annotations: any[];

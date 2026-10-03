@@ -447,6 +447,7 @@ export function App() {
           hasDocument={state.hasDocument}
           fileName={state.fileName}
           docBytes={state.docBytes}
+          getDocumentBytes={materializeDocumentBytes}
           onLoadConvertedPdf={(bytes, name) => {
             state.setDocBytes(bytes);
             state.setFileName(name);
@@ -621,6 +622,7 @@ export function App() {
                 activeToolId={state.activeDashboardTool}
                 fileName={state.fileName}
                 docBytes={state.docBytes}
+                sourceBlob={state.sourceBlob}
                 getDocumentBytes={materializeDocumentBytes}
                 totalPages={state.totalPages}
                 annotations={state.annotations}

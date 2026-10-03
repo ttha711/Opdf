@@ -10,6 +10,7 @@ interface AllToolsDashboardProps {
   hasDocument: boolean;
   fileName: string;
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   onLoadConvertedPdf: (bytes: Uint8Array, fileName: string) => void;
   onClose: () => void;
   onTriggerCompress: () => void;
@@ -34,6 +35,7 @@ export function AllToolsDashboard({
   hasDocument,
   fileName,
   docBytes,
+  getDocumentBytes,
   onLoadConvertedPdf,
   onClose,
   onTriggerCompress,
@@ -41,7 +43,7 @@ export function AllToolsDashboard({
   onTriggerSplit,
   onSelectTool,
 }: AllToolsDashboardProps) {
-  // Compression may use either the desktop bridge or streaming server API.
+  // Compression can use the connected bridge or the web large-PDF service.
   useOpdfBridge();
   const canCompress = true;
   const [activeTab, setActiveTab] = useState<TabType>("all");
@@ -203,13 +205,18 @@ export function AllToolsDashboard({
   };
 
   // Convert currently loaded or selected PDF to Text
-  const convertPdfToTxt = () => {
-    if (hasDocument && docBytes) {
-      launchPdfToHtmlEditorWithBytes(docBytes, fileName, "txt");
+  const convertPdfToTxt = async () => {
+    if (hasDocument) {
+      const bytes = docBytes ?? await getDocumentBytes();
+      if (!bytes) {
+        toast.error("Không thể lấy dữ liệu PDF đang mở.");
+        return;
+      }
+      launchPdfToHtmlEditorWithBytes(bytes, fileName, "txt");
       onClose();
-    } else {
-      triggerFileInput("pdf-to-txt");
+      return;
     }
+    triggerFileInput("pdf-to-txt");
   };
 
   const runPdfToTxt = async (bytes: Uint8Array, name: string) => {
@@ -250,14 +257,19 @@ export function AllToolsDashboard({
   };
 
   // Open the dedicated AI document editor for deep content edits and Office export.
-  const convertPdfToOffice = (actionId: string) => {
+  const convertPdfToOffice = async (actionId: string) => {
     const targetFormat = getTargetFormat(actionId);
-    if (hasDocument && docBytes) {
-      launchPdfToHtmlEditorWithBytes(docBytes, fileName, targetFormat);
+    if (hasDocument) {
+      const bytes = docBytes ?? await getDocumentBytes();
+      if (!bytes) {
+        toast.error("Không thể lấy dữ liệu PDF đang mở.");
+        return;
+      }
+      launchPdfToHtmlEditorWithBytes(bytes, fileName, targetFormat);
       onClose();
-    } else {
-      triggerFileInput(actionId);
+      return;
     }
+    triggerFileInput(actionId);
   };
 
   const launchPdfToHtmlEditorWithBytes = (bytes: Uint8Array, name: string, targetFormat?: string) => {
@@ -377,11 +389,11 @@ export function AllToolsDashboard({
             title={undefined}
             onClick={() => {
               if (hasDocument) {
-                tool.action();
+                void tool.action();
               } else if (onSelectTool) {
                 onSelectTool(tool.id);
               } else {
-                tool.action();
+                void tool.action();
               }
             }}
             style={{
@@ -412,7 +424,7 @@ export function AllToolsDashboard({
       <div className="mt-12 p-4 rounded-xl bg-[var(--ui-muted-bg)] border border-[var(--border-color)] text-xs text-[var(--text-secondary)] flex items-center gap-3">
         <span className="text-lg">🔒</span>
         <span>
-          <strong>Opdf Privacy Guarantee:</strong> All operations are performed 100% locally in your browser memory and CPU using client-side WebAssembly. No files or document metadata are ever uploaded to any server.
+          <strong>Processing:</strong> PDF viewing and annotation stay in the browser. Conversions, optimization, or server-backed workflows may send the selected document to the OPDF service configured for this deployment.
         </span>
       </div>
     </div>

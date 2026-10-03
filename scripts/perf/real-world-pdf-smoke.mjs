@@ -141,6 +141,7 @@ async function browserTest(browser, testCase, stored, fileBytes) {
     if (!response.url().includes(documentUrlPart)) return;
     const headers = response.headers();
     pdfResponses.push({
+      method: response.request().method(),
       status: response.status(),
       contentRange: headers["content-range"] || "",
       contentLength: Number(headers["content-length"] || 0),
@@ -171,9 +172,10 @@ async function browserTest(browser, testCase, stored, fileBytes) {
     assert(pageCount === testCase.expectedPages, `${testCase.name}: expected ${testCase.expectedPages} pages, got ${pageCount}`);
   }
 
-  const rangeResponses = pdfResponses.filter((item) => item.status === 206);
-  const fullResponses = pdfResponses.filter((item) => item.status === 200);
-  const bytesObserved = pdfResponses.reduce((sum, item) => sum + item.contentLength, 0);
+  const getResponses = pdfResponses.filter((item) => item.method === "GET");
+  const rangeResponses = getResponses.filter((item) => item.status === 206);
+  const fullResponses = getResponses.filter((item) => item.status === 200);
+  const bytesObserved = getResponses.reduce((sum, item) => sum + item.contentLength, 0);
   const usedRange = rangeResponses.length > 0;
   const viewerEngine = await viewer.getAttribute("data-opdf-engine");
   if (fileBytes >= 32 * MiB) {

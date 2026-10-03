@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Offline-first PDF desktop app (web-first dev, desktop runtime)",
+  "engines": {
+    "node": ">=22"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"

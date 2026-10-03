@@ -19,7 +19,13 @@ function hashString(hash: number, text: string) {
 }
 
 function hashBytes(hash: number, bytes: Uint8Array) {
-  for (let i = 0; i < bytes.length; i++) {
+  // Dirty-state checks run whenever annotations/bookmarks change. Scanning an
+  // entire 300+ MB PDF here stalls the main thread, so keep the fingerprint
+  // bounded by sampling at most 4096 bytes plus the document length.
+  const sampleCount = Math.min(4096, bytes.length);
+  const step = sampleCount > 0 ? Math.max(1, Math.floor(bytes.length / sampleCount)) : 1;
+  hash = hashString(hash, String(bytes.length));
+  for (let i = 0, seen = 0; i < bytes.length && seen < sampleCount; i += step, seen += 1) {
     hash = fnv1aUpdate(hash, bytes[i]);
   }
   return hash;

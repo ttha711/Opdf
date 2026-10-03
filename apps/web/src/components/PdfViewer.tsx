@@ -92,7 +92,7 @@ export function PdfViewer({
       },
       tabBar: "never",
       theme: { preference: "light" },
-      annotations: { annotationAuthor: "OPDF" },
+      annotation: { annotationAuthor: "OPDF" },
       pan: { defaultMode: "mobile" },
       zoom: {
         defaultZoomLevel: Math.max(0.05, Math.min(5, scale)),
@@ -274,7 +274,18 @@ export function PdfViewer({
     void (async () => {
       const registry = await viewerRef.current?.registry;
       if (cancelled || !registry) return;
+
       const annotation = registry.getPlugin?.("annotation")?.provides?.() as any;
+      const redaction = registry.getPlugin?.("redaction")?.provides?.() as any;
+      const redactionScope = redaction?.forDocument?.(DOCUMENT_ID) ?? redaction;
+
+      if (activeTool === "redact") {
+        annotation?.setActiveTool?.(null);
+        if (!redactionScope?.isRedactActive?.()) redactionScope?.toggleRedact?.();
+        return;
+      }
+
+      if (redactionScope?.isRedactActive?.()) redactionScope?.toggleRedact?.();
       annotation?.setActiveTool?.(mapAnnotationTool(activeTool));
     })();
     return () => {

@@ -2,6 +2,11 @@ name: Real World PDF Test
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/perf/real-world-pdf-smoke.mjs"
+      - ".github/workflows/real-world-pdf-test.yml"
 
 permissions:
   contents: read

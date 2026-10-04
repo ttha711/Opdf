@@ -1,3 +1,4 @@
+import React from "react";
 import type { MergeFile } from "./types";
 
 interface MergeToolPanelProps {
@@ -6,6 +7,7 @@ interface MergeToolPanelProps {
   onPick: () => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
+  onReorder: (fromIndex: number, toIndex: number) => void;
   onRemove: (id: string) => void;
   onMerge: (mode: "view" | "download") => void;
 }
@@ -16,9 +18,12 @@ export function MergeToolPanel({
   onPick,
   onMoveUp,
   onMoveDown,
+  onReorder,
   onRemove,
   onMerge,
 }: MergeToolPanelProps) {
+  const [dragIndex, setDragIndex] = React.useState<number | null>(null);
+
   return (
     <>
       <div className="flex justify-between items-center">
@@ -36,7 +41,19 @@ export function MergeToolPanel({
           <span className="text-center py-4 text-xs text-[var(--text-secondary)]">No files in merge list.</span>
         ) : (
           mergeFiles.map((file, index) => (
-            <div key={file.id} className="flex items-center gap-1 bg-[var(--bg-toolbar)] p-1.5 rounded border border-[var(--border-color)] text-[11px]">
+            <div
+              key={file.id}
+              draggable
+              onDragStart={() => setDragIndex(index)}
+              onDragEnd={() => setDragIndex(null)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={() => {
+                if (dragIndex !== null) onReorder(dragIndex, index);
+                setDragIndex(null);
+              }}
+              className={`flex items-center gap-1 bg-[var(--bg-toolbar)] p-1.5 rounded border border-[var(--border-color)] text-[11px] cursor-grab active:cursor-grabbing ${dragIndex === index ? "opacity-50" : ""}`}
+              title="Drag to reorder"
+            >
               <div className="flex flex-col gap-px min-w-0 flex-1">
                 <span className="truncate font-semibold block" title={file.name}>{file.name}</span>
                 <span className="text-[9px] text-[var(--text-secondary)] block">({file.totalPages} pages)</span>

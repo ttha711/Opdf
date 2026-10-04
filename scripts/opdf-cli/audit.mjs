@@ -20,7 +20,6 @@ export async function runAudit(driver, mode, options) {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       checks.push({ name, status: "fail", error: message });
-      throw new Error(`${name}: ${message}`);
     }
   };
 
@@ -103,6 +102,9 @@ export async function runAudit(driver, mode, options) {
   const finalState = await driver.inspect();
   await check("no-console-errors", async () => {
     assert(finalState.errors.console.length === 0, `Console errors: ${finalState.errors.console.join(" | ")}`);
+  });
+  await check("no-page-errors", async () => {
+    assert(finalState.errors.page.length === 0, `Page errors: ${finalState.errors.page.join(" | ")}`);
   });
   await check("no-network-failures", async () => {
     assert(finalState.errors.network.length === 0, `Network errors: ${JSON.stringify(finalState.errors.network)}`);

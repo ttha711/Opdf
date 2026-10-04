@@ -51,10 +51,7 @@ try {
   const closeTools = page.getByRole("button", { name: /Close Tools/i });
   if (await closeTools.count()) await closeTools.first().click();
 
-  const chooserPromise = page.waitForEvent("filechooser");
-  await page.locator('header button[title="Mở PDF"]').first().click();
-  const chooser = await chooserPromise;
-  await chooser.setFiles(samplePath);
+  await page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles(samplePath);
 
   await page.waitForFunction(() => document.body.innerText.includes("sample-ui-audit.pdf"), null, { timeout: 30000 });
   await page.waitForTimeout(1800);

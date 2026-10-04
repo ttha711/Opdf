@@ -3,6 +3,7 @@ import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-d
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 import type { PdfSource } from "../lib/documentSource";
 import {
+import { useDialogClose } from "../hooks/useDialogClose";
   buildRevisionReportPdf,
   detectDiffRegions,
   estimateTranslation,
@@ -117,6 +118,7 @@ export function RevisionCompareModal({
   baseFileName: string;
   initialPage?: number;
 }) {
+  useDialogClose(isOpen, onClose);
   const [revisionFile, setRevisionFile] = useState<File | null>(null);
   const [mode, setMode] = useState<CompareMode>("side-by-side");
   const [opacity, setOpacity] = useState(0.5);

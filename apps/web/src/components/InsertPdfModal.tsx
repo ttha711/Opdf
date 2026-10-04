@@ -13,6 +13,7 @@ interface InsertPdfModalProps {
   onClose: () => void;
   fileName: string;
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   totalPages: number;
   currentPage: number;
   onInsertComplete: (insertedBytes: Uint8Array, targetPage: number) => void;
@@ -26,6 +27,7 @@ export function InsertPdfModal({
   onClose,
   fileName,
   docBytes,
+  getDocumentBytes,
   totalPages,
   currentPage,
   onInsertComplete,
@@ -97,7 +99,7 @@ export function InsertPdfModal({
   }
 
   // Handle selected local files
-  async function handleFileSelection(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileSelection(e: React.Đổi tệpEvent<HTMLInputElement>) {
     const selectedFiles = e.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
     await processSelectedFile(selectedFiles[0]);
@@ -129,7 +131,7 @@ export function InsertPdfModal({
 
   // Perform PDF insert operation
   async function handleInsert() {
-    if (!docBytes || !selectedFile) return;
+    if (!selectedFile) return;
     setIsProcessing(true);
     setViewerError("Inserting pages...");
     try {
@@ -138,7 +140,9 @@ export function InsertPdfModal({
         throw new Error("Invalid target page number");
       }
 
-      const next = await bridge.insertPages(docBytes, {
+      const sourceBytes = docBytes ?? await getDocumentBytes();
+      if (!sourceBytes) throw new Error("Không thể lấy dữ liệu PDF hiện tại.");
+      const next = await bridge.insertPages(sourceBytes, {
         targetPage,
         position,
         bytes: selectedFile.bytes,
@@ -177,7 +181,7 @@ export function InsertPdfModal({
               <line x1="12" y1="11" x2="12" y2="17" />
               <line x1="9" y1="14" x2="15" y2="14" />
             </svg>
-            Insert PDF Document
+            Chèn tài liệu PDF
           </h3>
           <button className="premium-modal-close" onClick={onClose} aria-label="Close dialog">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -191,7 +195,7 @@ export function InsertPdfModal({
           {/* Active target document context */}
           <div className="flex items-center justify-between rounded-lg p-3 border border-dashed" style={{ background: 'var(--ui-muted-bg)', borderColor: 'var(--border-color)' }}>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Target Document</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Tài liệu đích</p>
               <p className="text-sm font-semibold truncate text-[var(--text-primary)]">{fileName || "document.pdf"}</p>
             </div>
             <span className="flex-shrink-0 rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-1 text-xs font-bold text-blue-600 dark:text-blue-400">
@@ -201,7 +205,7 @@ export function InsertPdfModal({
 
           {/* Step 1: Document selection */}
           <div className="form-group">
-            <label className="form-label">Select Document to Insert</label>
+            <label className="form-label">Chọn PDF cần chèn</label>
             {!selectedFile ? (
               <div
                 className="flex flex-col items-center justify-center p-8 rounded-xl border border-dashed text-center transition-all"
@@ -217,7 +221,7 @@ export function InsertPdfModal({
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                 </svg>
                 <p className="text-xs text-[var(--text-secondary)] mb-3">
-                  Drag and drop your PDF here, or
+                  Kéo thả PDF vào đây hoặc
                 </p>
                 <button
                   className="btn-premium btn-premium-outline py-1 px-4 text-xs font-semibold"
@@ -225,7 +229,7 @@ export function InsertPdfModal({
                   disabled={isProcessing}
                   type="button"
                 >
-                  Browse PDF File
+                  Chọn tệp PDF
                 </button>
               </div>
             ) : (
@@ -259,7 +263,7 @@ export function InsertPdfModal({
             <>
               {/* Target insertion page input */}
               <div className="form-group">
-                <label className="form-label" htmlFor="insertTargetPage">Insert At Page Number</label>
+                <label className="form-label" htmlFor="insertTargetPage">Chèn tại trang</label>
                 <div className="flex items-center gap-3">
                   <input
                     id="insertTargetPage"
@@ -272,14 +276,14 @@ export function InsertPdfModal({
                     disabled={isProcessing}
                   />
                   <span className="text-xs text-[var(--text-secondary)]">
-                    Specify the page number of the target document (1 to {totalPages}).
+                    Chọn trang đích (1 đến {totalPages}).
                   </span>
                 </div>
               </div>
 
               {/* Placement selection radio cards */}
               <div className="form-group">
-                <label className="form-label">Position Placement</label>
+                <label className="form-label">Vị trí chèn</label>
                 <div className="radio-group">
                   <div
                     className={`radio-card ${position === "after" ? "active" : ""}`}
@@ -293,9 +297,9 @@ export function InsertPdfModal({
                         className="accent-blue-600"
                         disabled={isProcessing}
                       />
-                      After Page
+                      Sau trang
                     </div>
-                    <div className="radio-card-desc">Insert pages immediately following target page.</div>
+                    <div className="radio-card-desc">Chèn ngay sau trang đích.</div>
                   </div>
 
                   <div
@@ -310,9 +314,9 @@ export function InsertPdfModal({
                         className="accent-blue-600"
                         disabled={isProcessing}
                       />
-                      Before Page
+                      Trước trang
                     </div>
-                    <div className="radio-card-desc">Insert pages immediately preceding target page.</div>
+                    <div className="radio-card-desc">Chèn ngay trước trang đích.</div>
                   </div>
                 </div>
               </div>
@@ -323,7 +327,7 @@ export function InsertPdfModal({
         {/* Footer */}
         <div className="premium-modal-footer">
           <button className="btn-premium btn-premium-secondary" onClick={onClose} disabled={isProcessing} type="button">
-            Cancel
+            Hủy
           </button>
           <button
             className="btn-premium btn-premium-primary"
@@ -331,7 +335,7 @@ export function InsertPdfModal({
             disabled={isProcessing || !selectedFile}
             type="button"
           >
-            {isProcessing ? "Processing..." : "Insert PDF"}
+            {isProcessing ? "Đang xử lý..." : "Chèn PDF"}
           </button>
         </div>
       </div>

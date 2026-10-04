@@ -1,9 +1,10 @@
 @layer components {
   .app { @apply h-screen overflow-hidden grid; grid-template-rows: auto minmax(0, 1fr) 26px; background: var(--bg-app); }
+  .app.has-update-banner { grid-template-rows: auto auto minmax(0, 1fr) 26px; }
   .top-menu-btn { @apply inline-flex cursor-pointer items-center gap-1.5 rounded px-2.5 py-1.5 text-[13px] font-medium transition-colors; color: var(--text-primary); }
-  .top-menu-btn:hover { @apply bg-[#eaeaea]; }
+   .top-menu-btn:hover { background: var(--ui-hover-bg); }
 
-  .top-menu-btn.menu-open { @apply bg-[#e8e8e8]; }
+    .top-menu-btn.menu-open { background: var(--ui-hover-bg); color: var(--acrobat-blue); }
 
   .workspace.acrobat-body { @apply grid min-h-0 overflow-hidden; grid-template-columns: 240px 1fr 240px; }
   .left-panel { @apply z-[2] overflow-hidden border-r p-0 shadow-[1px_0_3px_rgba(0,0,0,.02)]; background: var(--bg-panel); border-color: var(--border-color); }
@@ -30,7 +31,7 @@
   .floating-actions button:last-child { border-color: var(--acrobat-blue); background: var(--acrobat-blue); @apply border text-white; }
   .floating-actions button:last-child:hover { background: var(--acrobat-blue-hover); }
 
-  .modal-backdrop { @apply fixed inset-0 z-30 grid place-items-center bg-black/40; }
+    .modal-backdrop { @apply fixed inset-0 grid place-items-center bg-black/40 p-4; z-index: var(--z-modal); }
   .sign-modal { @apply w-[360px] rounded-lg p-6 shadow-xl; background: var(--bg-toolbar); }
   .sign-modal h4 { @apply mb-4 mt-0 text-lg font-semibold; color: var(--text-primary); }
   .sign-modal select { @apply mb-6 w-full rounded border p-2 text-sm; background: var(--bg-toolbar); color: var(--text-primary); border-color: var(--border-color); }

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { pdfSourceToBytes, type PdfSource } from "../lib/documentSource";
 import {
-import { useDialogClose } from "../hooks/useDialogClose";
   addInternalPageLink,
   addPdfBookmarks,
   addUriLink,
@@ -11,6 +10,7 @@ import { useDialogClose } from "../hooks/useDialogClose";
   type FormFieldValue,
   type PdfBookmarkInput,
 } from "../lib/pdfAdvanced";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 type Tab = "forms" | "bookmarks" | "links";
 

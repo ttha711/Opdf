@@ -418,6 +418,10 @@ export function App() {
           onTriggerCompress={() => openSidebarTool("compress-pdf")}
           onTriggerMerge={() => openSidebarTool("merge-pdf")}
           onTriggerSplit={() => openSidebarTool("split-pdf")}
+          onTriggerOrganizePages={() => {
+            state.setShowDashboard(false);
+            setIsLeftCollapsed(false);
+          }}
           onTriggerFillForm={() => setShowAdvancedPdf(true)}
           onTriggerOcr={() => void headerProps.runOcr()}
           onTriggerWatermark={() => openSidebarTool("watermark-pdf")}

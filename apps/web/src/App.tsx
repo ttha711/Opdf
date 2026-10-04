@@ -208,7 +208,7 @@ export function App() {
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ fontSize: "16px" }}>🎉</span>
-            <span>Phiên bản mới <strong>v{updateInfo.version}</strong> đã sẵn sàng. ({updateInfo.description || "Có lỗi được sửa và cải tiến hiệu năng"})</span>
+            <span>Version <strong>v{updateInfo.version}</strong> is ready. ({updateInfo.description || "Bug fixes and performance improvements"})</span>
           </div>
           <button
             onClick={() => {
@@ -229,7 +229,7 @@ export function App() {
             onMouseOver={(e) => { e.currentTarget.style.opacity = "0.9"; }}
             onMouseOut={(e) => { e.currentTarget.style.opacity = "1"; }}
           >
-            Khởi động lại để cập nhật
+            Restart to Update
           </button>
         </div>
       )}
@@ -269,7 +269,7 @@ export function App() {
         fileName={state.fileName}
         onApplied={(bytes) => {
           replaceDocumentBytes(bytes, state.page);
-          toast.success("Đã áp dụng che nội dung an toàn. Các trang bị ảnh hưởng đã được raster hóa để loại bỏ lớp văn bản gốc.");
+          toast.success("Secure redaction applied. Affected pages were rasterized to remove the underlying text layer.");
         }}
       />
 
@@ -307,7 +307,7 @@ export function App() {
         signDocument={bridge.signPdfP12}
         onApplied={(bytes, certificate) => {
           replaceDocumentBytes(bytes, state.page);
-          toast.success("Đã ký số bởi " + certificate.commonName + ". Hãy lưu PDF để giữ chữ ký.");
+          toast.success("Digitally signed by " + certificate.commonName + ". Save the PDF to preserve the signature.");
         }}
       />
 
@@ -435,7 +435,7 @@ export function App() {
                 preserveSourceIdentity: false,
                 resetDocumentMetadata: true,
               });
-              toast.success("Ghép tài liệu PDF thành công!");
+              toast.success("PDF documents merged successfully.");
             }}
             setViewerError={state.setViewerError}
           />
@@ -533,7 +533,7 @@ export function App() {
             <button
               className="absolute left-0 top-1/2 z-30 flex h-16 w-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r bg-[var(--acrobat-blue)] text-white shadow hover:bg-[var(--acrobat-blue-hover)] transition-all hover:w-6"
               onClick={() => setIsLeftCollapsed(false)}
-              title="Mở thanh bên trái"
+              title="Expand left sidebar"
               type="button"
             >
               <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="3">
@@ -546,7 +546,7 @@ export function App() {
             <button
               className="absolute right-0 top-1/2 z-30 flex h-16 w-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-l bg-[var(--acrobat-blue)] text-white shadow hover:bg-[var(--acrobat-blue-hover)] transition-all hover:w-6"
               onClick={() => setIsRightCollapsed(false)}
-              title="Mở thanh bên phải"
+              title="Expand right sidebar"
               type="button"
             >
               <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="3">
@@ -575,7 +575,7 @@ export function App() {
             setIsAiPanelOpen(!isAiPanelOpen);
           }
         }}
-        title={isAiPanelOpen ? "Đóng trợ lý AI" : "Mở trợ lý AI"}
+        title={isAiPanelOpen ? "Close AI Assistant" : "Open AI Assistant"}
         type="button"
       >
         {isAiPanelOpen ? (

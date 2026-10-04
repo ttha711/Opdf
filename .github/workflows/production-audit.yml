@@ -43,12 +43,13 @@ jobs:
       - name: Run production audit
         shell: bash
         run: |
+          set -o pipefail
           mkdir -p opdf-cli-artifacts
           node scripts/opdf-cli.mjs audit "${{ inputs.mode }}" \
             --url "${{ inputs.url }}" \
             --out opdf-cli-artifacts \
             --trace opdf-cli-artifacts/trace.zip \
-            --json > opdf-cli-artifacts/report.json
+            --json 2>&1 | tee opdf-cli-artifacts/report.json
 
       - name: Upload audit artifacts
         if: always()

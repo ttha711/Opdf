@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { P12CertificateInfo, PdfSignatureInspection } from "../types/opdf";
 import { pdfSourceToBytes, type PdfSource } from "../lib/documentSource";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 function toDate(value: string) {
   const date = new Date(value);
@@ -44,6 +45,7 @@ export function DigitalSignatureModal({
   ) => Promise<{ bytes: Uint8Array; certificate: P12CertificateInfo }>;
   onApplied: (bytes: Uint8Array, certificate: P12CertificateInfo) => void;
 }) {
+  useDialogClose(isOpen, onClose);
   const [activeTab, setActiveTab] = useState<"sign" | "inspect">("sign");
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [certificateBytes, setCertificateBytes] = useState<Uint8Array | null>(null);

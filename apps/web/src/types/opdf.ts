@@ -38,7 +38,8 @@ export type BridgeCapabilities = {
 
 export type StoredDocumentMutation =
   | { type: "rotate-pages"; pageNumbers?: number[]; degrees: number }
-  | { type: "delete-pages"; pageNumbers: number[]; totalPages: number };
+  | { type: "delete-pages"; pageNumbers: number[]; totalPages: number }
+  | { type: "reorder-pages"; pageOrder: number[] };
 
 export type StoredDocumentMutationResult = {
   filePath: string;
@@ -130,6 +131,7 @@ export interface OpdfBridge {
   addBatesNumbering: (bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => Promise<Uint8Array>;
   convertToPdfA: (bytes: Uint8Array) => Promise<Uint8Array>;
   rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => Promise<Uint8Array>;
+  reorderPages?: (bytes: Uint8Array, pageOrder: number[]) => Promise<Uint8Array>;
   convertPdfOffice?: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => Promise<Uint8Array>;
   convertOfficeToPdf?: (bytes: Uint8Array, fileName: string) => Promise<Uint8Array>;
   inspectP12Certificate?: (certificateBytes: Uint8Array, passphrase: string) => Promise<P12CertificateInfo>;

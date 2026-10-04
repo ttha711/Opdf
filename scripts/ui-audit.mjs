@@ -72,7 +72,7 @@ async function assertMainPdfSurface() {
   const tree = await viewer.evaluate((root) => {
     const rows = [];
     const visit = (node, depth) => {
-      if (!node || depth > 8 || rows.length >= 260) return;
+      if (!node || depth > 16 || rows.length >= 900) return;
       const children = node instanceof ShadowRoot ? Array.from(node.children) : Array.from(node.children ?? []);
       for (const child of children) {
         const rect = child.getBoundingClientRect();
@@ -85,6 +85,11 @@ async function assertMainPdfSurface() {
           height: Math.round(rect.height),
           text: (child.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 80),
           shadow: Boolean(child.shadowRoot),
+          attrs: Array.from(child.attributes ?? []).reduce((acc, attr) => {
+            if (["class", "style"].includes(attr.name)) return acc;
+            acc[attr.name] = attr.value.slice(0, 120);
+            return acc;
+          }, {}),
         });
         if (child.shadowRoot) visit(child.shadowRoot, depth + 1);
         visit(child, depth + 1);

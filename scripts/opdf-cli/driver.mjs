@@ -38,6 +38,9 @@ export class OpdfDriver {
           value: undefined,
         });
       } catch {}
+      try {
+        localStorage.setItem("opdf_ai_mode", "local");
+      } catch {}
     });
     if (this.options.trace) {
       await mkdir(dirname(resolve(this.options.trace)), { recursive: true });

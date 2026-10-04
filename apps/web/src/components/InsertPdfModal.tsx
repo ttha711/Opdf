@@ -166,6 +166,7 @@ export function InsertPdfModal({
       <div className="premium-modal max-w-[500px]">
         {/* Hidden Input Picker */}
         <input
+          data-opdf-field="insert-file"
           type="file"
           ref={fileInputRef}
           accept="application/pdf"
@@ -268,6 +269,7 @@ export function InsertPdfModal({
                 <label className="form-label" htmlFor="insertTargetPage">Insert at Page</label>
                 <div className="flex items-center gap-3">
                   <input
+                    data-opdf-field="insert-page"
                     id="insertTargetPage"
                     type="number"
                     min="1"
@@ -293,6 +295,7 @@ export function InsertPdfModal({
                   >
                     <div className="radio-card-header">
                       <input
+                        data-opdf-field="insert-after"
                         type="radio"
                         checked={position === "after"}
                         onChange={() => setPosition("after")}
@@ -310,6 +313,7 @@ export function InsertPdfModal({
                   >
                     <div className="radio-card-header">
                       <input
+                        data-opdf-field="insert-before"
                         type="radio"
                         checked={position === "before"}
                         onChange={() => setPosition("before")}
@@ -332,6 +336,7 @@ export function InsertPdfModal({
             Cancel
           </button>
           <button
+            data-opdf-action="insert-run"
             className="btn-premium btn-premium-primary"
             onClick={handleInsert}
             disabled={isProcessing || !selectedFile}

@@ -10,6 +10,7 @@ export class OpdfDriver {
     this.context = null;
     this.page = null;
     this.consoleErrors = [];
+    this.pageErrors = [];
     this.networkErrors = [];
   }
 
@@ -28,6 +29,9 @@ export class OpdfDriver {
     this.page.setDefaultTimeout(this.options.timeout);
     this.page.on("console", (message) => {
       if (message.type() === "error") this.consoleErrors.push(message.text());
+    });
+    this.page.on("pageerror", (error) => {
+      this.pageErrors.push(String(error?.stack || error?.message || error));
     });
     this.page.on("requestfailed", (request) => {
       const method = request.method();
@@ -183,6 +187,7 @@ export class OpdfDriver {
       panels: [...new Set(panels.filter(Boolean))],
       errors: {
         console: [...this.consoleErrors],
+        page: [...this.pageErrors],
         network: [...this.networkErrors],
       },
     };
@@ -230,7 +235,17 @@ export class OpdfDriver {
     if (!label) throw new Error('Menu must be one of: File, Edit, View, Tools');
     const trigger = this.page.locator(`[data-opdf-menu-trigger="${label}"]`);
     await trigger.click();
-    await this.page.locator(`[data-opdf-menu-surface="${label}"]`).waitFor({ state: "visible" });
+    const menu = this.page.locator(`[data-opdf-menu-surface="${label}"]`);
+    await menu.waitFor({ state: "visible" });
+    const reachable = await menu.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 20 || rect.height < 20) return false;
+      const x = Math.min(window.innerWidth - 2, Math.max(1, rect.left + 16));
+      const y = Math.min(window.innerHeight - 2, Math.max(1, rect.top + 12));
+      const hit = document.elementFromPoint(x, y);
+      return Boolean(hit && element.contains(hit));
+    });
+    if (!reachable) throw new Error(`${label} menu is clipped or visually occluded`);
     return { ok: true, menu: label };
   }
 

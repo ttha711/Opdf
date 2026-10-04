@@ -128,3 +128,33 @@ test("server persists page reorder mutations", async ({ request }) => {
   expect(reordered.getPage(1).getSize()).toEqual({ width: 300, height: 400 });
   expect(reordered.getPage(2).getSize()).toEqual({ width: 400, height: 500 });
 });
+
+
+test("server persists duplicate page mutations", async ({ request }) => {
+  const pdf = await PDFDocument.create();
+  pdf.addPage([300, 400]);
+  pdf.addPage([400, 500]);
+  pdf.addPage([500, 600]);
+  const upload = await request.post("/api/opdf/documents?name=duplicate-pages.pdf", {
+    headers: { "content-type": "application/pdf" },
+    data: Buffer.from(await pdf.save()),
+  });
+  expect(upload.ok()).toBeTruthy();
+  const stored = await upload.json() as { id: string };
+
+  const duplicate = await request.post(`/api/opdf/documents/${stored.id}/mutations`, {
+    headers: { "content-type": "application/json" },
+    data: { type: "duplicate-pages", pageNumbers: [2] },
+  });
+  expect(duplicate.ok()).toBeTruthy();
+
+  const response = await request.get(`/api/opdf/documents/${stored.id}`);
+  expect(response.ok()).toBeTruthy();
+  const result = await PDFDocument.load(Buffer.from(await response.body()));
+
+  expect(result.getPageCount()).toBe(4);
+  expect(result.getPage(0).getSize()).toEqual({ width: 300, height: 400 });
+  expect(result.getPage(1).getSize()).toEqual({ width: 400, height: 500 });
+  expect(result.getPage(2).getSize()).toEqual({ width: 400, height: 500 });
+  expect(result.getPage(3).getSize()).toEqual({ width: 500, height: 600 });
+});

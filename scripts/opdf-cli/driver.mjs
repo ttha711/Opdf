@@ -21,6 +21,7 @@ export class OpdfDriver {
       viewport: { width: 1600, height: 1000 },
       deviceScaleFactor: 1,
       acceptDownloads: true,
+      extraHTTPHeaders: Object.keys(this.options.headers || {}).length ? this.options.headers : undefined,
     };
     if (this.options.videoDir) {
       await mkdir(resolve(this.options.videoDir), { recursive: true });

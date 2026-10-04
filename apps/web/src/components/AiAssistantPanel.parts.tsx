@@ -233,7 +233,7 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
   const { sender, isPending, text, toolLogs, confirmation } = message;
   
   return (
-    <div className={`ai-message-bubble-wrapper ${sender}`}>
+    <div data-opdf-ai-message={sender} data-opdf-ai-pending={isPending ? "true" : "false"} className={`ai-message-bubble-wrapper ${sender}`}>
       <div className="ai-message-avatar">
         {sender === "user" ? (
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">

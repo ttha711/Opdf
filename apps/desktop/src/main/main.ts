@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { join, resolve } from "node:path";
+import { extname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { mkdtemp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
 import { existsSync, lstatSync, readFileSync, writeFileSync } from "node:fs";
@@ -674,6 +674,59 @@ function resolveSofficePath(): string {
   }
   return "soffice";
 }
+async function convertOfficeFileToPdf(bytes: Uint8Array, fileName: string): Promise<Uint8Array> {
+  const extension = extname(fileName).toLowerCase();
+  const allowed = new Set([".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".rtf", ".txt"]);
+  if (!allowed.has(extension)) {
+    throw new Error("Unsupported Office input format.");
+  }
+  const payload = toNodeBuffer(bytes);
+  if (payload.byteLength === 0) throw new Error("Cannot convert an empty Office file.");
+
+  const workDir = await mkdtemp(join(tmpdir(), "opdf-office-to-pdf-"));
+  const inputPath = join(workDir, "input" + extension);
+  const outputPath = join(workDir, "input.pdf");
+  await writeFile(inputPath, payload);
+
+  try {
+    await new Promise<void>((resolveWorker, rejectWorker) => {
+      const child = spawn(
+        resolveSofficePath(),
+        ["--headless", "--convert-to", "pdf", "--outdir", workDir, inputPath],
+        {
+          cwd: workDir,
+          stdio: ["ignore", "pipe", "pipe"],
+          windowsHide: true,
+          env: { ...process.env },
+        },
+      );
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => { if (stdout.length < 20000) stdout += String(chunk); });
+      child.stderr.on("data", (chunk) => { if (stderr.length < 20000) stderr += String(chunk); });
+      child.once("error", (error: NodeJS.ErrnoException) => {
+        rejectWorker(
+          error.code === "ENOENT"
+            ? new Error("LibreOffice is not installed or OPDF_SOFFICE_PATH is not configured.")
+            : error,
+        );
+      });
+      child.once("close", (code) => {
+        if (code === 0) resolveWorker();
+        else rejectWorker(new Error(stderr || stdout || `LibreOffice exited with code ${code}`));
+      });
+    });
+
+    const output = await readFile(outputPath);
+    if (output.byteLength < 5 || output.subarray(0, 5).toString("ascii") !== "%PDF-") {
+      throw new Error("LibreOffice did not produce a valid PDF.");
+    }
+    return new Uint8Array(output);
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 function resolvePowershellScript(): string {
   const devScript = join(app.getAppPath(), "tools", "pdf_office_convert.ps1");
   if (existsSync(devScript)) return devScript;
@@ -737,6 +790,10 @@ function registerIpcHandlers(): void {
     options: P12SignOptions,
   ) => {
     return signPdfWithP12(bytes, certificateBytes, options);
+  });
+
+  ipcMain.handle("opdf:convert-office-pdf", async (_event, bytes: Uint8Array, fileName: string) => {
+    return convertOfficeFileToPdf(bytes, fileName);
   });
 
   ipcMain.handle("opdf:convert-pdf-office", async (_event, bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => {

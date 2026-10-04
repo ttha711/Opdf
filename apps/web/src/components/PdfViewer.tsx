@@ -551,7 +551,7 @@ export function PdfViewer({
           onResetCalibration={resetCalibration}
         />
       ) : null}
-      {activeRegistry ? <ViewerQuickTools registry={activeRegistry} documentId={DOCUMENT_ID} /> : null}
+      {activeRegistry ? <ViewerQuickTools registry={activeRegistry} /> : null}
       <EmbedPdfViewer
         key={sourceUrl}
         config={config as any}

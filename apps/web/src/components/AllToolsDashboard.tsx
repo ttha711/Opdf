@@ -16,6 +16,13 @@ interface AllToolsDashboardProps {
   onTriggerCompress: () => void;
   onTriggerMerge: () => void;
   onTriggerSplit: () => void;
+  onTriggerFillForm: () => void;
+  onTriggerOcr: () => void;
+  onTriggerWatermark: () => void;
+  onTriggerPageNumbers: () => void;
+  onTriggerCompare: () => void;
+  onTriggerRedact: () => void;
+  onTriggerSign: () => void;
   onSelectTool?: (toolId: string) => void;
 }
 
@@ -29,6 +36,7 @@ interface ToolDef {
   bgColor: string;
   borderColor: string;
   action: () => void;
+  requiresDocument?: boolean;
 }
 
 export function AllToolsDashboard({
@@ -41,6 +49,13 @@ export function AllToolsDashboard({
   onTriggerCompress,
   onTriggerMerge,
   onTriggerSplit,
+  onTriggerFillForm,
+  onTriggerOcr,
+  onTriggerWatermark,
+  onTriggerPageNumbers,
+  onTriggerCompare,
+  onTriggerRedact,
+  onTriggerSign,
   onSelectTool,
 }: AllToolsDashboardProps) {
   // Compression can use the connected bridge or the web large-PDF service.
@@ -295,24 +310,40 @@ export function AllToolsDashboard({
     window.addEventListener("message", handleMessage);
   };
 
-  // Define tools mapping
+  // Tool catalog follows the naming and task grouping users already know
+  // from mainstream PDF products. Every item either performs a real action or
+  // routes to a real configured panel/modal.
   const tools: ToolDef[] = [
-    // ROW 1: one user-facing AI edit handoff. Word/Excel/PPT choice happens inside 5175.
     { id: "pdf-to-ms-office", name: getDocumentToolLabel("pdf-to-ms-office"), icon: "🪄", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => convertPdfToOffice("pdf-to-ms-office") },
     { id: "pdf-to-png", name: "PDF to PNG", icon: "🖼️", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => convertPdfToImages(true) },
     { id: "pdf-to-jpeg", name: "PDF to JPEG", icon: "🌄", color: "#862e9c", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => convertPdfToImages(false) },
     { id: "pdf-to-txt", name: getDocumentToolLabel("pdf-to-txt"), icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: convertPdfToTxt },
     { id: "pdf-to-xml", name: getDocumentToolLabel("pdf-to-xml"), icon: "👾", color: "#0ca678", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: () => convertPdfToOffice("pdf-to-xml") },
 
-    // ROW 2: X to PDF (Convert to PDF) & PDF Utilities
     { id: "image-to-pdf", name: "Image to PDF", icon: "🖼️", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => triggerFileInput("image-to-pdf") },
     { id: "txt-to-pdf", name: "TXT to PDF", icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: () => triggerFileInput("txt-to-pdf") },
+    { id: "word-to-pdf", name: "Word to PDF", icon: "W", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => onSelectTool?.("word-to-pdf") },
+    { id: "excel-to-pdf", name: "Excel to PDF", icon: "X", color: "#198754", bgColor: "#e8f7ee", borderColor: "#b7e4c7", action: () => onSelectTool?.("excel-to-pdf") },
+    { id: "ppt-to-pdf", name: "PowerPoint to PDF", icon: "P", color: "#d9480f", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => onSelectTool?.("ppt-to-pdf") },
+
     { id: "compress-pdf", name: "Compress PDF", icon: "🗜️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerCompress },
     { id: "merge-pdf", name: "Merge PDF", icon: "📚", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerMerge },
     { id: "split-pdf", name: "Split PDF", icon: "✂️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerSplit },
+    { id: "rotate-pdf", name: "Rotate PDF", icon: "↻", color: "#5f3dc4", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => onSelectTool?.("rotate-pdf") },
+    { id: "delete-pages", name: "Delete Pages", icon: "🗑️", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: () => onSelectTool?.("delete-pages") },
+    { id: "extract-pages", name: "Extract Pages", icon: "📄", color: "#0b7285", bgColor: "#e3fafc", borderColor: "#99e9f2", action: () => onSelectTool?.("extract-pages") },
+    { id: "crop-pdf", name: "Crop PDF", icon: "⌗", color: "#5c7cfa", bgColor: "#edf2ff", borderColor: "#bac8ff", action: () => onSelectTool?.("crop-pdf") },
 
-    // ROW 3: Fill Form
-    { id: "fill-form", name: "Fill Form", icon: "✍️", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: () => toast.info("Form filling mode enabled. Double-click or use the text/note tool to enter information on the PDF.") }
+    { id: "watermark-pdf", name: "Watermark", icon: "💧", color: "#1864ab", bgColor: "#e7f5ff", borderColor: "#a5d8ff", action: onTriggerWatermark, requiresDocument: true },
+    { id: "page-numbers", name: "Page Numbers", icon: "#", color: "#495057", bgColor: "#f1f3f5", borderColor: "#ced4da", action: onTriggerPageNumbers, requiresDocument: true },
+    { id: "ocr-pdf", name: "OCR PDF", icon: "🔎", color: "#087f5b", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: onTriggerOcr, requiresDocument: true },
+    { id: "fill-form", name: "Fill Form", icon: "✍️", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerFillForm, requiresDocument: true },
+
+    { id: "protect-pdf", name: "Protect PDF", icon: "🔒", color: "#9c36b5", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => onSelectTool?.("protect-pdf") },
+    { id: "unlock-pdf", name: "Unlock PDF", icon: "🔓", color: "#2f9e44", bgColor: "#ebfbee", borderColor: "#b2f2bb", action: () => onSelectTool?.("unlock-pdf") },
+    { id: "redact-pdf", name: "Redact PDF", icon: "▰", color: "#212529", bgColor: "#f1f3f5", borderColor: "#ced4da", action: onTriggerRedact, requiresDocument: true },
+    { id: "compare-pdf", name: "Compare PDF", icon: "⇄", color: "#364fc7", bgColor: "#edf2ff", borderColor: "#bac8ff", action: onTriggerCompare, requiresDocument: true },
+    { id: "sign-pdf", name: "Sign PDF", icon: "✒️", color: "#a61e4d", bgColor: "#fff0f6", borderColor: "#fcc2d7", action: onTriggerSign, requiresDocument: true },
   ];
 
   // Filter tools based on active tab
@@ -325,7 +356,7 @@ export function AllToolsDashboard({
       case "to_pdf":
         return tools.filter(t => t.id.endsWith("-to-pdf"));
       case "merge_split":
-        return tools.filter(t => ["compress-pdf", "merge-pdf", "split-pdf"].includes(t.id));
+        return tools.filter(t => ["compress-pdf", "merge-pdf", "split-pdf", "rotate-pdf", "delete-pages", "extract-pages", "crop-pdf"].includes(t.id));
       case "all":
       default:
         return tools;
@@ -333,7 +364,7 @@ export function AllToolsDashboard({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-toolbar)] text-[var(--text-primary)] transition-colors select-none p-6 overflow-y-auto">
+    <div className="all-tools-dashboard flex flex-col h-full bg-[var(--bg-toolbar)] text-[var(--text-primary)] transition-colors select-none p-6 overflow-y-auto">
       {/* Hidden file input */}
       <input
         type="file"
@@ -388,6 +419,10 @@ export function AllToolsDashboard({
             disabled={tool.id === "compress-pdf" && !canCompress}
             title={undefined}
             onClick={() => {
+              if (!hasDocument && tool.requiresDocument) {
+                toast.info("Open a PDF first to use this tool.");
+                return;
+              }
               if (hasDocument) {
                 void tool.action();
               } else if (onSelectTool) {

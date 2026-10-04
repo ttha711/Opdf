@@ -134,7 +134,11 @@ export function PdfViewer({
       annotations: { annotationAuthor: "OPDF" },
       pan: { defaultMode: "mobile" },
       zoom: {
-        defaultZoomLevel: Math.max(0.05, Math.min(5, scale)),
+        // EmbedPDF 2.x gates the viewport during initial zoom and only releases
+        // that gate for a zoom mode. A numeric initial level can leave the main
+        // scroller permanently gated (toolbar/thumbnails load, page stays blank).
+        // Automatic resolves to 100% when the page already fits the viewport.
+        defaultZoomLevel: ZoomMode.Automatic,
         minZoom: 0.05,
         maxZoom: 5,
       },

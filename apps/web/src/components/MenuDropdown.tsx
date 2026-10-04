@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 export type MenuItemDef =
   | { kind: "action"; label: string; shortcut?: string; disabled?: boolean; title?: string; onClick: () => void }
+  | { kind: "section"; label: string }
   | { kind: "separator" };
 
 type MenuDropdownProps = {
@@ -41,6 +42,10 @@ export function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDr
           {items.map((item, i) =>
             item.kind === "separator" ? (
               <div key={i} className="my-1 h-px bg-[var(--ui-divider)]" />
+            ) : item.kind === "section" ? (
+              <div key={i} className="px-4 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+                {item.label}
+              </div>
             ) : (
               <button
                 key={i}

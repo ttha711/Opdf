@@ -301,6 +301,24 @@ async function mutateStoredDocument(req, res, record) {
     const copied = await outputDoc.copyPages(source, keep);
     copied.forEach((page) => outputDoc.addPage(page));
     output = new Uint8Array(await outputDoc.save({ useObjectStreams: false, addDefaultPage: false }));
+  } else if (body.type === "duplicate-pages") {
+    const pageNumbers = Array.isArray(body.pageNumbers)
+      ? body.pageNumbers.filter((value) => Number.isInteger(value) && value > 0)
+      : [];
+    const { PDFDocument } = await import("pdf-lib");
+    const source = await PDFDocument.load(input, { updateMetadata: false });
+    const totalPages = source.getPageCount();
+    const selected = new Set(pageNumbers.filter((value) => value <= totalPages));
+    if (selected.size === 0) return sendError(res, 400, "pageNumbers is required.");
+    const order = [];
+    for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+      order.push(pageNumber);
+      if (selected.has(pageNumber)) order.push(pageNumber);
+    }
+    const outputDoc = await PDFDocument.create();
+    const copied = await outputDoc.copyPages(source, order.map((pageNumber) => pageNumber - 1));
+    copied.forEach((page) => outputDoc.addPage(page));
+    output = new Uint8Array(await outputDoc.save({ useObjectStreams: false, addDefaultPage: false }));
   } else if (body.type === "reorder-pages") {
     const pageOrder = Array.isArray(body.pageOrder)
       ? body.pageOrder.filter((value) => Number.isInteger(value) && value > 0)

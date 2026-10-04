@@ -258,7 +258,7 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
 
         {toolLogs && (
           <details className="ai-tool-logs">
-            <summary>Xem nhật ký gọi Agent Bridge</summary>
+            <summary>View Agent Bridge call log</summary>
             <pre>{toolLogs}</pre>
           </details>
         )}
@@ -277,7 +277,7 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
               onClick={() => onConfirmInline(confirmation, true)}
               type="button"
             >
-              Xác nhận thực hiện
+              Confirm action
             </button>
           </div>
         )}
@@ -301,23 +301,23 @@ export function SuggestionChips({ onSuggestionClick }: SuggestionChipsProps) {
 
   return (
     <div className="ai-suggestions-container" onWheel={handleWheel}>
-      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("nén tài liệu")} type="button">
-        🗜️ Nén PDF
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("compress document")} type="button">
+        🗜️ Compress PDF
       </button>
-      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("xoay tất cả trang qua phải")} type="button">
-        🔄 Xoay phải tất cả
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("rotate all pages right")} type="button">
+        🔄 Rotate all right
       </button>
-      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("thêm số trang")} type="button">
-        🔢 Đánh số trang
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("add page numbers")} type="button">
+        🔢 Add page numbers
       </button>
-      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("xóa trang 2")} type="button">
-        🗑️ Xóa trang 2
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("delete page 2")} type="button">
+        🗑️ Delete page 2
       </button>
-      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("chạy ocr")} type="button">
-        🔍 Chạy OCR
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("run OCR")} type="button">
+        🔍 Run OCR
       </button>
-      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("trợ giúp")} type="button">
-        📚 Trợ giúp
+      <button className="ai-suggestion-chip" onClick={() => onSuggestionClick("help")} type="button">
+        📚 Help
       </button>
     </div>
   );
@@ -356,13 +356,13 @@ export function ChatInputForm({ inputValue, setInputValue, onSubmit, engineMode 
             onSubmit(e);
           }
         }}
-        placeholder={engineMode === "local" ? "Gõ lệnh (ví dụ: 'nén file', 'xoay trái')..." : "Trò chuyện với Dify AI..."}
+        placeholder={engineMode === "local" ? "Type a command (for example: 'compress file', 'rotate left')..." : "Chat with Dify AI..."}
       />
       <button 
         className="ai-chat-send-btn" 
         disabled={!inputValue.trim()} 
         type="submit"
-        title="Gửi câu lệnh"
+        title="Send command"
       >
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
           <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />

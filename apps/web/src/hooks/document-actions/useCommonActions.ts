@@ -42,7 +42,7 @@ export function useCommonActions({
         replaceDocumentBytes(compressed);
         setSaveState("idle");
         setViewerError(null);
-        toast.success("Nén tài liệu thành công!");
+        toast.success("Document compressed successfully.");
         return;
       }
 
@@ -71,17 +71,17 @@ export function useCommonActions({
       replaceDocumentBytes(compressed);
       setSaveState("idle");
       setViewerError(null);
-      toast.success("Nén tài liệu thành công!");
+      toast.success("Document compressed successfully.");
     } catch (err) {
       setViewerError("Compression failed: " + err);
-      toast.error("Nén tài liệu thất bại.");
+      toast.error("Document compression failed.");
     }
   }
 
   async function addWatermark() {
     // Configuration belongs in the Watermark panel. This fallback deliberately
     // avoids native prompt() dialogs.
-    toast.info("Mở Watermark trong PDF Tools để cấu hình nội dung và kiểu hiển thị.");
+    toast.info("Open Watermark in PDF Tools to configure the content and appearance.");
   }
 
   function mergeDocuments() {
@@ -116,7 +116,7 @@ export function useCommonActions({
       a.click();
       URL.revokeObjectURL(url);
       setViewerError(null);
-      toast.success("Đã xuất ảnh các trang thành công!");
+      toast.success("Page images exported successfully.");
     } catch (err) {
       setViewerError("Failed to convert: " + err);
     }

@@ -19,7 +19,7 @@ export function printResult(result, asJson) {
 export function printError(error, asJson) {
   const message = error instanceof Error ? error.message : String(error);
   if (asJson) {
-    process.stderr.write(JSON.stringify({ ok: false, error: message }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ ok: false, error: message }, null, 2) + "\n");
   } else {
     console.error("OPDF CLI error:", message);
   }

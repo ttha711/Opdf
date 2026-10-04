@@ -68,13 +68,13 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
   }
 
   return (
-    <aside className="h-full overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
+    <aside data-opdf-panel="markup" data-opdf-tool={tool} className="h-full overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-4 py-3">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Document Markup</div>
           <h4 className="m-0 mt-0.5 text-sm font-bold">{toolTitles[tool]}</h4>
         </div>
-        <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded hover:bg-[var(--ui-hover-bg)]" title="Close tool" type="button">✕</button>
+        <button data-opdf-action="close-tool" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded hover:bg-[var(--ui-hover-bg)]" title="Close tool" type="button">✕</button>
       </div>
 
       <div className="flex flex-col gap-4 p-4">

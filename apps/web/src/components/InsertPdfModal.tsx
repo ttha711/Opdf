@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "./ToastProvider";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 interface InsertFile {
   name: string;
@@ -35,6 +36,7 @@ export function InsertPdfModal({
   hasDesktopBridge,
   bridge,
 }: InsertPdfModalProps) {
+  useDialogClose(isOpen, onClose);
   const [selectedFile, setSelectedFile] = useState<InsertFile | null>(null);
   const [targetPage, setTargetPage] = useState<number>(currentPage);
   const [position, setPosition] = useState<"before" | "after">("after");

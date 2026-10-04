@@ -11,10 +11,22 @@ export function useResizableSidebars({
 }: UseResizableSidebarsArgs = {}) {
   const [leftWidth, setLeftWidth] = useState(initialLeftWidth);
   const [rightWidth, setRightWidth] = useState(initialRightWidth);
-  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
-  const [isRightCollapsed, setIsRightCollapsed] = useState(false);
+  const isCompactViewport = () => typeof window !== "undefined" && window.innerWidth <= 900;
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(isCompactViewport);
+  const [isRightCollapsed, setIsRightCollapsed] = useState(isCompactViewport);
   const [isDraggingLeft, setIsDraggingLeft] = useState(false);
   const [isDraggingRight, setIsDraggingRight] = useState(false);
+
+  useEffect(() => {
+    const handleViewportChange = () => {
+      if (window.innerWidth <= 900) {
+        setIsLeftCollapsed(true);
+        setIsRightCollapsed(true);
+      }
+    };
+    window.addEventListener("resize", handleViewportChange);
+    return () => window.removeEventListener("resize", handleViewportChange);
+  }, []);
 
   useEffect(() => {
     if (!isDraggingLeft && !isDraggingRight) return;

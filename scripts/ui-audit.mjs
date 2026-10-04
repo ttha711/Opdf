@@ -45,19 +45,23 @@ async function assertMainPdfSurface() {
 
   let diagnostics = [];
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    diagnostics = await viewer.locator("canvas").evaluateAll((canvases) =>
-      canvases.map((canvas) => {
-        const rect = canvas.getBoundingClientRect();
+    diagnostics = await viewer.locator("img, canvas").evaluateAll((surfaces) =>
+      surfaces.map((surface) => {
+        const rect = surface.getBoundingClientRect();
+        const isCanvas = surface instanceof HTMLCanvasElement;
+        const width = isCanvas ? surface.width : surface.naturalWidth;
+        const height = isCanvas ? surface.height : surface.naturalHeight;
         return {
-          width: canvas.width,
-          height: canvas.height,
+          tag: surface.tagName,
+          width,
+          height,
           rectWidth: rect.width,
           rectHeight: rect.height,
           visible:
             rect.width > 0 &&
             rect.height > 0 &&
-            getComputedStyle(canvas).display !== "none" &&
-            getComputedStyle(canvas).visibility !== "hidden",
+            getComputedStyle(surface).display !== "none" &&
+            getComputedStyle(surface).visibility !== "hidden",
         };
       }),
     );
@@ -109,7 +113,7 @@ async function assertMainPdfSurface() {
   console.log("Main PDF surface diagnostics:", diagnostics);
   console.log("Viewer DOM diagnostics:", JSON.stringify(tree, null, 2));
   await shot("02-viewer-render-failure");
-  throw new Error("Main PDF page surface did not render a visible page-sized canvas");
+  throw new Error("Main PDF page surface did not render a visible page-sized image or canvas");
 }
 
 async function openTopMenu(label) {

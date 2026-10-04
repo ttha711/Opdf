@@ -77,7 +77,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             aria-modal="true"
             aria-labelledby="opdf-confirm-title"
             aria-describedby="opdf-confirm-message"
-            aria-label={options.title || "Xác nhận"}
+            aria-label={options.title || "Confirm"}
             style={{
               width: "min(420px, calc(100vw - 32px))",
               borderRadius: "var(--ui-radius-lg)",
@@ -89,7 +89,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             }}
           >
             <h4 id="opdf-confirm-title" style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600 }}>
-              {options.title || "Xác nhận"}
+              {options.title || "Confirm"}
             </h4>
             <p id="opdf-confirm-message" style={{ margin: "0 0 18px", fontSize: "var(--ui-font-sm)", color: "var(--text-secondary)", whiteSpace: "pre-line" }}>
               {options.message}
@@ -111,7 +111,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                   color: "var(--text-primary)",
                 }}
               >
-                {options.cancelLabel || "Hủy"}
+                {options.cancelLabel || "Cancel"}
               </button>
               <button
                 type="button"
@@ -127,7 +127,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                   color: "#ffffff",
                 }}
               >
-                {options.confirmLabel || "Đồng ý"}
+                {options.confirmLabel || "Confirm"}
               </button>
             </div>
           </div>

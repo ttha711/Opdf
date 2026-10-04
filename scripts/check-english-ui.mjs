@@ -11,6 +11,7 @@ const vietnamesePattern = /[ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯẠ-ỹ]/u
 // multilingual user commands. They are not UI copy.
 const multilingualInternalFiles = new Set([
   "apps/web/src/components/AiAssistantPanel.utils.ts",
+  "apps/web/src/components/AiAssistantPanel.hooks.ts",
   "apps/web/src/components/live-editor/aiPatchService.ts",
   "apps/web/src/hooks/opdf-bridge/mockBridge.ts",
 ]);

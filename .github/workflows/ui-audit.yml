@@ -2,6 +2,13 @@ name: UI Audit Screenshots
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "server/**"
+      - "scripts/ui-audit.mjs"
+      - ".github/workflows/ui-audit.yml"
   pull_request:
     branches: [main]
     paths:

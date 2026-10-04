@@ -187,8 +187,8 @@ export function App() {
   const showLeft = !state.activeDashboardTool;
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null;
   const leftColWidth = showLeft && !isLeftCollapsed ? `${leftWidth}px` : "0px";
-  const leftResizerWidth = showLeft && !isLeftCollapsed ? "4px" : "0px";
-  const rightResizerWidth = !isRightCollapsed ? "4px" : "0px";
+  const leftResizerWidth = showLeft && !isLeftCollapsed ? "6px" : "0px";
+  const rightResizerWidth = !isRightCollapsed ? "6px" : "0px";
   const rightColWidth = !isRightCollapsed ? `${rightWidth}px` : "0px";
 
   return (
@@ -531,9 +531,9 @@ export function App() {
           {/* Floating Expand Buttons */}
           {(state.hasDocument || !state.activeDashboardTool) && isLeftCollapsed && (
             <button
-              className="absolute left-0 top-1/2 z-30 flex h-16 w-3.5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r bg-[var(--acrobat-blue)] text-white shadow hover:bg-[var(--acrobat-blue-hover)] transition-all hover:w-5"
+              className="absolute left-0 top-1/2 z-30 flex h-16 w-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r bg-[var(--acrobat-blue)] text-white shadow hover:bg-[var(--acrobat-blue-hover)] transition-all hover:w-6"
               onClick={() => setIsLeftCollapsed(false)}
-              title="Expand Left Sidebar"
+              title="Mở thanh bên trái"
               type="button"
             >
               <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="3">
@@ -544,9 +544,9 @@ export function App() {
 
           {isRightCollapsed && (
             <button
-              className="absolute right-0 top-1/2 z-30 flex h-16 w-3.5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-l bg-[var(--acrobat-blue)] text-white shadow hover:bg-[var(--acrobat-blue-hover)] transition-all hover:w-5"
+              className="absolute right-0 top-1/2 z-30 flex h-16 w-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-l bg-[var(--acrobat-blue)] text-white shadow hover:bg-[var(--acrobat-blue-hover)] transition-all hover:w-6"
               onClick={() => setIsRightCollapsed(false)}
-              title="Expand Right Sidebar"
+              title="Mở thanh bên phải"
               type="button"
             >
               <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="3">

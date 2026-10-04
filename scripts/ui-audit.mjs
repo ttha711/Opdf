@@ -28,6 +28,13 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 
+page.on("console", (message) => {
+  const text = message.text();
+  if (text.startsWith("OPDF_VIEWER_DIAGNOSTICS")) {
+    console.log("BROWSER " + text);
+  }
+});
+
 async function shot(name) {
   await page.screenshot({ path: resolve(outDir, name + ".png"), fullPage: true });
 }

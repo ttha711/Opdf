@@ -40,6 +40,19 @@ describe("browser PDF page operations", () => {
     expect(loaded.getPage(2).getRotation().angle).toBe(0);
   });
 
+  it("duplicates selected pages immediately after their originals", async () => {
+    const bridge = createMockBridge();
+    const source = await createSizedPages();
+    const output = await bridge.duplicatePages!(source, [2]);
+    const loaded = await PDFDocument.load(output);
+
+    expect(loaded.getPageCount()).toBe(4);
+    expect(loaded.getPage(0).getSize()).toEqual({ width: 300, height: 400 });
+    expect(loaded.getPage(1).getSize()).toEqual({ width: 400, height: 500 });
+    expect(loaded.getPage(2).getSize()).toEqual({ width: 400, height: 500 });
+    expect(loaded.getPage(3).getSize()).toEqual({ width: 500, height: 600 });
+  });
+
   it("deletes selected pages and keeps the remaining order", async () => {
     const bridge = createMockBridge();
     const source = await createSizedPages();

@@ -7,6 +7,7 @@ import { getDocumentToolName } from "./document-tool-panel/toolNames";
 import type { DocumentToolPanelProps, MergeFile } from "./document-tool-panel/types";
 import { useSplitMergeActions } from "./document-tool-panel/useSplitMergeActions";
 import { useConversionActions } from "./document-tool-panel/useConversionActions";
+import { BasicPdfToolsPanel } from "./document-tool-panel/BasicPdfToolsPanel";
 
 export function DocumentToolPanel({
   activeToolId,
@@ -286,6 +287,19 @@ export function DocumentToolPanel({
             onMerge={handleMergeFiles}
           />
         )}
+
+        {(["rotate-pdf", "delete-pages", "extract-pages", "crop-pdf", "protect-pdf", "unlock-pdf"] as const).includes(activeToolId as any) ? (
+          <BasicPdfToolsPanel
+            toolId={activeToolId as "rotate-pdf" | "delete-pages" | "extract-pages" | "crop-pdf" | "protect-pdf" | "unlock-pdf"}
+            fileName={fileName}
+            totalPages={totalPages}
+            getDocumentBytes={getDocumentBytes}
+            bridge={bridge}
+            replaceDocumentBytes={replaceDocumentBytes}
+            onLoadConvertedPdf={onLoadConvertedPdf}
+            setViewerError={setViewerError}
+          />
+        ) : null}
 
         {activeToolId === "fill-form" && <FillFormPanel />}
       </div>

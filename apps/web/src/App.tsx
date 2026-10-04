@@ -182,6 +182,46 @@ export function App() {
     replaceDocumentBytes(next, Math.min(state.page, state.totalPages - pages.length));
   }, [state.docBytes, state.page, state.totalPages, state.sourceIdentity, state.setPage, state.setTotalPages, bridge, materializeDocumentBytes, replaceDocumentBytes]);
 
+  const handleReorderPages = useCallback(async (fromPage: number, toPage: number) => {
+    if (
+      fromPage === toPage ||
+      fromPage < 1 ||
+      toPage < 1 ||
+      fromPage > state.totalPages ||
+      toPage > state.totalPages
+    ) return;
+
+    const pageOrder = Array.from({ length: state.totalPages }, (_, index) => index + 1);
+    const [moved] = pageOrder.splice(fromPage - 1, 1);
+    pageOrder.splice(toPage - 1, 0, moved);
+
+    if (state.sourceIdentity.startsWith("server://") && bridge.mutateStoredDocument) {
+      const result = await bridge.mutateStoredDocument(state.sourceIdentity, { type: "reorder-pages", pageOrder });
+      window.dispatchEvent(new CustomEvent("opdf:server-document-mutated", { detail: { sourceIdentity: state.sourceIdentity, updatedAt: result.updatedAt } }));
+      state.setPage(toPage);
+      setSelectedThumbnailPages(new Set());
+      return;
+    }
+
+    const bytes = state.docBytes ?? await materializeDocumentBytes();
+    if (!bytes) return;
+
+    let next: Uint8Array;
+    if (bridge.reorderPages) {
+      next = await bridge.reorderPages(bytes, pageOrder);
+    } else {
+      const pdfLib = await import("pdf-lib");
+      const source = await pdfLib.PDFDocument.load(bytes);
+      const output = await pdfLib.PDFDocument.create();
+      const copied = await output.copyPages(source, pageOrder.map((pageNumber) => pageNumber - 1));
+      copied.forEach((page) => output.addPage(page));
+      next = await output.save();
+    }
+
+    replaceDocumentBytes(next, toPage);
+    setSelectedThumbnailPages(new Set());
+  }, [bridge, materializeDocumentBytes, replaceDocumentBytes, state.docBytes, state.sourceIdentity, state.totalPages, state.setPage]);
+
   // Keep OPDF's page-management rail available for active PDFs. Thumbnails
   // are now rendered lazily by the PDFium viewer, so this no longer revives
   // the legacy PDF.js raster path.
@@ -403,6 +443,7 @@ export function App() {
                   onSelectionChange={setSelectedThumbnailPages}
                   onRotatePages={handleRotatePages}
                   onDeletePages={handleDeletePages}
+                  onReorderPages={handleReorderPages}
                   runDocumentTool={(tool) => headerProps.runDocumentTool(tool as import("./lib/document-tools").DocumentTool)}
                   onInsertAfterPage={(targetPage) => {
                     state.setPage(targetPage);

@@ -13,7 +13,6 @@ import {
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
 import { AiPatchDialog } from "./AiPatchDialog";
 import { MeasurementCalibrationDialog } from "./MeasurementCalibrationDialog";
-import { ViewerQuickTools } from "./ViewerQuickTools";
 import { resolvePdfiumPageCount } from "../lib/pdfiumDocumentState";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import {
@@ -561,10 +560,8 @@ export function PdfViewer({
           onUnitChange={setMeasurementUnit}
           onCalibrate={calibrateLastDistance}
           onResetCalibration={resetCalibration}
+          onClose={() => onActiveToolChange?.("select")}
         />
-      ) : null}
-      {activeRegistry && onActiveToolChange ? (
-        <ViewerQuickTools activeTool={activeTool} onActiveToolChange={onActiveToolChange} />
       ) : null}
       <EmbedPdfViewer
         key={sourceUrl}

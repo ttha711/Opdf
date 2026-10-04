@@ -100,7 +100,7 @@ export function MergeModal({
             size: file.size,
           });
         } catch {
-          toast.error(`Đã bỏ qua "${file.name}": Tệp PDF không hợp lệ hoặc đang được bảo vệ bằng mật khẩu.`);
+          toast.error(`Skipped "${file.name}": The PDF is invalid or password-protected.`);
         }
       }
 

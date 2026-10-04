@@ -83,7 +83,7 @@ export function IntegratedUploadWorkspace({
       if (fileSpec.ext.includes(ext) || fileSpec.accept === "*/*") {
         onFileSelected(file);
       } else {
-        toast.error(`Định dạng không hợp lệ: Vui lòng chọn tệp ${fileSpec.label} hợp lệ cho thao tác này.`);
+        toast.error(`Invalid format: please select a valid ${fileSpec.label} file for this action.`);
       }
     }
   };

@@ -32,10 +32,17 @@ async function shot(name) {
   await page.screenshot({ path: resolve(outDir, name + ".png"), fullPage: true });
 }
 
-async function clickTitle(title) {
-  const button = page.locator(`button[title="${title}"]`).first();
-  await button.scrollIntoViewIfNeeded();
-  await button.click();
+async function openTopMenu(label) {
+  const menu = page.locator("button.top-menu-btn").filter({ hasText: new RegExp("^" + label + "$") });
+  await menu.click();
+  await page.waitForTimeout(120);
+}
+
+async function clickToolsAction(label) {
+  await openTopMenu("Tools");
+  const action = page.getByRole("menuitem", { name: label, exact: true });
+  await action.scrollIntoViewIfNeeded();
+  await action.click();
 }
 
 async function closeOverlay() {
@@ -69,52 +76,51 @@ try {
     await shot("04-viewer-dark");
   }
 
-  const toolsButton = page.getByRole("button", { name: /All Tools Dashboard/ }).first();
-  if (await toolsButton.count()) {
-    await toolsButton.click();
-    await page.waitForTimeout(350);
-    await shot("05-dashboard-document");
-    const close = page.getByRole("button", { name: /Close Tools/i });
-    if (await close.count()) await close.first().click();
-  }
+  await openTopMenu("Tools");
+  await shot("05-tools-menu");
+  await page.getByRole("menuitem", { name: "All Tools...", exact: true }).click();
+  await page.waitForTimeout(350);
+  await shot("06-dashboard-document");
+  const close = page.getByRole("button", { name: /Close Tools/i });
+  if (await close.count()) await close.first().click();
 
-  const aiButton = page.locator('button[title="Mở trợ lý AI"]').first();
+  const aiButton = page.locator('button[title="Open AI Assistant"]').first();
   if (await aiButton.count()) {
     await aiButton.click();
     await page.waitForTimeout(500);
-    await shot("06-ai-panel");
-    const aiClose = page.locator('button[title="Đóng trợ lý AI"]').first();
+    await shot("07-ai-panel");
+    const aiClose = page.locator('button[title="Close AI Assistant"]').first();
     if (await aiClose.count()) await aiClose.click();
   }
 
-  await clickTitle("Split");
+  await clickToolsAction("Split PDF...");
   await page.waitForTimeout(300);
-  await shot("07-split-modal");
+  await shot("08-split-modal");
   await closeOverlay();
 
-  await clickTitle("Merge");
+  await clickToolsAction("Merge PDFs...");
   await page.waitForTimeout(300);
-  await shot("08-merge-modal");
+  await shot("09-merge-modal");
   await closeOverlay();
 
-  await clickTitle("Add Page Numbers");
+  await clickToolsAction("Page Numbers...");
   await page.waitForTimeout(300);
-  await shot("09-page-numbers-modal");
+  await shot("10-page-numbers-modal");
   await closeOverlay();
 
-  await clickTitle("Search & Secure Redact");
+  await clickToolsAction("Search & Secure Redact...");
   await page.waitForTimeout(300);
-  await shot("10-redaction-modal");
+  await shot("11-redaction-modal");
   await closeOverlay();
 
-  await clickTitle("Advanced PDF");
+  await clickToolsAction("Advanced PDF...");
   await page.waitForTimeout(300);
-  await shot("11-advanced-pdf-modal");
+  await shot("12-advanced-pdf-modal");
   await closeOverlay();
 
-  await clickTitle("Compare revisions");
+  await clickToolsAction("Compare Revisions...");
   await page.waitForTimeout(500);
-  await shot("12-revision-compare");
+  await shot("13-revision-compare");
   await closeOverlay();
 
   console.log("UI audit screenshots written to", outDir);

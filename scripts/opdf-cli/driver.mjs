@@ -427,7 +427,13 @@ export class OpdfDriver {
     }
 
     await panel.locator('[data-opdf-action="markup-apply"]').click();
-    await this.page.waitForTimeout(500);
+    const expected = {
+      "page-numbers": /page numbers added/i,
+      header: /header added/i,
+      footer: /footer added/i,
+      bates: /bates numbering added/i,
+    }[tool];
+    if (expected) await this.waitForStatusMessage(expected);
     await this.waitForPdfSurface();
     return this.inspect();
   }

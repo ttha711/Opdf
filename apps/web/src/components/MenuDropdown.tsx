@@ -38,7 +38,7 @@ export function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDr
         {label}
       </button>
       {isOpen && (
-        <div role="menu" className="absolute left-0 top-[calc(100%+2px)] min-w-[220px] rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] py-1 shadow-xl" style={{ zIndex: "var(--z-dropdown)" }}>
+        <div role="menu" className="absolute left-0 top-[calc(100%+2px)] max-h-[calc(100vh-56px)] min-w-[220px] overflow-y-auto rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] py-1 shadow-xl" style={{ zIndex: "var(--z-dropdown)" }}>
           {items.map((item, i) =>
             item.kind === "separator" ? (
               <div key={i} className="my-1 h-px bg-[var(--ui-divider)]" />

@@ -95,18 +95,18 @@ try {
 
   await clickToolsAction("Split PDF...");
   await page.waitForTimeout(300);
-  await shot("08-split-modal");
-  await closeOverlay();
+  await shot("08-split-sidebar");
+  await page.getByRole("button", { name: "Close tool" }).click();
 
   await clickToolsAction("Merge PDFs...");
   await page.waitForTimeout(300);
-  await shot("09-merge-modal");
-  await closeOverlay();
+  await shot("09-merge-sidebar");
+  await page.getByRole("button", { name: "Close tool" }).click();
 
   await clickToolsAction("Page Numbers...");
   await page.waitForTimeout(300);
-  await shot("10-page-numbers-modal");
-  await closeOverlay();
+  await shot("10-page-numbers-sidebar");
+  await page.getByRole("button", { name: "Close tool" }).click();
 
   await clickToolsAction("Search & Secure Redact...");
   await page.waitForTimeout(300);

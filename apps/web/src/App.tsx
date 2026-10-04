@@ -776,6 +776,7 @@ export function App() {
       {!isAiPanelOpen ? (
         <button
           ref={buttonRef}
+          data-opdf-action="open-ai"
           className={`ai-float-toggle-btn pulse-aura ${isDragging ? "dragging" : ""}`}
           style={position ? {
             left: `${position.x}px`,

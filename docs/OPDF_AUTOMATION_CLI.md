@@ -27,6 +27,12 @@ The target URL defaults to `http://127.0.0.1:8787`. Set `OPDF_URL` or pass `--ur
 
 ## Core commands
 
+Open/check a deployment without loading a PDF:
+
+```bash
+opdf open https://pdf.viuvtrade.io --json
+```
+
 Inspect the current application state:
 
 ```bash
@@ -44,6 +50,12 @@ Navigate and zoom:
 ```bash
 opdf page goto 3 --pdf ./sample.pdf --url https://pdf.viuvtrade.io
 opdf zoom set 125 --pdf ./sample.pdf --url https://pdf.viuvtrade.io
+```
+
+Discover supported semantic tool aliases:
+
+```bash
+opdf tool list --json
 ```
 
 Open semantic tools:
@@ -133,7 +145,7 @@ opdf audit full \
   --json
 ```
 
-If `--pdf` is omitted, the CLI generates a small three-page test PDF automatically.
+If `--pdf` is omitted, the CLI generates a small three-page test PDF automatically. In OPDF Server mode that upload may appear in server recents, so use a staging deployment for high-frequency scheduled audits or periodically clean audit documents.
 
 The smoke audit verifies:
 

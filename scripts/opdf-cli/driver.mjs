@@ -75,16 +75,34 @@ export class OpdfDriver {
   async waitForPdfSurface() {
     const viewer = this.page.locator('[data-opdf-engine="pdfium-wasm"]');
     await viewer.waitFor({ state: "visible" });
-    await this.page.waitForFunction(() => {
-      const root = document.querySelector('[data-opdf-engine="pdfium-wasm"]');
-      if (!root) return false;
-      return Array.from(root.querySelectorAll("img, canvas")).some((surface) => {
+    const surfaces = viewer.locator("img, canvas");
+    const deadline = Date.now() + this.options.timeout;
+    let diagnostics = [];
+
+    while (Date.now() < deadline) {
+      diagnostics = await surfaces.evaluateAll((items) => items.map((surface) => {
         const rect = surface.getBoundingClientRect();
-        const width = surface instanceof HTMLCanvasElement ? surface.width : surface.naturalWidth;
-        const height = surface instanceof HTMLCanvasElement ? surface.height : surface.naturalHeight;
-        return width >= 250 && height >= 250 && rect.width >= 220 && rect.height >= 220;
-      });
-    }, null, { timeout: this.options.timeout });
+        const isCanvas = surface instanceof HTMLCanvasElement;
+        return {
+          tag: surface.tagName.toLowerCase(),
+          width: isCanvas ? surface.width : surface.naturalWidth,
+          height: isCanvas ? surface.height : surface.naturalHeight,
+          rectWidth: Math.round(rect.width),
+          rectHeight: Math.round(rect.height),
+        };
+      }).filter((item) => item.rectWidth > 0 && item.rectHeight > 0));
+
+      if (diagnostics.some((surface) =>
+        surface.width >= 250 &&
+        surface.height >= 250 &&
+        surface.rectWidth >= 220 &&
+        surface.rectHeight >= 220
+      )) return diagnostics;
+
+      await this.page.waitForTimeout(200);
+    }
+
+    throw new Error(`Main PDF page surface did not render within ${this.options.timeout} ms. Surfaces: ${JSON.stringify(diagnostics)}`);
   }
 
   async inspect() {
@@ -146,6 +164,9 @@ export class OpdfDriver {
         visible: viewerVisible,
         width: Math.round(viewerBox?.width ?? 0),
         height: Math.round(viewerBox?.height ?? 0),
+        zoomPercent: viewerVisible
+          ? Number(await viewer.locator('input[aria-label="Set zoom"]').first().inputValue().catch(() => String(Math.round(attrs.zoom * 100))))
+          : Math.round(attrs.zoom * 100),
         renderedSurfaces: surfaces,
       },
       navigation: {
@@ -181,11 +202,18 @@ export class OpdfDriver {
     const input = this.page.locator('[data-opdf-engine="pdfium-wasm"] input[aria-label="Set zoom"]').first();
     await input.fill(String(Math.round(numeric)));
     await input.press("Enter");
-    await this.page.waitForFunction((target) => {
-      const status = document.querySelector('[data-opdf-region="status-bar"]');
-      const scale = Number(status?.getAttribute("data-opdf-zoom") || 0);
-      return Math.abs(scale * 100 - target) <= 2;
-    }, numeric, { timeout: this.options.timeout });
+
+    const deadline = Date.now() + this.options.timeout;
+    let current = Number(await input.inputValue().catch(() => "0"));
+    while (Date.now() < deadline) {
+      current = Number(await input.inputValue().catch(() => "0"));
+      if (Number.isFinite(current) && Math.abs(current - numeric) <= 2) break;
+      await this.page.waitForTimeout(100);
+    }
+    if (!Number.isFinite(current) || Math.abs(current - numeric) > 2) {
+      throw new Error(`Viewer zoom did not reach ${numeric}% within ${this.options.timeout} ms (current: ${current || "unknown"}%)`);
+    }
+
     return this.inspect();
   }
 

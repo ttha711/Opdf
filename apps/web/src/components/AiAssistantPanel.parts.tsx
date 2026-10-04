@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useRef } from "react";
 import type { Message, EngineMode } from "./AiAssistantPanel.types";
 import type { AgentCommand } from "../agent/agentCommands";
-import aiAvatar from "../assets/ai-avatar.jpg";
+import { AiSparkIcon } from "./AiSparkIcon";
 
 // --- MARKDOWN MESSAGE COMPONENT ---
 interface MarkdownMessageProps {
@@ -240,7 +240,7 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
             <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5z" />
           </svg>
         ) : (
-          <img src={aiAvatar} alt="AI" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+          <AiSparkIcon size={14} />
         )}
       </div>
       <div className="ai-message-bubble">

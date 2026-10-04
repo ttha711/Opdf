@@ -164,8 +164,8 @@ export function AppHeader({
 }) {
   const bridgeCapabilities = useOpdfBridge().capabilities;
   return (
-    <header className="z-10 flex flex-col border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm">
-      <div className="flex h-9 items-center gap-[var(--ui-gap-xs)] border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[var(--ui-pad-sm)]">
+    <header className="flex flex-col border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm" style={{ zIndex: "var(--z-panel)" }}>
+      <div className="flex h-9 items-center gap-[var(--ui-gap-xs)] overflow-x-auto whitespace-nowrap border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[var(--ui-pad-sm)]">
         <div className="inline-flex select-none items-center gap-[var(--ui-gap-sm)] px-[10px] pl-[var(--ui-gap-sm)] text-[14px] font-bold tracking-[-0.3px] text-[#e03e2d]">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="#e03e2d"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6z" /><path fill="white" d="M14 2v6h6" /><text x="5" y="17" fontSize="6" fill="white" fontWeight="bold">PDF</text></svg>
           <span className="text-[var(--ui-font-sm)] font-bold">Opdf</span>
@@ -199,7 +199,7 @@ export function AppHeader({
                     : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] cursor-pointer"
                 }`}
                 onClick={isPublic ? () => toast.info("Tính năng này chỉ khả dụng trên phiên bản Local hoặc Desktop App.") : () => setShowDashboard(!showDashboard)}
-                title={isPublic ? "Feature locked in public view" : "All Tools Dashboard"}
+                title={isPublic ? "Chỉ khả dụng trên bản Local/Desktop" : "Công cụ"}
                 type="button"
               >
                 {isPublic ? "🔒 All Tools Dashboard" : "All Tools Dashboard"}
@@ -223,13 +223,13 @@ export function AppHeader({
         {!hasDesktopBridge ? (
           <input ref={fileInputRef} className="hidden-file-input" type="file" accept="application/pdf" onClick={(e) => { e.currentTarget.value = ""; }} onChange={onSelectLocalFile} />
         ) : null}
-        <button className="inline-flex cursor-pointer items-center gap-[var(--ui-gap-sm)] rounded-[var(--ui-radius-sm)] px-2.5 py-1.5 text-[var(--ui-font-sm)] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--ui-hover-bg)]" onClick={openFile} title="Open PDF" type="button">
+        <button className="inline-flex cursor-pointer items-center gap-[var(--ui-gap-sm)] rounded-[var(--ui-radius-sm)] px-2.5 py-1.5 text-[var(--ui-font-sm)] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--ui-hover-bg)]" onClick={openFile} title="Mở PDF" type="button">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8h-8l-2-3H5a2 2 0 0 0-2 2z" /></svg>
           Open
         </button>
         {hasDocument && (
           <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${saveState === "saving" ? "bg-amber-100 text-amber-700" : saveState === "saved" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-            {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Unsaved"}
+            {saveState === "saving" ? "Đang lưu..." : saveState === "saved" ? "Đã lưu" : "Chưa lưu"}
           </span>
         )}
       </div>
@@ -251,7 +251,7 @@ export function AppHeader({
       />
 
 
-      <div className="flex flex-wrap items-stretch gap-[var(--ui-pad-md)] px-[var(--ui-pad-lg)] py-[var(--ui-pad-sm)] bg-[var(--ui-muted-bg)] border-t border-[var(--border-color)]">
+      <div className="flex items-stretch gap-[var(--ui-pad-md)] overflow-x-auto px-[var(--ui-pad-lg)] py-[var(--ui-pad-sm)] bg-[var(--ui-muted-bg)] border-t border-[var(--border-color)]">
         <FileViewGroup
           openFile={openFile}
           hasDocument={hasDocument}

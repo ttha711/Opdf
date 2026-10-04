@@ -7,11 +7,11 @@ import {
 
 describe("document editing experience copy", () => {
   it("frames PDF to Office actions as AI editing outcomes", () => {
-    expect(getDocumentToolLabel("pdf-to-ms-office")).toBe("Sửa bằng AI sang MS Office");
-    expect(getDocumentToolLabel("pdf-to-word")).toBe("Sửa bằng AI sang MS Office");
-    expect(getDocumentToolLabel("pdf-to-excel")).toBe("Sửa bảng bằng AI");
-    expect(getDocumentToolLabel("pdf-to-ppt")).toBe("Tạo slide bằng AI");
-    expect(getDocumentToolLabel("pdf-to-html")).toBe("Sửa nội dung bằng AI");
+    expect(getDocumentToolLabel("pdf-to-ms-office")).toBe("Edit with AI in MS Office");
+    expect(getDocumentToolLabel("pdf-to-word")).toBe("Edit with AI in MS Office");
+    expect(getDocumentToolLabel("pdf-to-excel")).toBe("Edit spreadsheet with AI");
+    expect(getDocumentToolLabel("pdf-to-ppt")).toBe("Create slides with AI");
+    expect(getDocumentToolLabel("pdf-to-html")).toBe("Edit content with AI");
     expect(getDocumentToolLabel("pdf-to-ms-office")).not.toMatch(/HTML|Web|convert/i);
     expect(getDocumentToolLabel("pdf-to-html")).not.toMatch(/HTML|Web|convert/i);
   });

@@ -96,7 +96,7 @@ npm run opdf -- audit full --url https://pdf.vivutrade.io.vn/ --trace opdf-cli-a
 npm run opdf -- audit e2e --url https://pdf.vivutrade.io.vn/ --trace opdf-cli-artifacts/trace.zip --video-dir opdf-cli-artifacts/video
 ```
 
-The CLI uses stable `data-opdf-*` automation hooks instead of screen coordinates. GitHub Actions exposes **OPDF Production E2E**, which can run smoke/full checks or a disposable-document `e2e` suite against the deployed URL. The E2E suite executes real PDF operations, validates exported/downloaded files, captures per-check screenshots, Playwright trace, and video, and fails on console/page/network errors.
+The CLI uses stable `data-opdf-*` automation hooks instead of screen coordinates. GitHub Actions exposes **OPDF Production E2E**, which can run smoke/full checks or a disposable-document `e2e` suite against the deployed URL. After successful CI on `main`, it starts automatically and waits until the live site reports the same Git commit SHA before testing, so it cannot silently validate an older deployment. The E2E suite executes real PDF operations, validates exported/downloaded files, captures per-check screenshots, Playwright trace, and video, and fails on console/page/network errors.
 
 See `docs/OPDF_AUTOMATION_CLI.md` for commands and agent-oriented JSON output.
 

@@ -269,7 +269,7 @@ export function useAppState() {
         setBookmarks([]);
         setThumbnails([]);
         setPageRotations({});
-        setShowDashboard(true);
+        setShowDashboard(false);
         clearDocumentSaveTracking();
       }
     }
@@ -378,7 +378,7 @@ export function useAppState() {
           setBookmarks([]);
           setThumbnails([]);
           setPageRotations({});
-          setShowDashboard(true);
+          setShowDashboard(false);
           clearDocumentSaveTracking();
         }
       }

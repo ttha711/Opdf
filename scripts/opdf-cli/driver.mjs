@@ -33,10 +33,7 @@ export class OpdfDriver {
     this.context = await this.browser.newContext(contextOptions);
     await this.context.addInitScript(() => {
       try {
-        Object.defineProperty(window, "showSaveFilePicker", {
-          configurable: true,
-          value: undefined,
-        });
+        delete window.showSaveFilePicker;
       } catch {}
       try {
         localStorage.setItem("opdf_ai_mode", "local");
@@ -58,14 +55,17 @@ export class OpdfDriver {
     this.page.on("requestfailed", (request) => {
       const method = request.method();
       const error = request.failure()?.errorText ?? "unknown";
-      // EmbedPDF probes server-backed PDFs with HEAD and may intentionally
-      // abort the request after it has enough metadata. Treat only that exact
-      // probe pattern as benign; GET/POST failures and 5xx responses remain fatal.
-      if (method === "HEAD" && error.includes("ERR_ABORTED")) return;
+      // EmbedPDF can intentionally abort stale server-document reads while a
+      // new working copy replaces the active PDF. Blank-surface/page-count
+      // assertions still catch genuine document-load failures, so only the
+      // OPDF document endpoint's explicit ERR_ABORTED cancellation is benign.
+      const requestUrl = request.url();
+      const isServerDocumentRead = /\/api\/opdf\/documents\/[^/?#]+(?:[/?#]|$)/.test(requestUrl);
+      if (error.includes("ERR_ABORTED") && isServerDocumentRead && (method === "HEAD" || method === "GET")) return;
       this.networkErrors.push({
         type: "requestfailed",
         method,
-        url: request.url(),
+        url: requestUrl,
         error,
       });
     });

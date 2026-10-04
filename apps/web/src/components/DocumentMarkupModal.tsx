@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { MarkupOptions, MarkupTool } from "../hooks/useDocumentActions";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 type DocumentMarkupModalProps = {
   tool: MarkupTool | null;
@@ -17,6 +18,7 @@ const toolTitles: Record<MarkupTool, string> = {
 };
 
 export function DocumentMarkupModal({ tool, fileName, totalPages, onClose, onApply }: DocumentMarkupModalProps) {
+  useDialogClose(Boolean(tool), onClose);
   const baseName = useMemo(() => fileName.split(/[/\\]/).pop() || "document.pdf", [fileName]);
   const [text, setText] = useState(baseName);
   const [prefix, setPrefix] = useState("Page ");

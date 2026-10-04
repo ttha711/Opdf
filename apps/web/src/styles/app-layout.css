@@ -477,7 +477,14 @@
 
   .left-panel button,
   .acrobat-tool-panel button {
-    min-height: 40px;
+    min-height: 44px;
+  }
+
+  .left-panel .thumbnail-drag-handle,
+  .left-panel .thumbnail-bookmark-toggle,
+  .left-panel .thumbnail-select-toggle {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .opdf-home__recent-card {

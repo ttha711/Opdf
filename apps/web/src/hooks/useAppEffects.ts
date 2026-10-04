@@ -152,7 +152,7 @@ export function useAppEffects(args: AppEffectsArgs) {
               }
             }, 100);
           } else {
-            setShowDashboard(true);
+            setShowDashboard(false);
           }
         } else {
           // Legacy draft loading fallback
@@ -190,7 +190,7 @@ export function useAppEffects(args: AppEffectsArgs) {
               );
             }
           } else {
-            setShowDashboard(true);
+            setShowDashboard(false);
           }
         }
       } catch (error) {

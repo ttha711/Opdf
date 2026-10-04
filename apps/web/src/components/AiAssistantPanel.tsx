@@ -74,7 +74,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveE
           onSave={handleSaveSettings}
         />
       ) : engineMode === "iframe" ? (
-        /* Iframe Nhúng Client AI-WEB-CHAT */
+        /* Embedded AI-WEB-CHAT client iframe */
         <div style={{ flex: 1, width: "100%", height: "100%", overflow: "hidden" }}>
           {isHttpUrl(iframeUrl) ? (
             <iframe
@@ -86,7 +86,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveE
             />
           ) : (
             <div style={{ padding: 16, fontSize: 13, color: "#64748b" }}>
-              URL iframe không hợp lệ. Vui lòng nhập một địa chỉ http(s) hợp lệ trong phần cài đặt.
+              Invalid iframe URL. Enter a valid http(s) address in settings.
             </div>
           )}
         </div>
@@ -105,7 +105,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveE
           {onOpenLiveEditor ? (
             <div style={{ padding: "0 12px 8px" }}>
               <button className="ai-header-live-editor" onClick={onOpenLiveEditor} type="button" style={{ width: "100%" }}>
-                Mở Live Editor
+                Open Live Editor
               </button>
             </div>
           ) : null}

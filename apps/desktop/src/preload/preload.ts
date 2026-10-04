@@ -36,6 +36,7 @@ const api = {
   rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => ipcRenderer.invoke("opdf:rotate-pages", bytes, pageNumbers, degrees) as Promise<Uint8Array>,
   showItemInFolder: (filePath: string) => ipcRenderer.invoke("opdf:show-item-in-folder", filePath) as Promise<void>,
   convertPdfOffice: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => ipcRenderer.invoke("opdf:convert-pdf-office", bytes, format) as Promise<Uint8Array>,
+  convertOfficeToPdf: (bytes: Uint8Array, fileName: string) => ipcRenderer.invoke("opdf:convert-office-pdf", bytes, fileName) as Promise<Uint8Array>,
   inspectP12Certificate: (certificateBytes: Uint8Array, passphrase: string) =>
     ipcRenderer.invoke("opdf:inspect-p12", certificateBytes, passphrase) as Promise<{
       commonName: string;

@@ -179,6 +179,7 @@ export function AppHeader({
     { kind: "action", label: "Compress PDF", disabled: !hasDocument, onClick: compressDocument },
     { kind: "action", label: "Convert to Images", disabled: !hasDocument, onClick: convertToImages },
     { kind: "section", label: "Review & Security" },
+    { kind: "action", label: "Measure Drawing", disabled: !hasDocument, onClick: () => setActiveTool("measure") },
     { kind: "action", label: "Compare Revisions...", disabled: !hasDocument, onClick: compareRevisions },
     { kind: "action", label: "Search & Secure Redact...", disabled: !hasDocument, onClick: searchRedact },
     { kind: "action", label: "Digital Sign...", disabled: !hasDocument || !hasDesktopBridge || bridgeCapabilities?.digitalSignature === false, title: !hasDesktopBridge ? "Available in the Desktop App only" : undefined, onClick: digitalSign },

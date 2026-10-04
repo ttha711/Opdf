@@ -49,6 +49,7 @@ jobs:
         run: node scripts/ui-audit.mjs
       - name: Exercise OPDF CLI
         run: |
+          mkdir -p opdf-cli-artifacts
           node scripts/opdf-cli.mjs audit smoke \
             --url http://127.0.0.1:8787 \
             --out opdf-cli-artifacts \

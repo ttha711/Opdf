@@ -21,7 +21,7 @@ import { useIntegratedFileConverter } from "./hooks/useIntegratedFileConverter";
 import { useAppControllers } from "./hooks/useAppControllers";
 import { ViewerErrorBoundary } from "./components/ViewerErrorBoundary";
 import { useToast } from "./components/ToastProvider";
-import aiAvatar from "./assets/ai-avatar.jpg";
+import { AiSparkIcon } from "./components/AiSparkIcon";
 import "./types/opdf";
 import { RevisionCompareModal } from "./components/RevisionCompareModal";
 import { SearchRedactModal } from "./components/SearchRedactModal";
@@ -583,7 +583,7 @@ export function App() {
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         ) : (
-          <img src={aiAvatar} alt="AI" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+          <AiSparkIcon size={24} />
         )}
       </button>
 

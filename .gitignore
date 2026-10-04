@@ -82,3 +82,6 @@ apps/editor/docs/
 # OPDF server runtime data
 .opdf-data/
 .opdf-e2e-data/
+
+# OPDF automation CLI artifacts
+opdf-cli-artifacts/

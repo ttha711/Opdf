@@ -14,6 +14,7 @@ export interface AiAssistantPanelProps {
   isOpen: boolean;
   onClose: () => void;
   align?: "left" | "right";
+  docked?: boolean;
   onOpenLiveEditor?: () => void;
 }
 

@@ -258,6 +258,56 @@ export function App() {
     replaceDocumentBytes(next, toPage);
     setSelectedThumbnailPages(new Set());
   }, [bridge, materializeDocumentBytes, replaceDocumentBytes, state.docBytes, state.sourceIdentity, state.totalPages, state.setPage]);
+  const handleDuplicatePages = useCallback(async (pages: number[]) => {
+    const selected = [...new Set(pages)].sort((a, b) => a - b);
+    if (selected.length === 0) return;
+
+    if (state.sourceIdentity.startsWith("server://") && bridge.mutateStoredDocument) {
+      const result = await bridge.mutateStoredDocument(state.sourceIdentity, { type: "duplicate-pages", pageNumbers: selected });
+      window.dispatchEvent(new CustomEvent("opdf:server-document-mutated", { detail: { sourceIdentity: state.sourceIdentity, updatedAt: result.updatedAt } }));
+      state.setTotalPages((current) => current + selected.length);
+      setSelectedThumbnailPages(new Set());
+      return;
+    }
+
+    const bytes = state.docBytes ?? await materializeDocumentBytes();
+    if (!bytes) return;
+    const next = bridge.duplicatePages
+      ? await bridge.duplicatePages(bytes, selected)
+      : await (async () => {
+          const pdfLib = await import("pdf-lib");
+          const source = await pdfLib.PDFDocument.load(bytes);
+          const total = source.getPageCount();
+          const chosen = new Set(selected);
+          const order: number[] = [];
+          for (let pageNumber = 1; pageNumber <= total; pageNumber += 1) {
+            order.push(pageNumber);
+            if (chosen.has(pageNumber)) order.push(pageNumber);
+          }
+          const output = await pdfLib.PDFDocument.create();
+          const copied = await output.copyPages(source, order.map((pageNumber) => pageNumber - 1));
+          copied.forEach((page) => output.addPage(page));
+          return output.save();
+        })();
+    replaceDocumentBytes(next, selected[0]);
+    setSelectedThumbnailPages(new Set());
+  }, [bridge, materializeDocumentBytes, replaceDocumentBytes, state.docBytes, state.sourceIdentity, state.setTotalPages]);
+
+  const handleExtractPages = useCallback(async (pages: number[]) => {
+    const selected = [...new Set(pages)].sort((a, b) => a - b);
+    if (selected.length === 0) return;
+    const bytes = state.docBytes ?? await materializeDocumentBytes();
+    if (!bytes) return;
+    const pdfLib = await import("pdf-lib");
+    const source = await pdfLib.PDFDocument.load(bytes);
+    const output = await pdfLib.PDFDocument.create();
+    const copied = await output.copyPages(source, selected.map((pageNumber) => pageNumber - 1));
+    copied.forEach((page) => output.addPage(page));
+    const result = new Uint8Array(await output.save());
+    const base = (state.fileName.split(/[\\/]/).pop() || "document.pdf").replace(/\.pdf$/i, "");
+    await bridge.saveFile(result, `${base}-extracted-pages.pdf`, ["pdf"]);
+  }, [bridge, materializeDocumentBytes, state.docBytes, state.fileName]);
+
 
   // Keep OPDF's page-management rail available for active PDFs. Thumbnails
   // are now rendered lazily by the PDFium viewer, so this no longer revives
@@ -512,6 +562,8 @@ export function App() {
                   onRotatePages={handleRotatePages}
                   onDeletePages={handleDeletePages}
                   onReorderPages={handleReorderPages}
+                  onDuplicatePages={handleDuplicatePages}
+                  onExtractPages={handleExtractPages}
                   runDocumentTool={(tool) => headerProps.runDocumentTool(tool as import("./lib/document-tools").DocumentTool)}
                   onInsertAfterPage={(targetPage) => {
                     state.setPage(targetPage);

@@ -51,15 +51,25 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+120/i, { timeout: 30_000 });
 
+  // The built-in PDFium toolbar is the single familiar annotation surface.
+  const viewer = page.locator(".viewer-shell");
+  await expect(viewer.getByText("View", { exact: true })).toBeVisible();
+  await expect(viewer.getByText("Annotate", { exact: true })).toBeVisible();
+  await expect(viewer.getByText("Shapes", { exact: true })).toBeVisible();
+  await expect(page.locator(".viewer-quick-tools")).toHaveCount(0);
+
   // OPDF's page-management rail must remain available on the PDFium path.
   await expect(page.getByText("Select pages for batch actions · drag the handle to reorder")).toBeVisible();
   await expect(page.getByRole("img", { name: "Page 1" }).first()).toBeVisible({ timeout: 15_000 });
 
-  // Measurement is implemented with native PDFium vector annotations, not the
-  // removed PDF.js/Fabric page renderer.
-  await page.getByRole("button", { name: "Measure", exact: true }).click();
+  // Measurement remains an OPDF-specific tool, launched from the conventional
+  // Tools menu instead of a second annotation toolbar.
+  await page.getByRole("button", { name: "Tools", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Measure Drawing", exact: true }).click();
   await expect(page.getByText("Measure", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Measurement mode")).toHaveValue("distance");
+  await page.getByRole("button", { name: "Close measurement tool", exact: true }).click();
+  await expect(page.getByLabel("Measurement mode")).toHaveCount(0);
 
   // Navigate through the persistent thumbnail rail. This remains stable even
   // when the compact app header has no page-number input.

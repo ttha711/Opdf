@@ -7,6 +7,7 @@ import type { OpdfTab } from "../lib/web-storage";
 import { getEditorLaunchTitle } from "../lib/documentEditingExperience";
 import { useOpdfBridge } from "../hooks/useOpdfBridge";
 import { toast } from "./ToastProvider";
+import { AiSparkIcon } from "./AiSparkIcon";
 
 export function AppHeader({
   fileInputRef,
@@ -223,7 +224,7 @@ export function AppHeader({
             title={isPublic ? "Available in Local/Desktop only" : getEditorLaunchTitle()}
             type="button"
           >
-            AI Edit
+            <span className="inline-flex items-center gap-1.5"><AiSparkIcon size={14} />AI Edit</span>
           </button>
         </div>
         <div className="mx-1 h-4 w-px bg-[var(--border-color)]" />

@@ -13,6 +13,7 @@ import {
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
 import { AiPatchDialog } from "./AiPatchDialog";
 import { MeasurementCalibrationDialog } from "./MeasurementCalibrationDialog";
+import { ViewerQuickTools } from "./ViewerQuickTools";
 import { resolvePdfiumPageCount } from "../lib/pdfiumDocumentState";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import {
@@ -550,6 +551,7 @@ export function PdfViewer({
           onResetCalibration={resetCalibration}
         />
       ) : null}
+      {activeRegistry ? <ViewerQuickTools registry={activeRegistry} documentId={DOCUMENT_ID} /> : null}
       <EmbedPdfViewer
         key={sourceUrl}
         config={config as any}

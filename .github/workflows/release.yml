@@ -25,7 +25,7 @@ jobs:
       - run: npm run server-smoke
       - run: node apps/desktop/dist/main/pdf-signature.smoke.js
       - run: npx playwright install chromium --with-deps
-      - run: npx playwright test --project=chromium
+      - run: npx playwright test --project=chromium --project=mobile-chromium
         env:
           CI: true
       - run: npx playwright test -c playwright.server.config.ts --project=chromium

@@ -47,17 +47,23 @@ export function IntegratedUploadWorkspace({
       case "pdf-to-html": return getDocumentToolLabel("pdf-to-html");
       case "pdf-to-xml": return getDocumentToolLabel("pdf-to-xml");
       case "pdf-to-rtf": return getDocumentToolLabel("pdf-to-rtf");
-      case "word-to-pdf": return "Reconstruct Word doc into PDF";
-      case "excel-to-pdf": return "Reconstruct Excel sheet into PDF";
-      case "ppt-to-pdf": return "Reconstruct PPT slide into PDF";
-      case "image-to-pdf": return "Convert Image into PDF Canvas";
+      case "word-to-pdf": return "Convert Word to PDF";
+      case "excel-to-pdf": return "Convert Excel to PDF";
+      case "ppt-to-pdf": return "Convert PowerPoint to PDF";
+      case "image-to-pdf": return "Convert Image to PDF";
       case "rtf-to-pdf": return "Convert Rich Text into PDF";
-      case "txt-to-pdf": return "Wrap Plain Text into PDF page";
+      case "txt-to-pdf": return "Convert Text to PDF";
       case "compress-pdf": return "Compress & Optimize PDF filesize";
       case "split-pdf": return "Split PDF into multiple indexes";
       case "merge-pdf": return "Merge multiple PDFs into a book";
       case "watermark-pdf": return "Stamp Watermark on PDF document";
-      case "fill-form": return "Form Field Interactive Filler";
+      case "fill-form": return "Fill PDF Form";
+      case "rotate-pdf": return "Rotate PDF pages";
+      case "delete-pages": return "Delete PDF pages";
+      case "extract-pages": return "Extract PDF pages";
+      case "crop-pdf": return "Crop PDF pages";
+      case "protect-pdf": return "Protect PDF with a password";
+      case "unlock-pdf": return "Unlock PDF";
       default: return "Integrated Acrobat Power Tool Workspace";
     }
   }, [activeToolId]);
@@ -140,7 +146,7 @@ export function IntegratedUploadWorkspace({
         </h3>
         
         <p className="m-0 mt-3 text-xs text-center leading-normal text-[var(--text-secondary)] px-4">
-          Drag & drop your <strong>{fileSpec.label}</strong> here, or click to browse computer local streams.
+          Drag & drop your <strong>{fileSpec.label}</strong> here, or click to choose a file.
         </p>
 
         {/* Premium Select Button */}
@@ -158,7 +164,7 @@ export function IntegratedUploadWorkspace({
 
         {/* Helper footer */}
         <span className="text-[10px] text-[var(--text-secondary)] mt-6 flex items-center gap-1">
-          🔒 Offline local buffer conversions. Your data never leaves your browser.
+          🔒 Processing stays local when supported. Office conversion may use your configured OPDF Server.
         </span>
       </div>
     </div>

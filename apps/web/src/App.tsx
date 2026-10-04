@@ -97,7 +97,6 @@ export function App() {
     position,
     isDragging,
     buttonRef,
-    panelAlign,
     hasMovedRef,
     handleMouseDown,
     handleTouchStart,

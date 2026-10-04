@@ -12,7 +12,7 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
-export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveEditor }: AiAssistantPanelProps) {
+export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = false, onOpenLiveEditor }: AiAssistantPanelProps) {
   const {
     messages,
     inputValue,
@@ -37,7 +37,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveE
   if (!isOpen) return null;
 
   return (
-    <div className={`ai-chat-panel glassmorphism align-${align}`}>
+    <div className={`ai-chat-panel glassmorphism align-${align}${docked ? " docked" : ""}`}>
       {/* Panel Header */}
       <div className="ai-chat-header">
         <div className="ai-header-title">

@@ -194,7 +194,7 @@ export function AiRewriteEditorWindow() {
       const batchSize = 15;
       let working = [...source];
       setBlocks(working);
-      setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Bắt đầu rewrite ${working.length} block...` }]);
+      setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Starting rewrite for ${working.length} blocks...` }]);
       for (let i = 0; i < working.length; i += batchSize) {
         const selected = working.slice(i, i + batchSize);
         const patch = await generateAiPatch({
@@ -212,9 +212,9 @@ export function AiRewriteEditorWindow() {
         });
         setBlocks([...working]);
         const done = Math.min(i + batchSize, source.length);
-        setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Đang rewrite ${done}/${source.length} block...` }]);
+        setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Rewriting ${done}/${source.length} blocks...` }]);
       }
-      setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Đã rewrite ${working.length} block theo từng đợt.` }]);
+      setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Rewrote ${working.length} blocks in batches.` }]);
     } finally {
       setIsConverting(false);
     }
@@ -232,7 +232,7 @@ export function AiRewriteEditorWindow() {
       }));
       let working = [...seeded];
       setBlocks(working);
-      setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Không có text layer, chuyển sang vision rewrite ${images.length} trang...` }]);
+      setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `No text layer found. Switching to vision rewrite for ${images.length} pages...` }]);
 
       for (let i = 0; i < images.length; i++) {
         const img = images[i];
@@ -265,13 +265,13 @@ export function AiRewriteEditorWindow() {
           return { ...b, ...u, type: u.type ?? structured.type, html: (u.html && u.html.trim()) ? u.html : structured.html, content: u.content ?? structured.content };
         });
         if (!directUpdate || (!directUpdate.html && !directUpdate.content)) {
-          setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Trang ${img.page}: AI trả response rỗng hoặc sai format, giữ nguyên placeholder.` }]);
+          setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Page ${img.page}: AI returned an empty or invalid response; keeping the placeholder.` }]);
         }
         setBlocks([...working]);
         setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Vision rewrite ${i + 1}/${images.length} trang...` }]);
       }
 
-      setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: "Hoàn tất vision rewrite." }]);
+      setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: "Vision rewrite completed." }]);
     } finally {
       setIsConverting(false);
     }
@@ -308,7 +308,7 @@ export function AiRewriteEditorWindow() {
           return;
         }
       }
-      toast.info("Chưa có nội dung. Vui lòng thêm hoặc kéo-thả tệp PDF/HTML/TXT trước.");
+      toast.info("No content loaded. Add or drag and drop a PDF/HTML/TXT file first.");
     } catch (error) {
       setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Convert failed: ${String(error)}` }]);
       if (lastSourceBytesSnapshot) {
@@ -318,7 +318,7 @@ export function AiRewriteEditorWindow() {
           return;
         }
       }
-      toast.error(`Chuyển đổi thất bại: ${String(error)}`);
+      toast.error(`Conversion failed: ${String(error)}`);
       return;
     }
     if (lastSourceBytesSnapshot) {
@@ -328,7 +328,7 @@ export function AiRewriteEditorWindow() {
         return;
       }
     }
-    toast.error("Không thể trích xuất nội dung để viết lại.");
+    toast.error("Unable to extract content for rewriting.");
   };
 
   const handleFile = async (file: File) => {
@@ -340,12 +340,12 @@ export function AiRewriteEditorWindow() {
         const bytes = new Uint8Array(await file.arrayBuffer());
       setLastSourceBytesSnapshot(Array.from(bytes));
         await loadPdfToBlocks(bytes);
-        setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Đã nạp PDF: ${file.name}` }]);
+        setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Loaded PDF: ${file.name}` }]);
         return;
       }
       if (lower.endsWith(".html") || lower.endsWith(".htm")) {
         setBlocks(htmlToBlocks(await file.text()));
-        setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Đã nạp HTML: ${file.name}` }]);
+        setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Loaded HTML: ${file.name}` }]);
         return;
       }
       if (lower.endsWith(".txt")) {
@@ -357,12 +357,12 @@ export function AiRewriteEditorWindow() {
           html: `<p>${line}</p>`,
           style: { font: "Noto Sans", size: 12, color: "#111827", lineHeight: 1.5 },
         })));
-        setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Đã nạp TXT: ${file.name}` }]);
+        setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Loaded TXT: ${file.name}` }]);
         return;
       }
-      toast.info("Hiện hỗ trợ PDF, tài liệu web và TXT để mở vào AI Document Editor.");
+      toast.info("AI Document Editor currently supports PDF, web documents, and TXT files.");
     } catch (error) {
-      setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Nạp file thất bại: ${String(error)}` }]);
+      setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: `Failed to load file: ${String(error)}` }]);
     } finally {
       setIsLoadingFile(false);
     }
@@ -384,7 +384,7 @@ export function AiRewriteEditorWindow() {
       const structured = formatStructuredHtml(sourceText);
       return { ...b, ...u, type: u.type ?? structured.type, html: u.html ?? structured.html, content: u.content ?? structured.content };
     }));
-    setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "user", text: contextPrompt }, { id: crypto.randomUUID(), sender: "assistant", text: "Đã áp dụng chỉnh sửa vào đoạn được chọn." }]);
+    setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "user", text: contextPrompt }, { id: crypto.randomUUID(), sender: "assistant", text: "Applied the edit to the selected text." }]);
     setContextPrompt("");
     setContextUI(null);
   };
@@ -403,7 +403,7 @@ export function AiRewriteEditorWindow() {
       const structured = formatStructuredHtml(sourceText);
       return { ...b, ...u, type: u.type ?? structured.type, html: u.html ?? structured.html, content: u.content ?? structured.content };
     }));
-    setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: "Đã cập nhật nội dung theo yêu cầu." }]);
+    setChat((prev) => [...prev, { id: crypto.randomUUID(), sender: "assistant", text: "Updated the content as requested." }]);
   };
 
   return (
@@ -421,7 +421,7 @@ export function AiRewriteEditorWindow() {
             disabled={isConverting || isLoadingFile}
             style={{ border: "1px solid #cbd5e1", padding: "6px 10px", borderRadius: 8, cursor: "pointer", background: "#fff" }}
           >
-            {isLoadingFile ? "Đang nạp..." : "Thêm file"}
+            {isLoadingFile ? "Loading..." : "Add file"}
           </button>
           <input
             ref={fileInputRef}
@@ -447,7 +447,7 @@ export function AiRewriteEditorWindow() {
         >
           {blocks.length === 0 ? (
             <div style={{ background: "#fff", border: "1px dashed #94a3b8", borderRadius: 10, padding: 20, color: "#334155" }}>
-              No blocks loaded yet. Click "Thêm file" or drag-drop file here, then press "Convert to DOCX".
+              No blocks loaded yet. Click "Add file" or drag-drop file here, then press "Convert to DOCX".
             </div>
           ) : null}
           {blocks.map((block) => (
@@ -485,13 +485,13 @@ export function AiRewriteEditorWindow() {
           ))}
         </div>
         <div style={{ padding: 12, borderTop: "1px solid #e2e8f0", display: "flex", gap: 8 }}>
-          <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Nhập lệnh sửa..." style={{ flex: 1 }} />
-          <button type="button" onClick={() => void sendSidebarChat()}>Gửi</button>
+          <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Enter edit instruction..." style={{ flex: 1 }} />
+          <button type="button" onClick={() => void sendSidebarChat()}>Send</button>
         </div>
       </aside>
       {contextUI ? (
         <div style={{ position: "fixed", left: contextUI.x, top: contextUI.y, zIndex: 1000, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: 8, display: "flex", gap: 6 }}>
-          <input value={contextPrompt} onChange={(e) => setContextPrompt(e.target.value)} placeholder="Lệnh sửa đoạn bôi đen..." style={{ width: 260 }} />
+          <input value={contextPrompt} onChange={(e) => setContextPrompt(e.target.value)} placeholder="Instruction for selected text..." style={{ width: 260 }} />
           <button type="button" onClick={() => void runContextEdit()}>OK</button>
           <button type="button" onClick={() => setContextUI(null)}>×</button>
         </div>

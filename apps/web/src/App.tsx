@@ -7,7 +7,7 @@ import { RightInfoPanel } from "./components/RightInfoPanel";
 import { SplitModal } from "./components/SplitModal";
 import { MergeModal } from "./components/MergeModal";
 import { InsertPdfModal } from "./components/InsertPdfModal";
-import { DocumentMarkupModal } from "./components/DocumentMarkupModal";
+import { DocumentMarkupPanel } from "./components/DocumentMarkupPanel";
 import { StatusBar } from "./components/StatusBar";
 import { DocumentToolPanel } from "./components/DocumentToolPanel";
 import { IntegratedUploadWorkspace } from "./components/IntegratedUploadWorkspace";
@@ -191,6 +191,18 @@ export function App() {
   const rightResizerWidth = !isRightCollapsed ? "6px" : "0px";
   const rightColWidth = !isRightCollapsed ? `${rightWidth}px` : "0px";
 
+  const openSidebarTool = (toolId: string) => {
+    setActiveMarkupTool(null);
+    state.setActiveDashboardTool(toolId);
+    setIsRightCollapsed(false);
+  };
+
+  const openMarkupSidebar = (tool: MarkupTool) => {
+    state.setActiveDashboardTool(null);
+    setActiveMarkupTool(tool);
+    setIsRightCollapsed(false);
+  };
+
   return (
     <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}`}>
       {updateInfo && (
@@ -252,6 +264,12 @@ export function App() {
         searchRedact={() => setShowSearchRedact(true)}
         advancedPdf={() => setShowAdvancedPdf(true)}
         digitalSign={() => setShowDigitalSignature(true)}
+        compressDocument={() => openSidebarTool("compress-pdf")}
+        addWatermark={() => openSidebarTool("watermark-pdf")}
+        splitDocument={() => openSidebarTool("split-pdf")}
+        mergeDocuments={() => openSidebarTool("merge-pdf")}
+        convertToImages={() => openSidebarTool("pdf-to-png")}
+        openDocumentMarkupTool={openMarkupSidebar}
       />
 
       <RevisionCompareModal
@@ -325,9 +343,9 @@ export function App() {
             });
           }}
           onClose={() => state.setShowDashboard(false)}
-          onTriggerCompress={compressDocument}
-          onTriggerMerge={mergeDocuments}
-          onTriggerSplit={splitDocument}
+          onTriggerCompress={() => openSidebarTool("compress-pdf")}
+          onTriggerMerge={() => openSidebarTool("merge-pdf")}
+          onTriggerSplit={() => openSidebarTool("split-pdf")}
           onSelectTool={(toolId) => {
             state.setActiveDashboardTool(toolId);
             state.setShowDashboard(false);
@@ -456,13 +474,7 @@ export function App() {
             bridge={bridge}
           />
 
-          <DocumentMarkupModal
-            tool={activeMarkupTool}
-            fileName={state.fileName}
-            totalPages={state.totalPages}
-            onClose={() => setActiveMarkupTool(null)}
-            onApply={runConfiguredMarkupTool}
-          />
+
 
           <div
             className={`sidebar-resizer ${isDraggingRight ? "dragging" : ""}`}
@@ -482,7 +494,15 @@ export function App() {
             }} 
             className="h-full min-h-0 overflow-hidden"
           >
-            {state.activeDashboardTool ? (
+            {activeMarkupTool ? (
+              <DocumentMarkupPanel
+                tool={activeMarkupTool}
+                fileName={state.fileName}
+                totalPages={state.totalPages}
+                onClose={() => setActiveMarkupTool(null)}
+                onApply={runConfiguredMarkupTool}
+              />
+            ) : state.activeDashboardTool ? (
               <DocumentToolPanel
                 activeToolId={state.activeDashboardTool}
                 fileName={state.fileName}
@@ -524,6 +544,17 @@ export function App() {
                 onGoToPage={state.setPage}
                 isCollapsed={isRightCollapsed}
                 setIsCollapsed={setIsRightCollapsed}
+                onQuickTool={(tool) => {
+                  if (tool === "ocr") {
+                    void headerProps.runOcr();
+                    return;
+                  }
+                  if (tool === "page-numbers") {
+                    openMarkupSidebar("page-numbers");
+                    return;
+                  }
+                  openSidebarTool(tool);
+                }}
               />
             )}
           </div>

@@ -147,6 +147,7 @@ export function DocumentToolPanel({
     handleMergeFileSelected,
     moveMergeUp,
     moveMergeDown,
+    reorderMergeFiles,
     removeMergeFile,
   } = useSplitMergeActions({
     docBytes,
@@ -283,6 +284,7 @@ export function DocumentToolPanel({
             onPick={handleMergePicker}
             onMoveUp={moveMergeUp}
             onMoveDown={moveMergeDown}
+            onReorder={reorderMergeFiles}
             onRemove={removeMergeFile}
             onMerge={handleMergeFiles}
           />

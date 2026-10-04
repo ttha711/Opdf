@@ -83,16 +83,35 @@ export function TabBar({
         setShowGroupColorPicker(false);
       }
     }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setActiveMenuTabId(null);
+        setActiveMenuGroupName(null);
+        setShowGroupColorPicker(false);
+      }
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [activeMenuTabId, activeMenuGroupName]);
 
   // Handle right-click on tab
+  const setSafeMenuCoords = (x: number, y: number, width = 220, height = 340) => {
+    const padding = 8;
+    setMenuCoords({
+      x: Math.max(padding, Math.min(x, window.innerWidth - width - padding)),
+      y: Math.max(padding, Math.min(y, window.innerHeight - height - padding)),
+    });
+  };
+
   const handleTabContextMenu = (e: React.MouseEvent, tabId: string) => {
     e.preventDefault();
     setActiveMenuTabId(tabId);
     setActiveMenuGroupName(null);
-    setMenuCoords({ x: e.clientX, y: e.clientY });
+    setSafeMenuCoords(e.clientX, e.clientY);
   };
 
   // Handle click on group badge
@@ -100,7 +119,7 @@ export function TabBar({
     e.stopPropagation();
     setActiveMenuGroupName(groupName);
     setActiveMenuTabId(null);
-    setMenuCoords({ x: e.clientX, y: e.clientY + 12 });
+    setSafeMenuCoords(e.clientX, e.clientY + 12, 230, 360);
   };
 
   const handleOpenGroupInNewWindow = (groupName: string) => {
@@ -230,7 +249,7 @@ export function TabBar({
 
       {/* RIGHT: Quick stats */}
       <div className="flex-shrink-0 hidden md:flex items-center gap-2 text-[11px] text-[var(--text-secondary)] font-medium">
-        <span>Tổng cộng: {tabs.length} tab</span>
+        <span>{tabs.length} tab</span>
       </div>
 
       {/* CUSTOM CONTEXT MENU: Tab Options */}

@@ -98,6 +98,7 @@ export function SearchRedactModal({
           <div className="mb-3 text-xs text-[var(--text-secondary)]">{fileName.split(/[/\\]/).pop()}</div>
           <div className="flex gap-2">
             <input
+              data-opdf-field="redact-query"
               className="min-w-0 flex-1 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm text-[var(--text-primary)]"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -105,7 +106,7 @@ export function SearchRedactModal({
               placeholder="Text to redact…"
               autoFocus
             />
-            <button type="button" disabled={busy || !query.trim()} onClick={() => void search()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+            <button data-opdf-action="redact-search" type="button" disabled={busy || !query.trim()} onClick={() => void search()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
               Search all pages
             </button>
           </div>
@@ -118,7 +119,7 @@ export function SearchRedactModal({
               <div className="mb-2 flex items-center justify-between text-xs">
                 <span>{selected.size} / {matches.length} selected</span>
                 <div className="flex gap-2">
-                  <button type="button" className="underline" onClick={() => setSelected(new Set(matches.map((match) => match.id)))}>Select all</button>
+                  <button data-opdf-action="redact-select-all" type="button" className="underline" onClick={() => setSelected(new Set(matches.map((match) => match.id)))}>Select all</button>
                   <button type="button" className="underline" onClick={() => setSelected(new Set())}>Clear</button>
                 </div>
               </div>
@@ -138,6 +139,7 @@ export function SearchRedactModal({
         <div className="premium-modal-footer">
           <button data-opdf-action="close-dialog" type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Cancel</button>
           <button
+            data-opdf-action="redact-apply"
             type="button"
             disabled={busy || selectedMatches.length === 0}
             onClick={() => void apply()}

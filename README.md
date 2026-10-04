@@ -90,12 +90,13 @@ The desktop development command uses a local web dev server. Do not treat develo
 OPDF includes a semantic Playwright CLI for AI agents, production checks, and repeatable browser automation.
 
 ```bash
-npm run opdf -- inspect --url https://pdf.viuvtrade.io --json
-npm run opdf -- audit smoke --url https://pdf.viuvtrade.io --out opdf-cli-artifacts
-npm run opdf -- audit full --url https://pdf.viuvtrade.io --trace opdf-cli-artifacts/trace.zip
+npm run opdf -- inspect --url https://pdf.vivutrade.io.vn/ --json
+npm run opdf -- audit smoke --url https://pdf.vivutrade.io.vn/ --out opdf-cli-artifacts
+npm run opdf -- audit full --url https://pdf.vivutrade.io.vn/ --trace opdf-cli-artifacts/trace.zip
+npm run opdf -- audit e2e --url https://pdf.vivutrade.io.vn/ --trace opdf-cli-artifacts/trace.zip --video-dir opdf-cli-artifacts/video
 ```
 
-The CLI uses stable `data-opdf-*` automation hooks instead of screen coordinates. GitHub Actions also exposes a manual **OPDF Production Audit** workflow that tests the deployed URL and uploads JSON, screenshots, and a Playwright trace.
+The CLI uses stable `data-opdf-*` automation hooks instead of screen coordinates. GitHub Actions exposes **OPDF Production E2E**, which can run smoke/full checks or a disposable-document `e2e` suite against the deployed URL. The E2E suite executes real PDF operations, validates exported/downloaded files, captures per-check screenshots, Playwright trace, and video, and fails on console/page/network errors.
 
 See `docs/OPDF_AUTOMATION_CLI.md` for commands and agent-oriented JSON output.
 

@@ -24,7 +24,7 @@ on:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,14 +47,16 @@ jobs:
           exit 1
       - name: Capture UI
         run: node scripts/ui-audit.mjs
-      - name: Exercise OPDF CLI
+      - name: Exercise OPDF production E2E locally
         run: |
+          set -o pipefail
           mkdir -p opdf-cli-artifacts
-          node scripts/opdf-cli.mjs audit smoke \
+          node scripts/opdf-cli.mjs audit e2e \
             --url http://127.0.0.1:8787 \
+            --timeout 120000 \
             --out opdf-cli-artifacts \
             --trace opdf-cli-artifacts/trace.zip \
-            --json > opdf-cli-artifacts/report.json
+            --json 2>&1 | tee opdf-cli-artifacts/console.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

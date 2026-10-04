@@ -1,4 +1,4 @@
-name: OPDF Production Audit
+name: OPDF Production E2E
 
 on:
   workflow_dispatch:
@@ -6,24 +6,33 @@ on:
       url:
         description: "Deployed OPDF URL"
         required: true
-        default: "https://pdf.viuvtrade.io"
+        default: "https://pdf.vivutrade.io.vn/"
         type: string
       mode:
         description: "Audit depth"
         required: true
-        default: "smoke"
+        default: "e2e"
         type: choice
         options:
           - smoke
           - full
+          - e2e
 
 permissions:
   contents: read
 
+concurrency:
+  group: opdf-production-e2e
+  cancel-in-progress: false
+
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
+    env:
+      OPDF_CF_ACCESS_CLIENT_ID: ${{ secrets.OPDF_CF_ACCESS_CLIENT_ID }}
+      OPDF_CF_ACCESS_CLIENT_SECRET: ${{ secrets.OPDF_CF_ACCESS_CLIENT_SECRET }}
+      OPDF_E2E_HEADERS_JSON: ${{ secrets.OPDF_E2E_HEADERS_JSON }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,22 +49,24 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium --with-deps
 
-      - name: Run production audit
+      - name: Run production browser audit
         shell: bash
         run: |
           set -o pipefail
           mkdir -p opdf-cli-artifacts
           node scripts/opdf-cli.mjs audit "${{ inputs.mode }}" \
             --url "${{ inputs.url }}" \
+            --timeout 120000 \
             --out opdf-cli-artifacts \
             --trace opdf-cli-artifacts/trace.zip \
-            --json 2>&1 | tee opdf-cli-artifacts/report.json
+            --video-dir opdf-cli-artifacts/video \
+            --json 2>&1 | tee opdf-cli-artifacts/console.log
 
-      - name: Upload audit artifacts
+      - name: Upload production E2E evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: opdf-production-audit
+          name: opdf-production-e2e-${{ github.run_number }}
           path: opdf-cli-artifacts
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14

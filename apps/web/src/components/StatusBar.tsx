@@ -29,6 +29,7 @@ export function StatusBar({
       data-opdf-zoom={scale}
       data-opdf-active-tool={activeTool}
       data-opdf-save-state={saveState}
+      data-opdf-message={viewerError ?? ""}
       aria-label={hasDocument ? `Page ${page} of ${totalPages}` : "No document"}
       className="flex select-none items-center justify-between border-t border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] text-[11px] text-[var(--text-secondary)]">
       <div className="flex items-center gap-1.5">

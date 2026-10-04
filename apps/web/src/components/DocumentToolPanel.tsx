@@ -169,6 +169,7 @@ export function DocumentToolPanel({
         ref={fileInputRef}
         onChange={activeToolId === "merge-pdf" ? handleMergeFileSelected : handleOfficeFileSelected}
         multiple={activeToolId === "merge-pdf"}
+        data-opdf-file-input={activeToolId}
         className="hidden"
       />
 

@@ -86,7 +86,7 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
         {isHeaderFooter ? (
           <label className="flex flex-col gap-1.5 text-xs font-semibold">
             Text
-            <input className="form-control" value={text} onChange={(event) => setText(event.target.value)} />
+            <input data-opdf-field="markup-text" className="form-control" value={text} onChange={(event) => setText(event.target.value)} />
           </label>
         ) : null}
 
@@ -94,11 +94,11 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1.5 text-xs font-semibold">
               Prefix
-              <input className="form-control" value={prefix} onChange={(event) => setPrefix(event.target.value)} />
+              <input data-opdf-field="markup-prefix" className="form-control" value={prefix} onChange={(event) => setPrefix(event.target.value)} />
             </label>
             <label className="flex flex-col gap-1.5 text-xs font-semibold">
               Suffix
-              <input className="form-control" value={suffix} onChange={(event) => setSuffix(event.target.value)} />
+              <input data-opdf-field="markup-suffix" className="form-control" value={suffix} onChange={(event) => setSuffix(event.target.value)} />
             </label>
           </div>
         ) : null}
@@ -107,12 +107,12 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
           {(isPageNumbers || isBates) ? (
             <label className="flex flex-col gap-1.5 text-xs font-semibold">
               Start Number
-              <input className="form-control" type="number" min="0" value={startNumber} onChange={(event) => setStartNumber(Number(event.target.value) || 0)} />
+              <input data-opdf-field="markup-start" className="form-control" type="number" min="0" value={startNumber} onChange={(event) => setStartNumber(Number(event.target.value) || 0)} />
             </label>
           ) : null}
           <label className="flex flex-col gap-1.5 text-xs font-semibold">
             Font Size
-            <input className="form-control" type="number" min="6" max="72" value={fontSize} onChange={(event) => setFontSize(Number(event.target.value) || 10)} />
+            <input data-opdf-field="markup-font-size" className="form-control" type="number" min="6" max="72" value={fontSize} onChange={(event) => setFontSize(Number(event.target.value) || 10)} />
           </label>
         </div>
 
@@ -127,7 +127,7 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
           <>
             <label className="flex flex-col gap-1.5 text-xs font-semibold">
               Position
-              <select className="form-control" value={position} onChange={(event) => setPosition(event.target.value as NonNullable<MarkupOptions["position"]>)}>
+              <select data-opdf-field="markup-position" className="form-control" value={position} onChange={(event) => setPosition(event.target.value as NonNullable<MarkupOptions["position"]>)}>
                 <option value="top-left">Top Left</option>
                 <option value="top-center">Top Center</option>
                 <option value="top-right">Top Right</option>
@@ -139,11 +139,11 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
             <div className="grid grid-cols-2 gap-2">
               <label className="flex flex-col gap-1.5 text-xs font-semibold">
                 From Page
-                <input className="form-control" type="number" min="1" max={totalPages} value={pageStart} onChange={(event) => setPageStart(Number(event.target.value) || 1)} />
+                <input data-opdf-field="markup-page-start" className="form-control" type="number" min="1" max={totalPages} value={pageStart} onChange={(event) => setPageStart(Number(event.target.value) || 1)} />
               </label>
               <label className="flex flex-col gap-1.5 text-xs font-semibold">
                 To Page
-                <input className="form-control" type="number" min="1" max={totalPages} value={pageEnd} onChange={(event) => setPageEnd(Number(event.target.value) || totalPages)} />
+                <input data-opdf-field="markup-page-end" className="form-control" type="number" min="1" max={totalPages} value={pageEnd} onChange={(event) => setPageEnd(Number(event.target.value) || totalPages)} />
               </label>
             </div>
           </>
@@ -152,7 +152,7 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
         {isHeaderFooter ? (
           <label className="flex flex-col gap-1.5 text-xs font-semibold">
             Alignment
-            <select className="form-control" value={align} onChange={(event) => setAlign(event.target.value as NonNullable<MarkupOptions["align"]>)}>
+            <select data-opdf-field="markup-align" className="form-control" value={align} onChange={(event) => setAlign(event.target.value as NonNullable<MarkupOptions["align"]>)}>
               <option value="left">Left</option>
               <option value="center">Center</option>
               <option value="right">Right</option>
@@ -168,6 +168,7 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
         </div>
 
         <button
+          data-opdf-action="markup-apply"
           type="button"
           onClick={() => void handleApply()}
           disabled={isApplying}

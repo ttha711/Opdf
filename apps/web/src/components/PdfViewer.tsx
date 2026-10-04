@@ -65,6 +65,7 @@ export function PdfViewer({
   const [readyViewer, setReadyViewer] = useState<{ sourceUrl: string; registry: any } | null>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const suppressExternalPageRef = useRef(false);
+  const preserveNativeToolRef = useRef(false);
   const lastPageRef = useRef(page);
   const lastScaleRef = useRef(scale);
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(() => {
@@ -271,6 +272,37 @@ export function PdfViewer({
         if (typeof off === "function") unsubscribers.push(off);
       }
 
+      if (annotationApi?.onActiveToolChange && onActiveToolChange) {
+        const off = annotationApi.onActiveToolChange((event: any) => {
+          if (activeTool !== "measure") return;
+          const rawTool = String(event?.tool?.id ?? event?.tool?.name ?? "").toLowerCase();
+          const expectedMeasureTool =
+            measurementMode === "area" ? "polygon" :
+            measurementMode === "perimeter" ? "polyline" :
+            "line";
+          if (rawTool === expectedMeasureTool || rawTool.endsWith(":" + expectedMeasureTool)) return;
+
+          let nextTool: typeof activeTool = "select";
+          if (rawTool.includes("highlight")) nextTool = "highlight";
+          else if (rawTool.includes("ink") || rawTool.includes("draw")) nextTool = "draw";
+          else if (rawTool.includes("freetext") || rawTool.includes("free-text")) nextTool = "text";
+          else if (rawTool.includes("note")) nextTool = "note";
+          else if (
+            rawTool.includes("square") ||
+            rawTool.includes("rectangle") ||
+            rawTool.includes("circle") ||
+            rawTool.includes("arrow") ||
+            rawTool.includes("polygon") ||
+            rawTool.includes("polyline") ||
+            rawTool === "line"
+          ) nextTool = "shape";
+
+          preserveNativeToolRef.current = true;
+          onActiveToolChange(nextTool);
+        });
+        if (typeof off === "function") unsubscribers.push(off);
+      }
+
       const formScope = formApi?.forDocument?.(DOCUMENT_ID);
       if (formScope?.onFieldValueChange) {
         const off = formScope.onFieldValueChange(() => onViewerDirty?.());
@@ -392,6 +424,11 @@ export function PdfViewer({
   useEffect(() => {
     if (!sourceUrl || !activeRegistry) return;
     const registry = activeRegistry;
+
+    if (preserveNativeToolRef.current) {
+      preserveNativeToolRef.current = false;
+      return;
+    }
 
       const annotation = registry.getPlugin?.("annotation")?.provides?.() as any;
       const redaction = registry.getPlugin?.("redaction")?.provides?.() as any;

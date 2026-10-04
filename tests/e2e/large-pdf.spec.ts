@@ -53,9 +53,9 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
 
   // The built-in PDFium toolbar is the single familiar annotation surface.
   const viewer = page.locator(".viewer-shell");
-  await expect(viewer.getByText("View", { exact: true })).toBeVisible();
-  await expect(viewer.getByText("Annotate", { exact: true })).toBeVisible();
-  await expect(viewer.getByText("Shapes", { exact: true })).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "View", exact: true })).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "Annotate", exact: true })).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "Shapes", exact: true })).toBeVisible();
   await expect(page.locator(".viewer-quick-tools")).toHaveCount(0);
 
   // OPDF's page-management rail must remain available on the PDFium path.

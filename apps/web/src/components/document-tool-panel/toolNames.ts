@@ -22,6 +22,12 @@ export function getDocumentToolName(activeToolId: string): string {
     case "merge-pdf": return "Advanced Merge Documents";
     case "watermark-pdf": return "Premium Watermark Tool";
     case "fill-form": return "Interactive Form Filler";
+    case "rotate-pdf": return "Rotate PDF";
+    case "delete-pages": return "Delete PDF Pages";
+    case "extract-pages": return "Extract PDF Pages";
+    case "crop-pdf": return "Crop PDF";
+    case "protect-pdf": return "Protect PDF";
+    case "unlock-pdf": return "Unlock PDF";
     default: return "Document Power Tool";
   }
 }

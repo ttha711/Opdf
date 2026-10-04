@@ -35,3 +35,9 @@ export function resolveTool(name) {
   }
   return { key, ...tool };
 }
+
+export function listTools() {
+  return Object.entries(TOOL_ALIASES)
+    .map(([name, config]) => ({ name, ...config }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}

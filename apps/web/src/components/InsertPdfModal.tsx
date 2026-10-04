@@ -101,7 +101,7 @@ export function InsertPdfModal({
   }
 
   // Handle selected local files
-  async function handleFileSelection(e: React.Đổi tệpEvent<HTMLInputElement>) {
+  async function handleFileSelection(e: React.ChangeEvent<HTMLInputElement>) {
     const selectedFiles = e.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
     await processSelectedFile(selectedFiles[0]);

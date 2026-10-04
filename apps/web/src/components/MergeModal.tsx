@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "./ToastProvider";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 interface MergeFile {
   id: string;
@@ -33,6 +34,7 @@ export function MergeModal({
   onMergeComplete,
   setViewerError,
 }: MergeModalProps) {
+  useDialogClose(isOpen, onClose);
   const [files, setFiles] = useState<MergeFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);

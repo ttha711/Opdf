@@ -101,7 +101,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => setItems((prev) => prev.filter((t) => t.id !== item.id))}
-                aria-label="Đóng thông báo"
+                aria-label="Dismiss notification"
                 style={{
                   background: "transparent",
                   border: "none",

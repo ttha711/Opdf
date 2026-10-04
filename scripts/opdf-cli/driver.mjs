@@ -181,7 +181,11 @@ export class OpdfDriver {
     const input = this.page.locator('[data-opdf-engine="pdfium-wasm"] input[aria-label="Set zoom"]').first();
     await input.fill(String(Math.round(numeric)));
     await input.press("Enter");
-    await this.page.waitForTimeout(250);
+    await this.page.waitForFunction((target) => {
+      const status = document.querySelector('[data-opdf-region="status-bar"]');
+      const scale = Number(status?.getAttribute("data-opdf-zoom") || 0);
+      return Math.abs(scale * 100 - target) <= 2;
+    }, numeric, { timeout: this.options.timeout });
     return this.inspect();
   }
 

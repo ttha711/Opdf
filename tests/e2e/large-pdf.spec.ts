@@ -49,7 +49,7 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   });
 
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText(/Page\s+1\s+of\s+120/i)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("page-status")).toContainText(/1\s*\/\s*120/, { timeout: 30_000 });
 
   // OPDF's page-management rail must remain available on the PDFium path.
   await expect(page.getByText("Ctrl+click or Shift+click to select pages")).toBeVisible();
@@ -65,5 +65,5 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   const navigationField = page.locator('header input:not([type="file"])').first();
   await navigationField.fill("100");
   await navigationField.press("Enter");
-  await expect(page.getByText(/Page\s+100\s+of\s+120/i)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("page-status")).toContainText(/100\s*\/\s*120/, { timeout: 15_000 });
 });

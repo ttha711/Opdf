@@ -643,6 +643,22 @@ export function createMockBridge(): OpdfBridge {
       copied.forEach((page) => output.addPage(page));
       return output.save();
     },
+    async duplicatePages(bytes, pageNumbers: number[]) {
+      const pdfLib = await loadPdfLib();
+      const source = await pdfLib.PDFDocument.load(bytes);
+      const total = source.getPageCount();
+      const selected = new Set(pageNumbers.filter((pageNumber) => Number.isInteger(pageNumber) && pageNumber >= 1 && pageNumber <= total));
+      if (selected.size === 0) throw new Error("Select at least one page to duplicate.");
+      const order: number[] = [];
+      for (let pageNumber = 1; pageNumber <= total; pageNumber += 1) {
+        order.push(pageNumber);
+        if (selected.has(pageNumber)) order.push(pageNumber);
+      }
+      const output = await pdfLib.PDFDocument.create();
+      const copied = await output.copyPages(source, order.map((pageNumber) => pageNumber - 1));
+      copied.forEach((page) => output.addPage(page));
+      return output.save();
+    },
     async showItemInFolder(filePath) {
       console.log("[MockBridge] showItemInFolder", filePath);
     },

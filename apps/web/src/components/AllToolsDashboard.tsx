@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { getDocumentToolLabel } from "../lib/documentEditingExperience";
 import { useOpdfBridge } from "../hooks/useOpdfBridge";
 import { toast } from "./ToastProvider";
+import { buildPdfTextExport } from "../lib/pdfTextExport";
 
 interface AllToolsDashboardProps {
   hasDocument: boolean;
@@ -248,20 +249,8 @@ export function AllToolsDashboard({
     triggerFileInput("pdf-to-txt");
   };
 
-  const extractPdfTextPages = async (bytes: Uint8Array) => {
-    const pdfjs = await import("pdfjs-dist");
-    const pdf = await pdfjs.getDocument({ data: bytes }).promise;
-    const pages: string[] = [];
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const textContent = await page.getTextContent();
-      pages.push(textContent.items.map((item: any) => item.str).join(" "));
-    }
-    return pages;
-  };
-
-  const downloadTextBlob = (content: string, type: string, name: string) => {
-    const blob = new Blob([content], { type });
+  const downloadExport = (bytes: Uint8Array, type: string, name: string) => {
+    const blob = new Blob([bytes as unknown as BlobPart], { type });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -270,37 +259,17 @@ export function AllToolsDashboard({
     URL.revokeObjectURL(url);
   };
 
-  const runPdfToTxt = async (bytes: Uint8Array, name: string) => {
+  const runPdfTextExport = async (bytes: Uint8Array, name: string, format: "txt" | "xml") => {
     try {
-      const pages = await extractPdfTextPages(bytes);
-      const fullText = pages.map((text, index) => `--- Page ${index + 1} ---\n${text}\n`).join("\n");
-      downloadTextBlob(fullText, "text/plain;charset=utf-8", name.replace(/\.[^/.]+$/, "") + ".txt");
+      const result = await buildPdfTextExport(bytes, name, format);
+      downloadExport(result.bytes, result.mimeType, result.fileName);
     } catch (err) {
-      toast.error("Unable to extract PDF text: " + err);
+      toast.error(`Unable to export PDF as ${format.toUpperCase()}: ${err}`);
     }
   };
 
-  const runPdfToXml = async (bytes: Uint8Array, name: string) => {
-    try {
-      const pages = await extractPdfTextPages(bytes);
-      const escapeXml = (value: string) => value.replace(/[<>&'"]/g, (char) => ({
-        "<": "&lt;",
-        ">": "&gt;",
-        "&": "&amp;",
-        "'": "&apos;",
-        '"': "&quot;",
-      })[char] || char);
-      const xml = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        "<document>",
-        ...pages.map((text, index) => `  <page number="${index + 1}">${escapeXml(text)}</page>`),
-        "</document>",
-      ].join("\n");
-      downloadTextBlob(xml, "application/xml;charset=utf-8", name.replace(/\.[^/.]+$/, "") + ".xml");
-    } catch (err) {
-      toast.error("Unable to extract PDF XML: " + err);
-    }
-  };
+  const runPdfToTxt = (bytes: Uint8Array, name: string) => runPdfTextExport(bytes, name, "txt");
+  const runPdfToXml = (bytes: Uint8Array, name: string) => runPdfTextExport(bytes, name, "xml");
 
   const convertPdfToXml = async () => {
     if (hasDocument) {

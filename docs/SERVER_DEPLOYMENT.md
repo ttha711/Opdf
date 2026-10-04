@@ -197,3 +197,17 @@ The server bridge is designed so native/server workers can be added without chan
 2. Server-side P12/PFX signing policy and certificate storage.
 3. Multi-user authentication, authorization, quotas, and per-user/project storage.
 4. S3-compatible object storage for multi-node deployments.
+
+
+## Office to PDF conversion
+
+Word, Excel, PowerPoint, RTF, and text files can be converted to PDF through the OPDF Server. This path uses LibreOffice in headless mode so the output contains the real source document content rather than a browser-side approximation.
+
+Install LibreOffice on the server and make sure the `soffice` executable is available on `PATH`. On Windows, if it is not on `PATH`, configure the full executable path before starting OPDF Server:
+
+```powershell
+$env:OPDF_LIBREOFFICE_PATH = "C:\Program Files\LibreOffice\program\soffice.exe"
+npm run server-start
+```
+
+If LibreOffice is missing, OPDF returns an explicit conversion error and does not create a placeholder PDF.

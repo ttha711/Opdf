@@ -435,3 +435,52 @@
     min-width: 0;
   }
 }
+
+
+/* Mobile touch ergonomics */
+.thumbnail-drag-handle {
+  touch-action: none;
+}
+
+@media (max-width: 900px) {
+  .top-menu-btn,
+  .opdf-home__primary,
+  .opdf-home__secondary,
+  .thumbnail-drag-handle,
+  .thumbnail-bookmark-toggle,
+  .thumbnail-select-toggle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .thumbnail-drag-handle,
+  .thumbnail-bookmark-toggle,
+  .thumbnail-select-toggle {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .thumbnail-drag-handle {
+    bottom: 34px;
+    left: 8px;
+  }
+
+  .thumbnail-bookmark-toggle {
+    top: 8px;
+    right: 8px;
+  }
+
+  .thumbnail-select-toggle {
+    top: 8px;
+    left: 8px;
+  }
+
+  .left-panel button,
+  .acrobat-tool-panel button {
+    min-height: 40px;
+  }
+
+  .opdf-home__recent-card {
+    min-height: 64px;
+  }
+}

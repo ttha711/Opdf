@@ -3,13 +3,13 @@ import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-d
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 import type { PdfSource } from "../lib/documentSource";
 import {
-import { useDialogClose } from "../hooks/useDialogClose";
   buildRevisionReportPdf,
   detectDiffRegions,
   estimateTranslation,
   type DiffAlignment,
   type DiffRegion,
 } from "../lib/revisionDiff";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 GlobalWorkerOptions.workerSrc = workerSrc;
 

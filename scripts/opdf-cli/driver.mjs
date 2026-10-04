@@ -3,10 +3,6 @@ import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { resolveTool } from "./tools.mjs";
 
-function isVisibleBox(rect) {
-  return Boolean(rect && rect.width > 1 && rect.height > 1);
-}
-
 export class OpdfDriver {
   constructor(options) {
     this.options = options;
@@ -166,10 +162,12 @@ export class OpdfDriver {
   }
 
   async gotoPage(pageNumber) {
-    const target = this.page.locator(`[data-opdf-page-action="goto"][data-opdf-page="${pageNumber}"]`);
+    const numeric = Number(pageNumber);
+    if (!Number.isInteger(numeric) || numeric < 1) throw new Error("Page number must be a positive integer");
+    const target = this.page.locator(`[data-opdf-page-action="goto"][data-opdf-page="${numeric}"]`);
     await target.scrollIntoViewIfNeeded();
     await target.click();
-    await this.page.locator(`[data-opdf-region="status-bar"][data-opdf-page="${pageNumber}"]`).waitFor({
+    await this.page.locator(`[data-opdf-region="status-bar"][data-opdf-page="${numeric}"]`).waitFor({
       state: "visible",
     });
     return this.inspect();
@@ -188,7 +186,10 @@ export class OpdfDriver {
   }
 
   async openMenu(name) {
-    const label = String(name);
+    const key = String(name).trim().toLowerCase();
+    const labels = { file: "File", edit: "Edit", view: "View", tools: "Tools" };
+    const label = labels[key];
+    if (!label) throw new Error('Menu must be one of: File, Edit, View, Tools');
     const trigger = this.page.locator(`[data-opdf-menu-trigger="${label}"]`);
     await trigger.click();
     await this.page.locator(`[data-opdf-menu-surface="${label}"]`).waitFor({ state: "visible" });
@@ -208,6 +209,7 @@ export class OpdfDriver {
 
     await this.openMenu("Tools");
     const item = this.page.locator(`[data-opdf-menu-item="${tool.menu}"]`);
+    if ((await item.count()) === 0) throw new Error(`Tool "${name}" was not found in the Tools menu`);
     if (await item.isDisabled()) throw new Error(`Tool "${name}" is disabled in the current runtime`);
     await item.click();
     await this.page.waitForTimeout(200);

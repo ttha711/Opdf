@@ -33,12 +33,12 @@ export function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDr
   }, [isOpen, onClose]);
 
   return (
-    <div className="relative" ref={ref}>
-      <button className={`top-menu-btn${isOpen ? " menu-open" : ""}`} onClick={onToggle} type="button" aria-haspopup="menu" aria-expanded={isOpen}>
+    <div className="relative" ref={ref} data-opdf-menu={label}>
+      <button data-opdf-menu-trigger={label} className={`top-menu-btn${isOpen ? " menu-open" : ""}`} onClick={onToggle} type="button" aria-haspopup="menu" aria-expanded={isOpen}>
         {label}
       </button>
       {isOpen && (
-        <div role="menu" className="absolute left-0 top-[calc(100%+2px)] max-h-[calc(100vh-56px)] min-w-[220px] overflow-y-auto rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] py-1 shadow-xl" style={{ zIndex: "var(--z-dropdown)" }}>
+        <div role="menu" data-opdf-menu-surface={label} className="absolute left-0 top-[calc(100%+2px)] max-h-[calc(100vh-56px)] min-w-[220px] overflow-y-auto rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] py-1 shadow-xl" style={{ zIndex: "var(--z-dropdown)" }}>
           {items.map((item, i) =>
             item.kind === "separator" ? (
               <div key={i} className="my-1 h-px bg-[var(--ui-divider)]" />
@@ -49,6 +49,7 @@ export function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDr
             ) : (
               <button
                 key={i}
+                data-opdf-menu-item={item.label}
                 className="flex w-full items-center justify-between gap-6 border-none bg-transparent px-4 py-[7px] text-left text-[13px] text-[var(--text-primary)] transition-colors hover:bg-[var(--ui-accent-bg)] hover:text-[var(--acrobat-blue)] disabled:cursor-default disabled:opacity-40"
                 disabled={item.disabled}
                 title={item.title}

@@ -106,6 +106,7 @@ Run the same main gates used by CI:
 ```bash
 npm ci
 npm run typecheck
+npm run test:cli
 npm run test -w @opdf/web
 npm run build
 node apps/desktop/dist/main/pdf-signature.smoke.js

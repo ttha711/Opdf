@@ -52,7 +52,7 @@ try {
   if (await closeTools.count()) await closeTools.first().click();
 
   const chooserPromise = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: /^Open$/ }).first().click();
+  await page.locator('header button[title="Mở PDF"]').first().click();
   const chooser = await chooserPromise;
   await chooser.setFiles(samplePath);
 
@@ -60,7 +60,7 @@ try {
   await page.waitForTimeout(1800);
   await shot("02-viewer-light");
 
-  await page.getByRole("button", { name: "File" }).click();
+  await page.locator("button.top-menu-btn").filter({ hasText: /^File$/ }).click();
   await page.waitForTimeout(250);
   await shot("03-file-menu");
   await page.keyboard.press("Escape");

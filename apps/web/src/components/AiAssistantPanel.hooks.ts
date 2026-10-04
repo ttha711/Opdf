@@ -49,16 +49,16 @@ export function useAiAssistant() {
     void syncAiConfigToDesktop("dify", difyUrl, difyKey);
     
     // Add assistant feedback message
-    let modeText = "Trợ lý Cục bộ (Offline NLP)";
-    if (engineMode === "dify") modeText = "Kết nối Dify Chatbot API";
-    if (engineMode === "iframe") modeText = `Nhúng Iframe AI-WEB-CHAT (${iframeUrl})`;
+    let modeText = "Local Assistant (Offline NLP)";
+    if (engineMode === "dify") modeText = "Dify Chatbot API";
+    if (engineMode === "iframe") modeText = `Embedded AI-WEB-CHAT (${iframeUrl})`;
 
     setMessages((prev) => [
       ...prev,
       {
         id: Math.random().toString(),
         sender: "assistant",
-        text: `Đã lưu cấu hình! Chế độ hoạt động hiện tại: **${modeText}**`,
+        text: `Settings saved. Current mode: **${modeText}**`,
         timestamp: new Date(),
       },
     ]);
@@ -105,7 +105,7 @@ export function useAiAssistant() {
     const parsed = checkAndParseCommand(queryText);
 
     if (parsed === "help") {
-      const feedback = `📚 **DANH SÁCH CÂU LỆNH HỖ TRỢ:**\n\n• **Nén tài liệu:** *'nén file'*, *'nén tài liệu'*, *'compress'*\n• **Xoay trang:** *'xoay trái'*, *'xoay phải'*, *'xoay tất cả trang qua phải'*\n• **Xóa trang:** *'xóa trang 2'*, *'xóa trang 1-3'*, *'delete page 5'*\n• **Chạy OCR:** *'chạy ocr'*, *'trích xuất chữ'*, *'ocr'*\n• **Số trang & Đóng dấu:** \n   - *'thêm số trang'*, *'page numbers'*\n   - *'đóng dấu: BẢN QUYỀN'*, *'watermark: Draft'*\n   - *'thêm header: OPDF Web'*, *'thêm footer: Confidential'*\n• **Mã hóa file:** *'mã hóa mật khẩu: 123456'*, *'giải mã mật khẩu: 123456'*\n• **Xem & Cuộn:** *'phóng to'*, *'thu nhỏ'*, *'reset zoom'*, *'chế độ cuộn'*, *'tới trang 3'*\n• **Mở/Đóng/Lưu:** *'mở file'*, *'đóng file'*, *'lưu file'*\n• **Bảng điều khiển:** *'mở dashboard'*, *'mở công cụ word-to-pdf'*`;
+      const feedback = `📚 **SUPPORTED COMMANDS:**\n\n• **Compress document:** *'nén file'*, *'nén tài liệu'*, *'compress'*\n• **Rotate pages:** *'xoay trái'*, *'xoay phải'*, *'xoay tất cả trang qua phải'*\n• **Delete pages:** *'xóa trang 2'*, *'xóa trang 1-3'*, *'delete page 5'*\n• **Run OCR:** *'chạy ocr'*, *'trích xuất chữ'*, *'ocr'*\n• **Page numbers & watermark:** \n   - *'thêm số trang'*, *'page numbers'*\n   - *'đóng dấu: BẢN QUYỀN'*, *'watermark: Draft'*\n   - *'thêm header: OPDF Web'*, *'thêm footer: Confidential'*\n• **File encryption:** *'mã hóa mật khẩu: 123456'*, *'giải mã mật khẩu: 123456'*\n• **View & navigation:** *'phóng to'*, *'thu nhỏ'*, *'reset zoom'*, *'chế độ cuộn'*, *'tới trang 3'*\n• **Open/Close/Save:** *'mở file'*, *'đóng file'*, *'lưu file'*\n• **Dashboard:** *'mở dashboard'*, *'mở công cụ word-to-pdf'*`;
       addMessage("assistant", feedback);
       return;
     }
@@ -116,7 +116,7 @@ export function useAiAssistant() {
         return;
       }
       
-      const tempId = addMessage("assistant", `🤖 Đang gửi lệnh thực thi: **${parsed.tool}**...`, {
+      const tempId = addMessage("assistant", `🤖 Sending command: **${parsed.tool}**...`, {
         toolLogs: `Payload: ${JSON.stringify(parsed, null, 2)}`,
         isPending: true,
       });
@@ -132,14 +132,14 @@ export function useAiAssistant() {
       }
     } else {
       // Unrecognized command
-      const unmatchedText = "Tôi không nhận diện được câu lệnh cụ thể của bạn. 😅\n\nHãy thử lại bằng cách sử dụng các gợi ý nhanh bên dưới, hoặc gõ **'trợ giúp'** để xem bảng cú pháp chuẩn.";
+      const unmatchedText = "I could not recognize a specific command. Try one of the quick suggestions below, or type **help** to see the supported command syntax.";
       addMessage("assistant", unmatchedText);
     }
   };
 
   // Process remote query calling Dify API chatbot
   const processDifyQuery = async (queryText: string) => {
-    const tempId = addMessage("assistant", "AI đang suy nghĩ...", { isPending: true });
+    const tempId = addMessage("assistant", "AI is thinking...", { isPending: true });
 
     let documentStateContext = "";
     if (window.opdfAgent) {
@@ -196,7 +196,7 @@ User: ${queryText}`;
       }
 
       if (!gatewayBase && !difyKey) {
-        throw new Error("Chưa cấu hình AI gateway hoặc Dify API Key.");
+        throw new Error("AI gateway or Dify API Key is not configured.");
       }
 
       let response: Response;
@@ -276,7 +276,7 @@ User: ${queryText}`;
               confirmed: parsed.confirmed,
             };
             
-            addMessage("assistant", `🤖 Nhận được lệnh gọi hàm tự động từ Dify: **${cmd.tool}**`);
+            addMessage("assistant", `🤖 Received an automated tool call from Dify: **${cmd.tool}**`);
             const res = await executeCommand(cmd);
             if (res) handleAgentResult(res, cmd);
 
@@ -296,7 +296,7 @@ User: ${queryText}`;
 
     } catch (err: any) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      addMessage("assistant", `❌ **Lỗi kết nối Dify API:** ${err.message}\n\nVui lòng kiểm tra lại Endpoint URL, API Key và cấu hình mạng.`);
+      addMessage("assistant", `❌ **Dify API connection error:** ${err.message}\n\nCheck the endpoint URL, API key, and network configuration.`);
     }
   };
 
@@ -306,10 +306,10 @@ User: ${queryText}`;
     let extraLogs = `Response Status: ${result.status}\nMessage: ${result.message}`;
     
     if (result.status === "completed") {
-      text = `✅ **Thực thi hoàn tất!**\nCông cụ **${result.tool || command.tool}** đã chạy thành công.`;
+      text = `✅ **Execution completed.**\nTool **${result.tool || command.tool}** completed successfully.`;
     } 
     else if (result.status === "confirmation_required") {
-      text = `⚠️ **YÊU CẦU XÁC NHẬN!**\n\n${result.confirmationPrompt || "Hành động này có thể gây thay đổi lớn hoặc xóa dữ liệu. Bạn có chắc chắn muốn tiếp tục không?"}`;
+      text = `⚠️ **CONFIRMATION REQUIRED**\n\n${result.confirmationPrompt || "This action may make significant changes or remove data. Do you want to continue?"}`;
       addMessage("assistant", text, {
         toolLogs: extraLogs,
         confirmation: command,
@@ -317,13 +317,13 @@ User: ${queryText}`;
       return;
     } 
     else if (result.status === "input_required") {
-      text = `ℹ️ **THIẾU THÔNG TIN THAM SỐ!**\n\n${result.message}\n*Các tham số thiếu: ${result.missingArgs?.join(", ") || "n/a"}*`;
+      text = `ℹ️ **MISSING INPUT**\n\n${result.message}\n*Missing parameters: ${result.missingArgs?.join(", ") || "n/a"}*`;
     } 
     else if (result.status === "failed") {
-      text = `❌ **THỰC THI THẤT BẠI!**\n\nLỗi: *${result.message}*`;
+      text = `❌ **EXECUTION FAILED**\n\nError: *${result.message}*`;
     } 
     else {
-      text = `🤖 Trạng thái: **${result.status}**\n${result.message}`;
+      text = `🤖 Status: **${result.status}**\n${result.message}`;
     }
 
     addMessage("assistant", text, { toolLogs: extraLogs });
@@ -336,18 +336,18 @@ User: ${queryText}`;
     );
 
     if (!confirm) {
-      addMessage("user", "Hủy bỏ yêu cầu.");
-      addMessage("assistant", `❌ Đã hủy thực thi công cụ **${cmd.tool}**.`);
+      addMessage("user", "Cancel request.");
+      addMessage("assistant", `❌ Cancelled tool **${cmd.tool}**.`);
       return;
     }
 
-    addMessage("user", "Xác nhận thực hiện.");
+    addMessage("user", "Confirm action.");
     const confirmedCommand: AgentCommand = {
       ...cmd,
       confirmed: true,
     };
 
-    const tempId = addMessage("assistant", `🔄 Đang chạy lệnh đã xác nhận: **${cmd.tool}**...`, { isPending: true });
+    const tempId = addMessage("assistant", `🔄 Running confirmed command: **${cmd.tool}**...`, { isPending: true });
     const result = await executeCommand(confirmedCommand);
     setMessages((prev) => prev.filter((m) => m.id !== tempId));
 
@@ -362,7 +362,7 @@ User: ${queryText}`;
     
     if (parsed && typeof parsed !== "string" && !("error" in parsed)) {
       // Execute direct PDF command locally
-      const tempId = addMessage("assistant", `🤖 Phát hiện câu lệnh PDF: **${parsed.tool}**. Đang thực thi...`, {
+      const tempId = addMessage("assistant", `🤖 Detected PDF command: **${parsed.tool}**. Executing...`, {
         toolLogs: `Payload: ${JSON.stringify(parsed, null, 2)}`,
         isPending: true,
       });

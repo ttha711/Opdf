@@ -48,6 +48,7 @@ export function resolveRuntimeOptions(options = {}) {
     wait,
     out: String(options.out ?? "opdf-cli-artifacts"),
     trace: options.trace ? String(options.trace) : null,
+    videoDir: options["video-dir"] ? String(options["video-dir"]) : null,
     destructive: Boolean(options.destructive),
   };
 }

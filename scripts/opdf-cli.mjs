@@ -60,7 +60,11 @@ function usage(message, json) {
 }
 
 function requireValue(value, message) {
-  if (value === undefined || value === null || value === "") throw new Error(message);
+  if (value === undefined || value === null || value === "") {
+    const error = new Error(message);
+    error.code = "USAGE";
+    throw error;
+  }
   return value;
 }
 
@@ -149,7 +153,7 @@ try {
     await driver.page.waitForTimeout(runtime.wait);
     const state = await driver.inspect();
     result = {
-      ok: state.errors.console.length === 0 && state.errors.network.length === 0,
+      ok: state.errors.console.length === 0 && state.errors.page.length === 0 && state.errors.network.length === 0,
       errors: state.errors,
     };
   } else if (command === "audit") {

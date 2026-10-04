@@ -160,10 +160,8 @@ async function closeOverlay() {
 try {
   await page.goto(baseURL, { waitUntil: "networkidle" });
   await page.waitForTimeout(700);
-  await shot("01-dashboard-empty");
-
-  const closeTools = page.getByRole("button", { name: /Close Tools/i });
-  if (await closeTools.count()) await closeTools.first().click();
+  await page.getByRole("heading", { name: "Your documents, ready when you are." }).waitFor({ state: "visible", timeout: 10000 });
+  await shot("01-home-empty");
 
   await page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles(samplePath);
 
@@ -230,6 +228,26 @@ try {
   await page.waitForTimeout(500);
   await shot("13-revision-compare");
   await closeOverlay();
+
+  await page.setViewportSize({ width: 412, height: 915 });
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "Your documents, ready when you are." }).waitFor({ state: "visible", timeout: 10000 });
+  await shot("14-mobile-home");
+
+  await page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles(samplePath);
+  await page.locator('[data-opdf-engine="pdfium-wasm"]').waitFor({ state: "visible", timeout: 30000 });
+  await page.waitForTimeout(800);
+  await shot("15-mobile-viewer");
+
+  const pagesToggle = page.getByRole("button", { name: "Open pages panel", exact: true });
+  await pagesToggle.waitFor({ state: "visible", timeout: 5000 });
+  await pagesToggle.click();
+  await page.locator(".left-panel").waitFor({ state: "visible", timeout: 5000 });
+  await shot("16-mobile-pages-drawer");
+
+  await page.getByTitle("Collapse Left Sidebar").click();
+  await page.locator("header").getByRole("button", { name: "☰", exact: true }).click();
+  await shot("17-mobile-menu");
 
   console.log("UI audit screenshots written to", outDir);
 } finally {

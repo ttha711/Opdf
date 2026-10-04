@@ -72,9 +72,8 @@ export async function runAudit(driver, mode, options) {
       await check(`tool-${tool}`, async () => {
         await driver.openTool(tool);
         const state = await driver.inspect();
-        if (tool !== "compress") {
-          assert(state.panels.includes("tool") || tool === "page-numbers", `${tool} did not open its working UI`);
-        }
+        const expectedPanel = tool === "page-numbers" ? "markup" : "tool";
+        assert(state.panels.includes(expectedPanel), `${tool} did not open its ${expectedPanel} working UI`);
         await driver.closeTool();
         await driver.page.keyboard.press("Escape");
       });

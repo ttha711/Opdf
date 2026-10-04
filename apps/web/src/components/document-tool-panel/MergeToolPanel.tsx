@@ -29,6 +29,7 @@ export function MergeToolPanel({
       <div className="flex justify-between items-center">
         <span className="text-xs font-semibold">Merge Stack List</span>
         <button
+          data-opdf-action="merge-add"
           onClick={onPick}
           className="h-6 rounded border border-[var(--acrobat-blue)] text-[var(--acrobat-blue)] px-2 bg-transparent text-[11px] font-bold cursor-pointer hover:bg-[var(--ui-accent-bg)] transition-colors"
         >
@@ -42,6 +43,8 @@ export function MergeToolPanel({
         ) : (
           mergeFiles.map((file, index) => (
             <div
+              data-opdf-merge-item
+              data-opdf-merge-pages={file.totalPages}
               key={file.id}
               draggable
               onDragStart={() => setDragIndex(index)}
@@ -98,6 +101,7 @@ export function MergeToolPanel({
 
       <div className="flex gap-2 mt-2">
         <button
+          data-opdf-action="merge-download"
           onClick={() => onMerge("download")}
           disabled={isProcessing || mergeFiles.length < 2}
           className="flex-1 h-9 rounded-md border border-[var(--acrobat-blue)] text-[var(--acrobat-blue)] hover:bg-[var(--ui-accent-bg)] bg-transparent text-xs font-bold cursor-pointer transition-colors"
@@ -105,6 +109,7 @@ export function MergeToolPanel({
           Download
         </button>
         <button
+          data-opdf-action="merge-load"
           onClick={() => onMerge("view")}
           disabled={isProcessing || mergeFiles.length < 2}
           className="flex-1 h-9 rounded-md bg-[var(--acrobat-blue)] hover:bg-[var(--acrobat-blue-hover)] text-white text-xs font-bold cursor-pointer transition-colors shadow-sm"

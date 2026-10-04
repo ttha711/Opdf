@@ -320,7 +320,7 @@ export function AllToolsDashboard({
   // from mainstream PDF products. Every item either performs a real action or
   // routes to a real configured panel/modal.
   const tools: ToolDef[] = [
-    { id: "pdf-to-ms-office", name: getDocumentToolLabel("pdf-to-ms-office"), icon: "🪄", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => convertPdfToOffice("pdf-to-ms-office") },
+    { id: "pdf-to-ms-office", name: getDocumentToolLabel("pdf-to-ms-office"), icon: "🪄", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => convertPdfToOffice("pdf-to-ms-office"), requiresDocument: true },
     { id: "pdf-to-png", name: "PDF to PNG", icon: "🖼️", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => convertPdfToImages(true) },
     { id: "pdf-to-jpeg", name: "PDF to JPEG", icon: "🌄", color: "#862e9c", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => convertPdfToImages(false) },
     { id: "pdf-to-txt", name: getDocumentToolLabel("pdf-to-txt"), icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: convertPdfToTxt },

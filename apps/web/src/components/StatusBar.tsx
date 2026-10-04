@@ -20,12 +20,12 @@ export function StatusBar({
   saveState: "idle" | "saving" | "saved";
 }) {
   return (
-    <footer className="flex select-none items-center justify-between border-t border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] text-[11px] text-[var(--text-secondary)]">
+    <footer data-testid="status-bar" aria-label={hasDocument ? `Page ${page} of ${totalPages}` : "No document"} className="flex select-none items-center justify-between border-t border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] text-[11px] text-[var(--text-secondary)]">
       <div className="flex items-center gap-1.5">
         {hasDocument ? (
-          <span>Trang <strong>{page}</strong> / <strong>{totalPages}</strong></span>
+          <span data-testid="page-status">Trang <strong>{page}</strong> / <strong>{totalPages}</strong></span>
         ) : (
-          <span>Chưa mở tài liệu</span>
+          <span data-testid="empty-document-status">Chưa mở tài liệu</span>
         )}
       </div>
       <div className="min-w-0 flex-1 px-4 text-center">

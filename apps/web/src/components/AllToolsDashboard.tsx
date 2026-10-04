@@ -320,7 +320,9 @@ export function AllToolsDashboard({
   // from mainstream PDF products. Every item either performs a real action or
   // routes to a real configured panel/modal.
   const tools: ToolDef[] = [
-    { id: "pdf-to-ms-office", name: getDocumentToolLabel("pdf-to-ms-office"), icon: "🪄", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => convertPdfToOffice("pdf-to-ms-office"), requiresDocument: true },
+    { id: "pdf-to-word", name: "PDF to Word", icon: "W", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => onSelectTool?.("pdf-to-word"), requiresDocument: true },
+    { id: "pdf-to-excel", name: "PDF to Excel", icon: "X", color: "#198754", bgColor: "#e8f7ee", borderColor: "#b7e4c7", action: () => onSelectTool?.("pdf-to-excel"), requiresDocument: true },
+    { id: "pdf-to-ppt", name: "PDF to PowerPoint", icon: "P", color: "#d9480f", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => onSelectTool?.("pdf-to-ppt"), requiresDocument: true },
     { id: "pdf-to-png", name: "PDF to PNG", icon: "🖼️", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => convertPdfToImages(true) },
     { id: "pdf-to-jpeg", name: "PDF to JPEG", icon: "🌄", color: "#862e9c", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => convertPdfToImages(false) },
     { id: "pdf-to-txt", name: getDocumentToolLabel("pdf-to-txt"), icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: convertPdfToTxt },
@@ -356,7 +358,7 @@ export function AllToolsDashboard({
   const getFilteredTools = () => {
     switch (activeTab) {
       case "hot":
-        return tools.filter(t => ["pdf-to-ms-office", "image-to-pdf", "merge-pdf", "split-pdf", "compress-pdf", "fill-form"].includes(t.id));
+        return tools.filter(t => ["pdf-to-word", "image-to-pdf", "merge-pdf", "split-pdf", "compress-pdf", "fill-form"].includes(t.id));
       case "from_pdf":
         return tools.filter(t => t.id.startsWith("pdf-to"));
       case "to_pdf":

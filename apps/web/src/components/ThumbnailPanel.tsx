@@ -384,7 +384,7 @@ export function ThumbnailPanel({
                   <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                   <path d="M3 3v5h5" />
                 </svg>
-                Xoay ↺
+                Rotate ↺
               </button>
               <button
                 className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-white/70 disabled:opacity-50 cursor-pointer"
@@ -397,7 +397,7 @@ export function ThumbnailPanel({
                   <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
                   <path d="M21 3v5h-5" />
                 </svg>
-                Xoay ↻
+                Rotate ↻
               </button>
             </>
           )}
@@ -526,10 +526,11 @@ export function ThumbnailPanel({
                     onClick={(e) => handleThumbnailClick(pageNumber, e)}
                     ref={(el) => setThumbnailRef(pageNumber, el)}
                     type="button"
+                    aria-label={selectedPages.size > 0 ? `Select page ${pageNumber}` : `Go to page ${pageNumber}`}
                     title={
                       selectedPages.size > 0
                         ? `Page ${pageNumber} — click to ${isSelected ? "deselect" : "select"}`
-                        : `Trang ${pageNumber}`
+                        : `Page ${pageNumber}`
                     }
                   >
                     <ThumbnailImage blob={t?.blob} url={t?.url} page={pageNumber} />

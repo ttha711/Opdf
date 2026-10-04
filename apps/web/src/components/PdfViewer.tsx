@@ -38,7 +38,11 @@ function mapAnnotationTool(activeTool?: string) {
     case "shape":
       return "square";
     case "note":
+      return "note";
+    case "text":
       return "freeText";
+    case "draw":
+      return "ink";
     default:
       return null;
   }
@@ -57,6 +61,7 @@ export function PdfViewer({
   onViewerDirty,
   onViewerScaleChange,
   onPatchApplied,
+  onActiveToolChange,
 }: PdfViewerProps) {
   const [readyViewer, setReadyViewer] = useState<{ sourceUrl: string; registry: any } | null>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
@@ -551,7 +556,9 @@ export function PdfViewer({
           onResetCalibration={resetCalibration}
         />
       ) : null}
-      {activeRegistry ? <ViewerQuickTools registry={activeRegistry} /> : null}
+      {activeRegistry && onActiveToolChange ? (
+        <ViewerQuickTools activeTool={activeTool} onActiveToolChange={onActiveToolChange} />
+      ) : null}
       <EmbedPdfViewer
         key={sourceUrl}
         config={config as any}

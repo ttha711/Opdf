@@ -183,6 +183,12 @@ export function AllToolsDashboard({
         const arrayBuffer = await file.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
         
+        if (activeAction === "pdf-to-txt") {
+          await runPdfToTxt(bytes, file.name);
+          onClose();
+          return;
+        }
+
         const targetFormat = getTargetFormat(activeAction);
         if (targetFormat) {
           launchPdfToHtmlEditorWithBytes(bytes, file.name, targetFormat);
@@ -227,7 +233,7 @@ export function AllToolsDashboard({
         toast.error("Unable to retrieve the open PDF data.");
         return;
       }
-      launchPdfToHtmlEditorWithBytes(bytes, fileName, "txt");
+      await runPdfToTxt(bytes, fileName);
       onClose();
       return;
     }

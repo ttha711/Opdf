@@ -99,3 +99,32 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   await expect(viewer).toHaveAttribute("data-opdf-source", "server", { timeout: 30_000 });
   await expect(page.getByText(/Page\s+1\s+of\s+24/i)).toBeVisible({ timeout: 30_000 });
 });
+
+
+test("server persists page reorder mutations", async ({ request }) => {
+  const pdf = await PDFDocument.create();
+  pdf.addPage([300, 400]);
+  pdf.addPage([400, 500]);
+  pdf.addPage([500, 600]);
+  const upload = await request.post("/api/opdf/documents?name=reorder-pages.pdf", {
+    headers: { "content-type": "application/pdf" },
+    data: Buffer.from(await pdf.save()),
+  });
+  expect(upload.ok()).toBeTruthy();
+  const stored = await upload.json() as { id: string };
+
+  const reorder = await request.post(`/api/opdf/documents/${stored.id}/mutations`, {
+    headers: { "content-type": "application/json" },
+    data: { type: "reorder-pages", pageOrder: [3, 1, 2] },
+  });
+  expect(reorder.ok()).toBeTruthy();
+
+  const response = await request.get(`/api/opdf/documents/${stored.id}`);
+  expect(response.ok()).toBeTruthy();
+  const reordered = await PDFDocument.load(Buffer.from(await response.body()));
+
+  expect(reordered.getPageCount()).toBe(3);
+  expect(reordered.getPage(0).getSize()).toEqual({ width: 500, height: 600 });
+  expect(reordered.getPage(1).getSize()).toEqual({ width: 300, height: 400 });
+  expect(reordered.getPage(2).getSize()).toEqual({ width: 400, height: 500 });
+});

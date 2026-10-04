@@ -175,62 +175,13 @@ export function AllToolsDashboard({
         return;
       }
 
-      // Office -> PDF conversion is not implemented in the web viewer.
-      // Never generate a placeholder PDF and report a fake successful conversion.
-      if (activeAction.endsWith("-to-pdf")) {
-        toast.error("Office → PDF is not supported in the web viewer. Use a real converter or open the Office Editor.");
-        return;
-      }
-
-      // 4. PDF to Office / Image Converter (runs if user uploads a PDF from this screen)
-      if (file.name.toLowerCase().endsWith(".pdf")) {
-        const arrayBuffer = await file.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        
-        if (activeAction === "pdf-to-txt") {
-          await runPdfToTxt(bytes, file.name);
-          onClose();
-          return;
-        }
-        if (activeAction === "pdf-to-xml") {
-          await runPdfToXml(bytes, file.name);
-          onClose();
-          return;
-        }
-
-        const targetFormat = getTargetFormat(activeAction);
-        if (targetFormat) {
-          launchPdfToHtmlEditorWithBytes(bytes, file.name, targetFormat);
-          onClose();
-          return;
-        } else if (activeAction === "pdf-to-png" || activeAction === "pdf-to-jpg") {
-          toast.info("To convert PDF to images, open the file in Opdf and use 'To Images' to export rendered pages.");
-        } else {
-          toast.error("This conversion format does not have a real engine in the web viewer yet.");
-        }
-      } else {
-        toast.error("Please select a valid PDF file for this action.");
-      }
+      toast.error("Open the PDF in OPDF first, then choose the conversion tool.");
 
     } catch (err) {
       console.error(err);
       toast.error("File processing failed: " + err);
     } finally {
       e.target.value = "";
-    }
-  };
-
-  const getTargetFormat = (actionId: string): string => {
-    switch (actionId) {
-      case "pdf-to-ms-office": return "ms-office";
-      case "pdf-to-word": return "word";
-      case "pdf-to-excel": return "excel";
-      case "pdf-to-ppt": return "powerpoint";
-      case "pdf-to-rtf": return "rtf";
-      case "pdf-to-txt": return "txt";
-      case "pdf-to-html": return "html";
-      case "pdf-to-xml": return "xml";
-      default: return "";
     }
   };
 

@@ -30,26 +30,26 @@ The target URL defaults to `http://127.0.0.1:8787`. Set `OPDF_URL` or pass `--ur
 Open/check a deployment without loading a PDF:
 
 ```bash
-opdf open https://pdf.viuvtrade.io --json
+opdf open https://pdf.vivutrade.io.vn/ --json
 ```
 
 Inspect the current application state:
 
 ```bash
-opdf inspect --url https://pdf.viuvtrade.io --json
+opdf inspect --url https://pdf.vivutrade.io.vn/ --json
 ```
 
 Load a PDF and return viewer state:
 
 ```bash
-opdf document load ./sample.pdf --url https://pdf.viuvtrade.io --json
+opdf document load ./sample.pdf --url https://pdf.vivutrade.io.vn/ --json
 ```
 
 Navigate and zoom:
 
 ```bash
-opdf page goto 3 --pdf ./sample.pdf --url https://pdf.viuvtrade.io
-opdf zoom set 125 --pdf ./sample.pdf --url https://pdf.viuvtrade.io
+opdf page goto 3 --pdf ./sample.pdf --url https://pdf.vivutrade.io.vn/
+opdf zoom set 125 --pdf ./sample.pdf --url https://pdf.vivutrade.io.vn/
 ```
 
 Discover supported semantic tool aliases:
@@ -130,7 +130,7 @@ Smoke audit:
 
 ```bash
 opdf audit smoke \
-  --url https://pdf.viuvtrade.io \
+  --url https://pdf.vivutrade.io.vn/ \
   --out opdf-cli-artifacts \
   --trace opdf-cli-artifacts/trace.zip
 ```
@@ -139,11 +139,25 @@ Full non-destructive audit:
 
 ```bash
 opdf audit full \
-  --url https://pdf.viuvtrade.io \
+  --url https://pdf.vivutrade.io.vn/ \
   --out opdf-cli-artifacts \
   --trace opdf-cli-artifacts/trace.zip \
   --json
 ```
+
+Disposable production E2E:
+
+```bash
+opdf audit e2e \
+  --url https://pdf.vivutrade.io.vn/ \
+  --timeout 120000 \
+  --out opdf-cli-artifacts \
+  --trace opdf-cli-artifacts/trace.zip \
+  --video-dir opdf-cli-artifacts/video \
+  --json
+```
+
+The `e2e` mode always generates dedicated disposable PDFs. It executes real operations against those test documents only: split download, merge download, page insertion, watermark, page numbers, header, footer, Bates numbering, compression, annotation/export, secure redaction, OCR, and a deterministic local AI Copilot response. Downloaded PDFs are parsed again and validated for page count/content invariants. It never intentionally selects a user document for destructive testing.
 
 If `--pdf` is omitted, the CLI generates a small three-page test PDF automatically. In OPDF Server mode that upload may appear in server recents, so use a staging deployment for high-frequency scheduled audits or periodically clean audit documents.
 
@@ -158,7 +172,9 @@ The smoke audit verifies:
 - File and Tools menus open;
 - browser console and network failures are empty.
 
-The full audit adds non-destructive checks for docked tools, AI Copilot, and theme switching. It opens tool UIs but does not apply destructive document operations.
+The full audit adds non-destructive checks for docked tools, dialogs, AI Copilot, and theme switching. It opens tool UIs but does not apply destructive document operations.
+
+The e2e audit adds real operations on generated test documents and captures a screenshot after every check. Failures still attempt to save evidence so the artifact bundle remains useful for debugging.
 
 ## GitHub Actions
 
@@ -166,15 +182,20 @@ Use **Actions → OPDF Production Audit → Run workflow**.
 
 Inputs:
 
-- target URL;
-- `smoke` or `full`.
+- target URL (default: `https://pdf.vivutrade.io.vn/`);
+- `smoke`, `full`, or `e2e` (default: `e2e`).
+
+If production is behind Cloudflare Access, configure repository Actions secrets `OPDF_CF_ACCESS_CLIENT_ID` and `OPDF_CF_ACCESS_CLIENT_SECRET`. For another authenticated reverse proxy, `OPDF_E2E_HEADERS_JSON` can contain a JSON object of request headers. These values are passed to the browser context and are not written to the report.
 
 The workflow uploads:
 
 - `report.json`;
-- screenshots;
-- generated sample PDF;
-- Playwright `trace.zip`.
+- `console.log`;
+- a screenshot for every audit check;
+- generated disposable PDFs;
+- downloaded/exported output PDFs;
+- Playwright `trace.zip`;
+- Playwright video.
 
 This is intentionally separate from localhost CI. It tests the actual deployed website after deployment.
 

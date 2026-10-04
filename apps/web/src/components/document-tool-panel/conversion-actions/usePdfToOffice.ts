@@ -1,6 +1,6 @@
 import type React from "react";
 import { useOpdfBridge } from "../../../hooks/useOpdfBridge";
-import { extractPageLines, downloadFile } from "./helpers";
+import { downloadFile } from "./helpers";
 import { buildPdfTextExport } from "../../../lib/pdfTextExport";
 
 interface UsePdfToOfficeArgs {
@@ -25,10 +25,6 @@ export function usePdfToOffice(args: UsePdfToOfficeArgs) {
     getDocumentBytes,
     fileName,
     fileBase,
-    officeLayout,
-    officeOcrLang,
-    officeOrientation,
-    onOpenHtmlEditor,
     setIsProcessing,
     setViewerError,
   } = args;

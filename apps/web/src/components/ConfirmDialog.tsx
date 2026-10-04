@@ -63,7 +63,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 10001,
+            zIndex: "var(--z-confirm)",
             display: "grid",
             placeItems: "center",
             background: "rgba(0, 0, 0, 0.45)",
@@ -75,6 +75,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           <div
             role="dialog"
             aria-modal="true"
+            aria-labelledby="opdf-confirm-title"
+            aria-describedby="opdf-confirm-message"
             aria-label={options.title || "Xác nhận"}
             style={{
               width: "min(420px, calc(100vw - 32px))",
@@ -86,10 +88,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               padding: "20px",
             }}
           >
-            <h4 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600 }}>
+            <h4 id="opdf-confirm-title" style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600 }}>
               {options.title || "Xác nhận"}
             </h4>
-            <p style={{ margin: "0 0 18px", fontSize: "var(--ui-font-sm)", color: "var(--text-secondary)", whiteSpace: "pre-line" }}>
+            <p id="opdf-confirm-message" style={{ margin: "0 0 18px", fontSize: "var(--ui-font-sm)", color: "var(--text-secondary)", whiteSpace: "pre-line" }}>
               {options.message}
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>

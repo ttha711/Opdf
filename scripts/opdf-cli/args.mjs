@@ -36,6 +36,21 @@ export function parseArgs(argv) {
 export function resolveRuntimeOptions(options = {}) {
   const timeout = Number(options.timeout ?? process.env.OPDF_CLI_TIMEOUT ?? 30000);
   const wait = Number(options.wait ?? 700);
+  let headers = {};
+  const rawHeaders = process.env.OPDF_E2E_HEADERS_JSON;
+  if (rawHeaders) {
+    try {
+      const parsed = JSON.parse(rawHeaders);
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error("must be a JSON object");
+      headers = Object.fromEntries(Object.entries(parsed).map(([key, value]) => [key, String(value)]));
+    } catch (error) {
+      throw new Error(`OPDF_E2E_HEADERS_JSON is invalid: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  if (process.env.OPDF_CF_ACCESS_CLIENT_ID && process.env.OPDF_CF_ACCESS_CLIENT_SECRET) {
+    headers["CF-Access-Client-Id"] = process.env.OPDF_CF_ACCESS_CLIENT_ID;
+    headers["CF-Access-Client-Secret"] = process.env.OPDF_CF_ACCESS_CLIENT_SECRET;
+  }
   if (!Number.isFinite(timeout) || timeout < 1000) throw new Error("--timeout must be at least 1000 ms");
   if (!Number.isFinite(wait) || wait < 0) throw new Error("--wait must be zero or greater");
 
@@ -50,5 +65,6 @@ export function resolveRuntimeOptions(options = {}) {
     trace: options.trace ? String(options.trace) : null,
     videoDir: options["video-dir"] ? String(options["video-dir"]) : null,
     destructive: Boolean(options.destructive),
+    headers,
   };
 }

@@ -22,7 +22,7 @@ const HELP = [
   "  opdf ai ask <TEXT> [--pdf FILE]",
   "  opdf screenshot <FILE> [--pdf FILE]",
   "  opdf console [--pdf FILE] [--json]",
-  "  opdf audit <smoke|full> [--pdf FILE] [--url URL] [--out DIR] [--trace FILE] [--json]",
+  "  opdf audit <smoke|full|e2e> [--pdf FILE] [--url URL] [--out DIR] [--trace FILE] [--video-dir DIR] [--json]",
   "",
   "Global options:",
   "  --url URL          Target OPDF URL (default: OPDF_URL or http://127.0.0.1:8787)",
@@ -33,6 +33,7 @@ const HELP = [
   "  --wait MS          Wait after initial navigation (default 700)",
   "  --out DIR          Artifact directory (default opdf-cli-artifacts)",
   "  --trace FILE       Save a Playwright trace",
+  "  --video-dir DIR     Record Playwright video into DIR",
   "  --help             Show help",
   "",
   "Exit codes:",
@@ -158,8 +159,8 @@ try {
     };
   } else if (command === "audit") {
     const mode = positionals[1] || "smoke";
-    if (!["smoke", "full"].includes(mode)) {
-      const error = new Error("audit mode must be smoke or full");
+    if (!["smoke", "full", "e2e"].includes(mode)) {
+      const error = new Error("audit mode must be smoke, full, or e2e");
       error.code = "USAGE";
       throw error;
     }

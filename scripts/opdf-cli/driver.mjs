@@ -311,6 +311,203 @@ export class OpdfDriver {
     }
   }
 
+  async waitForDocumentPages(expectedPages) {
+    const expected = Number(expectedPages);
+    await this.page.locator(`[data-opdf-region="status-bar"][data-opdf-total-pages="${expected}"]`).waitFor({
+      state: "visible",
+      timeout: this.options.timeout,
+    });
+    await this.waitForPdfSurface();
+    return this.inspect();
+  }
+
+  async waitForStatusMessage(pattern) {
+    const regex = pattern instanceof RegExp ? pattern : new RegExp(String(pattern), "i");
+    await this.page.waitForFunction(
+      ({ source, flags }) => {
+        const status = document.querySelector('[data-opdf-region="status-bar"]');
+        const message = status?.getAttribute("data-opdf-message") || "";
+        return new RegExp(source, flags).test(message);
+      },
+      { source: regex.source, flags: regex.flags },
+      { timeout: this.options.timeout },
+    );
+    return this.inspect();
+  }
+
+  async downloadByClick(locator, targetDir, label) {
+    await mkdir(resolve(targetDir), { recursive: true });
+    const [download] = await Promise.all([
+      this.page.waitForEvent("download", { timeout: this.options.timeout }),
+      locator.click(),
+    ]);
+    const suggestedName = download.suggestedFilename();
+    const safeLabel = String(label || "download").replace(/[^a-z0-9._-]+/gi, "-");
+    const target = resolve(targetDir, `${safeLabel}-${suggestedName}`);
+    await download.saveAs(target);
+    const failure = await download.failure();
+    if (failure) throw new Error(`Download failed: ${failure}`);
+    const info = { path: target, suggestedName, label: safeLabel };
+    this.downloads.push(info);
+    return info;
+  }
+
+  async exportPdf(targetDir, label = "export") {
+    await this.openMenu("File");
+    const item = this.page.locator('[data-opdf-menu-item="Export PDF..."]');
+    if (await item.isDisabled()) throw new Error("Export PDF is disabled");
+    return this.downloadByClick(item, targetDir, label);
+  }
+
+  async runSplitDownload(targetDir) {
+    await this.openTool("split");
+    await this.page.locator('[data-opdf-field="split-mode-extract"]').check();
+    const field = this.page.locator('[data-opdf-field="split-extract"]');
+    await field.fill("1, 3");
+    return this.downloadByClick(
+      this.page.locator('[data-opdf-action="split-run"]'),
+      targetDir,
+      "split",
+    );
+  }
+
+  async runMergeDownload(extraPdfPath, targetDir) {
+    await this.openTool("merge");
+    await this.page.locator('[data-opdf-file-input="merge-pdf"]').setInputFiles(resolve(extraPdfPath));
+    await this.page.waitForFunction(() => document.querySelectorAll("[data-opdf-merge-item]").length >= 2, null, {
+      timeout: this.options.timeout,
+    });
+    return this.downloadByClick(
+      this.page.locator('[data-opdf-action="merge-download"]'),
+      targetDir,
+      "merge",
+    );
+  }
+
+  async runInsert(extraPdfPath, expectedPages) {
+    await this.openTool("insert");
+    await this.page.locator('[data-opdf-field="insert-file"]').setInputFiles(resolve(extraPdfPath));
+    await this.page.locator('[data-opdf-action="insert-run"]').click();
+    return this.waitForDocumentPages(expectedPages);
+  }
+
+  async applyWatermark(text) {
+    await this.openTool("watermark");
+    await this.page.locator('[data-opdf-field="watermark-text"]').fill(String(text));
+    await this.page.locator('[data-opdf-action="watermark-run"]').click();
+    await this.waitForStatusMessage(/watermark stamped/i);
+    await this.waitForPdfSurface();
+    return this.inspect();
+  }
+
+  async applyMarkup(tool, values = {}) {
+    await this.openTool(tool);
+    const panel = this.page.locator('[data-opdf-panel="markup"]');
+    await panel.waitFor({ state: "visible" });
+
+    if (values.text !== undefined) {
+      const input = panel.locator('[data-opdf-field="markup-text"]');
+      if (await input.count()) await input.fill(String(values.text));
+    }
+    if (values.prefix !== undefined) {
+      const input = panel.locator('[data-opdf-field="markup-prefix"]');
+      if (await input.count()) await input.fill(String(values.prefix));
+    }
+    if (values.suffix !== undefined) {
+      const input = panel.locator('[data-opdf-field="markup-suffix"]');
+      if (await input.count()) await input.fill(String(values.suffix));
+    }
+    if (values.start !== undefined) {
+      const input = panel.locator('[data-opdf-field="markup-start"]');
+      if (await input.count()) await input.fill(String(values.start));
+    }
+
+    await panel.locator('[data-opdf-action="markup-apply"]').click();
+    await this.page.waitForTimeout(500);
+    await this.waitForPdfSurface();
+    return this.inspect();
+  }
+
+  async applySecureRedaction(query) {
+    await this.openTool("redact");
+    const dialog = this.page.locator('[data-opdf-dialog="search-redact"]');
+    await dialog.locator('[data-opdf-field="redact-query"]').fill(String(query));
+    await dialog.locator('[data-opdf-action="redact-search"]').click();
+    const selectAll = dialog.locator('[data-opdf-action="redact-select-all"]');
+    await selectAll.waitFor({ state: "visible", timeout: this.options.timeout });
+    await selectAll.click();
+    const apply = dialog.locator('[data-opdf-action="redact-apply"]');
+    await apply.waitFor({ state: "visible" });
+    if (await apply.isDisabled()) throw new Error("Secure redaction found no selectable matches");
+    await apply.click();
+    await dialog.waitFor({ state: "hidden", timeout: this.options.timeout });
+    await this.waitForPdfSurface();
+    return this.inspect();
+  }
+
+  async runOcrDownload(targetDir) {
+    await this.openMenu("Tools");
+    const item = this.page.locator('[data-opdf-menu-item="Run OCR"]');
+    if (await item.isDisabled()) throw new Error("OCR is disabled");
+    return this.downloadByClick(item, targetDir, "ocr");
+  }
+
+  async createAnnotation() {
+    const viewer = this.page.locator('[data-opdf-engine="pdfium-wasm"]');
+    const toolbar = viewer;
+    const annotate = toolbar.getByRole("button", { name: "Annotate", exact: true });
+    await annotate.click();
+
+    const candidates = toolbar.getByRole("button");
+    const count = await candidates.count();
+    let chosen = null;
+    const preferred = [/ink/i, /draw/i, /pencil/i, /highlight/i];
+    for (const pattern of preferred) {
+      for (let index = 0; index < count; index += 1) {
+        const button = candidates.nth(index);
+        if (!(await button.isVisible().catch(() => false))) continue;
+        const label = [
+          await button.getAttribute("aria-label"),
+          await button.getAttribute("title"),
+          await button.textContent(),
+        ].filter(Boolean).join(" ");
+        if (pattern.test(label)) {
+          chosen = { button, label };
+          break;
+        }
+      }
+      if (chosen) break;
+    }
+    if (!chosen) {
+      const labels = [];
+      for (let index = 0; index < count; index += 1) {
+        const button = candidates.nth(index);
+        if (!(await button.isVisible().catch(() => false))) continue;
+        labels.push([
+          await button.getAttribute("aria-label"),
+          await button.getAttribute("title"),
+          await button.textContent(),
+        ].filter(Boolean).join(" "));
+      }
+      throw new Error(`No drawable annotation tool was found. Visible buttons: ${labels.join(" | ")}`);
+    }
+
+    await chosen.button.click();
+    const surface = viewer.locator("canvas, img").filter({ visible: true }).last();
+    const box = await surface.boundingBox();
+    if (!box || box.width < 200 || box.height < 200) throw new Error("No usable PDF surface for annotation gesture");
+
+    const startX = box.x + Math.min(180, box.width * 0.25);
+    const startY = box.y + Math.min(180, box.height * 0.25);
+    await this.page.mouse.move(startX, startY);
+    await this.page.mouse.down();
+    await this.page.mouse.move(startX + Math.min(160, box.width * 0.25), startY + 35, { steps: 12 });
+    await this.page.mouse.up();
+    await this.page.waitForTimeout(700);
+
+    return { ok: true, tool: chosen.label, state: await this.inspect() };
+  }
+
   async openAi() {
     const open = this.page.locator('[data-opdf-action="open-ai"]');
     if (await open.isVisible().catch(() => false)) await open.click();
@@ -320,11 +517,19 @@ export class OpdfDriver {
 
   async askAi(text) {
     await this.openAi();
+    const responses = this.page.locator('[data-opdf-ai-message="assistant"][data-opdf-ai-pending="false"]');
+    const before = await responses.count();
     const input = this.page.locator("[data-opdf-ai-input]");
     await input.fill(String(text));
     await this.page.locator("[data-opdf-ai-send]").click();
-    await this.page.waitForTimeout(350);
-    return { ok: true, submitted: true, text: String(text) };
+    await this.page.waitForFunction(
+      (count) => document.querySelectorAll('[data-opdf-ai-message="assistant"][data-opdf-ai-pending="false"]').length > count,
+      before,
+      { timeout: this.options.timeout },
+    );
+    const response = (await responses.last().innerText()).trim();
+    if (!response) throw new Error("AI assistant returned an empty response");
+    return { ok: true, submitted: true, text: String(text), response };
   }
 
   async screenshot(path) {

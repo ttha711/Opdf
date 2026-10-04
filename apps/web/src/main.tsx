@@ -5,6 +5,10 @@ import { ToastProvider } from "./components/ToastProvider";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import "./styles.css";
 
+declare const __OPDF_BUILD_SHA__: string;
+
+document.documentElement.dataset.opdfBuildSha = __OPDF_BUILD_SHA__;
+
 if (!document.documentElement.dataset.density) {
   document.documentElement.dataset.density = "comfortable";
 }

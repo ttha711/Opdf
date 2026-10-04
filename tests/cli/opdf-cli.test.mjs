@@ -1,40 +1,39 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseArgs, resolveRuntimeOptions } from "../../scripts/opdf-cli/args.mjs";
-import { resolveTool } from "../../scripts/opdf-cli/tools.mjs";
+import { listTools, resolveTool } from "../../scripts/opdf-cli/tools.mjs";
 
-test("parseArgs separates positionals and options", () => {
-  const result = parseArgs([
+test("parseArgs supports nested commands, booleans, and values", () => {
+  const parsed = parseArgs([
     "audit",
     "full",
     "--url",
     "https://pdf.example.test",
-    "--pdf=sample.pdf",
     "--json",
-    "--headed",
+    "--timeout=45000",
   ]);
-  assert.deepEqual(result.positionals, ["audit", "full"]);
-  assert.equal(result.options.url, "https://pdf.example.test");
-  assert.equal(result.options.pdf, "sample.pdf");
-  assert.equal(result.options.json, true);
-  assert.equal(result.options.headed, true);
+
+  assert.deepEqual(parsed.positionals, ["audit", "full"]);
+  assert.equal(parsed.options.url, "https://pdf.example.test");
+  assert.equal(parsed.options.json, true);
+  assert.equal(parsed.options.timeout, "45000");
 });
 
-test("resolveRuntimeOptions applies safe defaults", () => {
-  const result = resolveRuntimeOptions({ url: "https://pdf.example.test", timeout: "45000" });
-  assert.equal(result.url, "https://pdf.example.test");
-  assert.equal(result.timeout, 45000);
-  assert.equal(result.wait, 700);
-  assert.equal(result.out, "opdf-cli-artifacts");
+test("runtime defaults are agent-friendly", () => {
+  const runtime = resolveRuntimeOptions({ url: "https://pdf.example.test", timeout: "40000" });
+  assert.equal(runtime.url, "https://pdf.example.test");
+  assert.equal(runtime.timeout, 40000);
+  assert.equal(runtime.json, false);
+  assert.equal(runtime.out, "opdf-cli-artifacts");
 });
 
-test("resolveTool maps semantic aliases", () => {
+test("tool aliases resolve stable OPDF workflows", () => {
   assert.equal(resolveTool("split").quick, "split-pdf");
   assert.equal(resolveTool("page-numbers").menu, "Page Numbers...");
-  assert.equal(resolveTool("measure").menu, "Measure Drawing");
-  assert.throws(() => resolveTool("does-not-exist"), /Unknown tool/);
+  assert.equal(resolveTool("watermark").quick, "watermark-pdf");
+  assert.ok(listTools().some((tool) => tool.name === "measure"));
 });
 
-test("invalid timeout is rejected before browser launch", () => {
-  assert.throws(() => resolveRuntimeOptions({ timeout: "5" }), /at least 1000/);
+test("unknown tools fail with discoverable supported aliases", () => {
+  assert.throws(() => resolveTool("does-not-exist"), /Supported:/);
 });

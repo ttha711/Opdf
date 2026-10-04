@@ -24,6 +24,7 @@ const officeConverterScript = resolve(
   join(repoRoot, "apps", "desktop", "tools", "pdf_office_convert.py"),
 );
 const officeWorkerTimeoutMs = Number(process.env.OPDF_OFFICE_WORKER_TIMEOUT_MS || 5 * 60 * 1000);
+const libreOfficePath = process.env.OPDF_LIBREOFFICE_PATH || (process.platform === "win32" ? "soffice.exe" : "soffice");
 
 
 function setBaseHeaders(res) {
@@ -139,6 +140,29 @@ async function streamBodyToPath(req, tempPath) {
   if (signature.toString("ascii") !== "%PDF-") {
     await rm(tempPath, { force: true }).catch(() => {});
     throw new Error("Payload is not a PDF.");
+  }
+  return total;
+}
+
+async function streamAnyBodyToPath(req, tempPath, limit = maxOperationBytes) {
+  await mkdir(resolve(tempPath, ".."), { recursive: true });
+  const handle = await open(tempPath, "wx");
+  let total = 0;
+  try {
+    for await (const chunk of req) {
+      total += chunk.length;
+      if (total > limit) throw new Error("Operation payload exceeds OPDF_MAX_OPERATION_BYTES.");
+      await handle.write(chunk);
+    }
+  } catch (error) {
+    await handle.close().catch(() => {});
+    await rm(tempPath, { force: true }).catch(() => {});
+    throw error;
+  }
+  await handle.close();
+  if (total === 0) {
+    await rm(tempPath, { force: true }).catch(() => {});
+    throw new Error("Operation payload is empty.");
   }
   return total;
 }
@@ -377,6 +401,73 @@ async function handleOfficeConversion(req, res, url) {
   }
 }
 
+async function handleOfficeToPdf(req, res, url) {
+  if (req.method !== "POST") return sendError(res, 405, "Method not allowed.");
+
+  const requestedName = sanitizeFileName(url.searchParams.get("name") || "document.docx");
+  const extension = extname(requestedName).toLowerCase();
+  const allowed = new Set([".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".rtf", ".txt"]);
+  if (!allowed.has(extension)) {
+    return sendError(res, 400, "Unsupported Office input format.");
+  }
+
+  const workDir = await mkdtemp(join(tmpdir(), "opdf-office-to-pdf-"));
+  const inputPath = join(workDir, "input" + extension);
+  const outputPath = join(workDir, "input.pdf");
+
+  try {
+    await streamAnyBodyToPath(req, inputPath);
+    await new Promise((resolveWorker, rejectWorker) => {
+      const child = spawn(
+        libreOfficePath,
+        ["--headless", "--convert-to", "pdf", "--outdir", workDir, inputPath],
+        {
+          cwd: workDir,
+          stdio: ["ignore", "pipe", "pipe"],
+          windowsHide: true,
+          env: { ...process.env },
+        },
+      );
+
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => {
+        if (stdout.length < 20000) stdout += String(chunk);
+      });
+      child.stderr.on("data", (chunk) => {
+        if (stderr.length < 20000) stderr += String(chunk);
+      });
+
+      const timer = setTimeout(() => {
+        child.kill();
+        rejectWorker(new Error("Office to PDF conversion timed out."));
+      }, officeWorkerTimeoutMs);
+
+      child.once("error", (error) => {
+        clearTimeout(timer);
+        rejectWorker(
+          error?.code === "ENOENT"
+            ? new Error("LibreOffice is not installed or OPDF_LIBREOFFICE_PATH is not configured.")
+            : error,
+        );
+      });
+      child.once("close", (code) => {
+        clearTimeout(timer);
+        if (code === 0) resolveWorker();
+        else rejectWorker(new Error(stderr || stdout || `LibreOffice exited with code ${code}`));
+      });
+    });
+
+    const output = await readFile(outputPath);
+    if (output.byteLength < 5 || output.subarray(0, 5).toString("ascii") !== "%PDF-") {
+      throw new Error("LibreOffice did not produce a valid PDF.");
+    }
+    sendPdf(res, new Uint8Array(output));
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 function contentTypeFor(path) {
   const ext = extname(path).toLowerCase();
   return ({
@@ -450,6 +541,7 @@ async function handleApi(req, res, url) {
         encrypt: true,
         decrypt: true,
         officeConversion: true,
+        officeToPdf: true,
         storedMutations: true,
         rangePreview: true,
       },
@@ -458,6 +550,10 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/opdf/operations/convert-office") {
     return handleOfficeConversion(req, res, url);
+  }
+
+  if (url.pathname === "/api/opdf/operations/office-to-pdf") {
+    return handleOfficeToPdf(req, res, url);
   }
 
   const operationMatch = url.pathname.match(/^\/api\/opdf\/operations\/(compress|encrypt|decrypt)$/);

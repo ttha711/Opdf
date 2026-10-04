@@ -213,10 +213,10 @@ export function SettingsPanel({
 
       <div className="ai-settings-actions">
         <button className="btn-premium btn-premium-secondary" onClick={onCancel} type="button">
-          Đóng
+          Close
         </button>
         <button className="btn-premium btn-premium-primary" onClick={onSave} type="button">
-          Áp dụng
+          Apply
         </button>
       </div>
     </div>
@@ -270,7 +270,7 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
               onClick={() => onConfirmInline(confirmation, false)}
               type="button"
             >
-              Hủy
+              Cancel
             </button>
             <button 
               className="ai-confirm-btn confirm"

@@ -36,6 +36,7 @@ export function parseArgs(argv) {
 export function resolveRuntimeOptions(options = {}) {
   const timeout = Number(options.timeout ?? process.env.OPDF_CLI_TIMEOUT ?? 30000);
   const wait = Number(options.wait ?? 700);
+  const deployTimeout = Number(options["deploy-timeout"] ?? process.env.OPDF_DEPLOY_TIMEOUT ?? 600000);
   let headers = {};
   const rawHeaders = process.env.OPDF_E2E_HEADERS_JSON;
   if (rawHeaders) {
@@ -53,6 +54,7 @@ export function resolveRuntimeOptions(options = {}) {
   }
   if (!Number.isFinite(timeout) || timeout < 1000) throw new Error("--timeout must be at least 1000 ms");
   if (!Number.isFinite(wait) || wait < 0) throw new Error("--wait must be zero or greater");
+  if (!Number.isFinite(deployTimeout) || deployTimeout < 1000) throw new Error("--deploy-timeout must be at least 1000 ms");
 
   return {
     url: String(options.url ?? process.env.OPDF_URL ?? "http://127.0.0.1:8787"),
@@ -61,9 +63,11 @@ export function resolveRuntimeOptions(options = {}) {
     headed: Boolean(options.headed),
     timeout,
     wait,
+    deployTimeout,
     out: String(options.out ?? "opdf-cli-artifacts"),
     trace: options.trace ? String(options.trace) : null,
     videoDir: options["video-dir"] ? String(options["video-dir"]) : null,
+    expectedSha: options["expected-sha"] ? String(options["expected-sha"]).trim() : null,
     destructive: Boolean(options.destructive),
     headers,
   };

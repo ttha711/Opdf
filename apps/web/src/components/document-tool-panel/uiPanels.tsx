@@ -143,7 +143,7 @@ export function CompressPanel({ isProcessing, hasDoc, onCompress }: CompressPane
       <div className="rounded-lg border border-[var(--border-color)] bg-[var(--ui-muted-bg)] p-3 text-xs leading-relaxed text-[var(--text-secondary)]">
         OPDF will optimize PDF streams and structure using the best compression available in the current runtime.
       </div>
-      <button onClick={onCompress} disabled={isProcessing || !hasDoc} className="w-full h-9 rounded-md bg-[var(--acrobat-blue)] hover:bg-[var(--acrobat-blue-hover)] text-white text-xs font-bold cursor-pointer transition-colors shadow-sm mt-3">
+      <button data-opdf-action="compress-run" onClick={onCompress} disabled={isProcessing || !hasDoc} className="w-full h-9 rounded-md bg-[var(--acrobat-blue)] hover:bg-[var(--acrobat-blue-hover)] text-white text-xs font-bold cursor-pointer transition-colors shadow-sm mt-3">
         {isProcessing ? "Optimizing..." : "Compress Document"}
       </button>
     </>
@@ -172,25 +172,25 @@ export function WatermarkPanel(props: WatermarkPanelProps) {
     <>
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-semibold">Watermark Text</label>
-        <input type="text" value={watermarkText} onChange={(e) => setWatermarkText(e.target.value)} className="h-8 rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] text-[var(--ui-font-sm)] px-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--acrobat-blue)]" />
+        <input data-opdf-field="watermark-text" type="text" value={watermarkText} onChange={(e) => setWatermarkText(e.target.value)} className="h-8 rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] text-[var(--ui-font-sm)] px-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--acrobat-blue)]" />
       </div>
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between items-center"><label className="text-xs font-semibold">Font Size</label><span className="text-[11px] font-bold text-[var(--acrobat-blue)]">{watermarkFontSize}px</span></div>
-        <input type="range" min="12" max="96" value={watermarkFontSize} onChange={(e) => setWatermarkFontSize(Number(e.target.value))} className="w-full accent-[var(--acrobat-blue)] cursor-pointer" />
+        <input data-opdf-field="watermark-size" type="range" min="12" max="96" value={watermarkFontSize} onChange={(e) => setWatermarkFontSize(Number(e.target.value))} className="w-full accent-[var(--acrobat-blue)] cursor-pointer" />
       </div>
       <div className="flex items-center justify-between mt-1">
         <label className="text-xs font-semibold">Watermark Color</label>
-        <input type="color" value={watermarkColor} onChange={(e) => setWatermarkColor(e.target.value)} className="h-8 w-12 border border-[var(--border-color)] rounded cursor-pointer" />
+        <input data-opdf-field="watermark-color" type="color" value={watermarkColor} onChange={(e) => setWatermarkColor(e.target.value)} className="h-8 w-12 border border-[var(--border-color)] rounded cursor-pointer" />
       </div>
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between items-center"><label className="text-xs font-semibold">Opacity</label><span className="text-[11px] font-bold text-[var(--acrobat-blue)]">{watermarkOpacity}%</span></div>
-        <input type="range" min="5" max="90" value={watermarkOpacity} onChange={(e) => setWatermarkOpacity(Number(e.target.value))} className="w-full accent-[var(--acrobat-blue)] cursor-pointer" />
+        <input data-opdf-field="watermark-opacity" type="range" min="5" max="90" value={watermarkOpacity} onChange={(e) => setWatermarkOpacity(Number(e.target.value))} className="w-full accent-[var(--acrobat-blue)] cursor-pointer" />
       </div>
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between items-center"><label className="text-xs font-semibold">Rotation Angle</label><span className="text-[11px] font-bold text-[var(--acrobat-blue)]">{watermarkRotation}°</span></div>
-        <input type="range" min="-90" max="90" value={watermarkRotation} onChange={(e) => setWatermarkRotation(Number(e.target.value))} className="w-full accent-[var(--acrobat-blue)] cursor-pointer" />
+        <input data-opdf-field="watermark-rotation" type="range" min="-90" max="90" value={watermarkRotation} onChange={(e) => setWatermarkRotation(Number(e.target.value))} className="w-full accent-[var(--acrobat-blue)] cursor-pointer" />
       </div>
-      <button onClick={onApply} disabled={isProcessing || !hasDoc} className="w-full h-9 rounded-md bg-[var(--acrobat-blue)] hover:bg-[var(--acrobat-blue-hover)] text-white text-xs font-bold cursor-pointer transition-colors shadow-sm mt-3">
+      <button data-opdf-action="watermark-run" onClick={onApply} disabled={isProcessing || !hasDoc} className="w-full h-9 rounded-md bg-[var(--acrobat-blue)] hover:bg-[var(--acrobat-blue-hover)] text-white text-xs font-bold cursor-pointer transition-colors shadow-sm mt-3">
         {isProcessing ? "Stamping..." : "Add Watermark"}
       </button>
     </>

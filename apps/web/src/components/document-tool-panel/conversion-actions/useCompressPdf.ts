@@ -20,7 +20,6 @@ export function useCompressPdf(args: UseCompressPdfArgs) {
     sourceBlob = null,
     getDocumentBytes,
     bridge,
-    compressLevel,
     replaceDocumentBytes,
     setViewerError,
     setIsProcessing,

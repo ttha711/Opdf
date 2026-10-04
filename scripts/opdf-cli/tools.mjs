@@ -20,8 +20,11 @@ export const TOOL_ALIASES = {
   "convert-images": { menu: "Convert to Images" },
   measure: { menu: "Measure Drawing" },
   compare: { menu: "Compare Revisions..." },
+  "compare-revisions": { menu: "Compare Revisions..." },
   redact: { menu: "Search & Secure Redact..." },
+  "search-redact": { menu: "Search & Secure Redact..." },
   advanced: { menu: "Advanced PDF..." },
+  "advanced-pdf": { menu: "Advanced PDF..." },
   sign: { menu: "Digital Sign..." },
   "digital-sign": { menu: "Digital Sign..." },
 };

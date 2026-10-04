@@ -198,8 +198,8 @@ export function AppHeader({
                     ? "border border-red-500 text-red-500 bg-red-500/10 cursor-pointer"
                     : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] cursor-pointer"
                 }`}
-                onClick={isPublic ? () => toast.info("Tính năng này chỉ khả dụng trên phiên bản Local hoặc Desktop App.") : () => setShowDashboard(!showDashboard)}
-                title={isPublic ? "Chỉ khả dụng trên bản Local/Desktop" : "Công cụ"}
+                onClick={isPublic ? () => toast.info("This feature is only available in the Local or Desktop App.") : () => setShowDashboard(!showDashboard)}
+                title={isPublic ? "Available in Local/Desktop only" : "Tools"}
                 type="button"
               >
                 {isPublic ? "🔒 All Tools Dashboard" : "All Tools Dashboard"}
@@ -210,8 +210,8 @@ export function AppHeader({
                     ? "border border-dashed border-gray-300 text-gray-400 bg-gray-50/50 opacity-60 cursor-not-allowed"
                     : "border border-blue-500 text-blue-600 bg-blue-50 hover:bg-blue-100 cursor-pointer"
                 }`}
-                onClick={isPublic ? () => toast.info("Tính năng này chỉ khả dụng trên phiên bản Local hoặc Desktop App.") : onOpenAiEditorWindow}
-                title={isPublic ? "Feature locked in public view" : getEditorLaunchTitle()}
+                onClick={isPublic ? () => toast.info("This feature is only available in the Local or Desktop App.") : onOpenAiEditorWindow}
+                title={isPublic ? "Available in Local/Desktop only" : getEditorLaunchTitle()}
                 type="button"
               >
                 {isPublic ? `🔒 ${getEditorLaunchTitle()}` : getEditorLaunchTitle()}
@@ -223,13 +223,13 @@ export function AppHeader({
         {!hasDesktopBridge ? (
           <input ref={fileInputRef} className="hidden-file-input" type="file" accept="application/pdf" onClick={(e) => { e.currentTarget.value = ""; }} onChange={onSelectLocalFile} />
         ) : null}
-        <button className="inline-flex cursor-pointer items-center gap-[var(--ui-gap-sm)] rounded-[var(--ui-radius-sm)] px-2.5 py-1.5 text-[var(--ui-font-sm)] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--ui-hover-bg)]" onClick={openFile} title="Mở PDF" type="button">
+        <button className="inline-flex cursor-pointer items-center gap-[var(--ui-gap-sm)] rounded-[var(--ui-radius-sm)] px-2.5 py-1.5 text-[var(--ui-font-sm)] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--ui-hover-bg)]" onClick={openFile} title="Open PDF" type="button">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8h-8l-2-3H5a2 2 0 0 0-2 2z" /></svg>
           Open
         </button>
         {hasDocument && (
           <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${saveState === "saving" ? "bg-amber-100 text-amber-700" : saveState === "saved" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-            {saveState === "saving" ? "Đang lưu..." : saveState === "saved" ? "Đã lưu" : "Chưa lưu"}
+            {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Unsaved"}
           </span>
         )}
       </div>

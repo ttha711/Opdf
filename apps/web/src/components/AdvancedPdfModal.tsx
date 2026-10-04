@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { pdfSourceToBytes, type PdfSource } from "../lib/documentSource";
 import {
+import { useDialogClose } from "../hooks/useDialogClose";
   addInternalPageLink,
   addPdfBookmarks,
   addUriLink,
@@ -30,6 +31,7 @@ export function AdvancedPdfModal({
   initialBookmarks: Array<{ title: string; page: number; parent?: number }>;
   onApplied: (bytes: Uint8Array, message: string, bookmarks?: PdfBookmarkInput[]) => void;
 }) {
+  useDialogClose(isOpen, onClose);
   const [tab, setTab] = useState<Tab>("forms");
   const [fields, setFields] = useState<FormFieldDescriptor[]>([]);
   const [fieldValues, setFieldValues] = useState<Record<string, FormFieldValue>>({});

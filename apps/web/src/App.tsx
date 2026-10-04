@@ -79,6 +79,7 @@ export function App() {
   const [showSearchRedact, setShowSearchRedact] = useState(false);
   const [showAdvancedPdf, setShowAdvancedPdf] = useState(false);
   const [showDigitalSignature, setShowDigitalSignature] = useState(false);
+  const [bridgeRecents, setBridgeRecents] = useState<Array<{ filePath: string; openedAt: number }>>([]);
 
   const {
     leftWidth,
@@ -121,6 +122,7 @@ export function App() {
     removeAnnotation,
     updateAnnotation,
     openAiEditorWindow,
+    openFileWithPath,
   } = useAppControllers({ isPublic, setActiveMarkupTool });
 
   const { handleIntegratedFileSelected } = useIntegratedFileConverter({
@@ -133,6 +135,35 @@ export function App() {
   });
 
   const toast = useToast();
+
+  useEffect(() => {
+    let cancelled = false;
+    void bridge.getRecent()
+      .then((rows) => {
+        if (!cancelled) setBridgeRecents(rows.slice(0, 12));
+      })
+      .catch(() => {
+        if (!cancelled) setBridgeRecents([]);
+      });
+    return () => { cancelled = true; };
+  }, [bridge, state.fileName, state.sourceIdentity]);
+
+  const homeRecentDocuments = [
+    ...state.tabs.map((tab) => ({
+      id: `tab:${tab.id}`,
+      fileName: tab.fileName.split(/[\\/]/).pop() || tab.fileName,
+    })),
+    ...bridgeRecents
+      .filter((recent) => !state.tabs.some((tab) => tab.sourceIdentity === recent.filePath || tab.fileName === recent.filePath))
+      .map((recent) => {
+        const leaf = recent.filePath.split(/[\\/]/).pop() || recent.filePath;
+        return {
+          id: `path:${recent.filePath}`,
+          fileName: decodeURIComponent(leaf),
+        };
+      }),
+  ].slice(0, 8);
+
   const activePdfSource = resolvePdfSource({
     sourceBlob: state.sourceBlob,
     docBytes: state.docBytes,
@@ -400,12 +431,22 @@ export function App() {
           }}
         />
       ) : !state.hasDocument && !state.activeDashboardTool ? (
-        <HomeScreen
-          recentDocuments={state.tabs.map((tab) => ({ id: tab.id, fileName: tab.fileName }))}
-          onOpenFile={headerProps.openFile}
-          onOpenTools={() => state.setShowDashboard(true)}
-          onOpenRecent={state.switchTab}
-        />
+        <div className="min-h-0 overflow-hidden" onDragOver={onDragOver} onDrop={onDrop}>
+          <HomeScreen
+            recentDocuments={homeRecentDocuments}
+            onOpenFile={headerProps.openFile}
+            onOpenTools={() => state.setShowDashboard(true)}
+            onOpenRecent={(id) => {
+              if (id.startsWith("tab:")) {
+                state.switchTab(id.slice(4));
+                return;
+              }
+              if (id.startsWith("path:")) {
+                void openFileWithPath(id.slice(5));
+              }
+            }}
+          />
+        </div>
       ) : (
         <main 
           className="workspace acrobat-body"

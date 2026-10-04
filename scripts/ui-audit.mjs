@@ -51,6 +51,21 @@ async function openTopMenu(label) {
   if (!visuallyReachable) {
     throw new Error(label + " menu is open in the DOM but clipped or visually occluded");
   }
+
+  const menuItemsReachable = await menu.getByRole("menuitem").evaluateAll((items) =>
+    items.every((item) => {
+      const rect = item.getBoundingClientRect();
+      if (rect.width < 20 || rect.height < 10) return false;
+      const x = Math.min(window.innerWidth - 2, Math.max(1, rect.left + 14));
+      const y = Math.min(window.innerHeight - 2, Math.max(1, rect.top + rect.height / 2));
+      const hit = document.elementFromPoint(x, y);
+      return Boolean(hit && item.contains(hit));
+    }),
+  );
+
+  if (!menuItemsReachable) {
+    throw new Error(label + " menu items are visually overlapped by another control");
+  }
 }
 
 async function clickToolsAction(label) {

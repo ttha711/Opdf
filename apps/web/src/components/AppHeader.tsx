@@ -3,13 +3,6 @@ import { MenuDropdown, type MenuItemDef } from "./MenuDropdown";
 import type { ActiveTool, AnnotationToolDefaults, ViewMode, ZoomPreset } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
 import { TabBar } from "./TabBar";
-import {
-  FileViewGroup,
-  NavigationZoomGroup,
-  AnnotationsHistoryGroup,
-  DocumentMarkupGroup,
-  FileUtilitiesGroup,
-} from "./AppHeader.parts";
 import type { OpdfTab } from "../lib/web-storage";
 import { getEditorLaunchTitle } from "../lib/documentEditingExperience";
 import { useOpdfBridge } from "../hooks/useOpdfBridge";
@@ -163,6 +156,38 @@ export function AppHeader({
   ungroupGroup: (groupName: string) => void;
 }) {
   const bridgeCapabilities = useOpdfBridge().capabilities;
+  const compactToolsMenuItems: MenuItemDef[] = [
+    {
+      kind: "action",
+      label: showDashboard ? "Back to Document" : "All Tools...",
+      onClick: () => setShowDashboard(!showDashboard),
+    },
+    { kind: "separator" },
+    { kind: "action", label: "Run OCR", disabled: !hasDocument, onClick: runOcr },
+    { kind: "action", label: "Insert PDF...", disabled: !hasDocument, onClick: () => runDocumentTool("insert-pdf") },
+    { kind: "action", label: "Page Numbers...", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("page-numbers") },
+    { kind: "action", label: "Header...", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("header") },
+    { kind: "action", label: "Footer...", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("footer") },
+    { kind: "action", label: "Bates Numbering...", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("bates") },
+    { kind: "separator" },
+    { kind: "action", label: "Compress PDF", disabled: !hasDocument, onClick: compressDocument },
+    { kind: "action", label: "Watermark...", disabled: !hasDocument, onClick: addWatermark },
+    { kind: "action", label: "Split PDF...", disabled: !hasDocument, onClick: splitDocument },
+    { kind: "action", label: "Merge PDFs...", onClick: mergeDocuments },
+    { kind: "action", label: "Convert to Images", disabled: !hasDocument, onClick: convertToImages },
+    { kind: "separator" },
+    { kind: "action", label: "Compare Revisions...", disabled: !hasDocument, onClick: compareRevisions },
+    { kind: "action", label: "Search & Secure Redact...", disabled: !hasDocument, onClick: searchRedact },
+    { kind: "action", label: "Advanced PDF...", disabled: !hasDocument, onClick: advancedPdf },
+    {
+      kind: "action",
+      label: "Digital Sign...",
+      disabled: !hasDocument || !hasDesktopBridge || bridgeCapabilities?.digitalSignature === false,
+      title: !hasDesktopBridge ? "Available in the Desktop App only" : undefined,
+      onClick: digitalSign,
+    },
+  ];
+
   return (
     <header className="flex flex-col border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm" style={{ zIndex: "var(--z-panel)" }}>
       <div className="flex h-9 items-center gap-[var(--ui-gap-xs)] overflow-x-auto whitespace-nowrap border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[var(--ui-pad-sm)]">
@@ -186,39 +211,24 @@ export function AppHeader({
         <MenuDropdown label="File" items={fileMenuItems} isOpen={openMenu === "File"} onToggle={() => toggleMenu("File")} onClose={closeMenu} />
         <MenuDropdown label="Edit" items={editMenuItems} isOpen={openMenu === "Edit"} onToggle={() => toggleMenu("Edit")} onClose={closeMenu} />
         <MenuDropdown label="View" items={viewMenuItems} isOpen={openMenu === "View"} onToggle={() => toggleMenu("View")} onClose={closeMenu} />
-        <MenuDropdown label="Tools" items={toolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
-        {(() => {
-          return (
+        <MenuDropdown label="Tools" items={compactToolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
+        <div className="ml-auto flex items-center gap-1">
+          {hasDocument ? (
             <>
-              <button
-                className={`px-3 py-1.5 rounded-md text-[var(--ui-font-sm)] font-semibold transition-all ${
-                  isPublic
-                    ? "border border-dashed border-gray-300 text-gray-400 bg-gray-50/50 opacity-60 cursor-not-allowed"
-                    : showDashboard
-                    ? "border border-red-500 text-red-500 bg-red-500/10 cursor-pointer"
-                    : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] cursor-pointer"
-                }`}
-                onClick={isPublic ? () => toast.info("This feature is only available in the Local or Desktop App.") : () => setShowDashboard(!showDashboard)}
-                title={isPublic ? "Available in Local/Desktop only" : "Tools"}
-                type="button"
-              >
-                {isPublic ? "🔒 All Tools Dashboard" : "All Tools Dashboard"}
-              </button>
-              <button
-                className={`px-3 py-1.5 rounded-md text-[var(--ui-font-sm)] font-semibold transition-all ${
-                  isPublic
-                    ? "border border-dashed border-gray-300 text-gray-400 bg-gray-50/50 opacity-60 cursor-not-allowed"
-                    : "border border-blue-500 text-blue-600 bg-blue-50 hover:bg-blue-100 cursor-pointer"
-                }`}
-                onClick={isPublic ? () => toast.info("This feature is only available in the Local or Desktop App.") : onOpenAiEditorWindow}
-                title={isPublic ? "Available in Local/Desktop only" : getEditorLaunchTitle()}
-                type="button"
-              >
-                {isPublic ? `🔒 ${getEditorLaunchTitle()}` : getEditorLaunchTitle()}
-              </button>
+              <button className="top-menu-btn" type="button" title="Save (Ctrl+S)" onClick={savePdf}>Save</button>
+              <button className="top-menu-btn" type="button" title="Undo (Ctrl+Z)" onClick={undoAnnotations}>Undo</button>
+              <button className="top-menu-btn" type="button" title="Redo (Ctrl+Y)" onClick={redoAnnotations}>Redo</button>
             </>
-          );
-        })()}
+          ) : null}
+          <button
+            className="top-menu-btn"
+            onClick={isPublic ? () => toast.info("This feature is only available in the Local or Desktop App.") : onOpenAiEditorWindow}
+            title={isPublic ? "Available in Local/Desktop only" : getEditorLaunchTitle()}
+            type="button"
+          >
+            AI Edit
+          </button>
+        </div>
         <div className="mx-1 h-4 w-px bg-[var(--border-color)]" />
         {!hasDesktopBridge ? (
           <input ref={fileInputRef} className="hidden-file-input" type="file" accept="application/pdf" onClick={(e) => { e.currentTarget.value = ""; }} onChange={onSelectLocalFile} />
@@ -234,7 +244,7 @@ export function AppHeader({
         )}
       </div>
 
-      <TabBar
+      {tabs.length > 0 ? <TabBar
         tabs={tabs}
         activeTabId={activeTabId}
         activeGroupFilter={activeGroupFilter}
@@ -248,68 +258,7 @@ export function AppHeader({
         ungroupGroup={ungroupGroup}
         openFile={openFile}
         showItemInFolder={hasDesktopBridge ? (filePath) => window.opdf?.showItemInFolder?.(filePath) : undefined}
-      />
-
-
-      <div className="flex items-stretch gap-[var(--ui-pad-md)] overflow-x-auto px-[var(--ui-pad-lg)] py-[var(--ui-pad-sm)] bg-[var(--ui-muted-bg)] border-t border-[var(--border-color)]">
-        <FileViewGroup
-          openFile={openFile}
-          hasDocument={hasDocument}
-          savePdf={savePdf}
-          savePdfAs={savePdfAs}
-          exportPdf={exportPdf}
-          activeTool={activeTool}
-          setActiveTool={setActiveTool}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-        />
-
-        <NavigationZoomGroup
-          hasDocument={hasDocument}
-          goPrevPage={goPrevPage}
-          page={page}
-          setPage={setPage}
-          totalPages={totalPages}
-          goNextPage={goNextPage}
-          zoomOut={zoomOut}
-          resetZoom={resetZoom}
-          scale={scale}
-          zoomPreset={zoomPreset}
-          applyZoomPreset={applyZoomPreset}
-          zoomIn={zoomIn}
-        />
-
-        <AnnotationsHistoryGroup
-          activeTool={activeTool}
-          hasDocument={hasDocument}
-          setActiveTool={setActiveTool}
-          annotationToolDefaults={annotationToolDefaults}
-          setAnnotationToolDefaults={setAnnotationToolDefaults}
-          undoAnnotations={undoAnnotations}
-          redoAnnotations={redoAnnotations}
-        />
-
-        <DocumentMarkupGroup
-          hasDocument={hasDocument}
-          runOcr={runOcr}
-          openDocumentMarkupTool={openDocumentMarkupTool}
-        />
-
-        <FileUtilitiesGroup
-          hasDocument={hasDocument}
-          compressDocument={compressDocument}
-          addWatermark={addWatermark}
-          splitDocument={splitDocument}
-          mergeDocuments={mergeDocuments}
-          convertToImages={convertToImages}
-          compareRevisions={compareRevisions}
-          searchRedact={searchRedact}
-          advancedPdf={advancedPdf}
-          digitalSign={digitalSign}
-          canDigitalSign={hasDesktopBridge && bridgeCapabilities?.digitalSignature !== false}
-          capabilities={bridgeCapabilities}
-        />
-      </div>
+      /> : null}
     </header>
   );
 }

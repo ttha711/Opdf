@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+import { useDialogClose } from "../hooks/useDialogClose";
   applySecureRasterRedactions,
   findTextRedactionMatches,
   type PdfSource,
@@ -19,6 +20,7 @@ export function SearchRedactModal({
   fileName: string;
   onApplied: (bytes: Uint8Array) => void;
 }) {
+  useDialogClose(isOpen, onClose);
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<TextRedactionMatch[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());

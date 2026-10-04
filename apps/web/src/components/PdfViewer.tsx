@@ -565,7 +565,30 @@ export function PdfViewer({
       <EmbedPdfViewer
         key={sourceUrl}
         config={config as any}
-        onReady={(registry: any) => setReadyViewer({ sourceUrl, registry })}
+        onReady={(registry: any) => {
+          setReadyViewer({ sourceUrl, registry });
+          window.setTimeout(() => {
+            try {
+              const scrollApi = registry.getPlugin?.("scroll")?.provides?.();
+              const viewportApi = registry.getPlugin?.("viewport")?.provides?.();
+              const zoomApi = registry.getPlugin?.("zoom")?.provides?.();
+              const spreadApi = registry.getPlugin?.("spread")?.provides?.();
+              const scrollScope = scrollApi?.forDocument?.(DOCUMENT_ID) ?? scrollApi;
+              const viewportScope = viewportApi?.forDocument?.(DOCUMENT_ID) ?? viewportApi;
+              const zoomScope = zoomApi?.forDocument?.(DOCUMENT_ID) ?? zoomApi;
+              const spreadScope = spreadApi?.forDocument?.(DOCUMENT_ID) ?? spreadApi;
+              console.info("OPDF viewer runtime diagnostics", {
+                totalPages: scrollScope?.getTotalPages?.(),
+                layout: scrollScope?.getLayout?.(),
+                viewport: viewportScope?.getMetrics?.(),
+                zoom: zoomScope?.getState?.(),
+                spreads: spreadScope?.getSpreadPages?.(),
+              });
+            } catch (error) {
+              console.info("OPDF viewer runtime diagnostics failed", String(error));
+            }
+          }, 1200);
+        }}
         style={{ width: "100%", height: "100%", display: "block" }}
       />
     </div>

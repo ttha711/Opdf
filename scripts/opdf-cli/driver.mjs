@@ -81,6 +81,9 @@ export class OpdfDriver {
     });
 
     await this.page.goto(this.options.url, { waitUntil: "domcontentloaded" });
+    if (this.options.expectedSha) {
+      await this.waitForBuildSha(this.options.expectedSha);
+    }
     await this.page.waitForTimeout(this.options.wait);
     return this;
   }
@@ -90,6 +93,30 @@ export class OpdfDriver {
       await this.context.tracing.stop({ path: resolve(this.options.trace) });
     }
     await this.browser?.close();
+  }
+
+  async waitForBuildSha(expectedSha) {
+    const expected = String(expectedSha).trim().toLowerCase();
+    if (!expected) return { ok: true, skipped: true };
+
+    const deadline = Date.now() + this.options.deployTimeout;
+    let observed = "";
+    let attempts = 0;
+
+    while (Date.now() < deadline) {
+      attempts += 1;
+      observed = String(await this.page.locator('meta[name="opdf-build-sha"]').getAttribute("content").catch(() => "") || "").trim().toLowerCase();
+      if (observed === expected || (observed.length >= 7 && expected.startsWith(observed)) || (expected.length >= 7 && observed.startsWith(expected))) {
+        return { ok: true, expected, observed, attempts };
+      }
+
+      await this.page.waitForTimeout(Math.min(10000, Math.max(1000, this.options.wait || 1000)));
+      await this.page.reload({ waitUntil: "domcontentloaded" });
+    }
+
+    throw new Error(
+      `Production deployment did not reach expected build ${expected} within ${this.options.deployTimeout} ms. Last observed build: ${observed || "missing"}`,
+    );
   }
 
   async loadPdf(path) {

@@ -1,6 +1,7 @@
 import type React from "react";
-import { isOpdfServerRuntime, useOpdfBridge } from "../../../hooks/useOpdfBridge";
+import { useOpdfBridge } from "../../../hooks/useOpdfBridge";
 import { extractPageLines, downloadFile } from "./helpers";
+import { buildPdfTextExport } from "../../../lib/pdfTextExport";
 
 interface UsePdfToOfficeArgs {
   activeToolId: string;
@@ -61,16 +62,25 @@ export function usePdfToOffice(args: UsePdfToOfficeArgs) {
         targetFormat === "powerpoint" ? "pptx" :
         null;
 
-      if (isOpdfServerRuntime() && serverFormat && bridge.convertPdfOffice) {
-        setViewerError(`Converting ${fileName} on OPDF Server...`);
+      if (serverFormat) {
+        if (!bridge.convertPdfOffice) {
+          throw new Error("This runtime does not provide a real PDF to Office converter.");
+        }
+        setViewerError(`Converting ${fileName}...`);
         const output = await bridge.convertPdfOffice(bytes, serverFormat);
         await downloadFile(output, `${fileBase}.${serverFormat}`, [serverFormat]);
         setViewerError(null);
         return;
       }
 
-      const { runBackgroundOcrAndExport } = await import("../../../lib/backgroundConverter");
-      await runBackgroundOcrAndExport(bytes, fileName, targetFormat, setViewerError);
+      if (targetFormat === "txt" || targetFormat === "xml" || targetFormat === "html" || targetFormat === "rtf") {
+        const result = await buildPdfTextExport(bytes, fileName, targetFormat);
+        await downloadFile(result.bytes, result.fileName, [targetFormat]);
+        setViewerError(null);
+        return;
+      }
+
+      throw new Error("Unsupported PDF export format.");
     } catch (err: any) {
       setViewerError("Failed to convert layout: " + (err.message || err));
     } finally {

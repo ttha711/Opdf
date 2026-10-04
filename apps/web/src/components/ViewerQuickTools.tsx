@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 
 type ViewerQuickToolsProps = {
   registry: any;
-  documentId: string;
 };
 
 type QuickTool = {
@@ -68,7 +67,7 @@ const tools: QuickTool[] = [
   },
 ];
 
-export function ViewerQuickTools({ registry, documentId }: ViewerQuickToolsProps) {
+export function ViewerQuickTools({ registry }: ViewerQuickToolsProps) {
   const [active, setActive] = useState<string | null>(null);
 
   const execute = (tool: QuickTool) => {

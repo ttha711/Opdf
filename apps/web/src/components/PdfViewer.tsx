@@ -577,13 +577,13 @@ export function PdfViewer({
               const viewportScope = viewportApi?.forDocument?.(DOCUMENT_ID) ?? viewportApi;
               const zoomScope = zoomApi?.forDocument?.(DOCUMENT_ID) ?? zoomApi;
               const spreadScope = spreadApi?.forDocument?.(DOCUMENT_ID) ?? spreadApi;
-              console.info("OPDF viewer runtime diagnostics", {
+              console.info("OPDF_VIEWER_DIAGNOSTICS " + JSON.stringify({
                 totalPages: scrollScope?.getTotalPages?.(),
                 layout: scrollScope?.getLayout?.(),
                 viewport: viewportScope?.getMetrics?.(),
                 zoom: zoomScope?.getState?.(),
                 spreads: spreadScope?.getSpreadPages?.(),
-              });
+              }));
             } catch (error) {
               console.info("OPDF viewer runtime diagnostics failed", String(error));
             }

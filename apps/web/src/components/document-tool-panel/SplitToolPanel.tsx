@@ -29,15 +29,15 @@ export function SplitToolPanel({
         <label className="text-xs font-semibold">Split Mode</label>
         <div className="flex flex-col gap-2 mt-1">
           <label className="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="radio" checked={splitMode === "range"} onChange={() => setSplitMode("range")} className="accent-[var(--acrobat-blue)]" />
+            <input data-opdf-field="split-mode-range" type="radio" checked={splitMode === "range"} onChange={() => setSplitMode("range")} className="accent-[var(--acrobat-blue)]" />
             Custom Ranges
           </label>
           <label className="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="radio" checked={splitMode === "all"} onChange={() => setSplitMode("all")} className="accent-[var(--acrobat-blue)]" />
+            <input data-opdf-field="split-mode-all" type="radio" checked={splitMode === "all"} onChange={() => setSplitMode("all")} className="accent-[var(--acrobat-blue)]" />
             Extract All Pages
           </label>
           <label className="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="radio" checked={splitMode === "extract"} onChange={() => setSplitMode("extract")} className="accent-[var(--acrobat-blue)]" />
+            <input data-opdf-field="split-mode-extract" type="radio" checked={splitMode === "extract"} onChange={() => setSplitMode("extract")} className="accent-[var(--acrobat-blue)]" />
             Consolidate selected pages
           </label>
         </div>
@@ -47,6 +47,7 @@ export function SplitToolPanel({
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold">Define Custom Ranges</label>
           <input
+            data-opdf-field="split-ranges"
             type="text"
             value={splitRangeInput}
             onChange={(e) => setSplitRangeInput(e.target.value)}
@@ -61,6 +62,7 @@ export function SplitToolPanel({
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold">Select Pages</label>
           <input
+            data-opdf-field="split-extract"
             type="text"
             value={splitExtractInput}
             onChange={(e) => setSplitExtractInput(e.target.value)}
@@ -88,6 +90,7 @@ export function SplitToolPanel({
       </div>
 
       <button
+        data-opdf-action="split-run"
         onClick={onSplit}
         disabled={isProcessing || splitParts.length === 0}
         className="w-full h-9 rounded-md bg-[var(--acrobat-blue)] hover:bg-[var(--acrobat-blue-hover)] text-white text-xs font-bold cursor-pointer transition-colors shadow-sm mt-2"

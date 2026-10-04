@@ -54,7 +54,7 @@ export function RightInfoPanel({
   const visibleItems = useMemo(() => {
     return annotationItems.filter((item) => {
       const annotation = annotations.find((candidate) => candidate.id === item.id);
-      const resolved = Boolean(annotation?.payload?.["reviewResolved"]);
+      const resolved = Boolean(annotation?.payload?.["reviewXử lýd"]);
       if (reviewFilter === "open") return !resolved;
       if (reviewFilter === "resolved") return resolved;
       return true;
@@ -89,7 +89,7 @@ export function RightInfoPanel({
             <button
               className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded hover:bg-[var(--ui-subtle-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
               onClick={() => setIsCollapsed(true)}
-              title="Collapse Right Sidebar"
+              title="Thu gọn thanh bên phải"
               type="button"
             >
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -102,20 +102,20 @@ export function RightInfoPanel({
         <div className="px-[14px] py-2.5">
           {hasDocument ? (
             <>
-              <div className="flex items-start justify-between gap-2 border-b border-[var(--ui-divider)] py-1 text-xs"><span className="text-[var(--text-secondary)]">File</span><span className="break-all text-right font-mono text-[var(--text-secondary)]">{fileName.split(/[/\\]/).pop()}</span></div>
-              <div className="flex items-start justify-between gap-2 border-b border-[var(--ui-divider)] py-1 text-xs"><span className="text-[var(--text-secondary)]">Pages</span><span>{totalPages}</span></div>
-              <div className="flex items-start justify-between gap-2 border-b border-[var(--ui-divider)] py-1 text-xs"><span className="text-[var(--text-secondary)]">Page</span><span>{page} / {totalPages}</span></div>
-              <div className="flex items-start justify-between gap-2 py-1 text-xs"><span className="text-[var(--text-secondary)]">Zoom</span><span>{Math.round(scale * 100)}%</span></div>
+              <div className="flex items-start justify-between gap-2 border-b border-[var(--ui-divider)] py-1 text-xs"><span className="text-[var(--text-secondary)]">Tệp</span><span className="break-all text-right font-mono text-[var(--text-secondary)]">{fileName.split(/[/\\]/).pop()}</span></div>
+              <div className="flex items-start justify-between gap-2 border-b border-[var(--ui-divider)] py-1 text-xs"><span className="text-[var(--text-secondary)]">Số trang</span><span>{totalPages}</span></div>
+              <div className="flex items-start justify-between gap-2 border-b border-[var(--ui-divider)] py-1 text-xs"><span className="text-[var(--text-secondary)]">Trang</span><span>{page} / {totalPages}</span></div>
+              <div className="flex items-start justify-between gap-2 py-1 text-xs"><span className="text-[var(--text-secondary)]">Thu phóng</span><span>{Math.round(scale * 100)}%</span></div>
             </>
-          ) : <p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)]">No document open</p>}
+          ) : <p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)]">Chưa mở tài liệu</p>}
           {viewerError ? <p className="rounded p-2 text-xs" style={{ backgroundColor: "var(--ui-error-bg)", color: "var(--ui-error-text)" }}>{viewerError}</p> : null}
         </div>
       </div>
 
       <div className="border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2 border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] py-2.5 text-xs font-semibold uppercase text-[var(--text-primary)]">
-          <span>Review</span>
-          <span className="ml-auto rounded-full bg-[var(--acrobat-blue)] px-1.5 py-[1px] text-[10px] font-bold text-white">{annotationItems.length - resolvedCount} open</span>
+          <span>Đánh giá</span>
+          <span className="ml-auto rounded-full bg-[var(--acrobat-blue)] px-1.5 py-[1px] text-[10px] font-bold text-white">{annotationItems.length - resolvedCount} đang mở</span>
         </div>
         <div className="flex gap-1 px-[14px] py-2">
           {(["all", "open", "resolved"] as const).map((filter) => (
@@ -144,7 +144,7 @@ export function RightInfoPanel({
                       <div className="flex items-center gap-2">
                         <span className="rounded bg-slate-100 px-1.5 py-px text-[10px] font-bold text-slate-700">{item.label}</span>
                         <span className="text-[11px] text-[var(--text-secondary)]">p.{item.page}</span>
-                        {resolved ? <span className="rounded bg-emerald-100 px-1.5 py-px text-[10px] font-bold text-emerald-700">RESOLVED</span> : null}
+                        {resolved ? <span className="rounded bg-emerald-100 px-1.5 py-px text-[10px] font-bold text-emerald-700">ĐÃ XỬ LÝ</span> : null}
                       </div>
                       {item.summary ? <p className="mt-1 truncate text-[11px] text-[var(--text-primary)]">{item.summary}</p> : null}
                     </button>
@@ -154,7 +154,7 @@ export function RightInfoPanel({
                         onClick={() => onUpdateAnnotation(annotation.id, { reviewResolved: !resolved })}
                         className="rounded border border-[var(--border-color)] px-1.5 py-0.5 text-[10px]"
                       >
-                        {resolved ? "Reopen" : "Resolve"}
+                        {resolved ? "Mở lại" : "Resolve"}
                       </button>
                     ) : null}
                     <button onClick={() => onRemoveAnnotation(item.id)} title="Delete annotation" className="rounded p-0.5 text-[#aaa] hover:bg-red-100 hover:text-red-600" type="button">✕</button>
@@ -164,7 +164,7 @@ export function RightInfoPanel({
                     <div className="mt-2 space-y-1 border-l-2 border-[var(--border-color)] pl-2">
                       {replies.slice(-3).map((reply, index) => (
                         <div key={reply.createdAt + "-" + index} className="text-[11px] text-[var(--text-secondary)]">
-                          <span className="font-semibold text-[var(--text-primary)]">Reply:</span> {reply.text}
+                          <span className="font-semibold text-[var(--text-primary)]">Phản hồi:</span> {reply.text}
                         </div>
                       ))}
                     </div>
@@ -176,25 +176,25 @@ export function RightInfoPanel({
                         value={replyDrafts[annotation.id] || ""}
                         onChange={(event) => setReplyDrafts((current) => ({ ...current, [annotation.id]: event.target.value }))}
                         onKeyDown={(event) => { if (event.key === "Enter") submitReply(annotation); }}
-                        placeholder="Reply…"
+                        placeholder="Phản hồi…"
                         className="min-w-0 flex-1 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-1 text-[11px]"
                       />
-                      <button type="button" onClick={() => submitReply(annotation)} className="rounded bg-[var(--acrobat-blue)] px-2 py-1 text-[10px] font-semibold text-white">Send</button>
+                      <button type="button" onClick={() => submitReply(annotation)} className="rounded bg-[var(--acrobat-blue)] px-2 py-1 text-[10px] font-semibold text-white">Gửi</button>
                     </div>
                   ) : null}
                 </li>
               );
             })}
           </ul>
-        ) : <div className="px-[14px] py-3 text-xs text-[var(--text-secondary)]">No review items in this filter.</div>}
+        ) : <div className="px-[14px] py-3 text-xs text-[var(--text-secondary)]">Không có mục đánh giá trong bộ lọc này.</div>}
       </div>
 
       <div className="border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2 border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] py-2.5 text-xs font-semibold uppercase text-[var(--text-primary)]">
-          <span>OCR Jobs</span>
+          <span>Tác vụ OCR</span>
         </div>
         <div className="px-[14px] py-2.5">
-          {ocrJobs.length === 0 ? <p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)]">No OCR jobs</p> : (
+          {ocrJobs.length === 0 ? <p className="text-[var(--ui-font-sm)] text-[var(--text-secondary)]">Chưa có tác vụ OCR</p> : (
             <ul className="m-0 list-none p-0">
               {ocrJobs.map((job) => <li key={job.id} className="flex items-center justify-between border-b border-[var(--ui-divider)] py-1.5 text-xs"><span>{job.status}</span><span>{job.progress}%</span></li>)}
             </ul>

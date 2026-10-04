@@ -82,6 +82,7 @@ export function App() {
   const {
     leftWidth,
     rightWidth,
+    setRightWidth,
     isLeftCollapsed,
     setIsLeftCollapsed,
     isRightCollapsed,
@@ -494,7 +495,14 @@ export function App() {
             }} 
             className="h-full min-h-0 overflow-hidden"
           >
-            {activeMarkupTool ? (
+            {isAiPanelOpen ? (
+              <AiAssistantPanel
+                isOpen
+                docked
+                onClose={() => setIsAiPanelOpen(false)}
+                onOpenLiveEditor={() => setIsLiveEditorOpen(true)}
+              />
+            ) : activeMarkupTool ? (
               <DocumentMarkupPanel
                 tool={activeMarkupTool}
                 fileName={state.fileName}
@@ -603,7 +611,12 @@ export function App() {
         onTouchStart={handleTouchStart}
         onClick={() => {
           if (!hasMovedRef.current) {
-            setIsAiPanelOpen(!isAiPanelOpen);
+            const nextOpen = !isAiPanelOpen;
+            setIsAiPanelOpen(nextOpen);
+            if (nextOpen) {
+              setIsRightCollapsed(false);
+              if (rightWidth < 340) setRightWidth(340);
+            }
           }
         }}
         title={isAiPanelOpen ? "Close AI Assistant" : "Open AI Assistant"}
@@ -618,13 +631,6 @@ export function App() {
         )}
       </button>
 
-      {/* AI Assistant Chat Panel */}
-      <AiAssistantPanel
-        isOpen={isAiPanelOpen}
-        onClose={() => setIsAiPanelOpen(false)}
-        align={panelAlign}
-        onOpenLiveEditor={() => setIsLiveEditorOpen(true)}
-      />
       <LiveHtmlEditor isOpen={isLiveEditorOpen} onClose={() => setIsLiveEditorOpen(false)} initialHtml={liveEditorHtml} />
     </div>
   );

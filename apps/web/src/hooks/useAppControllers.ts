@@ -469,5 +469,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     removeAnnotation,
     updateAnnotation,
     openAiEditorWindow,
+    openFileWithPath,
   };
 }

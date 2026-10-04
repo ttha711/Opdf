@@ -37,6 +37,7 @@ interface ToolDef {
   borderColor: string;
   action: () => void;
   requiresDocument?: boolean;
+  unavailableReason?: string;
 }
 
 export function AllToolsDashboard({
@@ -58,9 +59,11 @@ export function AllToolsDashboard({
   onTriggerSign,
   onSelectTool,
 }: AllToolsDashboardProps) {
-  // Compression can use the connected bridge or the web large-PDF service.
-  useOpdfBridge();
-  const canCompress = true;
+  const bridge = useOpdfBridge();
+  const canCompress = bridge.capabilities?.compress !== false;
+  const canEncrypt = bridge.capabilities?.encrypt !== false;
+  const canDigitalSign = bridge.capabilities?.digitalSignature !== false;
+  const canOfficeToPdf = Boolean(bridge.convertOfficeToPdf);
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -330,11 +333,11 @@ export function AllToolsDashboard({
 
     { id: "image-to-pdf", name: "Image to PDF", icon: "🖼️", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => triggerFileInput("image-to-pdf") },
     { id: "txt-to-pdf", name: "TXT to PDF", icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: () => triggerFileInput("txt-to-pdf") },
-    { id: "word-to-pdf", name: "Word to PDF", icon: "W", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => onSelectTool?.("word-to-pdf") },
-    { id: "excel-to-pdf", name: "Excel to PDF", icon: "X", color: "#198754", bgColor: "#e8f7ee", borderColor: "#b7e4c7", action: () => onSelectTool?.("excel-to-pdf") },
-    { id: "ppt-to-pdf", name: "PowerPoint to PDF", icon: "P", color: "#d9480f", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => onSelectTool?.("ppt-to-pdf") },
+    { id: "word-to-pdf", name: "Word to PDF", icon: "W", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => onSelectTool?.("word-to-pdf"), unavailableReason: canOfficeToPdf ? undefined : "Requires OPDF Server with LibreOffice." },
+    { id: "excel-to-pdf", name: "Excel to PDF", icon: "X", color: "#198754", bgColor: "#e8f7ee", borderColor: "#b7e4c7", action: () => onSelectTool?.("excel-to-pdf"), unavailableReason: canOfficeToPdf ? undefined : "Requires OPDF Server with LibreOffice." },
+    { id: "ppt-to-pdf", name: "PowerPoint to PDF", icon: "P", color: "#d9480f", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => onSelectTool?.("ppt-to-pdf"), unavailableReason: canOfficeToPdf ? undefined : "Requires OPDF Server with LibreOffice." },
 
-    { id: "compress-pdf", name: "Compress PDF", icon: "🗜️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerCompress },
+    { id: "compress-pdf", name: "Compress PDF", icon: "🗜️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerCompress, unavailableReason: canCompress ? undefined : "Compression requires OPDF Server or Desktop." },
     { id: "merge-pdf", name: "Merge PDF", icon: "📚", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerMerge },
     { id: "split-pdf", name: "Split PDF", icon: "✂️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerSplit },
     { id: "rotate-pdf", name: "Rotate PDF", icon: "↻", color: "#5f3dc4", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => onSelectTool?.("rotate-pdf") },
@@ -347,11 +350,11 @@ export function AllToolsDashboard({
     { id: "ocr-pdf", name: "OCR PDF", icon: "🔎", color: "#087f5b", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: onTriggerOcr, requiresDocument: true },
     { id: "fill-form", name: "Fill Form", icon: "✍️", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerFillForm, requiresDocument: true },
 
-    { id: "protect-pdf", name: "Protect PDF", icon: "🔒", color: "#9c36b5", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => onSelectTool?.("protect-pdf") },
-    { id: "unlock-pdf", name: "Unlock PDF", icon: "🔓", color: "#2f9e44", bgColor: "#ebfbee", borderColor: "#b2f2bb", action: () => onSelectTool?.("unlock-pdf") },
+    { id: "protect-pdf", name: "Protect PDF", icon: "🔒", color: "#9c36b5", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => onSelectTool?.("protect-pdf"), unavailableReason: canEncrypt ? undefined : "Password protection requires OPDF Server or Desktop." },
+    { id: "unlock-pdf", name: "Unlock PDF", icon: "🔓", color: "#2f9e44", bgColor: "#ebfbee", borderColor: "#b2f2bb", action: () => onSelectTool?.("unlock-pdf"), unavailableReason: canEncrypt ? undefined : "Unlock requires OPDF Server or Desktop." },
     { id: "redact-pdf", name: "Redact PDF", icon: "▰", color: "#212529", bgColor: "#f1f3f5", borderColor: "#ced4da", action: onTriggerRedact, requiresDocument: true },
     { id: "compare-pdf", name: "Compare PDF", icon: "⇄", color: "#364fc7", bgColor: "#edf2ff", borderColor: "#bac8ff", action: onTriggerCompare, requiresDocument: true },
-    { id: "sign-pdf", name: "Sign PDF", icon: "✒️", color: "#a61e4d", bgColor: "#fff0f6", borderColor: "#fcc2d7", action: onTriggerSign, requiresDocument: true },
+    { id: "sign-pdf", name: "Sign PDF", icon: "✒️", color: "#a61e4d", bgColor: "#fff0f6", borderColor: "#fcc2d7", action: onTriggerSign, requiresDocument: true, unavailableReason: canDigitalSign ? undefined : "Digital signing requires OPDF Desktop." },
   ];
 
   // Filter tools based on active tab
@@ -424,9 +427,13 @@ export function AllToolsDashboard({
         {getFilteredTools().map((tool) => (
           <button
             key={tool.id}
-            disabled={tool.id === "compress-pdf" && !canCompress}
-            title={undefined}
+            disabled={Boolean(tool.unavailableReason)}
+            title={tool.unavailableReason}
             onClick={() => {
+              if (tool.unavailableReason) {
+                toast.info(tool.unavailableReason);
+                return;
+              }
               if (!hasDocument && tool.requiresDocument) {
                 toast.info("Open a PDF first to use this tool.");
                 return;
@@ -459,6 +466,9 @@ export function AllToolsDashboard({
             <span className="text-[13px] font-semibold text-[var(--text-primary)] group-hover:text-red-500 transition-colors">
               {tool.name}
             </span>
+            {tool.unavailableReason ? (
+              <span className="mt-1 text-[10px] font-medium text-[var(--text-secondary)]">Not available here</span>
+            ) : null}
           </button>
         ))}
       </div>

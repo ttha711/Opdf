@@ -162,7 +162,7 @@ export function InsertPdfModal({
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
+    <div data-opdf-dialog="insert-pdf" className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="premium-modal max-w-[500px]">
         {/* Hidden Input Picker */}
         <input
@@ -185,7 +185,7 @@ export function InsertPdfModal({
             </svg>
             Insert PDF Document
           </h3>
-          <button className="premium-modal-close" onClick={onClose} aria-label="Close dialog">
+          <button data-opdf-action="close-dialog" className="premium-modal-close" onClick={onClose} aria-label="Close dialog">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
@@ -328,7 +328,7 @@ export function InsertPdfModal({
 
         {/* Footer */}
         <div className="premium-modal-footer">
-          <button className="btn-premium btn-premium-secondary" onClick={onClose} disabled={isProcessing} type="button">
+          <button data-opdf-action="close-dialog" className="btn-premium btn-premium-secondary" onClick={onClose} disabled={isProcessing} type="button">
             Cancel
           </button>
           <button

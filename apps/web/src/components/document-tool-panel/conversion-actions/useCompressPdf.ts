@@ -58,7 +58,7 @@ export function useCompressPdf(args: UseCompressPdfArgs) {
       }
 
       replaceDocumentBytes(compressed);
-      setViewerError(`Optimized successfully with ${compressLevel.toUpperCase()} compression.`);
+      setViewerError("PDF optimized successfully.");
       window.setTimeout(() => setViewerError(null), 3500);
     } catch (err) {
       setViewerError("Compression failed: " + (err instanceof Error ? err.message : String(err)));

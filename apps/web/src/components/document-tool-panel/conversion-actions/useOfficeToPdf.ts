@@ -1,3 +1,4 @@
+import { isOpdfServerRuntime, useOpdfBridge } from "../../../hooks/useOpdfBridge";
 import type React from "react";
 
 interface UseOfficeToPdfArgs {
@@ -12,6 +13,7 @@ interface UseOfficeToPdfArgs {
 }
 
 export function useOfficeToPdf(args: UseOfficeToPdfArgs) {
+  const bridge = useOpdfBridge();
   const {
     activeToolId,
     officePageSize,
@@ -41,6 +43,22 @@ export function useOfficeToPdf(args: UseOfficeToPdfArgs) {
     setIsProcessing(true);
     setViewerError("Reconstructing layout grids...");
     try {
+      const lowerName = file.name.toLowerCase();
+      const isTxt = lowerName.endsWith(".txt");
+      const isImage = ["image/png", "image/jpeg"].includes(file.type) || /\.(png|jpe?g)$/i.test(file.name);
+
+      if (!isTxt && !isImage) {
+        if (!isOpdfServerRuntime() || !bridge.convertOfficeToPdf) {
+          throw new Error("Office → PDF requires OPDF Server with LibreOffice installed.");
+        }
+        setViewerError("Converting Office document with LibreOffice...");
+        const output = await bridge.convertOfficeToPdf(new Uint8Array(await file.arrayBuffer()), file.name);
+        onLoadConvertedPdf(output, file.name.replace(/\.[^/.]+$/, "") + ".pdf");
+        setViewerError("Office document converted to PDF.");
+        window.setTimeout(() => setViewerError(null), 3000);
+        return;
+      }
+
       const pdfLib = await import("pdf-lib");
       const doc = await pdfLib.PDFDocument.create();
 
@@ -60,11 +78,9 @@ export function useOfficeToPdf(args: UseOfficeToPdfArgs) {
       if (officeMargins === "none") margin = 10;
       else if (officeMargins === "custom") margin = 30;
 
-      const fontBold = await doc.embedFont(pdfLib.StandardFonts.HelveticaBold);
-      const fontOblique = await doc.embedFont(pdfLib.StandardFonts.HelveticaOblique);
       const fontNormal = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
 
-      if (activeToolId === "txt-to-pdf") {
+      if (isTxt) {
         const text = await file.text();
         const fontSize = 11;
         const contentWidth = pageWidth - margin * 2;
@@ -80,7 +96,7 @@ export function useOfficeToPdf(args: UseOfficeToPdfArgs) {
           for (const word of words) {
             const testLine = currentLine ? `${currentLine} ${word}` : word;
             const textWidth = fontNormal.widthOfTextAtSize(testLine, fontSize);
-            if (textWidth > contentWidth) {
+            if (textWidth > contentWidth && currentLine) {
               lines.push(currentLine);
               currentLine = word;
             } else {
@@ -90,7 +106,7 @@ export function useOfficeToPdf(args: UseOfficeToPdfArgs) {
           if (currentLine) lines.push(currentLine);
         }
 
-        const linesPerPage = Math.floor((pageHeight - margin * 2) / (fontSize * 1.5));
+        const linesPerPage = Math.max(1, Math.floor((pageHeight - margin * 2) / (fontSize * 1.5)));
         for (let i = 0; i < lines.length; i += linesPerPage) {
           const pageLines = lines.slice(i, i + linesPerPage);
           const page = doc.addPage([pageWidth, pageHeight]);
@@ -100,41 +116,31 @@ export function useOfficeToPdf(args: UseOfficeToPdfArgs) {
             y -= fontSize * 1.5;
           }
         }
-      } else if (activeToolId === "image-to-pdf") {
+        if (lines.length === 0) doc.addPage([pageWidth, pageHeight]);
+      } else {
         const arrayBuffer = await file.arrayBuffer();
-        const isPng = file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
+        const isPng = file.type === "image/png" || lowerName.endsWith(".png");
         const image = isPng
           ? await doc.embedPng(new Uint8Array(arrayBuffer))
           : await doc.embedJpg(new Uint8Array(arrayBuffer));
         const { width: imgW, height: imgH } = image.scale(1.0);
         const availableW = pageWidth - margin * 2;
-        const scaleFactor = Math.min(availableW / imgW, (pageHeight - margin * 2) / imgH);
+        const availableH = pageHeight - margin * 2;
+        const scaleFactor = Math.min(availableW / imgW, availableH / imgH);
         const drawW = imgW * scaleFactor;
         const drawH = imgH * scaleFactor;
         const page = doc.addPage([pageWidth, pageHeight]);
         page.drawImage(image, {
           x: margin + (availableW - drawW) / 2,
-          y: margin + (pageHeight - margin * 2 - drawH) / 2,
+          y: margin + (availableH - drawH) / 2,
           width: drawW,
           height: drawH,
         });
-      } else {
-        const page = doc.addPage([pageWidth, pageHeight]);
-        page.drawText("OPDF Premium Office Reconstruction", { x: margin, y: pageHeight - margin - 30, size: 16, font: fontBold, color: pdfLib.rgb(0.87, 0.24, 0.18) });
-        page.drawText("Layout Compiled Successfully Offline", { x: margin, y: pageHeight - margin - 60, size: 12, font: fontBold });
-        page.drawText("Document Settings Used:", { x: margin, y: pageHeight - margin - 110, size: 11, font: fontBold });
-        page.drawText(`• Uploaded File: ${file.name}`, { x: margin + 20, y: pageHeight - margin - 130, size: 10, font: fontNormal });
-        page.drawText(`• Page Setup: ${officePageSize} Size, ${officeOrientation} Mode`, { x: margin + 20, y: pageHeight - margin - 150, size: 10, font: fontNormal });
-        page.drawText(`• Margins: ${officeMargins.toUpperCase()}`, { x: margin + 20, y: pageHeight - margin - 170, size: 10, font: fontNormal });
-        page.drawText("Conversion Integrity Report:", { x: margin, y: pageHeight - margin - 220, size: 11, font: fontBold });
-        page.drawText("This target file accurately retains vector drawings, paragraph alignments,", { x: margin, y: pageHeight - margin - 240, size: 10, font: fontOblique });
-        page.drawText("and tabular properties extracted from the office payload.", { x: margin, y: pageHeight - margin - 255, size: 10, font: fontOblique });
-        page.drawRectangle({ x: margin, y: margin + 20, width: pageWidth - margin * 2, height: 8, color: pdfLib.rgb(0.87, 0.24, 0.18) });
       }
 
       const pdfBytes = await doc.save();
       onLoadConvertedPdf(pdfBytes, file.name.replace(/\.[^/.]+$/, "") + ".pdf");
-      setViewerError("Document loaded successfully!");
+      setViewerError("Document converted to PDF.");
       setTimeout(() => setViewerError(null), 3000);
     } catch (err) {
       setViewerError("Office conversion failed: " + err);

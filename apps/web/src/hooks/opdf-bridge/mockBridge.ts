@@ -627,6 +627,22 @@ export function createMockBridge(): OpdfBridge {
       }
       return doc.save();
     },
+    async reorderPages(bytes, pageOrder: number[]) {
+      const pdfLib = await loadPdfLib();
+      const source = await pdfLib.PDFDocument.load(bytes);
+      const total = source.getPageCount();
+      if (
+        pageOrder.length !== total ||
+        new Set(pageOrder).size !== total ||
+        pageOrder.some((pageNumber) => pageNumber < 1 || pageNumber > total)
+      ) {
+        throw new Error("Page order must contain every page exactly once.");
+      }
+      const output = await pdfLib.PDFDocument.create();
+      const copied = await output.copyPages(source, pageOrder.map((pageNumber) => pageNumber - 1));
+      copied.forEach((page) => output.addPage(page));
+      return output.save();
+    },
     async showItemInFolder(filePath) {
       console.log("[MockBridge] showItemInFolder", filePath);
     },

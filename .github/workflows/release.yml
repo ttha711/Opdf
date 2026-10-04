@@ -32,6 +32,32 @@ jobs:
         env:
           CI: true
 
+  office-conversion-windows:
+    needs: verify
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Install LibreOffice
+        shell: powershell
+        run: choco install libreoffice-fresh -y --no-progress
+      - name: Build OPDF Server
+        run: npm run server-build
+      - name: Verify Word Excel PowerPoint to PDF
+        shell: powershell
+        run: |
+          $soffice = "C:\Program Files\LibreOffice\program\soffice.exe"
+          if (-not (Test-Path $soffice)) {
+            throw "LibreOffice soffice.exe was not found at $soffice"
+          }
+          $env:OPDF_LIBREOFFICE_PATH = $soffice
+          node scripts/office-conversion-smoke.mjs
+
   hot-update:
     needs: verify
     runs-on: ubuntu-latest
@@ -129,7 +155,7 @@ jobs:
 
   github-release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [package, hot-update]
+    needs: [package, hot-update, office-conversion-windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

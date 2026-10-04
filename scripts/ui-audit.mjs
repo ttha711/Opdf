@@ -32,6 +32,47 @@ async function shot(name) {
   await page.screenshot({ path: resolve(outDir, name + ".png"), fullPage: true });
 }
 
+async function assertMainPdfSurface() {
+  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  await viewer.waitFor({ state: "visible", timeout: 30000 });
+
+  let diagnostics = [];
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    diagnostics = await viewer.locator("canvas").evaluateAll((canvases) =>
+      canvases.map((canvas) => {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          width: canvas.width,
+          height: canvas.height,
+          rectWidth: rect.width,
+          rectHeight: rect.height,
+          visible:
+            rect.width > 0 &&
+            rect.height > 0 &&
+            getComputedStyle(canvas).display !== "none" &&
+            getComputedStyle(canvas).visibility !== "hidden",
+        };
+      }),
+    );
+
+    if (diagnostics.some((item) =>
+      item.visible &&
+      item.width >= 250 &&
+      item.height >= 250 &&
+      item.rectWidth >= 220 &&
+      item.rectHeight >= 220
+    )) {
+      console.log("Main PDF surface diagnostics:", diagnostics);
+      return;
+    }
+
+    await page.waitForTimeout(250);
+  }
+
+  console.log("Main PDF surface diagnostics:", diagnostics);
+  throw new Error("Main PDF page surface did not render a visible page-sized canvas");
+}
+
 async function openTopMenu(label) {
   const trigger = page.locator("button.top-menu-btn").filter({ hasText: new RegExp("^" + label + "$") });
   await trigger.click();
@@ -92,6 +133,7 @@ try {
 
   await page.waitForFunction(() => document.body.innerText.includes("sample-ui-audit.pdf"), null, { timeout: 30000 });
   await page.waitForTimeout(1800);
+  await assertMainPdfSurface();
   await shot("02-viewer-light");
 
   await openTopMenu("File");

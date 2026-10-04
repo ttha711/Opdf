@@ -104,7 +104,7 @@ try {
     await aiButton.click();
     await page.waitForTimeout(500);
     await shot("07-ai-panel");
-    const aiClose = page.locator('button[title="Close AI Assistant"]').first();
+    const aiClose = page.locator('button[title="Hide AI Copilot"]').first();
     if (await aiClose.count()) await aiClose.click();
   }
 

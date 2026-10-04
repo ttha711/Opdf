@@ -1,0 +1,44 @@
+name: UI Audit Screenshots
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "server/**"
+      - "scripts/ui-audit.mjs"
+      - ".github/workflows/ui-audit.yml"
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run server-build
+      - name: Start OPDF server
+        run: |
+          OPDF_HOST=127.0.0.1 OPDF_PORT=8787 OPDF_DATA_DIR=.opdf-ui-audit-data npm run server-start > /tmp/opdf-ui-audit.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8787/api/opdf/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/opdf-ui-audit.log
+          exit 1
+      - name: Capture UI
+        run: node scripts/ui-audit.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opdf-ui-audit
+          path: ui-audit/
+          retention-days: 14

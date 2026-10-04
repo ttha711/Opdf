@@ -130,7 +130,7 @@ export function TabBar({
   };
 
   const handleCreateNewGroup = (tabId: string) => {
-    const name = prompt("Nhập tên nhóm tab mới (Enter new tab group name):");
+    const name = prompt("Enter new tab group name:");
     if (name && name.trim()) {
       addTabToGroup(tabId, name.trim());
     }
@@ -138,7 +138,7 @@ export function TabBar({
   };
 
   const handleRenameGroupPrompt = (groupName: string) => {
-    const newName = prompt(`Đổi tên nhóm "${groupName}" thành:`, groupName);
+    const newName = prompt(`Rename group "${groupName}" to:`, groupName);
     if (newName && newName.trim() && newName.trim() !== groupName) {
       renameTabGroup(groupName, newName.trim());
     }
@@ -160,11 +160,11 @@ export function TabBar({
         {/* If filtered by URL group parameter, display a premium back pill */}
         {activeGroupFilter && (
           <div className="flex items-center gap-1 bg-[var(--ui-accent-bg)] border border-[var(--acrobat-blue)] rounded-full px-3 py-1 text-xs text-[var(--acrobat-blue)] font-bold animate-pulse">
-            <span>Cửa sổ Nhóm: {activeGroupFilter}</span>
+            <span>Group Window: {activeGroupFilter}</span>
             <button 
               className="ml-1 cursor-pointer hover:bg-[var(--border-color)] rounded-full p-0.5"
               onClick={() => { window.location.search = ""; }}
-              title="Hiện tất cả các tab (Show all tabs)"
+              title="Show all tabs"
             >
               <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="3">
                 <path d="M18 6 6 18M6 6l12 12" />
@@ -188,7 +188,7 @@ export function TabBar({
                     className="tab-group-badge rounded-md px-2 py-1 text-[10px] font-bold uppercase cursor-pointer hover:scale-105 transition-all text-white"
                     style={{ backgroundColor: tab.groupColor || "#5e5e5e" }}
                     onClick={(e) => handleGroupBadgeClick(e, tab.group!)}
-                    title={`Quản lý nhóm ${tab.group} (Click to manage group)`}
+                    title={`Manage group ${tab.group} (Click to manage group)`}
                   >
                     {tab.group}
                   </span>
@@ -221,7 +221,7 @@ export function TabBar({
                       e.stopPropagation();
                       closeTab(tab.id);
                     }}
-                    title="Đóng tab (Close tab)"
+                    title="Close tab"
                     type="button"
                   >
                     <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -238,7 +238,7 @@ export function TabBar({
         <button
           className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-[var(--bg-toolbar)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:border-[var(--acrobat-blue)] hover:text-[var(--acrobat-blue)] transition-colors shadow-sm"
           onClick={openFile}
-          title="Mở file mới vào Tab mới (Open file in a new Tab)"
+          title="Open file in a new tab"
           type="button"
         >
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -261,7 +261,7 @@ export function TabBar({
         >
           {/* Group Options Submenu */}
           <div className="px-2 py-1 text-[11px] font-bold text-[var(--text-secondary)] border-b border-[var(--ui-divider)]">
-            Nhóm Tab (Tab Groups)
+            Tab Groups
           </div>
           <button
             className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold hover:bg-[var(--ui-hover-bg)] rounded-md cursor-pointer"
@@ -270,12 +270,12 @@ export function TabBar({
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 5v14M5 12h14" />
             </svg>
-            Tạo nhóm mới...
+            Create new group...
           </button>
           
           {existingGroups.length > 0 && (
             <div className="border-t border-[var(--ui-divider)] my-1">
-              <div className="px-2.5 py-0.5 text-[9px] font-bold text-[var(--text-secondary)]">Thêm vào nhóm:</div>
+              <div className="px-2.5 py-0.5 text-[9px] font-bold text-[var(--text-secondary)]">Add to group:</div>
               {existingGroups.map(group => (
                 <button
                   key={group}
@@ -308,7 +308,7 @@ export function TabBar({
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 6 6 18M6 6l12 12" />
               </svg>
-              Xóa khỏi nhóm
+              Remove from group
             </button>
           )}
 
@@ -326,7 +326,7 @@ export function TabBar({
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" />
               </svg>
-              Mở nhóm sang cửa sổ mới
+              Open group in new window
             </button>
           )}
 
@@ -354,7 +354,7 @@ export function TabBar({
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
-                  {isFullPath ? "Sao chép đường dẫn" : "Sao chép tên file"}
+                  {isFullPath ? "Copy path" : "Copy file name"}
                 </button>
                 {showItemInFolder && (
                   <button
@@ -367,7 +367,7 @@ export function TabBar({
                     <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
                     </svg>
-                    Mở thư mục chứa file
+                    Show in folder
                   </button>
                 )}
               </>
@@ -384,7 +384,7 @@ export function TabBar({
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            Đóng Tab
+            Close Tab
           </button>
         </div>
       )}
@@ -397,7 +397,7 @@ export function TabBar({
           style={{ top: menuCoords.y, left: menuCoords.x }}
         >
           <div className="px-2 py-1 text-[11px] font-bold text-[var(--text-secondary)] border-b border-[var(--ui-divider)] flex justify-between items-center">
-            <span>Nhóm: {activeMenuGroupName}</span>
+            <span>Group: {activeMenuGroupName}</span>
             <span
               className="h-2 w-2 rounded-full"
               style={{
@@ -413,7 +413,7 @@ export function TabBar({
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" />
             </svg>
-            Mở nhóm sang cửa sổ mới
+            Open group in new window
           </button>
 
           <button
@@ -424,7 +424,7 @@ export function TabBar({
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
-            Đổi tên nhóm (Rename)...
+            Rename group...
           </button>
 
           {/* Change Color Swatches Option */}
@@ -437,7 +437,7 @@ export function TabBar({
                 <circle cx="12" cy="12" r="10" />
                 <path d="M12 2a7 7 0 0 0-7 7c0 4.14 7 13 7 13s7-8.86 7-13a7 7 0 0 0-7-7z" />
               </svg>
-              Đổi màu nhóm
+              Change group color
             </div>
             <span>{showGroupColorPicker ? "▼" : "▶"}</span>
           </button>
@@ -472,7 +472,7 @@ export function TabBar({
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
-            Rã nhóm (Ungroup)
+            Ungroup
           </button>
 
           <button
@@ -485,7 +485,7 @@ export function TabBar({
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            Đóng toàn bộ nhóm
+            Close entire group
           </button>
         </div>
       )}

@@ -32,6 +32,83 @@ async function shot(name) {
   await page.screenshot({ path: resolve(outDir, name + ".png"), fullPage: true });
 }
 
+async function assertMainPdfSurface() {
+  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  await viewer.waitFor({ state: "visible", timeout: 30000 });
+
+  let diagnostics = [];
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    diagnostics = await viewer.locator("img, canvas").evaluateAll((surfaces) =>
+      surfaces.map((surface) => {
+        const rect = surface.getBoundingClientRect();
+        const isCanvas = surface instanceof HTMLCanvasElement;
+        const width = isCanvas ? surface.width : surface.naturalWidth;
+        const height = isCanvas ? surface.height : surface.naturalHeight;
+        return {
+          tag: surface.tagName,
+          width,
+          height,
+          rectWidth: rect.width,
+          rectHeight: rect.height,
+          visible:
+            rect.width > 0 &&
+            rect.height > 0 &&
+            getComputedStyle(surface).display !== "none" &&
+            getComputedStyle(surface).visibility !== "hidden",
+        };
+      }),
+    );
+
+    if (diagnostics.some((item) =>
+      item.visible &&
+      item.width >= 250 &&
+      item.height >= 250 &&
+      item.rectWidth >= 220 &&
+      item.rectHeight >= 220
+    )) {
+      console.log("Main PDF surface diagnostics:", diagnostics);
+      return;
+    }
+
+    await page.waitForTimeout(250);
+  }
+
+  const tree = await viewer.evaluate((root) => {
+    const rows = [];
+    const visit = (node, depth) => {
+      if (!node || depth > 16 || rows.length >= 900) return;
+      const children = node instanceof ShadowRoot ? Array.from(node.children) : Array.from(node.children ?? []);
+      for (const child of children) {
+        const rect = child.getBoundingClientRect();
+        rows.push({
+          depth,
+          tag: child.tagName,
+          id: child.id || "",
+          className: typeof child.className === "string" ? child.className.slice(0, 120) : "",
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          text: (child.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 80),
+          shadow: Boolean(child.shadowRoot),
+          attrs: Array.from(child.attributes ?? []).reduce((acc, attr) => {
+            if (["class", "style"].includes(attr.name)) return acc;
+            acc[attr.name] = attr.value.slice(0, 120);
+            return acc;
+          }, {}),
+        });
+        if (child.shadowRoot) visit(child.shadowRoot, depth + 1);
+        visit(child, depth + 1);
+      }
+    };
+    visit(root, 0);
+    return rows;
+  });
+
+  console.log("Main PDF surface diagnostics:", diagnostics);
+  console.log("Viewer DOM diagnostics:", JSON.stringify(tree, null, 2));
+  await shot("02-viewer-render-failure");
+  throw new Error("Main PDF page surface did not render a visible page-sized image or canvas");
+}
+
 async function openTopMenu(label) {
   const trigger = page.locator("button.top-menu-btn").filter({ hasText: new RegExp("^" + label + "$") });
   await trigger.click();
@@ -92,6 +169,7 @@ try {
 
   await page.waitForFunction(() => document.body.innerText.includes("sample-ui-audit.pdf"), null, { timeout: 30000 });
   await page.waitForTimeout(1800);
+  await assertMainPdfSurface();
   await shot("02-viewer-light");
 
   await openTopMenu("File");

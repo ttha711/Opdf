@@ -33,9 +33,24 @@ async function shot(name) {
 }
 
 async function openTopMenu(label) {
-  const menu = page.locator("button.top-menu-btn").filter({ hasText: new RegExp("^" + label + "$") });
-  await menu.click();
+  const trigger = page.locator("button.top-menu-btn").filter({ hasText: new RegExp("^" + label + "$") });
+  await trigger.click();
+  const menu = page.getByRole("menu");
+  await menu.waitFor({ state: "visible", timeout: 5000 });
   await page.waitForTimeout(120);
+
+  const visuallyReachable = await menu.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    if (rect.width < 20 || rect.height < 20) return false;
+    const x = Math.min(window.innerWidth - 2, Math.max(1, rect.left + Math.min(20, rect.width / 2)));
+    const y = Math.min(window.innerHeight - 2, Math.max(1, rect.top + Math.min(12, rect.height / 2)));
+    const hit = document.elementFromPoint(x, y);
+    return Boolean(hit && element.contains(hit));
+  });
+
+  if (!visuallyReachable) {
+    throw new Error(label + " menu is open in the DOM but clipped or visually occluded");
+  }
 }
 
 async function clickToolsAction(label) {
@@ -64,7 +79,7 @@ try {
   await page.waitForTimeout(1800);
   await shot("02-viewer-light");
 
-  await page.locator("button.top-menu-btn").filter({ hasText: /^File$/ }).click();
+  await openTopMenu("File");
   await page.waitForTimeout(250);
   await shot("03-file-menu");
   await page.keyboard.press("Escape");

@@ -199,7 +199,7 @@ export async function runBackgroundOcrAndExport(
   } catch (err: any) {
     console.error("Automatic conversion failed:", err);
     setViewerError(`Conversion failed: ${err.message || err}`);
-    toast.error(`Chuyển đổi không hoàn tất: ${err.message || err}`);
+    toast.error(`Conversion did not complete: ${err.message || err}`);
   }
 }
 

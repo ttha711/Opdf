@@ -17,6 +17,9 @@ on:
           - smoke
           - full
           - e2e
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -27,15 +30,24 @@ concurrency:
 
 jobs:
   audit:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 50
     env:
+      TARGET_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.url || 'https://pdf.vivutrade.io.vn/' }}
+      AUDIT_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'e2e' }}
+      EXPECTED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       OPDF_CF_ACCESS_CLIENT_ID: ${{ secrets.OPDF_CF_ACCESS_CLIENT_ID }}
       OPDF_CF_ACCESS_CLIENT_SECRET: ${{ secrets.OPDF_CF_ACCESS_CLIENT_SECRET }}
       OPDF_E2E_HEADERS_JSON: ${{ secrets.OPDF_E2E_HEADERS_JSON }}
     steps:
-      - name: Checkout
+      - name: Checkout tested revision
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
 
       - name: Setup Node 22
         uses: actions/setup-node@v4
@@ -49,13 +61,17 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium --with-deps
 
-      - name: Run production browser audit
+      - name: Wait for deployment and run production browser E2E
         shell: bash
         run: |
           set -o pipefail
+          echo "Waiting for production build: $EXPECTED_SHA"
+          echo "Target: $TARGET_URL"
           mkdir -p opdf-cli-artifacts
-          node scripts/opdf-cli.mjs audit "${{ inputs.mode }}" \
-            --url "${{ inputs.url }}" \
+          node scripts/opdf-cli.mjs audit "$AUDIT_MODE" \
+            --url "$TARGET_URL" \
+            --expected-sha "$EXPECTED_SHA" \
+            --deploy-timeout 900000 \
             --timeout 120000 \
             --out opdf-cli-artifacts \
             --trace opdf-cli-artifacts/trace.zip \

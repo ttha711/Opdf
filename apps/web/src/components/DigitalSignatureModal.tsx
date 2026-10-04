@@ -134,7 +134,7 @@ export function DigitalSignatureModal({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }} style={{ zIndex: "var(--z-modal-high)" }}>
+    <div className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
       <div className="premium-modal flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden">
         <div className="premium-modal-header">
           <div>

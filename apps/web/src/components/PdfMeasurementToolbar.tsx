@@ -12,6 +12,7 @@ export function PdfMeasurementToolbar({
   onUnitChange,
   onCalibrate,
   onResetCalibration,
+  onClose,
 }: {
   mode: MeasurementMode;
   scale: number;
@@ -24,6 +25,7 @@ export function PdfMeasurementToolbar({
   onUnitChange: (unit: MeasurementUnit) => void;
   onCalibrate: () => void;
   onResetCalibration: () => void;
+  onClose: () => void;
 }) {
   return (
     <div className="pointer-events-auto absolute left-3 top-3 z-40 flex max-w-[620px] flex-wrap items-center gap-1.5 rounded-md border border-emerald-300 bg-white/95 px-2 py-1 text-[11px] font-semibold text-emerald-900 shadow-lg">
@@ -82,6 +84,15 @@ export function PdfMeasurementToolbar({
       <span className="text-emerald-700">
         {result ?? (mode === "distance" ? "Drag a line" : "Click points; double-click to finish")}
       </span>
+      <button
+        type="button"
+        onClick={onClose}
+        className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-900"
+        aria-label="Close measurement tool"
+        title="Close measurement tool"
+      >
+        ×
+      </button>
     </div>
   );
 }

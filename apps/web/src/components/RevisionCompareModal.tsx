@@ -255,35 +255,35 @@ export function RevisionCompareModal({
   const shiftY = analysisSize.height ? alignment.dy / analysisSize.height * 100 : 0;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex flex-col bg-slate-950/95 text-white">
+    <div className="fixed inset-0 flex flex-col bg-slate-950/95 text-white" style={{ zIndex: "var(--z-modal-high)" }}>
       <header className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-slate-900 px-4 py-2">
         <div className="mr-auto min-w-0">
-          <div className="text-sm font-bold">Compare revisions V2</div>
+          <div className="text-sm font-bold">So sánh phiên bản</div>
           <div className="max-w-[420px] truncate text-[11px] text-slate-400">{baseFileName || "Current PDF"}</div>
         </div>
         <label className="cursor-pointer rounded border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-semibold hover:bg-slate-700">
-          Chọn revision…
+          Chọn bản PDF khác…
           <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => setRevisionFile(event.target.files?.[0] ?? null)} />
         </label>
         <select value={mode} onChange={(event) => setMode(event.target.value as CompareMode)} className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs" aria-label="Comparison mode">
-          <option value="side-by-side">Side by side</option>
-          <option value="overlay">Overlay</option>
-          <option value="changes">Changes</option>
+          <option value="side-by-side">Song song</option>
+          <option value="overlay">Chồng lớp</option>
+          <option value="changes">Thay đổi</option>
         </select>
         <label className="flex items-center gap-1 text-[11px] text-slate-300">
-          Sensitivity
+          Độ nhạy
           <input type="range" min="12" max="80" step="2" value={threshold} onChange={(event) => setThreshold(Number(event.target.value))} />
           {threshold}
         </label>
         <label className="flex items-center gap-1 text-[11px] text-slate-300">
           <input type="checkbox" checked={autoAlign} onChange={(event) => setAutoAlign(event.target.checked)} />
-          Auto align
+          Tự căn chỉnh
         </label>
         <button type="button" disabled={!revisionFile || !basePdf || !revisionPdf || analyzing} onClick={() => void analyze()} className="rounded bg-amber-500 px-3 py-1.5 text-xs font-bold text-slate-950 disabled:opacity-40">
-          {analyzing ? "Analyzing…" : "Detect changes"}
+          {analyzing ? "Analyzing…" : "Phát hiện thay đổi"}
         </button>
         {regions.length > 0 ? (
-          <button type="button" onClick={() => void exportReport()} className="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold">Export report</button>
+          <button type="button" onClick={() => void exportReport()} className="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold">Xuất báo cáo</button>
         ) : null}
         <div className="flex items-center gap-1 rounded border border-slate-700 bg-slate-800 px-1.5 py-1">
           <button type="button" className="px-2 text-xs" onClick={() => setPageNumber((value) => Math.max(1, value - 1))}>‹</button>
@@ -302,7 +302,7 @@ export function RevisionCompareModal({
         <div className="flex flex-1 items-center justify-center p-8 text-center text-slate-300">Chọn PDF revision để bắt đầu so sánh.</div>
       ) : mode === "side-by-side" ? (
         <div className="grid min-h-0 flex-1 grid-cols-2 gap-px overflow-auto bg-slate-700">
-          <div className="min-w-0 bg-slate-900 p-3"><div className="mb-2 text-xs font-semibold">Current · p.{safePage}</div><div className="mx-auto max-w-full bg-white"><canvas ref={baseCanvasRef} /></div></div>
+          <div className="min-w-0 bg-slate-900 p-3"><div className="mb-2 text-xs font-semibold">Hiện tại · trang {safePage}</div><div className="mx-auto max-w-full bg-white"><canvas ref={baseCanvasRef} /></div></div>
           <div className="min-w-0 bg-slate-900 p-3"><div className="mb-2 truncate text-xs font-semibold">{revisionFile.name} · p.{safePage}</div><div className="mx-auto max-w-full bg-white"><canvas ref={revisionCanvasRef} /></div></div>
         </div>
       ) : (
@@ -331,10 +331,10 @@ export function RevisionCompareModal({
           {mode === "changes" ? (
             <aside className="w-72 overflow-auto border-l border-white/10 bg-slate-950 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-bold">Changes ({regions.length})</span>
+                <span className="text-xs font-bold">Thay đổi ({regions.length})</span>
                 <div className="flex gap-1">
-                  <button type="button" className="rounded border border-slate-600 px-2 py-1 text-xs" onClick={() => moveChange(-1)}>Prev</button>
-                  <button type="button" className="rounded border border-slate-600 px-2 py-1 text-xs" onClick={() => moveChange(1)}>Next</button>
+                  <button type="button" className="rounded border border-slate-600 px-2 py-1 text-xs" onClick={() => moveChange(-1)}>Trước</button>
+                  <button type="button" className="rounded border border-slate-600 px-2 py-1 text-xs" onClick={() => moveChange(1)}>Sau</button>
                 </div>
               </div>
               <div className="mb-3 text-[11px] text-slate-400">Alignment: {alignment.dx}px, {alignment.dy}px · score {alignment.score.toFixed(1)}</div>

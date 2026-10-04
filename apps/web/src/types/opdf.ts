@@ -131,6 +131,7 @@ export interface OpdfBridge {
   convertToPdfA: (bytes: Uint8Array) => Promise<Uint8Array>;
   rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => Promise<Uint8Array>;
   convertPdfOffice?: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => Promise<Uint8Array>;
+  convertOfficeToPdf?: (bytes: Uint8Array, fileName: string) => Promise<Uint8Array>;
   inspectP12Certificate?: (certificateBytes: Uint8Array, passphrase: string) => Promise<P12CertificateInfo>;
   signPdfP12?: (
     bytes: Uint8Array,

@@ -1,0 +1,61 @@
+name: OPDF Production Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Deployed OPDF URL"
+        required: true
+        default: "https://pdf.viuvtrade.io"
+        type: string
+      mode:
+        description: "Audit depth"
+        required: true
+        default: "smoke"
+        type: choice
+        options:
+          - smoke
+          - full
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run production audit
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p opdf-cli-artifacts
+          node scripts/opdf-cli.mjs audit "${{ inputs.mode }}" \
+            --url "${{ inputs.url }}" \
+            --out opdf-cli-artifacts \
+            --trace opdf-cli-artifacts/trace.zip \
+            --json 2>&1 | tee opdf-cli-artifacts/report.json
+
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opdf-production-audit
+          path: opdf-cli-artifacts
+          if-no-files-found: warn
+          retention-days: 14

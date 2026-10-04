@@ -17,6 +17,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run check:english-ui
+      - run: npm run test:cli
       - run: npm run test -w @opdf/web
       - run: npm run build
       - run: npm run server-smoke

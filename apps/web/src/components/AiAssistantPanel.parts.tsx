@@ -345,6 +345,7 @@ export function ChatInputForm({ inputValue, setInputValue, onSubmit, engineMode 
   return (
     <form className="ai-chat-input-form" onSubmit={onSubmit}>
       <textarea
+        data-opdf-ai-input
         ref={textareaRef}
         className="ai-chat-textarea"
         rows={1}
@@ -359,6 +360,7 @@ export function ChatInputForm({ inputValue, setInputValue, onSubmit, engineMode 
         placeholder={engineMode === "local" ? "Type a command (for example: 'compress file', 'rotate left')..." : "Chat with Dify AI..."}
       />
       <button 
+        data-opdf-ai-send
         className="ai-chat-send-btn" 
         disabled={!inputValue.trim()} 
         type="submit"

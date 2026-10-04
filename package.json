@@ -26,11 +26,17 @@
     "perf:pdf": "node scripts/perf/generate-large-pdf.mjs",
     "server-build": "npm run build -w @opdf/core && npm run build -w @opdf/web",
     "server-start": "node server/opdf-server.mjs",
-    "server-smoke": "node server/opdf-server.smoke.mjs"
+    "server-smoke": "node server/opdf-server.smoke.mjs",
+    "opdf": "node scripts/opdf-cli.mjs",
+    "test:cli": "node --test tests/cli/*.test.mjs",
+    "audit:prod": "node scripts/opdf-cli.mjs audit smoke"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "playwright": "^1.60.0",
     "typescript": "^5.8.3"
+  },
+  "bin": {
+    "opdf": "./scripts/opdf-cli.mjs"
   }
 }

@@ -37,7 +37,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = fa
   if (!isOpen) return null;
 
   return (
-    <div className={`ai-chat-panel glassmorphism align-${align}${docked ? " docked" : ""}`}>
+    <div data-opdf-panel="ai" className={`ai-chat-panel glassmorphism align-${align}${docked ? " docked" : ""}`}>
       {/* Panel Header */}
       <div className="ai-chat-header">
         <div className="ai-header-title">
@@ -51,7 +51,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = fa
               Live Editor
             </button>
           ) : null}
-          <button className="ai-header-close" onClick={onClose} title="Hide AI Copilot" type="button">
+          <button data-opdf-action="close-ai" className="ai-header-close" onClick={onClose} title="Hide AI Copilot" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>

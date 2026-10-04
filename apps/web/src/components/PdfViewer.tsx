@@ -5,6 +5,7 @@ import {
   PdfAnnotationSubtype,
 } from "@embedpdf/react-pdf-viewer";
 import type { PdfViewerProps } from "./PdfViewer.types";
+import type { ActiveTool } from "../lib/app-types";
 import {
   registerViewerBytesProvider,
   registerViewerControls,
@@ -282,7 +283,7 @@ export function PdfViewer({
             "line";
           if (rawTool === expectedMeasureTool || rawTool.endsWith(":" + expectedMeasureTool)) return;
 
-          let nextTool: typeof activeTool = "select";
+          let nextTool: ActiveTool = "select";
           if (rawTool.includes("highlight")) nextTool = "highlight";
           else if (rawTool.includes("ink") || rawTool.includes("draw")) nextTool = "draw";
           else if (rawTool.includes("freetext") || rawTool.includes("free-text")) nextTool = "text";

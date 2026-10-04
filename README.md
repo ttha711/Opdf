@@ -85,6 +85,20 @@ npm run desktop-dev
 
 The desktop development command uses a local web dev server. Do not treat development localhost URLs as production update infrastructure.
 
+## Automation CLI
+
+OPDF includes a semantic Playwright CLI for AI agents, production checks, and repeatable browser automation.
+
+```bash
+npm run opdf -- inspect --url https://pdf.viuvtrade.io --json
+npm run opdf -- audit smoke --url https://pdf.viuvtrade.io --out opdf-cli-artifacts
+npm run opdf -- audit full --url https://pdf.viuvtrade.io --trace opdf-cli-artifacts/trace.zip
+```
+
+The CLI uses stable `data-opdf-*` automation hooks instead of screen coordinates. GitHub Actions also exposes a manual **OPDF Production Audit** workflow that tests the deployed URL and uploads JSON, screenshots, and a Playwright trace.
+
+See `docs/OPDF_AUTOMATION_CLI.md` for commands and agent-oriented JSON output.
+
 ## Verification
 
 Run the same main gates used by CI:
@@ -92,6 +106,7 @@ Run the same main gates used by CI:
 ```bash
 npm ci
 npm run typecheck
+npm run test:cli
 npm run test -w @opdf/web
 npm run build
 node apps/desktop/dist/main/pdf-signature.smoke.js

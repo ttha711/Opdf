@@ -79,7 +79,7 @@ export function RightInfoPanel({
   };
 
   return (
-    <aside className="overflow-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] h-full flex flex-col">
+    <aside data-opdf-panel="document" className="overflow-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] h-full flex flex-col">
       {hasDocument && onQuickTool ? (
         <div className="border-b border-[var(--border-color)] p-2.5">
           <div className="mb-2 flex items-center justify-between">
@@ -97,6 +97,7 @@ export function RightInfoPanel({
             ] as const).map(([tool, label, path]) => (
               <button
                 key={tool}
+                data-opdf-tool={tool}
                 type="button"
                 onClick={() => onQuickTool(tool)}
                 className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-toolbar)] px-1 py-1.5 text-[10px] font-semibold text-[var(--text-primary)] hover:border-[var(--acrobat-blue)] hover:bg-[var(--ui-accent-bg)]"

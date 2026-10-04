@@ -163,7 +163,7 @@ export function DocumentToolPanel({
   });
 
   return (
-    <aside className="acrobat-tool-panel select-none overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
+    <aside data-opdf-panel="tool" data-opdf-tool={activeToolId} className="acrobat-tool-panel select-none overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
       <input
         type="file"
         ref={fileInputRef}
@@ -176,7 +176,7 @@ export function DocumentToolPanel({
         <h4 className="m-0 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.04em] text-[var(--text-primary)]">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M7 12h10M9 18h6" /></svg> {toolName}
         </h4>
-        <button onClick={onClose} title="Close tool" className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-[11px] text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] hover:text-[var(--text-primary)] transition-all">
+        <button data-opdf-action="close-tool" onClick={onClose} title="Close tool" className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-[11px] text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] hover:text-[var(--text-primary)] transition-all">
           ✕
         </button>
       </div>

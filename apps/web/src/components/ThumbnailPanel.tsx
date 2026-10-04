@@ -373,7 +373,7 @@ export function ThumbnailPanel({
   };
 
   return (
-    <aside className="left-panel flex flex-col h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)]">
+    <aside data-opdf-panel="pages" className="left-panel flex flex-col h-full bg-[var(--bg-panel)] border-r border-[var(--border-color)]">
       <div className="flex border-b border-[var(--border-color)] bg-[var(--ui-divider)] shrink-0">
         <button
           className={`flex-1 inline-flex flex-col items-center gap-[3px] border-b-2 py-[var(--ui-pad-sm)] text-[11px] font-semibold transition-colors cursor-pointer ${
@@ -381,6 +381,7 @@ export function ThumbnailPanel({
               ? "border-[var(--acrobat-blue)] bg-[var(--bg-panel)] text-[var(--acrobat-blue)]"
               : "border-transparent bg-transparent text-[var(--text-secondary)] hover:bg-[var(--ui-subtle-hover)] hover:text-[var(--text-primary)]"
           }`}
+          data-opdf-left-tab="pages"
           title="Page Thumbnails"
           type="button"
           onClick={() => setActiveTab("pages")}
@@ -399,6 +400,7 @@ export function ThumbnailPanel({
               ? "border-[var(--acrobat-blue)] bg-[var(--bg-panel)] text-[var(--acrobat-blue)]"
               : "border-transparent bg-transparent text-[var(--text-secondary)] hover:bg-[var(--ui-subtle-hover)] hover:text-[var(--text-primary)]"
           }`}
+          data-opdf-left-tab="bookmarks"
           title="Bookmarks"
           type="button"
           onClick={() => setActiveTab("bookmarks")}
@@ -623,6 +625,8 @@ export function ThumbnailPanel({
                           ? "border-[var(--acrobat-blue)] bg-[var(--ui-accent-bg)]"
                           : "border-transparent bg-transparent hover:bg-[var(--ui-hover-bg)]"
                     }`}
+                    data-opdf-page-action="goto"
+                    data-opdf-page={pageNumber}
                     onClick={(e) => handleThumbnailClick(pageNumber, e)}
                     ref={(el) => setThumbnailRef(pageNumber, el)}
                     type="button"

@@ -202,7 +202,7 @@ export function AppHeader({
 
 
   return (
-    <header className="flex flex-col border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm" style={{ zIndex: "var(--z-dropdown)" }}>
+    <header data-opdf-region="app-header" className="flex flex-col border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm" style={{ zIndex: "var(--z-dropdown)" }}>
       <div className="flex h-9 items-center gap-[var(--ui-gap-xs)] overflow-visible whitespace-nowrap border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[var(--ui-pad-sm)]">
         <div className="inline-flex select-none items-center gap-[var(--ui-gap-sm)] px-[10px] pl-[var(--ui-gap-sm)] text-[14px] font-bold tracking-[-0.3px] text-[#e03e2d]">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="#e03e2d"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6z" /><path fill="white" d="M14 2v6h6" /><text x="5" y="17" fontSize="6" fill="white" fontWeight="bold">PDF</text></svg>
@@ -210,6 +210,7 @@ export function AppHeader({
         </div>
         <button
           className="ml-1 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--icon-color)] transition-colors hover:bg-[var(--ui-hover-bg)]"
+          data-opdf-action="toggle-theme"
           onClick={toggleTheme}
           title={theme === "light" ? "Switch to Dark Mode (Ctrl+Shift+L)" : "Switch to Light Mode (Ctrl+Shift+L)"}
           type="button"
@@ -233,12 +234,13 @@ export function AppHeader({
         <div className="ml-auto flex items-center gap-1">
           {hasDocument ? (
             <>
-              <button className="top-menu-btn" type="button" title="Save (Ctrl+S)" onClick={savePdf}>Save</button>
-              <button className="top-menu-btn" type="button" title="Undo (Ctrl+Z)" onClick={undoAnnotations}>Undo</button>
-              <button className="top-menu-btn" type="button" title="Redo (Ctrl+Y)" onClick={redoAnnotations}>Redo</button>
+              <button data-opdf-action="save" className="top-menu-btn" type="button" title="Save (Ctrl+S)" onClick={savePdf}>Save</button>
+              <button data-opdf-action="undo" className="top-menu-btn" type="button" title="Undo (Ctrl+Z)" onClick={undoAnnotations}>Undo</button>
+              <button data-opdf-action="redo" className="top-menu-btn" type="button" title="Redo (Ctrl+Y)" onClick={redoAnnotations}>Redo</button>
             </>
           ) : null}
           <button
+            data-opdf-action="ai-edit"
             className="top-menu-btn"
             onClick={isPublic ? () => toast.info("This feature is only available in the Local or Desktop App.") : onOpenAiEditorWindow}
             title={isPublic ? "Available in Local/Desktop only" : getEditorLaunchTitle()}
@@ -251,7 +253,7 @@ export function AppHeader({
         {!hasDesktopBridge ? (
           <input ref={fileInputRef} className="hidden-file-input" type="file" accept="application/pdf" onClick={(e) => { e.currentTarget.value = ""; }} onChange={onSelectLocalFile} />
         ) : null}
-        <button className="inline-flex cursor-pointer items-center gap-[var(--ui-gap-sm)] rounded-[var(--ui-radius-sm)] px-2.5 py-1.5 text-[var(--ui-font-sm)] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--ui-hover-bg)]" onClick={openFile} title="Open PDF" type="button">
+        <button data-opdf-action="open-pdf" className="inline-flex cursor-pointer items-center gap-[var(--ui-gap-sm)] rounded-[var(--ui-radius-sm)] px-2.5 py-1.5 text-[var(--ui-font-sm)] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--ui-hover-bg)]" onClick={openFile} title="Open PDF" type="button">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8h-8l-2-3H5a2 2 0 0 0-2 2z" /></svg>
           Open
         </button>

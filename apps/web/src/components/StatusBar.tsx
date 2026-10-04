@@ -20,7 +20,17 @@ export function StatusBar({
   saveState: "idle" | "saving" | "saved";
 }) {
   return (
-    <footer data-testid="status-bar" aria-label={hasDocument ? `Page ${page} of ${totalPages}` : "No document"} className="flex select-none items-center justify-between border-t border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] text-[11px] text-[var(--text-secondary)]">
+    <footer
+      data-testid="status-bar"
+      data-opdf-region="status-bar"
+      data-opdf-has-document={hasDocument ? "true" : "false"}
+      data-opdf-page={page}
+      data-opdf-total-pages={totalPages}
+      data-opdf-zoom={scale}
+      data-opdf-active-tool={activeTool}
+      data-opdf-save-state={saveState}
+      aria-label={hasDocument ? `Page ${page} of ${totalPages}` : "No document"}
+      className="flex select-none items-center justify-between border-t border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] text-[11px] text-[var(--text-secondary)]">
       <div className="flex items-center gap-1.5">
         {hasDocument ? (
           <span data-testid="page-status">Page <strong>{page}</strong> of <strong>{totalPages}</strong></span>

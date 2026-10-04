@@ -16,7 +16,7 @@ interface PdfToImagePanelProps {
 }
 
 export function PdfToImagePanel(props: PdfToImagePanelProps) {
-  const { imgFormat, setImgFormat, imgQuality, setImgQuality, imgOutputOption, setImgOutputOption, imgZoom, setImgZoom, imgColorMode, setImgColorMode, imgIncludeComments, setImgIncludeComments, isProcessing, onConvert } = props;
+  const { imgFormat, setImgFormat, imgOutputOption, setImgOutputOption, imgZoom, setImgZoom, imgColorMode, setImgColorMode, isProcessing, onConvert } = props;
   return (
     <>
       <div className="flex flex-col gap-1.5">
@@ -24,15 +24,6 @@ export function PdfToImagePanel(props: PdfToImagePanelProps) {
         <select value={imgFormat} onChange={(e) => setImgFormat(e.target.value as "png" | "jpg")} className="h-8 rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] text-[var(--ui-font-sm)] px-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--acrobat-blue)]">
           <option value="png">PNG (Portable Network Graphics)</option>
           <option value="jpg">JPEG (Joint Photographic Experts)</option>
-        </select>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold">Quality & Resolution</label>
-        <select value={imgQuality} onChange={(e) => setImgQuality(e.target.value)} className="h-8 rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] text-[var(--ui-font-sm)] px-2 text-[var(--text-primary)] focus:outline-none focus:border-[var(--acrobat-blue)]">
-          <option>Keep original DPI (High fidelity)</option>
-          <option>150 DPI (Balanced resolution)</option>
-          <option>300 DPI (Ultra high definition)</option>
-          <option>72 DPI (Low quality - web optimized)</option>
         </select>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -53,10 +44,6 @@ export function PdfToImagePanel(props: PdfToImagePanelProps) {
           <label className="flex items-center gap-2 text-xs cursor-pointer"><input type="radio" checked={imgColorMode === "grayscale"} onChange={() => setImgColorMode("grayscale")} className="accent-[var(--acrobat-blue)]" />Grayscale</label>
         </div>
       </div>
-      <label className="flex items-center gap-2 text-xs cursor-pointer mt-1">
-        <input type="checkbox" checked={imgIncludeComments} onChange={(e) => setImgIncludeComments(e.target.checked)} className="accent-[var(--acrobat-blue)]" />
-        Include comments & highlights
-      </label>
       <button onClick={onConvert} disabled={isProcessing} className="w-full h-9 rounded-md bg-[var(--acrobat-blue)] hover:bg-[var(--acrobat-blue-hover)] text-white text-xs font-bold cursor-pointer transition-colors shadow-sm mt-3">
         {isProcessing ? "Generating Images..." : `Convert to ${imgFormat.toUpperCase()}`}
       </button>
@@ -150,21 +137,12 @@ interface CompressPanelProps {
   onCompress: () => void;
 }
 
-export function CompressPanel({ compressLevel, setCompressLevel, compressOptimizeImages, setCompressOptimizeImages, isProcessing, hasDoc, onCompress }: CompressPanelProps) {
+export function CompressPanel({ isProcessing, hasDoc, onCompress }: CompressPanelProps) {
   return (
     <>
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold">Compression Level</label>
-        <div className="flex flex-col gap-2 mt-1">
-          <label className="flex items-center gap-2 text-xs cursor-pointer"><input type="radio" checked={compressLevel === "high"} onChange={() => setCompressLevel("high")} className="accent-[var(--acrobat-blue)]" />High compression (Lesser quality, smaller size)</label>
-          <label className="flex items-center gap-2 text-xs cursor-pointer"><input type="radio" checked={compressLevel === "medium"} onChange={() => setCompressLevel("medium")} className="accent-[var(--acrobat-blue)]" />Medium compression (Balanced quality & size)</label>
-          <label className="flex items-center gap-2 text-xs cursor-pointer"><input type="radio" checked={compressLevel === "low"} onChange={() => setCompressLevel("low")} className="accent-[var(--acrobat-blue)]" />Low compression (High resolution, larger size)</label>
-        </div>
+      <div className="rounded-lg border border-[var(--border-color)] bg-[var(--ui-muted-bg)] p-3 text-xs leading-relaxed text-[var(--text-secondary)]">
+        OPDF will optimize PDF streams and structure using the best compression available in the current runtime.
       </div>
-      <label className="flex items-center gap-2 text-xs cursor-pointer mt-1">
-        <input type="checkbox" checked={compressOptimizeImages} onChange={(e) => setCompressOptimizeImages(e.target.checked)} className="accent-[var(--acrobat-blue)]" />
-        Rescale heavy images inside document
-      </label>
       <button onClick={onCompress} disabled={isProcessing || !hasDoc} className="w-full h-9 rounded-md bg-[var(--acrobat-blue)] hover:bg-[var(--acrobat-blue-hover)] text-white text-xs font-bold cursor-pointer transition-colors shadow-sm mt-3">
         {isProcessing ? "Optimizing..." : "Compress Document"}
       </button>

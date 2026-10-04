@@ -257,7 +257,7 @@ export function RevisionCompareModal({
   const shiftY = analysisSize.height ? alignment.dy / analysisSize.height * 100 : 0;
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-slate-950/95 text-white" style={{ zIndex: "var(--z-modal-high)" }}>
+    <div data-opdf-dialog="compare-revisions" className="fixed inset-0 flex flex-col bg-slate-950/95 text-white" style={{ zIndex: "var(--z-modal-high)" }}>
       <header className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-slate-900 px-4 py-2">
         <div className="mr-auto min-w-0">
           <div className="text-sm font-bold">Compare Revisions</div>
@@ -293,7 +293,7 @@ export function RevisionCompareModal({
           <span className="text-[11px] text-slate-400">/ {Math.max(1, maxPage)}</span>
           <button type="button" className="px-2 text-xs" onClick={() => setPageNumber((value) => Math.min(Math.max(1, maxPage), value + 1))}>›</button>
         </div>
-        <button type="button" className="rounded bg-white px-3 py-1.5 text-xs font-bold text-slate-900" onClick={onClose}>Close</button>
+        <button data-opdf-action="close-dialog" type="button" className="rounded bg-white px-3 py-1.5 text-xs font-bold text-slate-900" onClick={onClose}>Close</button>
       </header>
 
       {(baseError || revisionError || analysisError) ? (

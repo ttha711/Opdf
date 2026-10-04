@@ -84,11 +84,11 @@ export function SearchRedactModal({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
+    <div data-opdf-dialog="search-redact" className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
       <div className="premium-modal flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden">
         <div className="premium-modal-header">
           <div className="premium-modal-title">Search & Secure Redact</div>
-          <button type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
+          <button data-opdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
         </div>
 
         <div className="premium-modal-body min-h-0 overflow-auto">
@@ -136,7 +136,7 @@ export function SearchRedactModal({
         </div>
 
         <div className="premium-modal-footer">
-          <button type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Cancel</button>
+          <button data-opdf-action="close-dialog" type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Cancel</button>
           <button
             type="button"
             disabled={busy || selectedMatches.length === 0}

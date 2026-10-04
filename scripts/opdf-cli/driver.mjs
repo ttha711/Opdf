@@ -159,6 +159,14 @@ export class OpdfDriver {
       }).map((element) => element.getAttribute("data-opdf-panel")),
     );
 
+    const dialogs = await this.page.locator("[data-opdf-dialog]").evaluateAll((items) =>
+      items.filter((element) => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return rect.width > 1 && rect.height > 1 && style.display !== "none" && style.visibility !== "hidden";
+      }).map((element) => element.getAttribute("data-opdf-dialog")),
+    );
+
     const internalSidebarVisible = await this.page.locator('[data-epdf-cat*="panel-sidebar"]').evaluateAll((items) =>
       items.some((element) => {
         const rect = element.getBoundingClientRect();
@@ -185,6 +193,7 @@ export class OpdfDriver {
         embedPdfSidebarVisible: internalSidebarVisible,
       },
       panels: [...new Set(panels.filter(Boolean))],
+      dialogs: [...new Set(dialogs.filter(Boolean))],
       errors: {
         console: [...this.consoleErrors],
         page: [...this.pageErrors],
@@ -272,6 +281,14 @@ export class OpdfDriver {
   async closeTool() {
     const close = this.page.locator('[data-opdf-action="close-tool"]').first();
     if (await close.isVisible().catch(() => false)) await close.click();
+  }
+
+  async closeDialog() {
+    const close = this.page.locator('[data-opdf-action="close-dialog"]').first();
+    if (await close.isVisible().catch(() => false)) {
+      await close.click();
+      await this.page.waitForTimeout(100);
+    }
   }
 
   async openAi() {

@@ -145,11 +145,11 @@ export function AdvancedPdfModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
+    <div data-opdf-dialog="advanced-pdf" className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
       <div className="premium-modal flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden">
         <div className="premium-modal-header">
           <div className="premium-modal-title">Advanced PDF</div>
-          <button type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
+          <button data-opdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
         </div>
 
         <div className="flex border-b border-[var(--border-color)] px-4 pt-2">
@@ -343,7 +343,7 @@ export function AdvancedPdfModal({
         </div>
 
         <div className="premium-modal-footer">
-          <button type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Cancel</button>
+          <button data-opdf-action="close-dialog" type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Cancel</button>
           {tab === "forms" ? (
             <button type="button" disabled={busy || fields.length === 0} onClick={() => void applyForms()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Apply form values</button>
           ) : tab === "bookmarks" ? (

@@ -68,16 +68,61 @@ export async function runAudit(driver, mode, options) {
   screenshots.push((await driver.screenshot(smokeShot)).path);
 
   if (mode === "full") {
-    for (const tool of ["split", "merge", "page-numbers", "watermark", "compress"]) {
+    const panelTools = [
+      ["split", "tool"],
+      ["merge", "tool"],
+      ["page-numbers", "markup"],
+      ["header", "markup"],
+      ["footer", "markup"],
+      ["bates", "markup"],
+      ["watermark", "tool"],
+      ["compress", "tool"],
+    ];
+
+    for (const [tool, expectedPanel] of panelTools) {
       await check(`tool-${tool}`, async () => {
         await driver.openTool(tool);
         const state = await driver.inspect();
-        const expectedPanel = tool === "page-numbers" ? "markup" : "tool";
         assert(state.panels.includes(expectedPanel), `${tool} did not open its ${expectedPanel} working UI`);
         await driver.closeTool();
         await driver.page.keyboard.press("Escape");
       });
     }
+
+    await check("tool-insert", async () => {
+      await driver.openTool("insert");
+      const state = await driver.inspect();
+      assert(state.dialogs.includes("insert-pdf"), "Insert PDF dialog did not open");
+      await driver.closeDialog();
+    });
+
+    await check("tool-measure", async () => {
+      await driver.openTool("measure");
+      const state = await driver.inspect();
+      assert(state.document.activeTool === "measure", "Measure Drawing did not activate the measurement tool");
+      await driver.page.keyboard.press("Escape");
+    });
+
+    for (const [tool, expectedDialog] of [
+      ["compare", "compare-revisions"],
+      ["redact", "search-redact"],
+      ["advanced", "advanced-pdf"],
+    ]) {
+      await check(`tool-${tool}`, async () => {
+        await driver.openTool(tool);
+        const state = await driver.inspect();
+        assert(state.dialogs.includes(expectedDialog), `${tool} did not open the expected dialog`);
+        await driver.closeDialog();
+      });
+    }
+
+    await check("digital-sign-capability", async () => {
+      await driver.openMenu("Tools");
+      const item = driver.page.locator('[data-opdf-menu-item="Digital Sign..."]');
+      assert((await item.count()) === 1, "Digital Sign menu item is missing");
+      assert(await item.isDisabled(), "Digital Sign should be disabled in the web/server production audit runtime");
+      await driver.page.keyboard.press("Escape");
+    });
 
     await check("ai-panel", async () => {
       await driver.openAi();

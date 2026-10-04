@@ -127,6 +127,9 @@ export function PdfViewer({
         maxDocuments: 1,
       },
       tabBar: "never",
+      // OPDF owns the page thumbnail rail. Keep EmbedPDF focused on the
+      // document canvas + toolbar so users never see two page navigators.
+      disabledCategories: ["panel-sidebar"],
       theme: { preference: "light" },
       annotations: { annotationAuthor: "OPDF" },
       pan: { defaultMode: "mobile" },

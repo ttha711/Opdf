@@ -454,7 +454,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
 
   const openAiEditorWindow = useCallback(() => {
     if (isPublic) {
-      toast.info("Tính năng này chỉ khả dụng trên phiên bản Local hoặc Desktop App.");
+      toast.info("This feature is only available in the Local or Desktop App.");
       return;
     }
     const editorUrl = localStorage.getItem("opdf-editor-url") || "http://localhost:5175";

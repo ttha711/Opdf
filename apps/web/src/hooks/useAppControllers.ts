@@ -23,17 +23,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   const state = useAppState();
   const viewerAreaRef = useRef<HTMLDivElement>(null);
 
-  // Auto-open dashboard effects
-  useEffect(() => {
-    if (isPublic) return;
-    const timeout = setTimeout(() => {
-      if (!state.hasDocument) {
-        state.setShowDashboard(true);
-      }
-    }, 150);
-    return () => clearTimeout(timeout);
-  }, [state.hasDocument, state.setShowDashboard, isPublic]);
-
   useEffect(() => {
     if (state.hasDocument) {
       state.setShowDashboard(false);

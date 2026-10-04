@@ -81,13 +81,6 @@ export function useAppMenus({
   const editMenuItems: MenuItemDef[] = [
     { kind: "action", label: "Undo", shortcut: "Ctrl+Z", disabled: !hasDocument, onClick: undoAnnotations },
     { kind: "action", label: "Redo", shortcut: "Ctrl+Y", disabled: !hasDocument, onClick: redoAnnotations },
-    { kind: "separator" },
-    { kind: "action", label: "Select Tool", onClick: () => setActiveTool("select") },
-    { kind: "action", label: "Highlight Text", disabled: !hasDocument, onClick: () => setActiveTool("highlight") },
-    { kind: "action", label: "Add Note", disabled: !hasDocument, onClick: () => setActiveTool("note") },
-    { kind: "action", label: "Add Shape", disabled: !hasDocument, onClick: () => setActiveTool("shape") },
-    { kind: "action", label: "Add Signature", disabled: !hasDocument, onClick: () => setActiveTool("signature") },
-    { kind: "action", label: "Blackout Overlay (not secure redaction)", disabled: !hasDocument, onClick: () => setActiveTool("redact") },
   ];
 
   const viewMenuItems: MenuItemDef[] = [

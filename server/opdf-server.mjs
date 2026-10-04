@@ -301,6 +301,24 @@ async function mutateStoredDocument(req, res, record) {
     const copied = await outputDoc.copyPages(source, keep);
     copied.forEach((page) => outputDoc.addPage(page));
     output = new Uint8Array(await outputDoc.save({ useObjectStreams: false, addDefaultPage: false }));
+  } else if (body.type === "reorder-pages") {
+    const pageOrder = Array.isArray(body.pageOrder)
+      ? body.pageOrder.filter((value) => Number.isInteger(value) && value > 0)
+      : [];
+    const { PDFDocument } = await import("pdf-lib");
+    const source = await PDFDocument.load(input, { updateMetadata: false });
+    const totalPages = source.getPageCount();
+    if (
+      pageOrder.length !== totalPages ||
+      new Set(pageOrder).size !== totalPages ||
+      pageOrder.some((value) => value > totalPages)
+    ) {
+      return sendError(res, 400, "pageOrder must contain every page exactly once.");
+    }
+    const outputDoc = await PDFDocument.create();
+    const copied = await outputDoc.copyPages(source, pageOrder.map((pageNumber) => pageNumber - 1));
+    copied.forEach((page) => outputDoc.addPage(page));
+    output = new Uint8Array(await outputDoc.save({ useObjectStreams: false, addDefaultPage: false }));
   } else {
     return sendError(res, 400, "Unsupported stored document mutation.");
   }

@@ -136,14 +136,14 @@ export function DigitalSignatureModal({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
+    <div data-opdf-dialog="digital-signature" className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
       <div className="premium-modal flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden">
         <div className="premium-modal-header">
           <div>
             <div className="premium-modal-title">Digital Signature · P12/PFX</div>
             <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">Certificate and password stay in the local desktop process.</div>
           </div>
-          <button type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
+          <button data-opdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
         </div>
 
         <div className="flex border-b border-[var(--border-color)] px-4 pt-2">
@@ -317,7 +317,7 @@ export function DigitalSignatureModal({
         </div>
 
         <div className="premium-modal-footer">
-          <button type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Close</button>
+          <button data-opdf-action="close-dialog" type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Close</button>
           {activeTab === "sign" ? (
             <button type="button" disabled={!canSign || !certificateBytes || busy} onClick={() => void sign()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
               {busy ? "Signing…" : "Digitally sign PDF"}

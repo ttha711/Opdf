@@ -8,6 +8,8 @@ on:
       - "apps/web/**"
       - "server/**"
       - "scripts/ui-audit.mjs"
+      - "scripts/opdf-cli.mjs"
+      - "scripts/opdf-cli/**"
       - ".github/workflows/ui-audit.yml"
   pull_request:
     branches: [main]
@@ -15,6 +17,8 @@ on:
       - "apps/web/**"
       - "server/**"
       - "scripts/ui-audit.mjs"
+      - "scripts/opdf-cli.mjs"
+      - "scripts/opdf-cli/**"
       - ".github/workflows/ui-audit.yml"
 
 jobs:
@@ -43,9 +47,18 @@ jobs:
           exit 1
       - name: Capture UI
         run: node scripts/ui-audit.mjs
+      - name: Exercise OPDF CLI
+        run: |
+          node scripts/opdf-cli.mjs audit smoke \
+            --url http://127.0.0.1:8787 \
+            --out opdf-cli-artifacts \
+            --trace opdf-cli-artifacts/trace.zip \
+            --json > opdf-cli-artifacts/report.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: opdf-ui-audit
-          path: ui-audit/
+          path: |
+            ui-audit/
+            opdf-cli-artifacts/
           retention-days: 14

@@ -347,6 +347,13 @@ export function App() {
           onTriggerCompress={() => openSidebarTool("compress-pdf")}
           onTriggerMerge={() => openSidebarTool("merge-pdf")}
           onTriggerSplit={() => openSidebarTool("split-pdf")}
+          onTriggerFillForm={() => setShowAdvancedPdf(true)}
+          onTriggerOcr={() => void headerProps.runOcr()}
+          onTriggerWatermark={() => openSidebarTool("watermark-pdf")}
+          onTriggerPageNumbers={() => openMarkupSidebar("page-numbers")}
+          onTriggerCompare={() => setShowRevisionCompare(true)}
+          onTriggerRedact={() => setShowSearchRedact(true)}
+          onTriggerSign={() => setShowDigitalSignature(true)}
           onSelectTool={(toolId) => {
             state.setActiveDashboardTool(toolId);
             state.setShowDashboard(false);

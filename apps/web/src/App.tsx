@@ -597,38 +597,31 @@ export function App() {
       <StatusBar hasDocument={state.hasDocument} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} />
       
       {/* Floating AI Chat Assistant Trigger FAB */}
-      <button
-        ref={buttonRef}
-        className={`ai-float-toggle-btn pulse-aura ${isAiPanelOpen ? "panel-open" : ""} ${isDragging ? "dragging" : ""}`}
-        style={position ? {
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          right: "auto",
-          bottom: "auto"
-        } : undefined}
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
-        onClick={() => {
-          if (!hasMovedRef.current) {
-            const nextOpen = !isAiPanelOpen;
-            setIsAiPanelOpen(nextOpen);
-            if (nextOpen) {
+      {!isAiPanelOpen ? (
+        <button
+          ref={buttonRef}
+          className={`ai-float-toggle-btn pulse-aura ${isDragging ? "dragging" : ""}`}
+          style={position ? {
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            right: "auto",
+            bottom: "auto"
+          } : undefined}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          onClick={() => {
+            if (!hasMovedRef.current) {
+              setIsAiPanelOpen(true);
               setIsRightCollapsed(false);
               if (rightWidth < 340) setRightWidth(340);
             }
-          }
-        }}
-        title={isAiPanelOpen ? "Close AI Assistant" : "Open AI Assistant"}
-        type="button"
-      >
-        {isAiPanelOpen ? (
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        ) : (
+          }}
+          title="Open AI Assistant"
+          type="button"
+        >
           <AiSparkIcon size={24} />
-        )}
-      </button>
+        </button>
+      ) : null}
 
       <LiveHtmlEditor isOpen={isLiveEditorOpen} onClose={() => setIsLiveEditorOpen(false)} initialHtml={liveEditorHtml} />
     </div>

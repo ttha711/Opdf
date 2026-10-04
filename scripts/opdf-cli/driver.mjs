@@ -30,11 +30,17 @@ export class OpdfDriver {
       if (message.type() === "error") this.consoleErrors.push(message.text());
     });
     this.page.on("requestfailed", (request) => {
+      const method = request.method();
+      const error = request.failure()?.errorText ?? "unknown";
+      // EmbedPDF probes server-backed PDFs with HEAD and may intentionally
+      // abort the request after it has enough metadata. Treat only that exact
+      // probe pattern as benign; GET/POST failures and 5xx responses remain fatal.
+      if (method === "HEAD" && error.includes("ERR_ABORTED")) return;
       this.networkErrors.push({
         type: "requestfailed",
-        method: request.method(),
+        method,
         url: request.url(),
-        error: request.failure()?.errorText ?? "unknown",
+        error,
       });
     });
     this.page.on("response", (response) => {

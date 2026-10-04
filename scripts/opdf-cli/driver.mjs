@@ -225,9 +225,12 @@ export class OpdfDriver {
       }),
     );
 
+    const buildSha = String(await this.page.locator('meta[name="opdf-build-sha"]').getAttribute("content").catch(() => "") || "");
+
     return {
       ok: true,
       url: this.page.url(),
+      build: { sha: buildSha },
       document: attrs,
       viewer: {
         visible: viewerVisible,

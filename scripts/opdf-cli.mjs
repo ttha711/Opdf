@@ -34,6 +34,8 @@ const HELP = [
   "  --out DIR          Artifact directory (default opdf-cli-artifacts)",
   "  --trace FILE       Save a Playwright trace",
   "  --video-dir DIR     Record Playwright video into DIR",
+  "  --expected-sha SHA   Wait for deployed page to report this build commit",
+  "  --deploy-timeout MS  Max wait for deployment fingerprint (default 600000)",
   "  --help             Show help",
   "",
   "Exit codes:",

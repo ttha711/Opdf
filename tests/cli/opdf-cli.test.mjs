@@ -31,6 +31,8 @@ test("runtime defaults are agent-friendly", () => {
   assert.equal(runtime.json, false);
   assert.equal(runtime.out, "opdf-cli-artifacts");
   assert.equal(runtime.videoDir, null);
+  assert.equal(runtime.expectedSha, null);
+  assert.equal(runtime.deployTimeout, 600000);
   assert.deepEqual(runtime.headers, {});
 });
 
@@ -46,9 +48,16 @@ test("unknown tools fail with discoverable supported aliases", () => {
 });
 
 
-test("runtime accepts video artifact directory", () => {
-  const runtime = resolveRuntimeOptions({ url: "https://pdf.example.test", "video-dir": "artifacts/video" });
+test("runtime accepts video and deployment verification options", () => {
+  const runtime = resolveRuntimeOptions({
+    url: "https://pdf.example.test",
+    "video-dir": "artifacts/video",
+    "expected-sha": "abcdef1234567890",
+    "deploy-timeout": "900000",
+  });
   assert.equal(runtime.videoDir, "artifacts/video");
+  assert.equal(runtime.expectedSha, "abcdef1234567890");
+  assert.equal(runtime.deployTimeout, 900000);
 });
 
 test("generated production e2e PDF is parseable and labeled", async () => {

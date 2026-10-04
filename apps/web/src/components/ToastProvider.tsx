@@ -60,12 +60,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
+        aria-atomic="false"
         role="status"
         style={{
           position: "fixed",
           top: 16,
           right: 16,
-          zIndex: 10000,
+          zIndex: "var(--z-toast)",
           display: "flex",
           flexDirection: "column",
           gap: 8,

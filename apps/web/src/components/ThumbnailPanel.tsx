@@ -105,6 +105,7 @@ export function ThumbnailPanel({
   onSelectionChange,
   onRotatePages,
   onDeletePages,
+  onReorderPages,
   runDocumentTool,
   onInsertAfterPage,
 }: {
@@ -121,6 +122,7 @@ export function ThumbnailPanel({
   onSelectionChange: (pages: Set<number>) => void;
   onRotatePages?: (pages: number[], degrees: number) => Promise<void>;
   onDeletePages?: (pages: number[]) => Promise<void>;
+  onReorderPages?: (fromPage: number, toPage: number) => Promise<void>;
   runDocumentTool?: (tool: string) => void;
   onInsertAfterPage?: (page: number) => void;
 }) {
@@ -128,6 +130,9 @@ export function ThumbnailPanel({
   const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>("");
   const [isActing, setIsActing] = useState(false);
+  const [dragPage, setDragPage] = useState<number | null>(null);
+  const [dragOverPage, setDragOverPage] = useState<number | null>(null);
+  const [touchDragPage, setTouchDragPage] = useState<number | null>(null);
   const thumbnailRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
   const lastSelectedRef = useRef<number | null>(null);
   const confirm = useConfirm();
@@ -212,6 +217,29 @@ export function ThumbnailPanel({
   function clearSelection() {
     onSelectionChange(new Set());
     lastSelectedRef.current = null;
+  }
+
+  async function reorderPage(fromPage: number, toPage: number) {
+    if (!onReorderPages || fromPage === toPage || isActing) return;
+    setIsActing(true);
+    try {
+      await onReorderPages(fromPage, toPage);
+      toast.success(`Moved page ${fromPage} to position ${toPage}.`);
+    } catch {
+      toast.error("Could not reorder pages. Please try again.");
+    } finally {
+      setIsActing(false);
+      setDragPage(null);
+      setDragOverPage(null);
+      setTouchDragPage(null);
+    }
+  }
+
+  function pageUnderPointer(clientX: number, clientY: number) {
+    const element = document.elementFromPoint(clientX, clientY);
+    const host = element?.closest?.("[data-opdf-page-number]") as HTMLElement | null;
+    const value = Number(host?.dataset.opdfPageNumber);
+    return Number.isInteger(value) && value >= 1 ? value : null;
   }
 
   async function handleRotate(degrees: number) {
@@ -495,7 +523,7 @@ export function ThumbnailPanel({
       {activeTab === "pages" && selectedPages.size === 0 && hasDocument && totalPages > 0 && (
         <div className="px-2 py-1 border-b border-[var(--border-color)] shrink-0">
           <p className="text-[10px] text-[var(--text-secondary)] text-center">
-            Ctrl+click or Shift+click to select pages
+            Select pages for batch actions · drag the handle to reorder
           </p>
         </div>
       )}
@@ -512,8 +540,18 @@ export function ThumbnailPanel({
               return (
                 <div
                   key={pageNumber}
-                  className="relative group w-full"
+                  data-opdf-page-number={pageNumber}
+                  className={`relative group w-full rounded-md ${dragOverPage === pageNumber && dragPage !== pageNumber ? "ring-2 ring-[var(--acrobat-blue)] ring-offset-2" : ""}`}
                   style={{ contentVisibility: "auto", containIntrinsicSize: "220px" }}
+                  onDragOver={(event) => {
+                    if (!onReorderPages || dragPage === null) return;
+                    event.preventDefault();
+                    setDragOverPage(pageNumber);
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    if (dragPage !== null) void reorderPage(dragPage, pageNumber);
+                  }}
                 >
                   <button
                     className={`flex cursor-pointer flex-col items-center gap-[var(--ui-gap-sm)] rounded-[var(--ui-radius-sm)] border-2 p-1 w-full text-center transition-colors ${
@@ -591,6 +629,62 @@ export function ThumbnailPanel({
                       <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                     </svg>
                   </button>
+
+                  {onReorderPages && totalPages > 1 ? (
+                    <button
+                      type="button"
+                      draggable={!isActing}
+                      className="thumbnail-drag-handle absolute bottom-8 left-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border-color)] bg-white/95 text-[var(--text-secondary)] shadow-sm opacity-0 transition-all hover:text-[var(--acrobat-blue)] group-hover:opacity-100 disabled:opacity-40"
+                      aria-label={`Reorder page ${pageNumber}`}
+                      title="Drag to reorder page"
+                      disabled={isActing}
+                      onClick={(event) => event.stopPropagation()}
+                      onDragStart={(event) => {
+                        setDragPage(pageNumber);
+                        setDragOverPage(pageNumber);
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", String(pageNumber));
+                      }}
+                      onDragEnd={() => {
+                        setDragPage(null);
+                        setDragOverPage(null);
+                      }}
+                      onPointerDown={(event) => {
+                        if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+                        event.preventDefault();
+                        setTouchDragPage(pageNumber);
+                        setDragPage(pageNumber);
+                        setDragOverPage(pageNumber);
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                      }}
+                      onPointerMove={(event) => {
+                        if (touchDragPage !== pageNumber) return;
+                        event.preventDefault();
+                        const target = pageUnderPointer(event.clientX, event.clientY);
+                        if (target) setDragOverPage(target);
+                      }}
+                      onPointerUp={(event) => {
+                        if (touchDragPage !== pageNumber) return;
+                        event.preventDefault();
+                        const target = pageUnderPointer(event.clientX, event.clientY) ?? dragOverPage;
+                        if (target) void reorderPage(pageNumber, target);
+                        else {
+                          setTouchDragPage(null);
+                          setDragPage(null);
+                          setDragOverPage(null);
+                        }
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="9" cy="7" r="1" fill="currentColor" />
+                        <circle cx="15" cy="7" r="1" fill="currentColor" />
+                        <circle cx="9" cy="12" r="1" fill="currentColor" />
+                        <circle cx="15" cy="12" r="1" fill="currentColor" />
+                        <circle cx="9" cy="17" r="1" fill="currentColor" />
+                        <circle cx="15" cy="17" r="1" fill="currentColor" />
+                      </svg>
+                    </button>
+                  ) : null}
                 </div>
               );
             })}

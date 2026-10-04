@@ -23,154 +23,12 @@ import { ViewerErrorBoundary } from "./components/ViewerErrorBoundary";
 import { useToast } from "./components/ToastProvider";
 import aiAvatar from "./assets/ai-avatar.jpg";
 import "./types/opdf";
-import { useConfirm } from "./components/ConfirmDialog";
 import { RevisionCompareModal } from "./components/RevisionCompareModal";
 import { SearchRedactModal } from "./components/SearchRedactModal";
 import { AdvancedPdfModal } from "./components/AdvancedPdfModal";
 import { DigitalSignatureModal } from "./components/DigitalSignatureModal";
 import { resolvePdfSource } from "./lib/documentSource";
 import { hasFullWebAccess } from "./lib/runtimeAccess";
-
-function PageSelectionFloatingBar({
-  selectedPages,
-  totalPages,
-  onClear,
-  onRotate,
-  onDelete,
-  onInsertAfterPage,
-  runDocumentTool,
-}: {
-  selectedPages: Set<number>;
-  totalPages: number;
-  onClear: () => void;
-  onRotate: (pages: number[], degrees: number) => Promise<void>;
-  onDelete: (pages: number[]) => Promise<void>;
-  onInsertAfterPage?: (page: number) => void;
-  runDocumentTool?: (tool: string) => void;
-}) {
-  const confirm = useConfirm();
-  const [isActing, setIsActing] = useState(false);
-  const isAllSelected = totalPages > 0 && selectedPages.size === totalPages;
-
-  async function handleRotate(degrees: number) {
-    if (isActing) return;
-    const pages = Array.from(selectedPages).sort((a, b) => a - b);
-    setIsActing(true);
-    try { await onRotate(pages, degrees); } finally { setIsActing(false); }
-  }
-
-  async function handleDelete() {
-    if (isActing) return;
-    const pages = Array.from(selectedPages).sort((a, b) => a - b);
-    const ok = await confirm({
-      title: "Delete Pages",
-      message: `Delete ${pages.length} selected page(s) (${pages.join(", ")})? This cannot be undone.`,
-      confirmLabel: "Delete",
-      danger: true,
-    });
-    if (!ok) return;
-    setIsActing(true);
-    try { await onDelete(pages); } finally { setIsActing(false); }
-  }
-
-  const btnCls = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium hover:bg-violet-50 disabled:opacity-50 cursor-pointer transition-colors text-[var(--text-primary)]";
-  const divider = <div className="h-4 w-px bg-violet-200 shrink-0" />;
-
-  return (
-    <div
-      style={{ pointerEvents: "all" }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-full border border-violet-300 bg-white/95 px-3 py-1.5 shadow-lg backdrop-blur-sm"
-    >
-      <span className="text-[12px] font-semibold text-violet-700 mr-0.5 shrink-0">
-        {isAllSelected ? "All" : selectedPages.size} page{selectedPages.size !== 1 ? "s" : ""}
-      </span>
-
-      {divider}
-
-      {/* Rotate selected */}
-      <button className={btnCls} title="Rotate left 90°" type="button" disabled={isActing} onClick={() => handleRotate(-90)}>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
-          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
-        </svg>
-        Rotate ↺
-      </button>
-      <button className={btnCls} title="Rotate right 90°" type="button" disabled={isActing} onClick={() => handleRotate(90)}>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
-          <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />
-        </svg>
-        Rotate ↻
-      </button>
-
-      {/* Rotate ALL — only when all pages selected */}
-      {isAllSelected && runDocumentTool && (
-        <>
-          {divider}
-          <button className={btnCls} title="Rotate all pages left" type="button" disabled={isActing} onClick={() => runDocumentTool("rotate-left-all")}>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
-            </svg>
-            All ↺
-          </button>
-          <button className={btnCls} title="Rotate all pages right" type="button" disabled={isActing} onClick={() => runDocumentTool("rotate-right-all")}>
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />
-            </svg>
-            All ↻
-          </button>
-        </>
-      )}
-
-      {/* Insert PDF — only when exactly 1 page selected */}
-      {selectedPages.size === 1 && onInsertAfterPage && (
-        <>
-          {divider}
-          <button
-            className={btnCls}
-            title="Insert PDF after this page"
-            type="button"
-            disabled={isActing}
-            onClick={() => {
-              const page = Array.from(selectedPages)[0];
-              onInsertAfterPage(page);
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="12" y1="11" x2="12" y2="17" />
-              <line x1="9" y1="14" x2="15" y2="14" />
-            </svg>
-            Insert PDF
-          </button>
-        </>
-      )}
-
-      {divider}
-      <button
-        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 cursor-pointer transition-colors"
-        title="Delete selected pages" type="button" disabled={isActing}
-        onClick={handleDelete}
-      >
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2">
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-        </svg>
-        Delete
-      </button>
-
-      {divider}
-      <button
-        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-violet-400 hover:bg-violet-50 hover:text-violet-700 cursor-pointer transition-colors"
-        title="Clear selection (Escape)" type="button"
-        onClick={onClear}
-      >
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-    </div>
-  );
-}
 
 export function App() {
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
@@ -334,7 +192,7 @@ export function App() {
   const rightColWidth = !isRightCollapsed ? `${rightWidth}px` : "0px";
 
   return (
-    <div className="app acrobat-shell">
+    <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}`}>
       {updateInfo && (
         <div style={{
           backgroundColor: "#10b981",
@@ -345,7 +203,7 @@ export function App() {
           justifyContent: "space-between",
           fontSize: "13px",
           fontWeight: "500",
-          zIndex: 9999,
+          zIndex: "var(--z-panel)",
           boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -371,7 +229,7 @@ export function App() {
             onMouseOver={(e) => { e.currentTarget.style.opacity = "0.9"; }}
             onMouseOut={(e) => { e.currentTarget.style.opacity = "1"; }}
           >
-            Restart to Update
+            Khởi động lại để cập nhật
           </button>
         </div>
       )}
@@ -411,8 +269,7 @@ export function App() {
         fileName={state.fileName}
         onApplied={(bytes) => {
           replaceDocumentBytes(bytes, state.page);
-          state.setViewerError("Secure redaction applied. Affected pages were rasterized to remove underlying text.");
-          window.setTimeout(() => state.setViewerError(null), 5000);
+          toast.success("Đã áp dụng che nội dung an toàn. Các trang bị ảnh hưởng đã được raster hóa để loại bỏ lớp văn bản gốc.");
         }}
       />
 
@@ -434,8 +291,7 @@ export function App() {
               createdAt: Date.now(),
             })));
           }
-          state.setViewerError(message);
-          window.setTimeout(() => state.setViewerError(null), 4000);
+          toast.success(message);
         }}
       />
 
@@ -451,8 +307,7 @@ export function App() {
         signDocument={bridge.signPdfP12}
         onApplied={(bytes, certificate) => {
           replaceDocumentBytes(bytes, state.page);
-          state.setViewerError("Digitally signed by " + certificate.commonName + ". Save the PDF to preserve the signature.");
-          window.setTimeout(() => state.setViewerError(null), 6000);
+          toast.success("Đã ký số bởi " + certificate.commonName + ". Hãy lưu PDF để giữ chữ ký.");
         }}
       />
 
@@ -549,18 +404,6 @@ export function App() {
                     display: "block"
                   }}
                 >
-                  {selectedThumbnailPages.size > 0 && <PageSelectionFloatingBar
-                    selectedPages={selectedThumbnailPages}
-                    totalPages={state.totalPages}
-                    onClear={() => setSelectedThumbnailPages(new Set())}
-                    onRotate={handleRotatePages}
-                    onDelete={handleDeletePages}
-                    onInsertAfterPage={(targetPage) => {
-                      state.setPage(targetPage);
-                      state.setShowInsertModal(true);
-                    }}
-                    runDocumentTool={(tool) => headerProps.runDocumentTool(tool as import("./lib/document-tools").DocumentTool)}
-                  />}
                   <ViewerErrorBoundary>
                     <AdaptivePdfViewer {...viewerProps} />
                   </ViewerErrorBoundary>
@@ -602,6 +445,7 @@ export function App() {
             onClose={() => state.setShowInsertModal(false)}
             fileName={state.fileName}
             docBytes={state.docBytes}
+            getDocumentBytes={materializeDocumentBytes}
             totalPages={state.totalPages}
             currentPage={state.page}
             onInsertComplete={(insertedBytes, nextPage) => {

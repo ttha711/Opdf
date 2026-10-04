@@ -109,3 +109,313 @@
   from { opacity: .75; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+
+/* Home and responsive application shell */
+.opdf-home {
+  min-height: 0;
+  overflow-y: auto;
+  padding: clamp(24px, 5vw, 64px);
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--acrobat-blue) 8%, transparent), transparent 34%),
+    var(--bg-app);
+  color: var(--text-primary);
+}
+
+.opdf-home__hero {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.opdf-home__mark {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: var(--bg-toolbar);
+  color: #e03e2d;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .08);
+}
+
+.opdf-home__eyebrow {
+  margin: 2px 0 6px;
+  color: #e03e2d;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.opdf-home h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 46px);
+  line-height: 1.08;
+  letter-spacing: -.04em;
+}
+
+.opdf-home__subtitle {
+  margin: 12px 0 0;
+  max-width: 620px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.opdf-home__actions {
+  width: min(920px, 100%);
+  margin: 28px auto 0;
+  display: flex;
+  gap: 10px;
+}
+
+.opdf-home__primary,
+.opdf-home__secondary {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 10px;
+  padding: 0 18px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.opdf-home__primary {
+  border: 1px solid var(--acrobat-blue);
+  background: var(--acrobat-blue);
+  color: #fff;
+}
+
+.opdf-home__secondary {
+  border: 1px solid var(--border-color);
+  background: var(--bg-toolbar);
+  color: var(--text-primary);
+}
+
+.opdf-home__section {
+  width: min(920px, 100%);
+  margin: 46px auto 0;
+}
+
+.opdf-home__section-heading h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.opdf-home__section-heading p {
+  margin: 5px 0 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.opdf-home__recent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.opdf-home__recent-card,
+.opdf-home__empty {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 13px;
+  background: var(--bg-toolbar);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.opdf-home__recent-card:hover,
+.opdf-home__empty:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--acrobat-blue) 45%, var(--border-color));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .06);
+}
+
+.opdf-home__file-icon,
+.opdf-home__empty-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: color-mix(in srgb, #e03e2d 10%, var(--bg-toolbar));
+  color: #e03e2d;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.opdf-home__file-copy,
+.opdf-home__empty > span:last-child {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.opdf-home__file-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opdf-home__file-copy small,
+.opdf-home__empty small {
+  color: var(--text-secondary);
+}
+
+.opdf-home__chevron {
+  color: var(--text-secondary);
+  font-size: 24px;
+}
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-rows: auto minmax(0, 1fr) 24px;
+  }
+
+  .app.has-update-banner {
+    grid-template-rows: auto auto minmax(0, 1fr) 24px;
+  }
+
+  .opdf-topbar {
+    min-height: 48px;
+    height: auto;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 6px 8px;
+    scrollbar-width: none;
+  }
+
+  .opdf-topbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-menu-btn {
+    min-height: 34px;
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+
+  .workspace.acrobat-body {
+    position: relative;
+    grid-template-columns: 1fr !important;
+  }
+
+  .workspace.acrobat-body > .sidebar-resizer {
+    display: none !important;
+  }
+
+  .workspace.acrobat-body > .viewer-area,
+  .workspace.acrobat-body > div:not(.opdf-side-panel) {
+    grid-column: 1 !important;
+  }
+
+  .opdf-side-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: min(88vw, 380px);
+    z-index: var(--z-panel);
+    background: var(--bg-panel);
+    box-shadow: 0 10px 36px rgba(0, 0, 0, .22);
+  }
+
+  .opdf-side-panel--left {
+    left: 0;
+    grid-column: 1 !important;
+    border-right: 1px solid var(--border-color);
+  }
+
+  .opdf-side-panel--right {
+    right: 0;
+    grid-column: 1 !important;
+    border-left: 1px solid var(--border-color);
+  }
+
+  .all-tools-dashboard {
+    padding: 16px;
+  }
+
+  .all-tools-dashboard h2 {
+    font-size: 16px;
+  }
+
+  .opdf-home {
+    padding: 28px 16px 36px;
+  }
+
+  .opdf-home__hero {
+    gap: 12px;
+  }
+
+  .opdf-home__mark {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+  }
+
+  .opdf-home__actions {
+    margin-top: 22px;
+  }
+
+  .opdf-home__primary,
+  .opdf-home__secondary {
+    flex: 1;
+  }
+
+  .opdf-home__section {
+    margin-top: 34px;
+  }
+
+  .opdf-home__recent-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-float-toggle-btn {
+    right: 14px;
+    bottom: 38px;
+  }
+}
+
+@media (max-width: 520px) {
+  .opdf-home__hero {
+    align-items: center;
+  }
+
+  .opdf-home__mark {
+    width: 46px;
+    height: 46px;
+  }
+
+  .opdf-home__subtitle {
+    font-size: 14px;
+  }
+
+  .opdf-home__actions {
+    flex-direction: column;
+  }
+
+  .all-tools-dashboard {
+    padding: 12px;
+  }
+
+  .all-tools-dashboard .grid {
+    gap: 10px;
+  }
+}

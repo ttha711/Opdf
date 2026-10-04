@@ -157,9 +157,15 @@ export function App() {
       .filter((recent) => !state.tabs.some((tab) => tab.sourceIdentity === recent.filePath || tab.fileName === recent.filePath))
       .map((recent) => {
         const leaf = recent.filePath.split(/[\\/]/).pop() || recent.filePath;
+        let displayName = leaf;
+        try {
+          displayName = decodeURIComponent(leaf);
+        } catch {
+          // Keep the original filename when it contains a literal or malformed percent sign.
+        }
         return {
           id: `path:${recent.filePath}`,
-          fileName: decodeURIComponent(leaf),
+          fileName: displayName,
         };
       }),
   ].slice(0, 8);

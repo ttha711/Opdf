@@ -18,8 +18,9 @@ export async function runAudit(driver, mode, options) {
       await fn();
       checks.push({ name, status: "pass" });
     } catch (error) {
-      checks.push({ name, status: "fail", error: error instanceof Error ? error.message : String(error) });
-      throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      checks.push({ name, status: "fail", error: message });
+      throw new Error(`${name}: ${message}`);
     }
   };
 
@@ -53,7 +54,7 @@ export async function runAudit(driver, mode, options) {
   await check("zoom-control", async () => {
     await driver.setZoom(125);
     const state = await driver.inspect();
-    assert(state.document.zoom > 1.15 && state.document.zoom < 1.35, "Zoom did not reach approximately 125%");
+    assert(Math.abs(state.viewer.zoomPercent - 125) <= 2, `Zoom did not reach 125% (viewer reported ${state.viewer.zoomPercent}%)`);
     await driver.setZoom(100);
   });
 

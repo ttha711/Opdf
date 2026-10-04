@@ -168,6 +168,22 @@ export function useSplitMergeActions(args: UseSplitMergeActionsArgs) {
     });
   };
 
+  const reorderMergeFiles = (fromIndex: number, toIndex: number) => {
+    setMergeFiles((prev) => {
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= prev.length ||
+        toIndex >= prev.length ||
+        fromIndex === toIndex
+      ) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+
   const removeMergeFile = (id: string) => {
     setMergeFiles((prev) => prev.filter((item) => item.id !== id));
   };
@@ -179,6 +195,7 @@ export function useSplitMergeActions(args: UseSplitMergeActionsArgs) {
     handleMergeFileSelected,
     moveMergeUp,
     moveMergeDown,
+    reorderMergeFiles,
     removeMergeFile,
   };
 }

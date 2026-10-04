@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import {
-import { useDialogClose } from "../hooks/useDialogClose";
   applySecureRasterRedactions,
   findTextRedactionMatches,
   type PdfSource,
   type TextRedactionMatch,
 } from "../lib/secureRedaction";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 export function SearchRedactModal({
   isOpen,

@@ -1,7 +1,7 @@
 import type { AiAssistantPanelProps } from "./AiAssistantPanel.types";
 import { useAiAssistant } from "./AiAssistantPanel.hooks";
 import { SettingsPanel, ChatMessageBubble, SuggestionChips, ChatInputForm } from "./AiAssistantPanel.parts";
-import aiAvatar from "../assets/ai-avatar.jpg";
+import { AiSparkIcon } from "./AiSparkIcon";
 
 function isHttpUrl(value: string): boolean {
   try {
@@ -41,7 +41,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveE
       {/* Panel Header */}
       <div className="ai-chat-header">
         <div className="ai-header-title">
-          <img src={aiAvatar} alt="AI" style={{ width: "20px", height: "20px", borderRadius: "50%", objectFit: "cover" }} />
+          <AiSparkIcon size={18} />
           <span>OPDF AI Copilot</span>
           <span className="ai-status-badge pulse" title="OPDF Agent Bridge Connected">Sync</span>
         </div>

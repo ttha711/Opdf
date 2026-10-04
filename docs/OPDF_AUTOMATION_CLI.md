@@ -187,6 +187,8 @@ Inputs:
 
 If production is behind Cloudflare Access, configure repository Actions secrets `OPDF_CF_ACCESS_CLIENT_ID` and `OPDF_CF_ACCESS_CLIENT_SECRET`. For another authenticated reverse proxy, `OPDF_E2E_HEADERS_JSON` can contain a JSON object of request headers. These values are passed to the browser context and are not written to the report.
 
+On `main`, **OPDF Production E2E** is triggered automatically after the **CI** workflow completes successfully. The web build embeds its Git commit SHA in `<meta name="opdf-build-sha">`. The production audit waits until the live domain reports the exact tested SHA before it starts the browser suite, preventing a fast GitHub runner from accidentally validating an older deployment. Manual runs remain available.
+
 The workflow uploads:
 
 - `report.json`;

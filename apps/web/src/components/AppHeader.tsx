@@ -185,6 +185,20 @@ export function AppHeader({
     { kind: "section", label: "Advanced" },
     { kind: "action", label: "Advanced PDF...", disabled: !hasDocument, onClick: advancedPdf },
   ];
+  const mobileMenuItems: MenuItemDef[] = [
+    { kind: "section", label: "File" },
+    ...fileMenuItems,
+    { kind: "separator" },
+    { kind: "section", label: "Edit" },
+    ...editMenuItems,
+    { kind: "separator" },
+    { kind: "section", label: "View" },
+    ...viewMenuItems,
+    { kind: "separator" },
+    { kind: "section", label: "Tools" },
+    ...compactToolsMenuItems,
+  ];
+
 
   return (
     <header className="flex flex-col border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm" style={{ zIndex: "var(--z-dropdown)" }}>
@@ -206,10 +220,15 @@ export function AppHeader({
           )}
         </button>
         <div className="mx-1 h-4 w-px bg-[var(--border-color)]" />
-        <MenuDropdown label="File" items={fileMenuItems} isOpen={openMenu === "File"} onToggle={() => toggleMenu("File")} onClose={closeMenu} />
-        <MenuDropdown label="Edit" items={editMenuItems} isOpen={openMenu === "Edit"} onToggle={() => toggleMenu("Edit")} onClose={closeMenu} />
-        <MenuDropdown label="View" items={viewMenuItems} isOpen={openMenu === "View"} onToggle={() => toggleMenu("View")} onClose={closeMenu} />
-        <MenuDropdown label="Tools" items={compactToolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
+        <div className="opdf-mobile-menu">
+          <MenuDropdown label="☰" items={mobileMenuItems} isOpen={openMenu === "Mobile"} onToggle={() => toggleMenu("Mobile")} onClose={closeMenu} />
+        </div>
+        <div className="opdf-desktop-menus">
+          <MenuDropdown label="File" items={fileMenuItems} isOpen={openMenu === "File"} onToggle={() => toggleMenu("File")} onClose={closeMenu} />
+          <MenuDropdown label="Edit" items={editMenuItems} isOpen={openMenu === "Edit"} onToggle={() => toggleMenu("Edit")} onClose={closeMenu} />
+          <MenuDropdown label="View" items={viewMenuItems} isOpen={openMenu === "View"} onToggle={() => toggleMenu("View")} onClose={closeMenu} />
+          <MenuDropdown label="Tools" items={compactToolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
+        </div>
         <div className="ml-auto flex items-center gap-1">
           {hasDocument ? (
             <>

@@ -69,7 +69,34 @@ async function assertMainPdfSurface() {
     await page.waitForTimeout(250);
   }
 
+  const tree = await viewer.evaluate((root) => {
+    const rows = [];
+    const visit = (node, depth) => {
+      if (!node || depth > 8 || rows.length >= 260) return;
+      const children = node instanceof ShadowRoot ? Array.from(node.children) : Array.from(node.children ?? []);
+      for (const child of children) {
+        const rect = child.getBoundingClientRect();
+        rows.push({
+          depth,
+          tag: child.tagName,
+          id: child.id || "",
+          className: typeof child.className === "string" ? child.className.slice(0, 120) : "",
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          text: (child.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 80),
+          shadow: Boolean(child.shadowRoot),
+        });
+        if (child.shadowRoot) visit(child.shadowRoot, depth + 1);
+        visit(child, depth + 1);
+      }
+    };
+    visit(root, 0);
+    return rows;
+  });
+
   console.log("Main PDF surface diagnostics:", diagnostics);
+  console.log("Viewer DOM diagnostics:", JSON.stringify(tree, null, 2));
+  await shot("02-viewer-render-failure");
   throw new Error("Main PDF page surface did not render a visible page-sized canvas");
 }
 

@@ -1,8 +1,5 @@
 import { useState, useRef } from "react";
-import {
-  getDocumentToolLabel,
-  getEditorLaunchError,
-} from "../lib/documentEditingExperience";
+import { getDocumentToolLabel } from "../lib/documentEditingExperience";
 import { useOpdfBridge } from "../hooks/useOpdfBridge";
 import { toast } from "./ToastProvider";
 
@@ -66,6 +63,7 @@ export function AllToolsDashboard({
   const canEncrypt = bridge.capabilities?.encrypt !== false;
   const canDigitalSign = bridge.capabilities?.digitalSignature !== false;
   const canOfficeToPdf = Boolean(bridge.convertOfficeToPdf);
+  const canPdfToOffice = Boolean(bridge.convertPdfOffice);
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -193,6 +191,11 @@ export function AllToolsDashboard({
           onClose();
           return;
         }
+        if (activeAction === "pdf-to-xml") {
+          await runPdfToXml(bytes, file.name);
+          onClose();
+          return;
+        }
 
         const targetFormat = getTargetFormat(activeAction);
         if (targetFormat) {
@@ -245,29 +248,72 @@ export function AllToolsDashboard({
     triggerFileInput("pdf-to-txt");
   };
 
+  const extractPdfTextPages = async (bytes: Uint8Array) => {
+    const pdfjs = await import("pdfjs-dist");
+    const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+    const pages: string[] = [];
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      pages.push(textContent.items.map((item: any) => item.str).join(" "));
+    }
+    return pages;
+  };
+
+  const downloadTextBlob = (content: string, type: string, name: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const runPdfToTxt = async (bytes: Uint8Array, name: string) => {
     try {
-      const pdfjs = await import("pdfjs-dist");
-      const pdf = await pdfjs.getDocument({ data: bytes }).promise;
-      let fullText = "";
-
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(" ");
-        fullText += `--- Page ${i} ---\n${pageText}\n\n`;
-      }
-
-      const blob = new Blob([fullText], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = name.replace(/\.[^/.]+$/, "") + ".txt";
-      a.click();
-      URL.revokeObjectURL(url);
+      const pages = await extractPdfTextPages(bytes);
+      const fullText = pages.map((text, index) => `--- Page ${index + 1} ---\n${text}\n`).join("\n");
+      downloadTextBlob(fullText, "text/plain;charset=utf-8", name.replace(/\.[^/.]+$/, "") + ".txt");
     } catch (err) {
       toast.error("Unable to extract PDF text: " + err);
     }
+  };
+
+  const runPdfToXml = async (bytes: Uint8Array, name: string) => {
+    try {
+      const pages = await extractPdfTextPages(bytes);
+      const escapeXml = (value: string) => value.replace(/[<>&'"]/g, (char) => ({
+        "<": "&lt;",
+        ">": "&gt;",
+        "&": "&amp;",
+        "'": "&apos;",
+        '"': "&quot;",
+      })[char] || char);
+      const xml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        "<document>",
+        ...pages.map((text, index) => `  <page number="${index + 1}">${escapeXml(text)}</page>`),
+        "</document>",
+      ].join("\n");
+      downloadTextBlob(xml, "application/xml;charset=utf-8", name.replace(/\.[^/.]+$/, "") + ".xml");
+    } catch (err) {
+      toast.error("Unable to extract PDF XML: " + err);
+    }
+  };
+
+  const convertPdfToXml = async () => {
+    if (hasDocument) {
+      const bytes = docBytes ?? await getDocumentBytes();
+      if (!bytes) {
+        toast.error("Unable to retrieve the open PDF data.");
+        return;
+      }
+      await runPdfToXml(bytes, fileName);
+      onClose();
+      return;
+    }
+    triggerFileInput("pdf-to-xml");
   };
 
   // Keep the active PDF viewer mounted for PDFium-backed image export.
@@ -282,56 +328,17 @@ export function AllToolsDashboard({
     triggerFileInput(toolId);
   };
 
-  // Open the dedicated AI document editor for deep content edits and Office export.
-  const convertPdfToOffice = async (actionId: string) => {
-    const targetFormat = getTargetFormat(actionId);
-    if (hasDocument) {
-      const bytes = docBytes ?? await getDocumentBytes();
-      if (!bytes) {
-        toast.error("Unable to retrieve the open PDF data.");
-        return;
-      }
-      launchPdfToHtmlEditorWithBytes(bytes, fileName, targetFormat);
-      onClose();
-      return;
-    }
-    triggerFileInput(actionId);
-  };
-
-  const launchPdfToHtmlEditorWithBytes = (bytes: Uint8Array, name: string, targetFormat?: string) => {
-    const editorUrl = localStorage.getItem("opdf-editor-url") || "http://localhost:5175";
-    const editorWin = window.open(editorUrl, "_blank");
-    if (!editorWin) {
-      toast.error(getEditorLaunchError());
-      return;
-    }
-
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data === "opdf-editor-ready") {
-        editorWin.postMessage({
-          type: "opdf-load-pdf",
-          fileName: name,
-          docBytes: bytes,
-          targetFormat
-        }, "*");
-        window.removeEventListener("message", handleMessage);
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-  };
-
   // Tool catalog follows the naming and task grouping users already know
   // from mainstream PDF products. Every item either performs a real action or
   // routes to a real configured panel/modal.
   const tools: ToolDef[] = [
-    { id: "pdf-to-word", name: "PDF to Word", icon: "W", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => onSelectTool?.("pdf-to-word"), requiresDocument: true },
-    { id: "pdf-to-excel", name: "PDF to Excel", icon: "X", color: "#198754", bgColor: "#e8f7ee", borderColor: "#b7e4c7", action: () => onSelectTool?.("pdf-to-excel"), requiresDocument: true },
-    { id: "pdf-to-ppt", name: "PDF to PowerPoint", icon: "P", color: "#d9480f", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => onSelectTool?.("pdf-to-ppt"), requiresDocument: true },
+    { id: "pdf-to-word", name: "PDF to Word", icon: "W", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => onSelectTool?.("pdf-to-word"), requiresDocument: true, unavailableReason: canPdfToOffice ? undefined : "PDF to Word requires OPDF Server or Desktop converter." },
+    { id: "pdf-to-excel", name: "PDF to Excel", icon: "X", color: "#198754", bgColor: "#e8f7ee", borderColor: "#b7e4c7", action: () => onSelectTool?.("pdf-to-excel"), requiresDocument: true, unavailableReason: canPdfToOffice ? undefined : "PDF to Excel requires OPDF Server or Desktop converter." },
+    { id: "pdf-to-ppt", name: "PDF to PowerPoint", icon: "P", color: "#d9480f", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => onSelectTool?.("pdf-to-ppt"), requiresDocument: true, unavailableReason: canPdfToOffice ? undefined : "PDF to PowerPoint requires OPDF Server or Desktop converter." },
     { id: "pdf-to-png", name: "PDF to PNG", icon: "🖼️", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => convertPdfToImages(true) },
     { id: "pdf-to-jpeg", name: "PDF to JPEG", icon: "🌄", color: "#862e9c", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => convertPdfToImages(false) },
     { id: "pdf-to-txt", name: getDocumentToolLabel("pdf-to-txt"), icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: convertPdfToTxt },
-    { id: "pdf-to-xml", name: getDocumentToolLabel("pdf-to-xml"), icon: "👾", color: "#0ca678", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: () => convertPdfToOffice("pdf-to-xml") },
+    { id: "pdf-to-xml", name: getDocumentToolLabel("pdf-to-xml"), icon: "👾", color: "#0ca678", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: convertPdfToXml },
 
     { id: "image-to-pdf", name: "Image to PDF", icon: "🖼️", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => triggerFileInput("image-to-pdf") },
     { id: "txt-to-pdf", name: "TXT to PDF", icon: "📝", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: () => triggerFileInput("txt-to-pdf") },

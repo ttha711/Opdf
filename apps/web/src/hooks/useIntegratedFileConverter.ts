@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { isOpdfServerRuntime, useOpdfBridge } from "./useOpdfBridge";
 
 type UseIntegratedFileConverterArgs = {
   activeDashboardTool: string | null;
@@ -17,6 +18,7 @@ export function useIntegratedFileConverter({
   setPage,
   setViewerError,
 }: UseIntegratedFileConverterArgs) {
+  const bridge = useOpdfBridge();
   const handleIntegratedFileSelected = useCallback(async (file: File) => {
     setViewerError("Analyzing document nodes...");
     try {
@@ -57,8 +59,6 @@ export function useIntegratedFileConverter({
       // Non-PDF conversion client-side using pdf-lib
       const pdfLib = await import("pdf-lib");
       const doc = await pdfLib.PDFDocument.create();
-      const fontBold = await doc.embedFont(pdfLib.StandardFonts.HelveticaBold);
-      const fontOblique = await doc.embedFont(pdfLib.StandardFonts.HelveticaOblique);
       const fontNormal = await doc.embedFont(pdfLib.StandardFonts.Helvetica);
 
       let pageWidth = 595.276;
@@ -126,26 +126,16 @@ export function useIntegratedFileConverter({
           height: drawH,
         });
       } else {
-        // Office Conversion mock
-        const page = doc.addPage([pageWidth, pageHeight]);
-        page.drawText(`OPDF Premium Office Reconstruction`, { x: margin, y: pageHeight - margin - 30, size: 16, font: fontBold, color: pdfLib.rgb(0.87, 0.24, 0.18) });
-        page.drawText(`Layout Compiled Successfully Offline`, { x: margin, y: pageHeight - margin - 60, size: 12, font: fontBold });
-
-        page.drawText(`Document Settings Used:`, { x: margin, y: pageHeight - margin - 110, size: 11, font: fontBold });
-        page.drawText(`• Uploaded File: ${file.name}`, { x: margin + 20, y: pageHeight - margin - 130, size: 10, font: fontNormal });
-        page.drawText(`• Page Setup: A4 Size, Portrait Mode`, { x: margin + 20, y: pageHeight - margin - 150, size: 10, font: fontNormal });
-
-        page.drawText(`Conversion Integrity Report:`, { x: margin, y: pageHeight - margin - 200, size: 11, font: fontBold });
-        page.drawText(`This target file accurately retains vector drawings, paragraph alignments,`, { x: margin, y: pageHeight - margin - 220, size: 10, font: fontOblique });
-        page.drawText(`and tabular properties extracted from the office payload.`, { x: margin, y: pageHeight - margin - 235, size: 10, font: fontOblique });
-
-        page.drawRectangle({
-          x: margin,
-          y: margin + 20,
-          width: pageWidth - margin * 2,
-          height: 8,
-          color: pdfLib.rgb(0.87, 0.24, 0.18),
-        });
+        if (!isOpdfServerRuntime() || !bridge.convertOfficeToPdf) {
+          throw new Error("Office → PDF requires OPDF Server with LibreOffice installed.");
+        }
+        setViewerError("Converting Office document with LibreOffice...");
+        const output = await bridge.convertOfficeToPdf(new Uint8Array(await file.arrayBuffer()), file.name);
+        setDocBytes(output);
+        setFileName(file.name.replace(/\.[^/.]+$/, "") + ".pdf");
+        setPage(1);
+        setViewerError(null);
+        return;
       }
 
       const pdfBytes = await doc.save();
@@ -156,7 +146,7 @@ export function useIntegratedFileConverter({
     } catch (err: any) {
       setViewerError("Failed to convert file: " + err.message);
     }
-  }, [activeDashboardTool, setActiveDashboardTool, setDocBytes, setFileName, setPage, setViewerError]);
+  }, [activeDashboardTool, bridge, setActiveDashboardTool, setDocBytes, setFileName, setPage, setViewerError]);
 
   return { handleIntegratedFileSelected };
 }

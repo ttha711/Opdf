@@ -12,13 +12,31 @@ export class OpdfDriver {
     this.consoleErrors = [];
     this.pageErrors = [];
     this.networkErrors = [];
+    this.downloads = [];
   }
 
   async start() {
     this.browser = await chromium.launch({ headless: !this.options.headed });
-    this.context = await this.browser.newContext({
+    const contextOptions = {
       viewport: { width: 1600, height: 1000 },
       deviceScaleFactor: 1,
+      acceptDownloads: true,
+    };
+    if (this.options.videoDir) {
+      await mkdir(resolve(this.options.videoDir), { recursive: true });
+      contextOptions.recordVideo = {
+        dir: resolve(this.options.videoDir),
+        size: { width: 1600, height: 1000 },
+      };
+    }
+    this.context = await this.browser.newContext(contextOptions);
+    await this.context.addInitScript(() => {
+      try {
+        Object.defineProperty(window, "showSaveFilePicker", {
+          configurable: true,
+          value: undefined,
+        });
+      } catch {}
     });
     if (this.options.trace) {
       await mkdir(dirname(resolve(this.options.trace)), { recursive: true });
@@ -125,6 +143,7 @@ export class OpdfDriver {
       zoom: Number(element.getAttribute("data-opdf-zoom") || 0),
       activeTool: element.getAttribute("data-opdf-active-tool") || "select",
       saveState: element.getAttribute("data-opdf-save-state") || "idle",
+      message: element.getAttribute("data-opdf-message") || "",
     })) : {
       hasDocument: false,
       page: 0,
@@ -132,6 +151,7 @@ export class OpdfDriver {
       zoom: 0,
       activeTool: "select",
       saveState: "idle",
+      message: "",
     };
 
     const viewer = this.page.locator('[data-opdf-engine="pdfium-wasm"]');

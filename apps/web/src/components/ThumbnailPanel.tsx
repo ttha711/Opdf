@@ -579,7 +579,7 @@ export function ThumbnailPanel({
 
                   {/* Selection checkbox overlay */}
                   <div
-                    className={`absolute top-2 left-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded border-2 transition-all ${
+                    className={`thumbnail-select-toggle absolute top-2 left-2 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded border-2 transition-all ${
                       isSelected
                         ? "border-violet-500 bg-violet-500 text-white opacity-100 scale-100"
                         : selectedPages.size > 0
@@ -609,7 +609,7 @@ export function ThumbnailPanel({
 
                   {/* Bookmark button */}
                   <button
-                    className={`absolute top-2 right-2 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white/95 border border-[var(--border-color)] shadow-sm transition-all hover:scale-105 hover:bg-white text-[var(--acrobat-blue)] ${
+                    className={`thumbnail-bookmark-toggle absolute top-2 right-2 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white/95 border border-[var(--border-color)] shadow-sm transition-all hover:scale-105 hover:bg-white text-[var(--acrobat-blue)] ${
                       isBookmarked
                         ? "opacity-100 scale-100"
                         : "opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100"

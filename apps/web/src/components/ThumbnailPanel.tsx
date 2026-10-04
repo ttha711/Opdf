@@ -106,6 +106,8 @@ export function ThumbnailPanel({
   onRotatePages,
   onDeletePages,
   onReorderPages,
+  onDuplicatePages,
+  onExtractPages,
   runDocumentTool,
   onInsertAfterPage,
 }: {
@@ -123,6 +125,8 @@ export function ThumbnailPanel({
   onRotatePages?: (pages: number[], degrees: number) => Promise<void>;
   onDeletePages?: (pages: number[]) => Promise<void>;
   onReorderPages?: (fromPage: number, toPage: number) => Promise<void>;
+  onDuplicatePages?: (pages: number[]) => Promise<void>;
+  onExtractPages?: (pages: number[]) => Promise<void>;
   runDocumentTool?: (tool: string) => void;
   onInsertAfterPage?: (page: number) => void;
 }) {
@@ -270,6 +274,34 @@ export function ThumbnailPanel({
       await onDeletePages(pages);
     } catch {
       toast.error("Could not delete pages. Please try again.");
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handleDuplicate() {
+    if (selectedPages.size === 0 || !onDuplicatePages || isActing) return;
+    const pages = Array.from(selectedPages).sort((a, b) => a - b);
+    setIsActing(true);
+    try {
+      await onDuplicatePages(pages);
+      toast.success(`Duplicated ${pages.length} page(s).`);
+    } catch {
+      toast.error("Could not duplicate pages. Please try again.");
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handleExtract() {
+    if (selectedPages.size === 0 || !onExtractPages || isActing) return;
+    const pages = Array.from(selectedPages).sort((a, b) => a - b);
+    setIsActing(true);
+    try {
+      await onExtractPages(pages);
+      toast.success(`Extracted ${pages.length} page(s) to a new PDF.`);
+    } catch {
+      toast.error("Could not extract pages. Please try again.");
     } finally {
       setIsActing(false);
     }
@@ -482,6 +514,36 @@ export function ThumbnailPanel({
                   <line x1="9" y1="14" x2="15" y2="14" />
                 </svg>
                 Insert PDF
+              </button>
+            </>
+          )}
+
+          {onDuplicatePages && (
+            <>
+              <div className="mx-0.5 h-3.5 w-px bg-violet-200" />
+              <button
+                className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-white/70 disabled:opacity-50 cursor-pointer"
+                title="Duplicate selected pages"
+                type="button"
+                disabled={isActing}
+                onClick={() => void handleDuplicate()}
+              >
+                Duplicate
+              </button>
+            </>
+          )}
+
+          {onExtractPages && (
+            <>
+              <div className="mx-0.5 h-3.5 w-px bg-violet-200" />
+              <button
+                className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-white/70 disabled:opacity-50 cursor-pointer"
+                title="Extract selected pages"
+                type="button"
+                disabled={isActing}
+                onClick={() => void handleExtract()}
+              >
+                Extract
               </button>
             </>
           )}

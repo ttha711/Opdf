@@ -147,7 +147,7 @@ export function LiveHtmlEditor({ isOpen, onClose, initialHtml }: LiveHtmlEditorP
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ví dụ: đổi thành heading, font Noto Sans, giữ layout bảng, tạo bullet rõ ràng..."
+              placeholder="Example: convert to a heading, use Noto Sans, preserve table layout, and create clear bullets..."
             />
             <label className="live-editor-upload-label">
               Attach reference image

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AdaptivePdfViewer } from "./components/AdaptivePdfViewer";
 import { AppHeader } from "./components/AppHeader";
 import { AllToolsDashboard } from "./components/AllToolsDashboard";
+import { HomeScreen } from "./components/HomeScreen";
 import { ThumbnailPanel } from "./components/ThumbnailPanel";
 import { RightInfoPanel } from "./components/RightInfoPanel";
 import { SplitModal } from "./components/SplitModal";
@@ -351,6 +352,13 @@ export function App() {
             state.setShowDashboard(false);
           }}
         />
+      ) : !state.hasDocument && !state.activeDashboardTool ? (
+        <HomeScreen
+          recentDocuments={state.tabs.map((tab) => ({ id: tab.id, fileName: tab.fileName }))}
+          onOpenFile={headerProps.openFile}
+          onOpenTools={() => state.setShowDashboard(true)}
+          onOpenRecent={state.switchTab}
+        />
       ) : (
         <main 
           className="workspace acrobat-body"
@@ -372,7 +380,7 @@ export function App() {
                   gridColumn: 1,
                   display: (!showLeft || isLeftCollapsed) ? "none" : "block"
                 }} 
-                className="h-full min-h-0 overflow-hidden"
+                className="opdf-side-panel opdf-side-panel--left h-full min-h-0 overflow-hidden"
               >
                 <ThumbnailPanel
                   thumbnails={state.thumbnails}
@@ -492,7 +500,7 @@ export function App() {
               gridColumn: 5,
               display: isRightCollapsed ? "none" : "block"
             }} 
-            className="h-full min-h-0 overflow-hidden"
+            className="opdf-side-panel opdf-side-panel--right h-full min-h-0 overflow-hidden"
           >
             {isAiPanelOpen ? (
               <AiAssistantPanel

@@ -4,16 +4,19 @@ import { parseArgs, resolveRuntimeOptions } from "./opdf-cli/args.mjs";
 import { OpdfDriver } from "./opdf-cli/driver.mjs";
 import { runAudit } from "./opdf-cli/audit.mjs";
 import { printError, printResult } from "./opdf-cli/output.mjs";
+import { listTools } from "./opdf-cli/tools.mjs";
 
 const HELP = `
 OPDF Automation CLI
 
 Usage:
+  opdf open [URL] [--json]
   opdf inspect [--url URL] [--pdf FILE] [--json]
   opdf document load FILE [--url URL] [--json]
   opdf page goto PAGE --pdf FILE [--url URL]
   opdf zoom set PERCENT --pdf FILE [--url URL]
   opdf menu open File|Edit|View|Tools [--pdf FILE]
+  opdf tool list [--json]
   opdf tool open TOOL --pdf FILE [--url URL]
   opdf ai open --pdf FILE [--url URL]
   opdf ai ask "PROMPT" --pdf FILE [--url URL]
@@ -34,6 +37,9 @@ Global options:
 
 async function main() {
   const { positionals, options: rawOptions } = parseArgs(process.argv.slice(2));
+  if (positionals[0] === "open" && positionals[1] && !rawOptions.url) {
+    rawOptions.url = positionals[1];
+  }
   const options = resolveRuntimeOptions(rawOptions);
   if (rawOptions.help || positionals.length === 0) {
     console.log(HELP);
@@ -41,6 +47,12 @@ async function main() {
   }
 
   const [command, action, value, ...rest] = positionals;
+
+  if (command === "tool" && action === "list") {
+    printResult({ ok: true, tools: listTools() }, options.json);
+    return;
+  }
+
   const driver = new OpdfDriver(options);
 
   try {
@@ -51,7 +63,7 @@ async function main() {
     }
 
     let result;
-    if (command === "inspect") {
+    if (command === "open" || command === "inspect") {
       result = await driver.inspect();
     } else if (command === "document" && action === "load") {
       if (!value) throw new Error("document load requires a PDF path");

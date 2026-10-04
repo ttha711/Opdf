@@ -13,6 +13,7 @@ import {
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
 import { AiPatchDialog } from "./AiPatchDialog";
 import { MeasurementCalibrationDialog } from "./MeasurementCalibrationDialog";
+import { ViewerQuickTools } from "./ViewerQuickTools";
 import { resolvePdfiumPageCount } from "../lib/pdfiumDocumentState";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import {
@@ -37,7 +38,11 @@ function mapAnnotationTool(activeTool?: string) {
     case "shape":
       return "square";
     case "note":
+      return "note";
+    case "text":
       return "freeText";
+    case "draw":
+      return "ink";
     default:
       return null;
   }
@@ -56,6 +61,7 @@ export function PdfViewer({
   onViewerDirty,
   onViewerScaleChange,
   onPatchApplied,
+  onActiveToolChange,
 }: PdfViewerProps) {
   const [readyViewer, setReadyViewer] = useState<{ sourceUrl: string; registry: any } | null>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
@@ -549,6 +555,9 @@ export function PdfViewer({
           onCalibrate={calibrateLastDistance}
           onResetCalibration={resetCalibration}
         />
+      ) : null}
+      {activeRegistry && onActiveToolChange ? (
+        <ViewerQuickTools activeTool={activeTool} onActiveToolChange={onActiveToolChange} />
       ) : null}
       <EmbedPdfViewer
         key={sourceUrl}

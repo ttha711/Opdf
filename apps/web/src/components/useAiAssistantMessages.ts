@@ -11,7 +11,7 @@ export function useAiAssistantMessages() {
       {
         id: "welcome",
         sender: "assistant",
-        text: "Xin chào! Tôi là Trợ lý AI của OPDF. 🚀\n\nTôi có thể giúp bạn thao tác nhanh tài liệu PDF bằng câu lệnh tự nhiên .\n\nHãy thử các nút gợi ý nhanh bên dưới hoặc gõ 'trợ giúp' để xem danh sách câu lệnh!",
+        text: "Hello! I’m the OPDF AI Assistant. 🚀\n\nI can help you work with PDFs using natural-language commands.\n\nTry a quick action below or type 'help' to see supported commands.",
         timestamp: new Date(),
       },
     ]);

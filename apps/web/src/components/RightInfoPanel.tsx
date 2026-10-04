@@ -32,6 +32,7 @@ export function RightInfoPanel({
   onGoToPage,
   isCollapsed = false,
   setIsCollapsed,
+  onQuickTool,
 }: {
   hasDocument: boolean;
   fileName: string;
@@ -46,6 +47,7 @@ export function RightInfoPanel({
   onGoToPage?: (page: number) => void;
   isCollapsed?: boolean;
   setIsCollapsed?: (collapsed: boolean) => void;
+  onQuickTool?: (tool: "ocr" | "page-numbers" | "compress-pdf" | "watermark-pdf" | "split-pdf" | "merge-pdf") => void;
 }) {
   const [reviewFilter, setReviewFilter] = useState<"all" | "open" | "resolved">("all");
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
@@ -78,6 +80,35 @@ export function RightInfoPanel({
 
   return (
     <aside className="overflow-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] h-full flex flex-col">
+      {hasDocument && onQuickTool ? (
+        <div className="border-b border-[var(--border-color)] p-2.5">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Quick Tools</span>
+            <span className="text-[10px] text-[var(--text-secondary)]">One click</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {([
+              ["ocr", "OCR", "M4 3h16a8 8 0 1 0 16 0 8 8 0 0 0-16 0Zm4 0h8M12 7v10"],
+              ["page-numbers", "Number", "M7 4h10M7 12h10M7 20h10M3 4h.01M3 12h.01M3 20h.01"],
+              ["compress-pdf", "Compress", "m8 3-5 5m0 0h4m-4 0V4m13-1 5 5m0 0h-4m4 0V4M8 21l-5-5m0 0h4m-4 0v4m13 1 5-5m0 0h-4m4 0v4"],
+              ["watermark-pdf", "Watermark", "M4 19h16M6 16l5-11h2l5 11m-10-4h8"],
+              ["split-pdf", "Split", "M8 3v5a4 4 0 0 0 4 4m0 0a4 4 0 0 0 4-4V3m-4 9v9"],
+              ["merge-pdf", "Merge", "M8 3v5a4 4 0 0 0 4 4m4-9v5a4 4 0 0 1-4 4m0 0v9"],
+            ] as const).map(([tool, label, path]) => (
+              <button
+                key={tool}
+                type="button"
+                onClick={() => onQuickTool(tool)}
+                className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-toolbar)] px-1 py-1.5 text-[10px] font-semibold text-[var(--text-primary)] hover:border-[var(--acrobat-blue)] hover:bg-[var(--ui-accent-bg)]"
+                title={label}
+              >
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={path} /></svg>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="border-b border-[var(--border-color)]">
         <div className="flex cursor-default items-center gap-[var(--ui-gap-md)] border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] py-2.5 text-xs font-semibold uppercase tracking-[0.02em] text-[var(--text-primary)]">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
@@ -89,7 +120,7 @@ export function RightInfoPanel({
             <button
               className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded hover:bg-[var(--ui-subtle-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
               onClick={() => setIsCollapsed(true)}
-              title="Collapse Right Sidebar"
+              title="Collapse right sidebar"
               type="button"
             >
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">

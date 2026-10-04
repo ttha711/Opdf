@@ -250,7 +250,7 @@ export function ThumbnailPanel({
   const addCurrentPageBookmark = () => {
     if (!setBookmarks) return;
     if (bookmarks.some((b) => b.page === page)) {
-      toast.info(`Trang ${page} đã được đánh dấu trước đó!`);
+      toast.info(`Page ${page} was already selected.`);
       return;
     }
     const newBookmark: Bookmark = {
@@ -367,7 +367,7 @@ export function ThumbnailPanel({
       {activeTab === "pages" && selectedPages.size > 0 && (
         <div className="flex items-center gap-1 px-2 py-1.5 bg-violet-50 border-b border-violet-200 shrink-0 flex-wrap">
           <span className="text-[11px] font-semibold text-violet-700 mr-0.5 shrink-0">
-            {selectedPages.size === totalPages ? "Tất cả" : selectedPages.size} trang
+            {selectedPages.size === totalPages ? "All" : selectedPages.size} pages
           </span>
 
           {/* Rotate selected pages */}
@@ -375,7 +375,7 @@ export function ThumbnailPanel({
             <>
               <button
                 className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-white/70 disabled:opacity-50 cursor-pointer"
-                title="Xoay trái 90°"
+                title="Rotate left 90°"
                 type="button"
                 disabled={isActing}
                 onClick={() => handleRotate(-90)}
@@ -384,11 +384,11 @@ export function ThumbnailPanel({
                   <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                   <path d="M3 3v5h5" />
                 </svg>
-                Xoay ↺
+                Rotate ↺
               </button>
               <button
                 className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-white/70 disabled:opacity-50 cursor-pointer"
-                title="Xoay phải 90°"
+                title="Rotate right 90°"
                 type="button"
                 disabled={isActing}
                 onClick={() => handleRotate(90)}
@@ -397,18 +397,18 @@ export function ThumbnailPanel({
                   <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
                   <path d="M21 3v5h-5" />
                 </svg>
-                Xoay ↻
+                Rotate ↻
               </button>
             </>
           )}
 
-          {/* Rotate All — chỉ khi đã chọn tất cả trang */}
+          {/* Rotate all — only when all pages are selected */}
           {onRotatePages && selectedPages.size === totalPages && runDocumentTool && (
             <>
               <div className="mx-0.5 h-3.5 w-px bg-violet-200" />
               <button
                 className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-violet-700 hover:bg-white/70 disabled:opacity-50 cursor-pointer"
-                title="Xoay tất cả trang sang trái"
+                title="Rotate all pages left"
                 type="button"
                 disabled={isActing}
                 onClick={() => runDocumentTool("rotate-all-left")}
@@ -418,11 +418,11 @@ export function ThumbnailPanel({
                   <path d="M3 3v5h5" />
                   <rect x="10" y="10" width="6" height="8" rx="1" />
                 </svg>
-                Tất cả ↺
+                All ↺
               </button>
               <button
                 className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-violet-700 hover:bg-white/70 disabled:opacity-50 cursor-pointer"
-                title="Xoay tất cả trang sang phải"
+                title="Rotate all pages right"
                 type="button"
                 disabled={isActing}
                 onClick={() => runDocumentTool("rotate-all-right")}
@@ -432,18 +432,18 @@ export function ThumbnailPanel({
                   <path d="M21 3v5h-5" />
                   <rect x="10" y="10" width="6" height="8" rx="1" />
                 </svg>
-                Tất cả ↻
+                All ↻
               </button>
             </>
           )}
 
-          {/* Insert PDF — chỉ khi chọn đúng 1 trang */}
+          {/* Insert PDF — only when exactly one page is selected */}
           {selectedPages.size === 1 && onInsertAfterPage && (
             <>
               <div className="mx-0.5 h-3.5 w-px bg-violet-200" />
               <button
                 className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-[var(--text-primary)] hover:bg-white/70 cursor-pointer"
-                title={`Chèn PDF sau trang ${Array.from(selectedPages)[0]}`}
+                title={`Insert PDF after page ${Array.from(selectedPages)[0]}`}
                 type="button"
                 onClick={() => onInsertAfterPage(Array.from(selectedPages)[0])}
               >
@@ -453,7 +453,7 @@ export function ThumbnailPanel({
                   <line x1="12" y1="11" x2="12" y2="17" />
                   <line x1="9" y1="14" x2="15" y2="14" />
                 </svg>
-                Chèn PDF
+                Insert PDF
               </button>
             </>
           )}
@@ -463,7 +463,7 @@ export function ThumbnailPanel({
               <div className="mx-0.5 h-3.5 w-px bg-violet-200" />
               <button
                 className="inline-flex items-center gap-0.5 rounded px-1.5 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 cursor-pointer"
-                title="Xóa trang đã chọn"
+                title="Delete selected pages"
                 type="button"
                 disabled={isActing}
                 onClick={handleDelete}
@@ -472,14 +472,14 @@ export function ThumbnailPanel({
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                 </svg>
-                Xóa
+                Delete
               </button>
             </>
           )}
 
           <button
             className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded text-violet-400 hover:bg-white/70 hover:text-violet-700 cursor-pointer"
-            title="Bỏ chọn (Escape)"
+            title="Clear selection (Escape)"
             type="button"
             onClick={clearSelection}
           >
@@ -526,10 +526,11 @@ export function ThumbnailPanel({
                     onClick={(e) => handleThumbnailClick(pageNumber, e)}
                     ref={(el) => setThumbnailRef(pageNumber, el)}
                     type="button"
+                    aria-label={selectedPages.size > 0 ? `Select page ${pageNumber}` : `Go to page ${pageNumber}`}
                     title={
                       selectedPages.size > 0
-                        ? `Trang ${pageNumber} — click để ${isSelected ? "bỏ chọn" : "thêm vào chọn"}`
-                        : `Trang ${pageNumber}`
+                        ? `Page ${pageNumber} — click to ${isSelected ? "deselect" : "select"}`
+                        : `Page ${pageNumber}`
                     }
                   >
                     <ThumbnailImage blob={t?.blob} url={t?.url} page={pageNumber} />
@@ -559,7 +560,7 @@ export function ThumbnailPanel({
                       onSelectionChange(next);
                       lastSelectedRef.current = pageNumber;
                     }}
-                    title={isSelected ? "Bỏ chọn trang" : "Chọn trang"}
+                    title={isSelected ? "Deselect page" : "Select page"}
                   >
                     {isSelected && (
                       <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="3">

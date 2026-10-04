@@ -31,6 +31,18 @@
   --ui-success-text: #166534;
   --ui-error-bg: #fef2f2;
   --ui-error-text: #991b1b;
+  --ui-warning-bg: #fffbeb;
+  --ui-warning-text: #92400e;
+  --ui-info-bg: #eff6ff;
+  --ui-info-text: #1e40af;
+  --z-base: 1;
+  --z-panel: 20;
+  --z-floating: 100;
+  --z-dropdown: 300;
+  --z-modal: 1000;
+  --z-modal-high: 1100;
+  --z-confirm: 1200;
+  --z-toast: 1300;
   color: var(--text-primary);
 }
 
@@ -51,6 +63,10 @@
   --ui-success-text: #6ee7b7;
   --ui-error-bg: #450a0a;
   --ui-error-text: #fca5a5;
+  --ui-warning-bg: #451a03;
+  --ui-warning-text: #fcd34d;
+  --ui-info-bg: #172554;
+  --ui-info-text: #bfdbfe;
 }
 
 :root[data-density="comfortable"] {

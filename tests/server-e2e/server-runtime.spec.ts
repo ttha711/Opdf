@@ -1,5 +1,12 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+
+async function clickHeaderMenuItem(page: Page, menu: "File" | "View" | "Tools", item: string) {
+  const header = page.locator("header");
+  await header.getByRole("button", { name: menu, exact: true }).click();
+  await header.getByRole("menuitem", { name: item, exact: true }).click();
+}
+
 
 test("OPDF Server serves the full web runtime", async ({ page, request }) => {
   const health = await request.get("/api/opdf/health");
@@ -59,7 +66,7 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
 
   // Read-only tools should consume the persisted server URL directly instead
   // of forcing a full working-copy materialization.
-  await page.getByRole("button", { name: "Search & Secure Redact", exact: true }).click();
+  await clickHeaderMenuItem(page, "Tools", "Search & Secure Redact...");
   const redactModal = page.locator(".premium-modal").filter({ hasText: "Search & Secure Redact" });
   await redactModal.getByPlaceholder("Text to redact…").fill("SERVER DRAWING SHEET 24");
   await redactModal.getByRole("button", { name: "Search all pages", exact: true }).click();
@@ -69,26 +76,24 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
 
   // Opening Split/Merge should stay metadata-only. Large server PDFs are
   // materialized only when the user actually starts the operation.
-  const header = page.locator("header");
-  await header.getByRole("button", { name: "File", exact: true }).click();
-  await header.getByRole("button", { name: "Split PDF", exact: true }).click();
-  await expect(page.getByRole("dialog")).toContainText("Advanced Split Document");
+  await clickHeaderMenuItem(page, "Tools", "Split PDF...");
+  const splitPanel = page.locator("aside.acrobat-tool-panel").filter({ hasText: "Advanced Split Document" });
+  await expect(splitPanel).toBeVisible();
   await expect(viewer).toHaveAttribute("data-opdf-source", "server");
-  await page.getByRole("button", { name: "Close dialog" }).click();
+  await splitPanel.getByTitle("Close tool").click();
 
-  await header.getByRole("button", { name: "File", exact: true }).click();
-  await header.getByRole("button", { name: "Merge PDFs", exact: true }).click();
-  await expect(page.getByRole("dialog")).toContainText("Advanced Merge Documents");
+  await clickHeaderMenuItem(page, "Tools", "Merge PDFs...");
+  const mergePanel = page.locator("aside.acrobat-tool-panel").filter({ hasText: "Advanced Merge Documents" });
+  await expect(mergePanel).toBeVisible();
   await expect(viewer).toHaveAttribute("data-opdf-source", "server");
-  await page.getByRole("button", { name: "Close dialog" }).click();
+  await mergePanel.getByTitle("Close tool").click();
 
   // Structural edits on stored server PDFs persist immediately without
   // materializing a browser working copy.
-  await header.getByRole("button", { name: "View", exact: true }).click();
   const mutationResponsePromise = page.waitForResponse(
     (response) => response.url().includes("/mutations") && response.request().method() === "POST",
   );
-  await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
+  await clickHeaderMenuItem(page, "View", "Rotate All Pages Right");
   const mutationResponse = await mutationResponsePromise;
   expect(mutationResponse.ok()).toBeTruthy();
   await expect(viewer).toHaveAttribute("data-opdf-source", "server", { timeout: 30_000 });

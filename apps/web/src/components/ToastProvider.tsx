@@ -60,12 +60,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
+        aria-atomic="false"
         role="status"
         style={{
           position: "fixed",
           top: 16,
           right: 16,
-          zIndex: 10000,
+          zIndex: "var(--z-toast)",
           display: "flex",
           flexDirection: "column",
           gap: 8,
@@ -100,7 +101,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => setItems((prev) => prev.filter((t) => t.id !== item.id))}
-                aria-label="Đóng thông báo"
+                aria-label="Dismiss notification"
                 style={{
                   background: "transparent",
                   border: "none",

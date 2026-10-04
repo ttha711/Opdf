@@ -9,6 +9,7 @@ import {
   type DiffAlignment,
   type DiffRegion,
 } from "../lib/revisionDiff";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -91,7 +92,7 @@ function usePdfDocument(source: PdfSource, enabled: boolean) {
       });
       setError(null);
     }).catch((reason) => {
-      if (active) setError(reason instanceof Error ? reason.message : "Không thể mở PDF");
+      if (active) setError(reason instanceof Error ? reason.message : "Unable to open PDF");
     });
     return () => {
       active = false;
@@ -117,6 +118,7 @@ export function RevisionCompareModal({
   baseFileName: string;
   initialPage?: number;
 }) {
+  useDialogClose(isOpen, onClose);
   const [revisionFile, setRevisionFile] = useState<File | null>(null);
   const [mode, setMode] = useState<CompareMode>("side-by-side");
   const [opacity, setOpacity] = useState(0.5);
@@ -195,7 +197,7 @@ export function RevisionCompareModal({
       setActiveChange(0);
       setMode("changes");
     } catch (error) {
-      setAnalysisError(error instanceof Error ? error.message : "Không thể phân tích revision");
+      setAnalysisError(error instanceof Error ? error.message : "Unable to analyze revision");
     } finally {
       setAnalyzing(false);
     }
@@ -255,18 +257,18 @@ export function RevisionCompareModal({
   const shiftY = analysisSize.height ? alignment.dy / analysisSize.height * 100 : 0;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex flex-col bg-slate-950/95 text-white">
+    <div className="fixed inset-0 flex flex-col bg-slate-950/95 text-white" style={{ zIndex: "var(--z-modal-high)" }}>
       <header className="flex flex-wrap items-center gap-2 border-b border-white/10 bg-slate-900 px-4 py-2">
         <div className="mr-auto min-w-0">
-          <div className="text-sm font-bold">Compare revisions V2</div>
+          <div className="text-sm font-bold">Compare Revisions</div>
           <div className="max-w-[420px] truncate text-[11px] text-slate-400">{baseFileName || "Current PDF"}</div>
         </div>
         <label className="cursor-pointer rounded border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-semibold hover:bg-slate-700">
-          Chọn revision…
+          Choose another PDF…
           <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => setRevisionFile(event.target.files?.[0] ?? null)} />
         </label>
         <select value={mode} onChange={(event) => setMode(event.target.value as CompareMode)} className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs" aria-label="Comparison mode">
-          <option value="side-by-side">Side by side</option>
+          <option value="side-by-side">Song song</option>
           <option value="overlay">Overlay</option>
           <option value="changes">Changes</option>
         </select>
@@ -291,7 +293,7 @@ export function RevisionCompareModal({
           <span className="text-[11px] text-slate-400">/ {Math.max(1, maxPage)}</span>
           <button type="button" className="px-2 text-xs" onClick={() => setPageNumber((value) => Math.min(Math.max(1, maxPage), value + 1))}>›</button>
         </div>
-        <button type="button" className="rounded bg-white px-3 py-1.5 text-xs font-bold text-slate-900" onClick={onClose}>Đóng</button>
+        <button type="button" className="rounded bg-white px-3 py-1.5 text-xs font-bold text-slate-900" onClick={onClose}>Close</button>
       </header>
 
       {(baseError || revisionError || analysisError) ? (
@@ -299,10 +301,10 @@ export function RevisionCompareModal({
       ) : null}
 
       {!revisionFile ? (
-        <div className="flex flex-1 items-center justify-center p-8 text-center text-slate-300">Chọn PDF revision để bắt đầu so sánh.</div>
+        <div className="flex flex-1 items-center justify-center p-8 text-center text-slate-300">Choose a revision PDF to start comparing.</div>
       ) : mode === "side-by-side" ? (
         <div className="grid min-h-0 flex-1 grid-cols-2 gap-px overflow-auto bg-slate-700">
-          <div className="min-w-0 bg-slate-900 p-3"><div className="mb-2 text-xs font-semibold">Current · p.{safePage}</div><div className="mx-auto max-w-full bg-white"><canvas ref={baseCanvasRef} /></div></div>
+          <div className="min-w-0 bg-slate-900 p-3"><div className="mb-2 text-xs font-semibold">Current · page {safePage}</div><div className="mx-auto max-w-full bg-white"><canvas ref={baseCanvasRef} /></div></div>
           <div className="min-w-0 bg-slate-900 p-3"><div className="mb-2 truncate text-xs font-semibold">{revisionFile.name} · p.{safePage}</div><div className="mx-auto max-w-full bg-white"><canvas ref={revisionCanvasRef} /></div></div>
         </div>
       ) : (
@@ -338,7 +340,7 @@ export function RevisionCompareModal({
                 </div>
               </div>
               <div className="mb-3 text-[11px] text-slate-400">Alignment: {alignment.dx}px, {alignment.dy}px · score {alignment.score.toFixed(1)}</div>
-              {regions.length === 0 ? <p className="text-xs text-slate-400">Chưa phát hiện vùng thay đổi.</p> : regions.map((region, index) => (
+              {regions.length === 0 ? <p className="text-xs text-slate-400">No change regions detected.</p> : regions.map((region, index) => (
                 <button key={region.id} type="button" onClick={() => setActiveChange(index)} className={"mb-1 w-full rounded border px-2 py-2 text-left text-xs " + (index === activeChange ? "border-red-400 bg-red-950/50" : "border-slate-700 bg-slate-900")}>
                   <div className="font-semibold">Change {index + 1}</div>
                   <div className="mt-0.5 text-[10px] text-slate-400">x {(region.x * 100).toFixed(1)}% · y {(region.y * 100).toFixed(1)}% · score {region.score.toFixed(1)}</div>

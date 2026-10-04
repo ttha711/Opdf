@@ -4,7 +4,7 @@ import type { ActiveTool, ViewMode } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
 import type { BridgeCapabilities } from "../types/opdf";
 
-const DESKTOP_ONLY_TITLE = "Chỉ khả dụng trên bản desktop";
+const DESKTOP_ONLY_TITLE = "Available in the Desktop App only";
 
 export function useAppMenus({
   hasDocument,

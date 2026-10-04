@@ -1,21 +1,21 @@
 export function getDocumentToolLabel(toolId: string): string {
   switch (toolId) {
     case "pdf-to-ms-office":
-      return "Sửa bằng AI sang MS Office";
+      return "Edit with AI in MS Office";
     case "pdf-to-word":
-      return "Sửa bằng AI sang MS Office";
+      return "Edit with AI in MS Office";
     case "pdf-to-excel":
-      return "Sửa bảng bằng AI";
+      return "Edit spreadsheet with AI";
     case "pdf-to-ppt":
-      return "Tạo slide bằng AI";
+      return "Create slides with AI";
     case "pdf-to-txt":
-      return "Lấy chữ bằng AI";
+      return "Extract text with AI";
     case "pdf-to-html":
-      return "Sửa nội dung bằng AI";
+      return "Edit content with AI";
     case "pdf-to-xml":
-      return "Lấy cấu trúc dữ liệu";
+      return "Extract structured data";
     case "pdf-to-rtf":
-      return "Sửa văn bản nâng cao";
+      return "Advanced text editing";
     default:
       return "";
   }
@@ -26,5 +26,5 @@ export function getEditorLaunchTitle(): string {
 }
 
 export function getEditorLaunchError(): string {
-  return "Trình duyệt đang chặn mở AI Document Editor. Hãy cho phép popup để sửa nội dung bằng AI.";
+  return "The browser blocked AI Document Editor. Allow pop-ups to edit content with AI.";
 }

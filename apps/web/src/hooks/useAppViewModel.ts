@@ -69,6 +69,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     page: state.page,
     scale: state.scale,
     activeTool: state.activeTool,
+    onActiveToolChange: state.setActiveTool,
     onDocumentLoaded: callbacks.onLoaded,
     onError: state.setViewerError,
     onActivePageChange: actions.onActivePageChange,

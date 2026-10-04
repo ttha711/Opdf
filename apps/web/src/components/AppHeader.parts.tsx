@@ -503,7 +503,7 @@ interface FileUtilitiesGroupProps {
   capabilities?: BridgeCapabilities;
 }
 
-const DESKTOP_ONLY_TITLE = "Chỉ khả dụng trên bản desktop";
+const DESKTOP_ONLY_TITLE = "Available in the Desktop App only";
 
 export function FileUtilitiesGroup({
   hasDocument,

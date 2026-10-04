@@ -31,9 +31,9 @@ export class ViewerErrorBoundary extends Component<Props, State> {
             textAlign: "center",
           }}
         >
-          <h3 style={{ margin: 0, fontSize: 16 }}>Đã xảy ra lỗi khi hiển thị tài liệu</h3>
+          <h3 style={{ margin: 0, fontSize: 16 }}>An error occurred while displaying the document</h3>
           <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
-            Vui lòng thử lại. Nếu lỗi vẫn tiếp diễn, hãy tải lại ứng dụng.
+            Please try again. If the problem persists, reload the application.
           </p>
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -49,7 +49,7 @@ export class ViewerErrorBoundary extends Component<Props, State> {
                 color: "var(--text-primary)",
               }}
             >
-              Thử lại
+              Try again
             </button>
             <button
               type="button"
@@ -65,7 +65,7 @@ export class ViewerErrorBoundary extends Component<Props, State> {
                 color: "#fff",
               }}
             >
-              Tải lại ứng dụng
+              Reload application
             </button>
           </div>
         </div>

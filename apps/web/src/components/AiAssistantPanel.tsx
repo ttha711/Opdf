@@ -1,7 +1,7 @@
 import type { AiAssistantPanelProps } from "./AiAssistantPanel.types";
 import { useAiAssistant } from "./AiAssistantPanel.hooks";
 import { SettingsPanel, ChatMessageBubble, SuggestionChips, ChatInputForm } from "./AiAssistantPanel.parts";
-import aiAvatar from "../assets/ai-avatar.jpg";
+import { AiSparkIcon } from "./AiSparkIcon";
 
 function isHttpUrl(value: string): boolean {
   try {
@@ -12,7 +12,7 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
-export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveEditor }: AiAssistantPanelProps) {
+export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = false, onOpenLiveEditor }: AiAssistantPanelProps) {
   const {
     messages,
     inputValue,
@@ -37,11 +37,11 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveE
   if (!isOpen) return null;
 
   return (
-    <div className={`ai-chat-panel glassmorphism align-${align}`}>
+    <div className={`ai-chat-panel glassmorphism align-${align}${docked ? " docked" : ""}`}>
       {/* Panel Header */}
       <div className="ai-chat-header">
         <div className="ai-header-title">
-          <img src={aiAvatar} alt="AI" style={{ width: "20px", height: "20px", borderRadius: "50%", objectFit: "cover" }} />
+          <AiSparkIcon size={18} />
           <span>OPDF AI Copilot</span>
           <span className="ai-status-badge pulse" title="OPDF Agent Bridge Connected">Sync</span>
         </div>
@@ -74,7 +74,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveE
           onSave={handleSaveSettings}
         />
       ) : engineMode === "iframe" ? (
-        /* Iframe Nhúng Client AI-WEB-CHAT */
+        /* Embedded AI-WEB-CHAT client iframe */
         <div style={{ flex: 1, width: "100%", height: "100%", overflow: "hidden" }}>
           {isHttpUrl(iframeUrl) ? (
             <iframe
@@ -86,7 +86,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveE
             />
           ) : (
             <div style={{ padding: 16, fontSize: 13, color: "#64748b" }}>
-              URL iframe không hợp lệ. Vui lòng nhập một địa chỉ http(s) hợp lệ trong phần cài đặt.
+              Invalid iframe URL. Enter a valid http(s) address in settings.
             </div>
           )}
         </div>
@@ -105,7 +105,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", onOpenLiveE
           {onOpenLiveEditor ? (
             <div style={{ padding: "0 12px 8px" }}>
               <button className="ai-header-live-editor" onClick={onOpenLiveEditor} type="button" style={{ width: "100%" }}>
-                Mở Live Editor
+                Open Live Editor
               </button>
             </div>
           ) : null}

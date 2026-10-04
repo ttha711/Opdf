@@ -45,22 +45,28 @@ export function MergeToolPanel({
                 <button
                   onClick={() => onMoveUp(index)}
                   disabled={index === 0}
-                  className="h-4 w-4 flex items-center justify-center p-0 border-none bg-transparent hover:bg-[var(--ui-hover-bg)] text-[9px] cursor-pointer disabled:opacity-30"
+                  aria-label={`Move ${file.name} up`}
+                  title="Move up"
+                  className="h-5 w-5 flex items-center justify-center p-0 border-none rounded bg-transparent hover:bg-[var(--ui-hover-bg)] cursor-pointer disabled:opacity-30"
                 >
-                  â–²
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 14 6-6 6 6" /></svg>
                 </button>
                 <button
                   onClick={() => onMoveDown(index)}
                   disabled={index === mergeFiles.length - 1}
-                  className="h-4 w-4 flex items-center justify-center p-0 border-none bg-transparent hover:bg-[var(--ui-hover-bg)] text-[9px] cursor-pointer disabled:opacity-30"
+                  aria-label={`Move ${file.name} down`}
+                  title="Move down"
+                  className="h-5 w-5 flex items-center justify-center p-0 border-none rounded bg-transparent hover:bg-[var(--ui-hover-bg)] cursor-pointer disabled:opacity-30"
                 >
-                  â–¼
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 10 6 6 6-6" /></svg>
                 </button>
                 <button
                   onClick={() => onRemove(file.id)}
-                  className="h-4 w-4 flex items-center justify-center p-0 border-none bg-transparent hover:bg-[#fdecea] text-[var(--ui-danger)] text-[9px] cursor-pointer"
+                  aria-label={`Remove ${file.name}`}
+                  title="Remove"
+                  className="h-5 w-5 flex items-center justify-center p-0 border-none rounded bg-transparent hover:bg-[#fdecea] text-[var(--ui-danger)] cursor-pointer"
                 >
-                  âœ•
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
                 </button>
               </div>
             </div>

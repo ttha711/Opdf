@@ -159,7 +159,7 @@ export function AllToolsDashboard({
       // Office -> PDF conversion is not implemented in the web viewer.
       // Never generate a placeholder PDF and report a fake successful conversion.
       if (activeAction.endsWith("-to-pdf")) {
-        toast.error("Office → PDF chưa được hỗ trợ trong web viewer. Hãy dùng một converter thực hoặc mở Office Editor riêng.");
+        toast.error("Office → PDF is not supported in the web viewer. Use a real converter or open the Office Editor.");
         return;
       }
 
@@ -174,17 +174,17 @@ export function AllToolsDashboard({
           onClose();
           return;
         } else if (activeAction === "pdf-to-png" || activeAction === "pdf-to-jpg") {
-          toast.info("Để chuyển PDF sang ảnh, hãy mở tệp trong Opdf rồi bấm nút 'To Images' để xuất các trang đã render.");
+          toast.info("To convert PDF to images, open the file in Opdf and use 'To Images' to export rendered pages.");
         } else {
-          toast.error("Định dạng chuyển đổi này chưa có engine thực trong web viewer.");
+          toast.error("This conversion format does not have a real engine in the web viewer yet.");
         }
       } else {
-        toast.error("Vui lòng chọn một tệp PDF hợp lệ cho thao tác này.");
+        toast.error("Please select a valid PDF file for this action.");
       }
 
     } catch (err) {
       console.error(err);
-      toast.error("Xử lý tệp thất bại: " + err);
+      toast.error("File processing failed: " + err);
     } finally {
       e.target.value = "";
     }
@@ -209,7 +209,7 @@ export function AllToolsDashboard({
     if (hasDocument) {
       const bytes = docBytes ?? await getDocumentBytes();
       if (!bytes) {
-        toast.error("Không thể lấy dữ liệu PDF đang mở.");
+        toast.error("Unable to retrieve the open PDF data.");
         return;
       }
       launchPdfToHtmlEditorWithBytes(bytes, fileName, "txt");
@@ -240,7 +240,7 @@ export function AllToolsDashboard({
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error("Không thể trích xuất văn bản PDF: " + err);
+      toast.error("Unable to extract PDF text: " + err);
     }
   };
 
@@ -262,7 +262,7 @@ export function AllToolsDashboard({
     if (hasDocument) {
       const bytes = docBytes ?? await getDocumentBytes();
       if (!bytes) {
-        toast.error("Không thể lấy dữ liệu PDF đang mở.");
+        toast.error("Unable to retrieve the open PDF data.");
         return;
       }
       launchPdfToHtmlEditorWithBytes(bytes, fileName, targetFormat);
@@ -312,7 +312,7 @@ export function AllToolsDashboard({
     { id: "split-pdf", name: "Split PDF", icon: "✂️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerSplit },
 
     // ROW 3: Fill Form
-    { id: "fill-form", name: "Fill Form", icon: "✍️", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: () => toast.info("Đã bật chế độ điền biểu mẫu. Nhấp đúp hoặc dùng công cụ văn bản/ghi chú để điền thông tin lên PDF.") }
+    { id: "fill-form", name: "Fill Form", icon: "✍️", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: () => toast.info("Form filling mode enabled. Double-click or use the text/note tool to enter information on the PDF.") }
   ];
 
   // Filter tools based on active tab

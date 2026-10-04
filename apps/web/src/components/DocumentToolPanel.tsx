@@ -172,9 +172,9 @@ export function DocumentToolPanel({
 
       <div className="flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-4 py-3">
         <h4 className="m-0 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.04em] text-[var(--text-primary)]">
-          <span className="text-[14px]">⚙️</span> {toolName}
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M7 12h10M9 18h6" /></svg> {toolName}
         </h4>
-        <button onClick={onClose} className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-[11px] text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] hover:text-[var(--text-primary)] transition-all">
+        <button onClick={onClose} title="Close tool" className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-[11px] text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] hover:text-[var(--text-primary)] transition-all">
           ✕
         </button>
       </div>

@@ -49,7 +49,7 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   });
 
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText(/Page\s+1\s+of\s+120/i)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+120/i, { timeout: 30_000 });
 
   // OPDF's page-management rail must remain available on the PDFium path.
   await expect(page.getByText("Ctrl+click or Shift+click to select pages")).toBeVisible();
@@ -57,13 +57,12 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
 
   // Measurement is implemented with native PDFium vector annotations, not the
   // removed PDF.js/Fabric page renderer.
-  await page.getByRole("button", { name: /Measure Tool/i }).click();
+  await page.getByRole("button", { name: "Measure", exact: true }).click();
   await expect(page.getByText("Measure", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Measurement mode")).toHaveValue("distance");
 
-  // The visible header input is the page-number field; exclude the hidden file input.
-  const navigationField = page.locator('header input:not([type="file"])').first();
-  await navigationField.fill("100");
-  await navigationField.press("Enter");
-  await expect(page.getByText(/Page\s+100\s+of\s+120/i)).toBeVisible({ timeout: 15_000 });
+  // Navigate through the persistent thumbnail rail. This remains stable even
+  // when the compact app header has no page-number input.
+  await page.getByRole("button", { name: "Go to page 100", exact: true }).click();
+  await expect(page.getByTestId("page-status")).toContainText(/Page\s+100\s+of\s+120/i, { timeout: 15_000 });
 });

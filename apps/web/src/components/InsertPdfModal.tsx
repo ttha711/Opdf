@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "./ToastProvider";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 interface InsertFile {
   name: string;
@@ -13,6 +14,7 @@ interface InsertPdfModalProps {
   onClose: () => void;
   fileName: string;
   docBytes: Uint8Array | null;
+  getDocumentBytes: () => Promise<Uint8Array | null>;
   totalPages: number;
   currentPage: number;
   onInsertComplete: (insertedBytes: Uint8Array, targetPage: number) => void;
@@ -26,6 +28,7 @@ export function InsertPdfModal({
   onClose,
   fileName,
   docBytes,
+  getDocumentBytes,
   totalPages,
   currentPage,
   onInsertComplete,
@@ -33,6 +36,7 @@ export function InsertPdfModal({
   hasDesktopBridge,
   bridge,
 }: InsertPdfModalProps) {
+  useDialogClose(isOpen, onClose);
   const [selectedFile, setSelectedFile] = useState<InsertFile | null>(null);
   const [targetPage, setTargetPage] = useState<number>(currentPage);
   const [position, setPosition] = useState<"before" | "after">("after");
@@ -84,7 +88,7 @@ export function InsertPdfModal({
         });
         setViewerError(null);
       } catch (err) {
-        toast.error(`Không thể tải "${file.name}": Tệp PDF không hợp lệ hoặc đang được bảo vệ bằng mật khẩu.`);
+        toast.error(`Unable to load "${file.name}": The PDF is invalid or password-protected.`);
         setViewerError(null);
       }
     } catch (err) {
@@ -122,14 +126,14 @@ export function InsertPdfModal({
       if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
         await processSelectedFile(file);
       } else {
-        toast.error("Vui lòng thả một tệp PDF hợp lệ.");
+        toast.error("Please drop a valid PDF file.");
       }
     }
   }
 
   // Perform PDF insert operation
   async function handleInsert() {
-    if (!docBytes || !selectedFile) return;
+    if (!selectedFile) return;
     setIsProcessing(true);
     setViewerError("Inserting pages...");
     try {
@@ -138,7 +142,9 @@ export function InsertPdfModal({
         throw new Error("Invalid target page number");
       }
 
-      const next = await bridge.insertPages(docBytes, {
+      const sourceBytes = docBytes ?? await getDocumentBytes();
+      if (!sourceBytes) throw new Error("Unable to retrieve the current PDF data.");
+      const next = await bridge.insertPages(sourceBytes, {
         targetPage,
         position,
         bytes: selectedFile.bytes,
@@ -201,7 +207,7 @@ export function InsertPdfModal({
 
           {/* Step 1: Document selection */}
           <div className="form-group">
-            <label className="form-label">Select Document to Insert</label>
+            <label className="form-label">Select PDF to Insert</label>
             {!selectedFile ? (
               <div
                 className="flex flex-col items-center justify-center p-8 rounded-xl border border-dashed text-center transition-all"
@@ -217,7 +223,7 @@ export function InsertPdfModal({
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                 </svg>
                 <p className="text-xs text-[var(--text-secondary)] mb-3">
-                  Drag and drop your PDF here, or
+                  Drag and drop a PDF here, or
                 </p>
                 <button
                   className="btn-premium btn-premium-outline py-1 px-4 text-xs font-semibold"
@@ -259,7 +265,7 @@ export function InsertPdfModal({
             <>
               {/* Target insertion page input */}
               <div className="form-group">
-                <label className="form-label" htmlFor="insertTargetPage">Insert At Page Number</label>
+                <label className="form-label" htmlFor="insertTargetPage">Insert at Page</label>
                 <div className="flex items-center gap-3">
                   <input
                     id="insertTargetPage"
@@ -272,14 +278,14 @@ export function InsertPdfModal({
                     disabled={isProcessing}
                   />
                   <span className="text-xs text-[var(--text-secondary)]">
-                    Specify the page number of the target document (1 to {totalPages}).
+                    Choose the target page (1 to {totalPages}).
                   </span>
                 </div>
               </div>
 
               {/* Placement selection radio cards */}
               <div className="form-group">
-                <label className="form-label">Position Placement</label>
+                <label className="form-label">Insert Position</label>
                 <div className="radio-group">
                   <div
                     className={`radio-card ${position === "after" ? "active" : ""}`}
@@ -293,9 +299,9 @@ export function InsertPdfModal({
                         className="accent-blue-600"
                         disabled={isProcessing}
                       />
-                      After Page
+                      Sau trang
                     </div>
-                    <div className="radio-card-desc">Insert pages immediately following target page.</div>
+                    <div className="radio-card-desc">Insert immediately after the target page.</div>
                   </div>
 
                   <div
@@ -312,7 +318,7 @@ export function InsertPdfModal({
                       />
                       Before Page
                     </div>
-                    <div className="radio-card-desc">Insert pages immediately preceding target page.</div>
+                    <div className="radio-card-desc">Insert immediately before the target page.</div>
                   </div>
                 </div>
               </div>

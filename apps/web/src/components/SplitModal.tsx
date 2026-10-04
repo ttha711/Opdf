@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 interface SplitModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export function SplitModal({
   totalPages,
   setViewerError,
 }: SplitModalProps) {
+  useDialogClose(isOpen, onClose);
   const [mode, setMode] = useState<SplitMode>("range");
   const [rangeInput, setRangeInput] = useState("");
   const [extractInput, setExtractInput] = useState("");

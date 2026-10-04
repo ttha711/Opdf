@@ -209,7 +209,7 @@ export function WatermarkPanel(props: WatermarkPanelProps) {
         <input type="range" min="5" max="90" value={watermarkOpacity} onChange={(e) => setWatermarkOpacity(Number(e.target.value))} className="w-full accent-[var(--acrobat-blue)] cursor-pointer" />
       </div>
       <div className="flex flex-col gap-1.5">
-        <div className="flex justify-between items-center"><label className="text-xs font-semibold">Rotation Angle</label><span className="text-[11px] font-bold text-[var(--acrobat-blue)]">{watermarkRotation}Â°</span></div>
+        <div className="flex justify-between items-center"><label className="text-xs font-semibold">Rotation Angle</label><span className="text-[11px] font-bold text-[var(--acrobat-blue)]">{watermarkRotation}°</span></div>
         <input type="range" min="-90" max="90" value={watermarkRotation} onChange={(e) => setWatermarkRotation(Number(e.target.value))} className="w-full accent-[var(--acrobat-blue)] cursor-pointer" />
       </div>
       <button onClick={onApply} disabled={isProcessing || !hasDoc} className="w-full h-9 rounded-md bg-[var(--acrobat-blue)] hover:bg-[var(--acrobat-blue-hover)] text-white text-xs font-bold cursor-pointer transition-colors shadow-sm mt-3">

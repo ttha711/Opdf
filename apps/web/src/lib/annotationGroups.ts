@@ -61,7 +61,7 @@ function toListItem(annotation: Annotation, groupId: string | null, memberIds: s
   const summary =
     textValue ||
     groupSummary ||
-    (groupKind === "text-edit" ? "Đã sửa nội dung" : "");
+    (groupKind === "text-edit" ? "Content edited" : "");
 
   return {
     id: annotation.id,

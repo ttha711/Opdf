@@ -161,7 +161,7 @@ export function useDocumentLifecycle({
       }
     } catch (error) {
       console.warn("openFile failed:", error);
-      toast.error("Không thể mở tệp. Vui lòng thử lại.");
+      toast.error("Unable to open the file. Please try again.");
     } finally {
       // Always release the open-file lock deterministically.
       isOpeningFileRef.current = false;
@@ -200,7 +200,7 @@ export function useDocumentLifecycle({
         }
       } catch (error) {
         console.warn("openFileWithPath failed:", error);
-        toast.error("Không thể mở tệp. Vui lòng thử lại.");
+        toast.error("Unable to open the file. Please try again.");
       }
       return;
     }
@@ -285,9 +285,9 @@ export function useDocumentLifecycle({
     // means the current fingerprint differs from the last saved one — see StatusBar "Unsaved").
     if (saveState === "idle") {
       const ok = await confirm({
-        title: "Đóng tài liệu",
-        message: "Tài liệu có thay đổi chưa lưu. Đóng mà không lưu?",
-        confirmLabel: "Đóng không lưu",
+        title: "Close document",
+        message: "The document has unsaved changes. Close without saving?",
+        confirmLabel: "Close without saving",
         danger: true,
       });
       if (!ok) return;

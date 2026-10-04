@@ -31,7 +31,7 @@ export function usePdfToImages(args: UsePdfToImagesArgs) {
 
   const handlePdfToImages = async () => {
     if (totalPages < 1) {
-      toast.info("Không có trang PDF để chuyển đổi.");
+      toast.info("There are no PDF pages to convert.");
       return;
     }
     setIsProcessing(true);

@@ -216,9 +216,9 @@ export function useAppState() {
     // Guard: closing the active tab while it has unsaved changes requires confirmation.
     if (activeTabId === tabId && (docBytes || sourceBlob) && saveState === "idle") {
       const ok = await confirm({
-        title: "Đóng tab",
-        message: `"${tabToClose.fileName || fileName}" có thay đổi chưa lưu. Bạn vẫn muốn đóng tab này?`,
-        confirmLabel: "Đóng tab",
+        title: "Close tab",
+        message: `"${tabToClose.fileName || fileName}" has unsaved changes. Do you still want to close this tab?`,
+        confirmLabel: "Close tab",
         danger: true,
       });
       if (!ok) return;
@@ -232,7 +232,7 @@ export function useAppState() {
       const savedTabs = await saveTabsList(remainingTabs);
       const savedActive = savedTabs && await saveActiveTabId(nextActiveId);
       if (!savedTabs || !savedActive) {
-        toast.error("Không thể lưu trạng thái phiên làm việc. Tab chưa được đóng.");
+        toast.error("Unable to save the session state. The tab was not closed.");
         return;
       }
     }

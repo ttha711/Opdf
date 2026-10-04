@@ -1,12 +1,12 @@
 /* ===== ADVANCED SPLIT & MERGE PANELS ===== */
 .premium-modal {
   width: 580px;
-  max-width: 90%;
-  max-height: 85vh;
+  max-width: min(90vw, 960px);
+  max-height: min(90vh, 900px);
   border-radius: var(--ui-radius-lg);
   border: 1px solid var(--border-color);
   background: var(--bg-toolbar);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -24,6 +24,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--ui-pad-lg);
+  min-height: 54px;
   border-bottom: 1px solid var(--ui-divider);
   background: linear-gradient(135deg, rgba(0, 97, 213, 0.03), rgba(0, 97, 213, 0.08));
 }
@@ -41,8 +42,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   cursor: pointer;
   border: none;
@@ -318,6 +319,19 @@
 
 .btn-premium-primary:hover {
   background: var(--acrobat-blue-hover);
+}
+
+.btn-premium:focus-visible,
+.premium-modal-close:focus-visible,
+.form-control:focus-visible,
+.radio-card:focus-visible {
+  outline: 2px solid var(--acrobat-blue);
+  outline-offset: 2px;
+}
+
+.btn-premium:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .btn-premium-secondary {

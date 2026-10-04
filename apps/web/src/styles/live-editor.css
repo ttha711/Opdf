@@ -1,7 +1,7 @@
 .live-editor-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: var(--z-modal-high);
   background: rgba(5, 10, 22, 0.45);
   display: flex;
   align-items: center;
@@ -14,7 +14,8 @@
   height: min(760px, 92vh);
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
-  border-radius: 14px;
+  border-radius: var(--ui-radius-lg);
+  box-shadow: 0 24px 70px rgba(0,0,0,.28);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -116,4 +117,22 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+@media (max-width: 860px) {
+  .live-editor-body {
+    grid-template-columns: 1fr;
+  }
+
+  .live-editor-sidebar {
+    border-left: 0;
+    border-top: 1px solid var(--border-color);
+    max-height: 260px;
+    overflow: auto;
+  }
+
+  .live-editor-actions {
+    overflow-x: auto;
+    max-width: 65vw;
+  }
 }

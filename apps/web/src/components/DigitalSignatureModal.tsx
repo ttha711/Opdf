@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { P12CertificateInfo, PdfSignatureInspection } from "../types/opdf";
 import { pdfSourceToBytes, type PdfSource } from "../lib/documentSource";
+import { useDialogClose } from "../hooks/useDialogClose";
 
 function toDate(value: string) {
   const date = new Date(value);
@@ -44,6 +45,7 @@ export function DigitalSignatureModal({
   ) => Promise<{ bytes: Uint8Array; certificate: P12CertificateInfo }>;
   onApplied: (bytes: Uint8Array, certificate: P12CertificateInfo) => void;
 }) {
+  useDialogClose(isOpen, onClose);
   const [activeTab, setActiveTab] = useState<"sign" | "inspect">("sign");
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [certificateBytes, setCertificateBytes] = useState<Uint8Array | null>(null);
@@ -134,7 +136,7 @@ export function DigitalSignatureModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[10040] flex items-center justify-center bg-black/55 p-4">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
       <div className="premium-modal flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden">
         <div className="premium-modal-header">
           <div>

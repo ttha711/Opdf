@@ -1,0 +1,126 @@
+import { chromium } from "playwright";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { mkdir, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+const baseURL = process.env.OPDF_UI_AUDIT_URL || "http://127.0.0.1:8787";
+const outDir = resolve("ui-audit");
+const samplePath = resolve("ui-audit", "sample-ui-audit.pdf");
+
+await mkdir(outDir, { recursive: true });
+
+const pdf = await PDFDocument.create();
+const font = await pdf.embedFont(StandardFonts.Helvetica);
+for (let index = 0; index < 3; index += 1) {
+  const page = pdf.addPage([595.28, 841.89]);
+  page.drawText("OPDF UI Audit", { x: 54, y: 770, size: 28, font, color: rgb(0.12, 0.2, 0.34) });
+  page.drawText("Sample page " + (index + 1), { x: 54, y: 720, size: 18, font });
+  page.drawText("This document is generated automatically for visual QA.", { x: 54, y: 680, size: 12, font });
+  page.drawRectangle({ x: 54, y: 560, width: 480, height: 80, borderWidth: 1 });
+  page.drawText("Review block " + (index + 1), { x: 72, y: 600, size: 14, font });
+}
+await writeFile(samplePath, await pdf.save());
+
+const browser = await chromium.launch({ headless: true });
+const context = await browser.newContext({
+  viewport: { width: 1600, height: 1000 },
+  deviceScaleFactor: 1,
+});
+const page = await context.newPage();
+
+async function shot(name) {
+  await page.screenshot({ path: resolve(outDir, name + ".png"), fullPage: true });
+}
+
+async function clickTitle(title) {
+  const button = page.locator(`button[title="${title}"]`).first();
+  await button.scrollIntoViewIfNeeded();
+  await button.click();
+}
+
+async function closeOverlay() {
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+}
+
+try {
+  await page.goto(baseURL, { waitUntil: "networkidle" });
+  await page.waitForTimeout(700);
+  await shot("01-dashboard-empty");
+
+  const closeTools = page.getByRole("button", { name: /Close Tools/i });
+  if (await closeTools.count()) await closeTools.first().click();
+
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: /^Open$/ }).first().click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles(samplePath);
+
+  await page.waitForFunction(() => document.body.innerText.includes("sample-ui-audit.pdf"), null, { timeout: 30000 });
+  await page.waitForTimeout(1800);
+  await shot("02-viewer-light");
+
+  await page.getByRole("button", { name: "File" }).click();
+  await page.waitForTimeout(250);
+  await shot("03-file-menu");
+  await page.keyboard.press("Escape");
+
+  const darkToggle = page.locator('button[title^="Switch to Dark Mode"]').first();
+  if (await darkToggle.count()) {
+    await darkToggle.click();
+    await page.waitForTimeout(350);
+    await shot("04-viewer-dark");
+  }
+
+  const toolsButton = page.getByRole("button", { name: /All Tools Dashboard/ }).first();
+  if (await toolsButton.count()) {
+    await toolsButton.click();
+    await page.waitForTimeout(350);
+    await shot("05-dashboard-document");
+    const close = page.getByRole("button", { name: /Close Tools/i });
+    if (await close.count()) await close.first().click();
+  }
+
+  const aiButton = page.locator('button[title="Mở trợ lý AI"]').first();
+  if (await aiButton.count()) {
+    await aiButton.click();
+    await page.waitForTimeout(500);
+    await shot("06-ai-panel");
+    const aiClose = page.locator('button[title="Đóng trợ lý AI"]').first();
+    if (await aiClose.count()) await aiClose.click();
+  }
+
+  await clickTitle("Split");
+  await page.waitForTimeout(300);
+  await shot("07-split-modal");
+  await closeOverlay();
+
+  await clickTitle("Merge");
+  await page.waitForTimeout(300);
+  await shot("08-merge-modal");
+  await closeOverlay();
+
+  await clickTitle("Add Page Numbers");
+  await page.waitForTimeout(300);
+  await shot("09-page-numbers-modal");
+  await closeOverlay();
+
+  await clickTitle("Search & Secure Redact");
+  await page.waitForTimeout(300);
+  await shot("10-redaction-modal");
+  await closeOverlay();
+
+  await clickTitle("Advanced PDF");
+  await page.waitForTimeout(300);
+  await shot("11-advanced-pdf-modal");
+  await closeOverlay();
+
+  await clickTitle("Compare revisions");
+  await page.waitForTimeout(500);
+  await shot("12-revision-compare");
+  await closeOverlay();
+
+  console.log("UI audit screenshots written to", outDir);
+} finally {
+  await browser.close();
+}

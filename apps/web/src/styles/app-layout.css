@@ -419,3 +419,19 @@
     gap: 10px;
   }
 }
+
+.opdf-mobile-menu { display: none; }
+.opdf-desktop-menus { display: contents; }
+
+@media (max-width: 900px) {
+  .opdf-mobile-menu { display: block; }
+  .opdf-desktop-menus { display: none; }
+
+  .opdf-topbar {
+    overflow: visible;
+  }
+
+  .opdf-app-header {
+    min-width: 0;
+  }
+}

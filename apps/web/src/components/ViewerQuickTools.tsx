@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 type ViewerQuickToolsProps = {
   registry: any;
@@ -9,7 +9,7 @@ type QuickTool = {
   id: string;
   label: string;
   command: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
 };
 
 const iconProps = {
@@ -73,8 +73,7 @@ export function ViewerQuickTools({ registry, documentId }: ViewerQuickToolsProps
 
   const execute = (tool: QuickTool) => {
     const commands = registry?.getPlugin?.("commands")?.provides?.();
-    const scope = commands?.forDocument?.(documentId) ?? commands;
-    scope?.execute?.(tool.command, "opdf-quick-tools");
+    commands?.execute?.(tool.command);
     setActive(tool.id);
   };
 

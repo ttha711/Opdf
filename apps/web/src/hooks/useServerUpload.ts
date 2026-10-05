@@ -63,6 +63,8 @@ function progressText(loaded: number, total: number) {
 }
 
 export function useServerUpload(args: Args) {
+  const argsRef = useRef(args);
+  argsRef.current = args;
   const pendingRef = useRef<PendingUpload | null>(null);
   const successTimerRef = useRef<number | null>(null);
 
@@ -95,17 +97,17 @@ export function useServerUpload(args: Args) {
             total,
             percent,
           });
-          args.setViewerError(progressText(loaded, total));
+          argsRef.current.setViewerError(progressText(loaded, total));
         },
       });
 
       if (pendingRef.current?.token !== pending.token) return;
-      const annotations = await args.bridge.listAnnotations(result.filePath).catch(() => [] as Annotation[]);
+      const annotations = await argsRef.current.bridge.listAnnotations(result.filePath).catch(() => [] as Annotation[]);
       if (pendingRef.current?.token !== pending.token) return;
 
-      args.setSourceIdentity(result.filePath);
-      args.setAnnotations(annotations);
-      args.markDocumentSaved({
+      argsRef.current.setSourceIdentity(result.filePath);
+      argsRef.current.setAnnotations(annotations);
+      argsRef.current.markDocumentSaved({
         fileName: pending.file.name,
         docBytes: null,
         documentIdentity: result.filePath,
@@ -114,7 +116,7 @@ export function useServerUpload(args: Args) {
         pageRotations: {},
       });
       pendingRef.current = null;
-      args.setViewerError("Stored on OPDF Server.");
+      argsRef.current.setViewerError("Stored on OPDF Server.");
       emitUploadState({
         status: "stored",
         fileName: pending.file.name,
@@ -125,13 +127,13 @@ export function useServerUpload(args: Args) {
       clearSuccessTimer();
       successTimerRef.current = window.setTimeout(() => {
         emitUploadState({ status: "idle" });
-        args.setViewerError(null);
+        argsRef.current.setViewerError(null);
         successTimerRef.current = null;
       }, 3000);
     } catch (error) {
       if (pendingRef.current?.token !== pending.token || pending.controller.signal.aborted) return;
       const message = error instanceof Error ? error.message : "Upload failed.";
-      args.setViewerError(`Upload failed: ${message}. PDF remains open locally.`);
+      argsRef.current.setViewerError(`Upload failed: ${message}. PDF remains open locally.`);
       emitUploadState({
         status: "failed",
         fileName: pending.file.name,
@@ -143,7 +145,7 @@ export function useServerUpload(args: Args) {
         error: message,
       });
     }
-  }, [args, clearSuccessTimer]);
+  }, [clearSuccessTimer]);
 
   const cancelUpload = useCallback(() => {
     clearSuccessTimer();
@@ -155,17 +157,15 @@ export function useServerUpload(args: Args) {
     pending.controller.abort();
     pendingRef.current = null;
     void cancelPdfUpload(pending.session, window.__OPDF_SERVER_BASE__ || "/api/opdf");
-    args.setViewerError(null);
+    argsRef.current.setViewerError(null);
     emitUploadState({ status: "idle" });
-  }, [args, clearSuccessTimer]);
+  }, [clearSuccessTimer]);
 
   const retryUpload = useCallback(() => {
     const pending = pendingRef.current;
-    if (!pending || !pending.controller.signal.aborted && !pending.session) {
-      if (!pending) return;
-    }
+    if (!pending) return;
     pending.controller = new AbortController();
-    args.setViewerError(progressText(pending.session?.received ?? 0, pending.file.size));
+    argsRef.current.setViewerError(progressText(pending.session?.received ?? 0, pending.file.size));
     emitUploadState({
       status: "uploading",
       fileName: pending.file.name,
@@ -176,7 +176,7 @@ export function useServerUpload(args: Args) {
         : 0,
     });
     void runUpload(pending);
-  }, [args, runUpload]);
+  }, [runUpload]);
 
   const openLocalFirst = useCallback((file: File) => {
     const previous = pendingRef.current;
@@ -197,18 +197,18 @@ export function useServerUpload(args: Args) {
     };
     pendingRef.current = pending;
 
-    args.setFileName(file.name);
-    args.setDocBytes(null);
-    args.setSourceBlob(file);
-    args.setSourceIdentity(localIdentity);
-    args.setPage(1);
-    args.setTotalPages(0);
-    args.setViewerError(progressText(0, file.size));
-    args.setThumbnails([]);
-    args.setAnnotations([]);
-    args.setBookmarks([]);
-    args.setPageRotations({});
-    args.markDocumentSaved({
+    argsRef.current.setFileName(file.name);
+    argsRef.current.setDocBytes(null);
+    argsRef.current.setSourceBlob(file);
+    argsRef.current.setSourceIdentity(localIdentity);
+    argsRef.current.setPage(1);
+    argsRef.current.setTotalPages(0);
+    argsRef.current.setViewerError(progressText(0, file.size));
+    argsRef.current.setThumbnails([]);
+    argsRef.current.setAnnotations([]);
+    argsRef.current.setBookmarks([]);
+    argsRef.current.setPageRotations({});
+    argsRef.current.markDocumentSaved({
       fileName: file.name,
       docBytes: null,
       documentIdentity: localIdentity,
@@ -224,7 +224,7 @@ export function useServerUpload(args: Args) {
       percent: 0,
     });
     void runUpload(pending);
-  }, [args, clearSuccessTimer, runUpload]);
+  }, [clearSuccessTimer, runUpload]);
 
   useEffect(() => {
     const retry = () => retryUpload();

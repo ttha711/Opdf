@@ -1,8 +1,9 @@
 export type ServerUploadSession = {
   id: string;
   filePath: string;
-  received: number;
+  expectedSize: number;
   chunkBytes: number;
+  uploadedChunks: number[];
 };
 
 export type ServerUploadResult = ServerUploadSession & {
@@ -16,6 +17,7 @@ type UploadOptions = {
   baseUrl?: string;
   signal?: AbortSignal;
   session?: ServerUploadSession | null;
+  concurrency?: number;
   onSession?: (session: ServerUploadSession) => void;
   onProgress?: (loaded: number, total: number) => void;
 };
@@ -23,8 +25,6 @@ type UploadOptions = {
 type UploadStatus = ServerUploadSession & {
   fileName: string;
   complete: boolean;
-  size?: number;
-  openedAt?: number;
 };
 
 function normalizeBase(baseUrl: string) {
@@ -34,17 +34,13 @@ function normalizeBase(baseUrl: string) {
 async function jsonOrError<T>(response: Response): Promise<T> {
   if (response.ok) return response.json() as Promise<T>;
   let message = `HTTP ${response.status}`;
-  let payload: { error?: string; received?: number } = {};
   try {
-    payload = await response.json() as typeof payload;
+    const payload = await response.json() as { error?: string };
     if (payload.error) message = payload.error;
   } catch {
     // Keep HTTP fallback.
   }
-  const error = new Error(message) as Error & { status?: number; received?: number };
-  error.status = response.status;
-  error.received = payload.received;
-  throw error;
+  throw new Error(message);
 }
 
 function sleep(ms: number, signal?: AbortSignal) {
@@ -58,12 +54,7 @@ function sleep(ms: number, signal?: AbortSignal) {
   });
 }
 
-async function createSession(
-  file: File,
-  fileName: string,
-  baseUrl: string,
-  signal?: AbortSignal,
-) {
+async function createSession(file: File, fileName: string, baseUrl: string, signal?: AbortSignal) {
   const response = await fetch(
     `${baseUrl}/uploads?name=${encodeURIComponent(fileName)}&size=${file.size}`,
     { method: "POST", signal },
@@ -73,10 +64,14 @@ async function createSession(
 
 async function readSession(
   session: ServerUploadSession,
+  fileSize: number,
   baseUrl: string,
   signal?: AbortSignal,
 ) {
-  const response = await fetch(`${baseUrl}/uploads/${session.id}`, { signal });
+  const response = await fetch(
+    `${baseUrl}/uploads/${session.id}?size=${fileSize}`,
+    { signal },
+  );
   if (response.status === 404) return null;
   return jsonOrError<UploadStatus>(response);
 }
@@ -84,30 +79,27 @@ async function readSession(
 async function putChunk(
   baseUrl: string,
   session: ServerUploadSession,
-  offset: number,
-  chunk: Blob,
+  file: File,
+  index: number,
   signal?: AbortSignal,
 ) {
+  const start = index * session.chunkBytes;
+  const end = Math.min(file.size, start + session.chunkBytes);
   let lastError: unknown;
+
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const response = await fetch(
-        `${baseUrl}/uploads/${session.id}?offset=${offset}`,
+        `${baseUrl}/uploads/${session.id}/chunks/${index}?size=${file.size}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/octet-stream" },
-          body: chunk,
+          body: file.slice(start, end),
           signal,
         },
       );
-      if (response.ok) return response.json() as Promise<UploadStatus>;
-      if (response.status === 409) {
-        const payload = await response.json() as UploadStatus & { received: number };
-        return payload;
-      }
-      if (response.status < 500 || attempt === 2) {
-        return jsonOrError<UploadStatus>(response);
-      }
+      if (response.ok) return;
+      if (response.status < 500 || attempt === 2) await jsonOrError(response);
       lastError = new Error(`HTTP ${response.status}`);
     } catch (error) {
       if (signal?.aborted) throw error;
@@ -116,7 +108,14 @@ async function putChunk(
     }
     await sleep(300 * (2 ** attempt), signal);
   }
-  throw lastError instanceof Error ? lastError : new Error("Upload failed.");
+  throw lastError instanceof Error ? lastError : new Error("Chunk upload failed.");
+}
+
+function uploadedBytes(session: ServerUploadSession, fileSize: number) {
+  return session.uploadedChunks.reduce((total, index) => {
+    const start = index * session.chunkBytes;
+    return total + Math.max(0, Math.min(session.chunkBytes, fileSize - start));
+  }, 0);
 }
 
 export async function uploadPdfToServer(
@@ -125,51 +124,47 @@ export async function uploadPdfToServer(
   options: UploadOptions = {},
 ): Promise<ServerUploadResult> {
   const baseUrl = normalizeBase(options.baseUrl || "/api/opdf");
+  const concurrency = Math.max(1, Math.min(6, options.concurrency ?? 4));
   let status = options.session
-    ? await readSession(options.session, baseUrl, options.signal)
+    ? await readSession(options.session, file.size, baseUrl, options.signal)
     : null;
 
-  if (!status) {
-    status = await createSession(file, fileName, baseUrl, options.signal);
-  }
-  if (status.complete) {
-    return status as ServerUploadResult;
-  }
+  if (!status) status = await createSession(file, fileName, baseUrl, options.signal);
+  if (status.complete) return status as ServerUploadResult;
 
+  const uploaded = new Set(status.uploadedChunks ?? []);
   let session: ServerUploadSession = {
     id: status.id,
     filePath: status.filePath,
-    received: status.received,
+    expectedSize: file.size,
     chunkBytes: status.chunkBytes,
+    uploadedChunks: [...uploaded].sort((a, b) => a - b),
   };
   options.onSession?.(session);
-  options.onProgress?.(session.received, file.size);
+  options.onProgress?.(uploadedBytes(session, file.size), file.size);
 
-  let offset = session.received;
-  while (offset < file.size) {
-    if (options.signal?.aborted) throw new DOMException("Upload cancelled.", "AbortError");
-    const end = Math.min(file.size, offset + Math.max(1024 * 1024, session.chunkBytes));
-    const result = await putChunk(
-      baseUrl,
-      session,
-      offset,
-      file.slice(offset, end),
-      options.signal,
-    );
+  const totalChunks = Math.ceil(file.size / session.chunkBytes);
+  const pending = Array.from({ length: totalChunks }, (_, index) => index)
+    .filter((index) => !uploaded.has(index));
+  let cursor = 0;
 
-    const nextOffset = Number(result.received);
-    if (!Number.isFinite(nextOffset) || nextOffset < 0 || nextOffset > file.size) {
-      throw new Error("Server returned an invalid upload offset.");
+  const worker = async () => {
+    while (cursor < pending.length) {
+      if (options.signal?.aborted) throw new DOMException("Upload cancelled.", "AbortError");
+      const index = pending[cursor];
+      cursor += 1;
+      await putChunk(baseUrl, session, file, index, options.signal);
+      uploaded.add(index);
+      session = { ...session, uploadedChunks: [...uploaded].sort((a, b) => a - b) };
+      options.onSession?.(session);
+      options.onProgress?.(uploadedBytes(session, file.size), file.size);
     }
-    if (nextOffset === offset && end > offset) {
-      throw new Error("Upload made no progress.");
-    }
+  };
 
-    offset = nextOffset;
-    session = { ...session, received: offset };
-    options.onSession?.(session);
-    options.onProgress?.(offset, file.size);
-  }
+  const workers = Array.from({ length: Math.min(concurrency, pending.length) }, () => worker());
+  const results = await Promise.allSettled(workers);
+  const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+  if (failed) throw failed.reason;
 
   const response = await fetch(
     `${baseUrl}/uploads/${session.id}/complete?size=${file.size}`,
@@ -184,8 +179,11 @@ export async function cancelPdfUpload(
 ) {
   if (!session) return;
   try {
-    await fetch(`${normalizeBase(baseUrl)}/uploads/${session.id}`, { method: "DELETE" });
+    await fetch(
+      `${normalizeBase(baseUrl)}/uploads/${session.id}?size=${session.expectedSize}`,
+      { method: "DELETE" },
+    );
   } catch {
-    // Cancellation is best effort; stale partial uploads are not exposed as recents.
+    // Cancellation is best effort; partial uploads are never exposed as recents.
   }
 }

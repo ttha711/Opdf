@@ -126,6 +126,8 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
       digitalSignature: false,
       storedMutations: true,
       rangePreview: true,
+      ocrQueue: true,
+      searchablePdfOcr: true,
     },
 
     async compressPdf(bytes: Uint8Array) {
@@ -335,6 +337,10 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
 
     async listOcrJobs() {
       return serverOcr.listOcrJobs();
+    },
+
+    async cancelOcr(jobId: string) {
+      return serverOcr.cancelOcr(jobId);
     },
 
     async insertPages(bytes: Uint8Array, opts: InsertOptions) {

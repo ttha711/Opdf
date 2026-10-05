@@ -33,8 +33,6 @@ export function useAppState() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [viewMode, setViewMode] = useState<ViewMode>("continuous");
   const [documentTool, setDocumentTool] = useState<DocumentTool>("delete-pages");
-  const [thumbnails, setThumbnails] = useState<Array<{ page: number; url: string; blob: Blob }>>([]);
-  const [bookmarks, setBookmarks] = useState<Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
   const [activeDashboardTool, setActiveDashboardTool] = useState<string | null>(null);
@@ -79,7 +77,6 @@ export function useAppState() {
       docBytes,
       documentIdentity: sourceIdentity,
       annotations,
-      bookmarks,
       pageRotations,
     });
 
@@ -112,14 +109,13 @@ export function useAppState() {
     } else if (saveState !== "idle") {
       setSaveState("idle");
     }
-  }, [annotations, bookmarks, docBytes, fileName, pageRotations, saveState, sourceIdentity]);
+  }, [annotations, docBytes, fileName, pageRotations, saveState, sourceIdentity]);
 
   const markDocumentSaved = useCallback((snapshot?: {
     fileName?: string;
     docBytes?: Uint8Array | null;
     documentIdentity?: string;
     annotations?: Annotation[];
-    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>;
     pageRotations?: Record<number, number>;
   }) => {
     const fingerprint = buildDocumentFingerprint({
@@ -127,12 +123,11 @@ export function useAppState() {
       docBytes: snapshot?.docBytes ?? docBytes,
       documentIdentity: snapshot?.documentIdentity ?? sourceIdentity,
       annotations: snapshot?.annotations ?? annotations,
-      bookmarks: snapshot?.bookmarks ?? bookmarks,
       pageRotations: snapshot?.pageRotations ?? pageRotations,
     });
     savedFingerprintRef.current = fingerprint;
     setSaveState(fingerprint ? "saved" : "idle");
-  }, [annotations, bookmarks, docBytes, fileName, pageRotations, sourceIdentity]);
+  }, [annotations, docBytes, fileName, pageRotations, sourceIdentity]);
 
   const clearDocumentSaveTracking = useCallback(() => {
     savedFingerprintRef.current = "";
@@ -193,15 +188,12 @@ export function useAppState() {
     setPage(targetTab.page || 1);
     setTotalPages(targetTab.totalPages || 0);
     setAnnotations(targetTab.annotations || []);
-    setBookmarks(targetTab.bookmarks || []);
-    setThumbnails(targetTab.thumbnails || []);
     setPageRotations(targetTab.pageRotations || {});
     markDocumentSaved({
       fileName: targetTab.fileName,
       docBytes: targetTab.docBytes,
       documentIdentity: targetTab.sourceIdentity ?? "",
       annotations: targetTab.annotations || [],
-      bookmarks: targetTab.bookmarks || [],
       pageRotations: targetTab.pageRotations || {},
     });
     // The switch lock is released deterministically by an effect once the
@@ -237,19 +229,6 @@ export function useAppState() {
       }
     }
 
-    // Free up Blob URLs of thumbnails to prevent memory leaks
-    if (tabToClose.thumbnails) {
-      tabToClose.thumbnails.forEach(thumb => {
-        if (thumb.url && thumb.url.startsWith("blob:")) {
-          try {
-            URL.revokeObjectURL(thumb.url);
-          } catch (err) {
-            console.error("Failed to revoke blob URL:", err);
-          }
-        }
-      });
-    }
-
     setTabs(remainingTabs);
 
     if (activeTabId === tabId) {
@@ -266,8 +245,6 @@ export function useAppState() {
         setPage(1);
         setTotalPages(0);
         setAnnotations([]);
-        setBookmarks([]);
-        setThumbnails([]);
         setPageRotations({});
         setShowDashboard(false);
         clearDocumentSaveTracking();
@@ -344,21 +321,6 @@ export function useAppState() {
       const remainingTabs = prevTabs.filter(t => t.group !== groupName);
       const tabsToClose = prevTabs.filter(t => t.group === groupName);
       
-      // Free up Blob URLs of thumbnails in the closed group
-      tabsToClose.forEach(tabToClose => {
-        if (tabToClose.thumbnails) {
-          tabToClose.thumbnails.forEach(thumb => {
-            if (thumb.url && thumb.url.startsWith("blob:")) {
-              try {
-                URL.revokeObjectURL(thumb.url);
-              } catch (err) {
-                console.error("Failed to revoke blob URL:", err);
-              }
-            }
-          });
-        }
-      });
-
       const isActiveInClosedGroup = tabsToClose.some(t => t.id === activeTabId);
       
       if (isActiveInClosedGroup) {
@@ -375,8 +337,6 @@ export function useAppState() {
           setPage(1);
           setTotalPages(0);
           setAnnotations([]);
-          setBookmarks([]);
-          setThumbnails([]);
           setPageRotations({});
           setShowDashboard(false);
           clearDocumentSaveTracking();
@@ -422,8 +382,6 @@ export function useAppState() {
               t.page !== page ||
               t.totalPages !== totalPages ||
               t.annotations !== annotations ||
-              t.bookmarks !== bookmarks ||
-              t.thumbnails !== thumbnails ||
               t.pageRotations !== pageRotations
             ) {
               return {
@@ -434,8 +392,6 @@ export function useAppState() {
                 page,
                 totalPages,
                 annotations,
-                bookmarks,
-                thumbnails,
                 pageRotations
               };
             }
@@ -458,17 +414,15 @@ export function useAppState() {
         page,
         totalPages: 0,
         annotations,
-        bookmarks: [],
         group: activeGroupFilter,
         groupColor: activeGroupFilter ? randomColor : null,
-        thumbnails: [],
         pageRotations: {},
       };
       
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTabId);
     }
-  }, [fileName, docBytes, sourceBlob, sourceIdentity, page, totalPages, annotations, bookmarks, thumbnails, pageRotations, activeTabId, activeGroupFilter]);
+  }, [fileName, docBytes, sourceBlob, sourceIdentity, page, totalPages, annotations, pageRotations, activeTabId, activeGroupFilter]);
 
   // Deterministic release of the tab-switch lock: once the render carrying the
   // switched-to activeTabId has committed (this effect runs after the sync
@@ -487,7 +441,7 @@ export function useAppState() {
     annotations, setAnnotations, ocrJobs, setOcrJobs, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
     saveState, setSaveState,
-    thumbnails, setThumbnails, bookmarks, setBookmarks, openMenu, setOpenMenu,
+    openMenu, setOpenMenu,
     theme, setTheme, fileInputRef, lastWheelFlipAtRef, hasDocument, hasDesktopBridge,
     showDashboard, setShowDashboard, activeDashboardTool, setActiveDashboardTool,
 

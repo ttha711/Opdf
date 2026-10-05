@@ -58,6 +58,7 @@ export function AppWorkspace({
     removeAnnotation,
     updateAnnotation,
     headerProps,
+    goToPage,
   } = controllers;
   const {
     rightWidth,
@@ -218,7 +219,7 @@ export function AppWorkspace({
             ocrJobs={state.ocrJobs}
             onRemoveAnnotation={removeAnnotation}
             onUpdateAnnotation={updateAnnotation}
-            onGoToPage={state.setPage}
+            onGoToPage={goToPage}
             isCollapsed={isRightCollapsed}
             setIsCollapsed={setIsRightCollapsed}
             onQuickTool={(tool) => {

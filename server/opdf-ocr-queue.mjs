@@ -5,7 +5,7 @@ import { createPdfiumOcrRenderer } from "./opdf-ocr-renderer.mjs";
 
 function publicJob(job) {
   if (!job) return null;
-  const { outputBytes: _outputBytes, ...rest } = job;
+  const { outputBytes: _outputBytes, outputPath: _outputPath, ...rest } = job;
   return rest;
 }
 

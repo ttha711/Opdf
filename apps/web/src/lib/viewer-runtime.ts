@@ -10,6 +10,7 @@ export type ActiveViewerControls = {
   redo?: () => void;
   canUndo?: () => boolean;
   canRedo?: () => boolean;
+  goToPage?: (pageNumber: number) => void;
   executeCommand?: (commandId: string) => void | Promise<void>;
 };
 

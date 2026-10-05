@@ -49,6 +49,9 @@ export function createOcrJobQueue(dataDir, options = {}) {
         isCancelled: () => service.get(jobId)?.status === "cancelled",
       });
       if (result?.status === "done" && result.outputBytes?.length) {
+        // OcrService marks computation done before this queue has durably written
+        // the downloadable output. Keep the public job non-terminal until the
+        // output file is ready so poll -> download cannot observe a race.
         result.status = "running";
         result.progress = 99;
         const jobDir = join(root, jobId);

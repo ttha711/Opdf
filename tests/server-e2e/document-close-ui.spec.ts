@@ -30,5 +30,26 @@ test("closing the document tears down viewer-scoped editor UI", async ({ page, r
   await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toHaveCount(0);
   await expect(page.locator("[data-opdf-native-editor='true']")).toHaveCount(0);
   await expect(page.locator("[data-opdf-right-sidebar='open']")).toHaveCount(0);
+  await expect(page.locator(".opdf-side-panel--left")).toBeHidden();
   await expect(page.getByText("Open a PDF", { exact: false })).toBeVisible();
+});
+
+
+test("signature panel can be closed by toggling the OPDF Signature tool", async ({ page, request }) => {
+  const upload = await request.post("/api/opdf/documents?name=signature-panel.pdf", {
+    headers: { "Content-Type": "application/pdf" },
+    data: await buildPdf(),
+  });
+  expect(upload.status()).toBe(201);
+  const document = await upload.json();
+
+  await page.goto("/?open=" + encodeURIComponent(document.filePath));
+  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+
+  const signatureButton = page.getByTitle("Signature (S)");
+  await signatureButton.click();
+  await expect(page.getByText("Signatures", { exact: true })).toBeVisible({ timeout: 20_000 });
+
+  await signatureButton.click();
+  await expect(page.getByText("Signatures", { exact: true })).toBeHidden({ timeout: 20_000 });
 });

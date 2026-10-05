@@ -146,8 +146,13 @@ export function PdfViewer({
         return;
       }
 
-      sidebarButton ??= root.querySelector<HTMLButtonElement>('button[aria-label="Sidebar"]');
-      if (!sidebarButton || sidebarButton.disabled) {
+      const sidebarButtons = Array.from(
+        root.querySelectorAll<HTMLButtonElement>('button[aria-label="Sidebar"]'),
+      );
+      sidebarButton = sidebarButtons.find(
+        (button) => !button.disabled && isVisibleElement(button),
+      ) ?? null;
+      if (!sidebarButton) {
         retry();
         return;
       }

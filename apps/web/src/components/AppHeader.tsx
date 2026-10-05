@@ -1,7 +1,6 @@
-import type { ChangeEvent, Dispatch, Ref, SetStateAction } from "react";
+import type { ChangeEvent, Ref } from "react";
 import { MenuDropdown, type MenuItemDef } from "./MenuDropdown";
-import type { ActiveTool, AnnotationToolDefaults, ViewMode, ZoomPreset } from "../lib/app-types";
-import type { DocumentTool } from "../lib/document-tools";
+import type { ActiveTool } from "../lib/app-types";
 import { TabBar } from "./TabBar";
 import type { OpdfTab } from "../lib/web-storage";
 import { getEditorLaunchTitle } from "../lib/documentEditingExperience";
@@ -15,39 +14,18 @@ export function AppHeader({
   hasDesktopBridge,
   isPublic,
   hasDocument,
-  fileName,
   openFile,
-  closeDocument,
   fileMenuItems,
   editMenuItems,
   viewMenuItems,
-  toolsMenuItems,
   openMenu,
   toggleMenu,
   closeMenu,
   activeTool,
   setActiveTool,
-  annotationToolDefaults,
-  setAnnotationToolDefaults,
-  exportPdf,
-  page,
-  totalPages,
-  setPage,
-  goPrevPage,
-  goNextPage,
-  zoomOut,
-  zoomIn,
-  resetZoom,
-  scale,
-  zoomPreset,
-  applyZoomPreset,
-  viewMode,
-  setViewMode,
   undoAnnotations,
   redoAnnotations,
   runOcr,
-  rotateLeft,
-  rotateRight,
   compressDocument,
   addWatermark,
   splitDocument,
@@ -57,8 +35,6 @@ export function AppHeader({
   searchRedact,
   advancedPdf,
   digitalSign,
-  documentTool,
-  setDocumentTool,
   runDocumentTool,
   openDocumentMarkupTool,
   onSelectLocalFile,
@@ -68,7 +44,6 @@ export function AppHeader({
   setShowDashboard,
   onOpenAiEditorWindow,
   savePdf,
-  savePdfAs,
   saveState,
 
   // NEW TABS PROPS
@@ -88,39 +63,18 @@ export function AppHeader({
   hasDesktopBridge: boolean;
   isPublic: boolean;
   hasDocument: boolean;
-  fileName: string;
   openFile: () => void;
-  closeDocument: () => void;
   fileMenuItems: MenuItemDef[];
   editMenuItems: MenuItemDef[];
   viewMenuItems: MenuItemDef[];
-  toolsMenuItems: MenuItemDef[];
   openMenu: string | null;
   toggleMenu: (label: string) => void;
   closeMenu: () => void;
   activeTool: ActiveTool;
   setActiveTool: (tool: ActiveTool) => void;
-  annotationToolDefaults: AnnotationToolDefaults;
-  setAnnotationToolDefaults: Dispatch<SetStateAction<AnnotationToolDefaults>>;
-  exportPdf: () => void;
-  page: number;
-  totalPages: number;
-  setPage: (page: number) => void;
-  goPrevPage: () => void;
-  goNextPage: () => void;
-  zoomOut: () => void;
-  zoomIn: () => void;
-  resetZoom: () => void;
-  scale: number;
-  zoomPreset: ZoomPreset;
-  applyZoomPreset: (preset: ZoomPreset) => void;
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
   undoAnnotations: () => void;
   redoAnnotations: () => void;
   runOcr: () => void;
-  rotateLeft: () => void;
-  rotateRight: () => void;
   compressDocument: () => void;
   addWatermark: () => void;
   splitDocument: () => void;
@@ -130,8 +84,6 @@ export function AppHeader({
   searchRedact: () => void;
   advancedPdf: () => void;
   digitalSign: () => void;
-  documentTool: DocumentTool;
-  setDocumentTool: (tool: DocumentTool) => void;
   runDocumentTool: (tool?: DocumentTool) => void;
   openDocumentMarkupTool: (tool: "page-numbers" | "header" | "footer" | "bates") => void;
   onSelectLocalFile: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -141,7 +93,6 @@ export function AppHeader({
   setShowDashboard: (show: boolean) => void;
   onOpenAiEditorWindow?: () => void;
   savePdf: () => void;
-  savePdfAs: () => void;
   saveState: "idle" | "saving" | "saved";
 
   // NEW TABS TYPES

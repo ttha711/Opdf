@@ -1,4 +1,5 @@
-// opdf-file-size-allow: S3 SigV4 transport keeps signing and multipart protocol in one audited module.\nimport { createHash, createHmac } from "node:crypto";
+// opdf-file-size-allow: S3 SigV4 transport keeps signing and multipart protocol in one audited module.
+import { createHash, createHmac } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";

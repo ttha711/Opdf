@@ -82,11 +82,11 @@ For a permanent hostname, point the Cloudflare Tunnel service at:
 http://127.0.0.1:8787
 ```
 
-Use Cloudflare Access (or another authenticated reverse proxy) in front of OPDF before exposing it to users. The first server-runtime phase intentionally does not implement user accounts or application-level authorization yet.
+Use Cloudflare Access (or another authenticated reverse proxy) as an additional edge layer. OPDF can now enforce its own local multi-user accounts, project isolation, and per-user storage quotas.
 
 ## Data directory
 
-The server creates:
+With application authentication disabled, OPDF keeps the legacy single-user layout:
 
 ```
 OPDF_DATA_DIR/
@@ -98,6 +98,27 @@ OPDF_DATA_DIR/
   recents.json
   session.json
 ```
+
+With multi-user authentication enabled, every user and project receives a separate storage root:
+
+```
+OPDF_DATA_DIR/
+  auth/
+    users.json
+  users/
+    <user-id>/
+      projects/
+        default/
+          documents/
+          ocr/
+          certificates/
+          recents.json
+          session.json
+        <project-id>/
+          ...
+```
+
+A document UUID is resolved only inside the authenticated user's active project. Knowing another user's UUID is therefore not sufficient to access the document.
 
 Set `OPDF_DATA_DIR` outside the Git checkout for production so upgrades do not touch user data.
 
@@ -271,12 +292,37 @@ OPDF_DATA_DIR/
 
 For remote use, keep the same-origin API behind HTTPS and configure reverse proxies not to log the `X-OPDF-Options` header because it carries the transient certificate passphrase during signing.
 
-## Next server phases
+## Multi-user authentication, projects, and quotas
 
-After server OCR and P12/PFX signing, the remaining production server phases are:
+Application authentication is opt-in so existing loopback/single-user installations remain compatible. For production multi-user use, configure all of the following before first start:
 
-1. Multi-user authentication, authorization, quotas, and per-user/project storage.
-2. S3-compatible object storage for multi-node deployments.
+```powershell
+$env:OPDF_AUTH_MODE="local"
+$env:OPDF_AUTH_SECRET="<at-least-32-random-characters>"
+$env:OPDF_BOOTSTRAP_EMAIL="admin@example.com"
+$env:OPDF_BOOTSTRAP_PASSWORD="<at-least-12-characters>"
+$env:OPDF_DEFAULT_USER_QUOTA_BYTES="10737418240"
+$env:OPDF_COOKIE_SECURE="1"
+npm run server-start
+```
+
+On the first authenticated start, OPDF creates the bootstrap administrator. The bootstrap password is converted immediately to a salted scrypt password hash; plaintext passwords are not persisted. Session cookies are HttpOnly and SameSite=Strict. When OPDF is behind HTTPS, set `OPDF_COOKIE_SECURE=1` unless the reverse proxy reliably sends `X-Forwarded-Proto: https`.
+
+Administrators can create users and adjust role/quota through the authenticated `/api/opdf/admin/users` API. User quotas cover the entire user's project tree. Resumable uploads are rejected before upload-session creation when the declared file size would exceed the remaining quota.
+
+The default project is `default`. API clients may select another project with `X-OPDF-Project: <project-id>`. Project identifiers are restricted to letters, digits, underscore, and hyphen.
+
+Run the dedicated isolation gate with:
+
+```powershell
+npm run server-auth-smoke
+```
+
+This verifies authentication, admin authorization, cross-user UUID isolation, cross-project isolation, and quota rejection.
+
+## Next server phase
+
+The remaining server scaling phase is S3-compatible object storage for multi-node deployments.
 
 
 ## Office to PDF conversion

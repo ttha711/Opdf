@@ -58,5 +58,11 @@ export function createServerOcrClient(baseUrl: string) {
     async listOcrJobs(): Promise<OcrJob[]> {
       return readJson<OcrJob[]>(await fetch(`${baseUrl}/ocr/jobs`, { cache: "no-store" }));
     },
+
+    async cancelOcr(jobId: string): Promise<OcrJob | null> {
+      return readJson<OcrJob>(await fetch(`${baseUrl}/ocr/jobs/${jobId}/cancel`, {
+        method: "POST",
+      }));
+    },
   };
 }

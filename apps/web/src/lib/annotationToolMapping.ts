@@ -20,3 +20,9 @@ export function mapActiveToolToEmbedPdfAnnotation(activeTool?: ActiveTool | stri
       return null;
   }
 }
+
+
+export function isEmbedPdfReplaceTextTool(rawTool: unknown) {
+  const normalized = String(rawTool ?? "").trim().toLowerCase();
+  return normalized.includes("replace-text") || normalized.includes("replacetext");
+}

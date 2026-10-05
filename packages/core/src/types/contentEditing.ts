@@ -22,6 +22,8 @@ export type PdfContentPatch =
   | { type: "resize"; objectId: string; bounds: PdfRect }
   | { type: "delete"; objectId: string }
   | { type: "style-text"; objectId: string; fontFamily?: string; fontSize?: number; fillColor?: string }
+  | { type: "style-object"; objectId: string; fillColor?: string; strokeColor?: string; strokeWidth?: number }
+  | { type: "relative-transform"; objectId: string; matrix: PdfMatrix }
   | { type: "replace-image"; objectId: string; bytes: Uint8Array; mimeType: "image/png" | "image/jpeg" };
 
 export interface PdfContentEditingEngine {

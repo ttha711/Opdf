@@ -30,15 +30,23 @@ export function createAuthHttp({
     }
 
     if (req.method === "DELETE") {
-      res.setHeader("Set-Cookie", cookie("opdf_session", "", req, 0));
+      res.setHeader("Set-Cookie", [
+        cookie("opdf_session", "", req, 0),
+        cookie("opdf_project", "", req, 0),
+      ]);
       return sendJson(res, 200, { authenticated: false });
     }
 
     if (req.method !== "POST") return sendError(res, 405, "Method not allowed.");
     const token = bearerToken(req);
     if (!token) return sendError(res, 400, "Bearer token is required to establish a session.");
-    const context = auth.authenticate(req, url);
-    res.setHeader("Set-Cookie", cookie("opdf_session", token, req, 7 * 24 * 60 * 60));
+    const loginUrl = new URL(url);
+    loginUrl.searchParams.set("project", "default");
+    const context = auth.authenticate(req, loginUrl);
+    res.setHeader("Set-Cookie", [
+      cookie("opdf_session", token, req, 7 * 24 * 60 * 60),
+      cookie("opdf_project", "default", req, 365 * 24 * 60 * 60),
+    ]);
     return sendJson(res, 200, {
       authenticated: true,
       mode: context.mode,

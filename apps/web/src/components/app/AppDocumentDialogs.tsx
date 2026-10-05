@@ -65,18 +65,9 @@ export function AppDocumentDialogs({
         source={source}
         totalPages={state.totalPages}
         currentPage={state.page}
-        initialBookmarks={state.bookmarks}
-        onApplied={(bytes, message, embeddedBookmarks) => {
+        initialBookmarks={[]}
+        onApplied={(bytes, message) => {
           replaceDocumentBytes(bytes, state.page);
-          if (embeddedBookmarks) {
-            state.setBookmarks(embeddedBookmarks.map((item, index) => ({
-              id: "bookmark-" + Date.now() + "-" + index,
-              title: item.title,
-              page: item.page,
-              parent: item.parent,
-              createdAt: Date.now(),
-            })));
-          }
           success(message);
         }}
       />

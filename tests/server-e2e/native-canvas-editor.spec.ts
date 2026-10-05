@@ -51,8 +51,9 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
   await page.mouse.up();
   await expect(editor.getByText("Object moved on page.")).toBeVisible({ timeout: 20_000 });
 
-  const refreshedText = page.locator("[data-opdf-canvas-object][data-opdf-object-kind='text']").first();
-  await refreshedText.dblclick();
+  const refreshedSelection = page.locator("[data-opdf-canvas-selection]");
+  await expect(refreshedSelection).toHaveCount(1);
+  await refreshedSelection.dblclick();
   const inlineEditor = page.locator("[data-opdf-inline-text-editor='true']");
   await expect(inlineEditor).toBeVisible({ timeout: 10_000 });
   await inlineEditor.fill("Chỉnh sửa tiếng Việt");

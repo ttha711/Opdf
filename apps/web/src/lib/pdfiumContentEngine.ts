@@ -6,6 +6,7 @@ import type {
   PdfContentObjectKind,
   PdfContentPatch,
   PdfMatrix,
+  PdfPathCommand,
   PdfRect,
 } from "@opdf/core";
 
@@ -372,6 +373,101 @@ function duplicateImageObject(
   }
 }
 
+
+function readPathCommands(module: PdfiumModule, objectPtr: number): PdfPathCommand[] {
+  const count = module.FPDFPath_CountSegments(objectPtr);
+  if (!Number.isFinite(count) || count <= 0) return [];
+  const commands: PdfPathCommand[] = [];
+  const pointPtr = malloc(module, 24);
+  try {
+    const heap = module.pdfium.HEAPF32;
+    for (let index = 0; index < count; index += 1) {
+      const segment = module.FPDFPath_GetPathSegment(objectPtr, index);
+      if (!segment) continue;
+      const type = module.FPDFPathSegment_GetType(segment);
+      if (type === 2 || type === 0) {
+        if (!module.FPDFPathSegment_GetPoint(segment, pointPtr, pointPtr + 4)) continue;
+        const base = pointPtr >>> 2;
+        if (type === 2) commands.push({ type: "move", x: heap[base], y: heap[base + 1] });
+        else commands.push({
+          type: "line",
+          x: heap[base],
+          y: heap[base + 1],
+          close: Boolean(module.FPDFPathSegment_GetClose(segment)),
+        });
+        continue;
+      }
+      if (type !== 1 || index + 2 >= count) continue;
+      const control2 = module.FPDFPath_GetPathSegment(objectPtr, index + 1);
+      const end = module.FPDFPath_GetPathSegment(objectPtr, index + 2);
+      if (
+        !control2 ||
+        !end ||
+        module.FPDFPathSegment_GetType(control2) !== 1 ||
+        module.FPDFPathSegment_GetType(end) !== 1
+      ) continue;
+      if (
+        module.FPDFPathSegment_GetPoint(segment, pointPtr, pointPtr + 4) &&
+        module.FPDFPathSegment_GetPoint(control2, pointPtr + 8, pointPtr + 12) &&
+        module.FPDFPathSegment_GetPoint(end, pointPtr + 16, pointPtr + 20)
+      ) {
+        const base = pointPtr >>> 2;
+        commands.push({
+          type: "bezier",
+          x1: heap[base],
+          y1: heap[base + 1],
+          x2: heap[base + 2],
+          y2: heap[base + 3],
+          x: heap[base + 4],
+          y: heap[base + 5],
+          close: Boolean(module.FPDFPathSegment_GetClose(end)),
+        });
+      }
+      index += 2;
+    }
+  } finally {
+    free(module, pointPtr);
+  }
+  return commands;
+}
+
+function createPathFromCommands(module: PdfiumModule, commands: PdfPathCommand[]): number {
+  const first = commands[0];
+  if (!first || first.type !== "move") throw new Error("A PDF path must start with a move command.");
+  const pathPtr = module.FPDFPageObj_CreateNewPath(first.x, first.y);
+  if (!pathPtr) throw new Error("PDFium could not create a replacement path.");
+  try {
+    for (const command of commands.slice(1)) {
+      if (command.type === "move") {
+        if (!module.FPDFPath_MoveTo(pathPtr, command.x, command.y)) throw new Error("Unable to add path move command.");
+      } else if (command.type === "line") {
+        if (!module.FPDFPath_LineTo(pathPtr, command.x, command.y)) throw new Error("Unable to add path line command.");
+        if (command.close) module.FPDFPath_Close(pathPtr);
+      } else {
+        if (!module.FPDFPath_BezierTo(pathPtr, command.x1, command.y1, command.x2, command.y2, command.x, command.y)) {
+          throw new Error("Unable to add path bezier command.");
+        }
+        if (command.close) module.FPDFPath_Close(pathPtr);
+      }
+    }
+    return pathPtr;
+  } catch (error) {
+    module.FPDFPageObj_Destroy(pathPtr);
+    throw error;
+  }
+}
+
+function copyPathDrawMode(module: PdfiumModule, sourcePtr: number, targetPtr: number) {
+  const ptr = malloc(module, 8);
+  try {
+    if (!module.FPDFPath_GetDrawMode(sourcePtr, ptr, ptr + 4)) return;
+    const base = ptr >>> 2;
+    module.FPDFPath_SetDrawMode(targetPtr, module.pdfium.HEAP32[base], Boolean(module.pdfium.HEAP32[base + 1]));
+  } finally {
+    free(module, ptr);
+  }
+}
+
 function duplicatePathObject(
   module: PdfiumModule,
   pagePtr: number,
@@ -435,17 +531,7 @@ function duplicatePathObject(
       index += 2;
     }
 
-    const drawPtr = malloc(module, 8);
-    try {
-      if (module.FPDFPath_GetDrawMode(sourcePtr, drawPtr, drawPtr + 4)) {
-        const fillMode = module.pdfium.HEAP32[drawPtr >>> 2];
-        const stroke = Boolean(module.pdfium.HEAP32[(drawPtr >>> 2) + 1]);
-        module.FPDFPath_SetDrawMode(targetPtr, fillMode, stroke);
-      }
-    } finally {
-      free(module, drawPtr);
-    }
-
+    copyPathDrawMode(module, sourcePtr, targetPtr);
     copyCommonStyle(module, sourcePtr, targetPtr);
     offsetObject(module, targetPtr, dx, dy);
     if (!module.FPDFPage_InsertObjectAtIndex(pagePtr, targetPtr, objectIndex + 1)) module.FPDFPage_InsertObject(pagePtr, targetPtr);
@@ -587,6 +673,10 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
             object.text = readUtf16ObjectText(module, objectPtr, textPagePtr);
             object.fontFamily = readFontFamily(module, objectPtr);
             object.fontSize = readFontSize(module, objectPtr);
+          } else if (kind === "path") {
+            object.pathCommands = readPathCommands(module, objectPtr);
+            object.strokeColor = readStroke(module, objectPtr);
+            object.strokeWidth = readStrokeWidth(module, objectPtr);
           }
           objects.push(object);
         }
@@ -675,6 +765,21 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
             } else if (patch.type === "crop-image") {
               if (module.FPDFPageObj_GetType(objectPtr) !== 3) throw new Error(`${patch.objectId} is not an image object.`);
               cropImageObject(module, pagePtr, objectPtr, patch);
+            } else if (patch.type === "replace-path") {
+              if (module.FPDFPageObj_GetType(objectPtr) !== 2) throw new Error(`${patch.objectId} is not a path object.`);
+              const { objectIndex } = parseObjectId(patch.objectId);
+              const nextPtr = createPathFromCommands(module, patch.commands);
+              try {
+                copyPathDrawMode(module, objectPtr, nextPtr);
+                copyCommonStyle(module, objectPtr, nextPtr);
+                if (!module.FPDFPage_RemoveObject(pagePtr, objectPtr)) throw new Error(`Unable to replace path ${patch.objectId}.`);
+                if (!module.FPDFPage_InsertObjectAtIndex(pagePtr, nextPtr, objectIndex)) module.FPDFPage_InsertObject(pagePtr, nextPtr);
+                module.FPDFPageObj_Destroy(objectPtr);
+                handles.set(patch.objectId, nextPtr);
+              } catch (error) {
+                module.FPDFPageObj_Destroy(nextPtr);
+                throw error;
+              }
             } else if (patch.type === "style-object") {
               if (patch.fillColor) {
                 const [r, g, b, a] = parseColor(patch.fillColor);

@@ -14,7 +14,6 @@ export interface OpdfTab {
   annotations: any[];
   group: string | null;
   groupColor: string | null;
-  pageRotations?: Record<number, number>;
 }
 
 export interface WebState {

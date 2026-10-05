@@ -125,7 +125,114 @@ function objectKind(type: number): PdfContentObjectKind | null {
   if (type === 1) return "text";
   if (type === 2) return "path";
   if (type === 3) return "image";
+  if (type === 4) return "shading";
+  if (type === 5) return "form";
   return null;
+}
+
+const TEXT_RENDER_MODE_NAMES = [
+  "fill",
+  "stroke",
+  "fill-stroke",
+  "invisible",
+  "fill-clip",
+  "stroke-clip",
+  "fill-stroke-clip",
+  "clip",
+] as const;
+
+const LINE_CAP_NAMES = ["butt", "round", "square"] as const;
+const LINE_JOIN_NAMES = ["miter", "round", "bevel"] as const;
+
+function readTextRenderMode(module: PdfiumModule, objectPtr: number) {
+  if (typeof module.FPDFTextObj_GetTextRenderMode !== "function") return undefined;
+  const mode = module.FPDFTextObj_GetTextRenderMode(objectPtr);
+  return TEXT_RENDER_MODE_NAMES[mode] ?? undefined;
+}
+
+function readLineCap(module: PdfiumModule, objectPtr: number) {
+  if (typeof module.FPDFPageObj_GetLineCap !== "function") return undefined;
+  return LINE_CAP_NAMES[module.FPDFPageObj_GetLineCap(objectPtr)] ?? undefined;
+}
+
+function readLineJoin(module: PdfiumModule, objectPtr: number) {
+  if (typeof module.FPDFPageObj_GetLineJoin !== "function") return undefined;
+  return LINE_JOIN_NAMES[module.FPDFPageObj_GetLineJoin(objectPtr)] ?? undefined;
+}
+
+function readDash(module: PdfiumModule, objectPtr: number): { dashArray?: number[]; dashPhase?: number } {
+  if (
+    typeof module.FPDFPageObj_GetDashCount !== "function" ||
+    typeof module.FPDFPageObj_GetDashArray !== "function" ||
+    typeof module.FPDFPageObj_GetDashPhase !== "function"
+  ) return {};
+  const count = module.FPDFPageObj_GetDashCount(objectPtr);
+  if (!Number.isFinite(count) || count <= 0) return {};
+  const dashPtr = malloc(module, count * 4);
+  const phasePtr = malloc(module, 4);
+  try {
+    if (!module.FPDFPageObj_GetDashArray(objectPtr, dashPtr, count)) return {};
+    const base = dashPtr >>> 2;
+    const dashArray = Array.from({ length: count }, (_, index) => module.pdfium.HEAPF32[base + index]);
+    const dashPhase = module.FPDFPageObj_GetDashPhase(objectPtr, phasePtr)
+      ? module.pdfium.HEAPF32[phasePtr >>> 2]
+      : undefined;
+    return { dashArray, dashPhase };
+  } finally {
+    free(module, phasePtr);
+    free(module, dashPtr);
+  }
+}
+
+function readPathDrawMode(module: PdfiumModule, objectPtr: number) {
+  if (typeof module.FPDFPath_GetDrawMode !== "function") return {};
+  const ptr = malloc(module, 8);
+  try {
+    if (!module.FPDFPath_GetDrawMode(objectPtr, ptr, ptr + 4)) return {};
+    const fillMode = module.pdfium.HEAP32[ptr >>> 2];
+    const stroke = Boolean(module.pdfium.HEAP32[(ptr >>> 2) + 1]);
+    return {
+      pathFillMode: fillMode === 1 ? "alternate" as const : fillMode === 2 ? "winding" as const : "none" as const,
+      pathStroke: stroke,
+    };
+  } finally {
+    free(module, ptr);
+  }
+}
+
+function readImageInfo(module: PdfiumModule, objectPtr: number) {
+  const filters: string[] = [];
+  if (
+    typeof module.FPDFImageObj_GetImageFilterCount === "function" &&
+    typeof module.FPDFImageObj_GetImageFilter === "function"
+  ) {
+    const count = module.FPDFImageObj_GetImageFilterCount(objectPtr);
+    for (let index = 0; index < count; index += 1) {
+      const name = readUtf8(module, (ptr, size) => module.FPDFImageObj_GetImageFilter(objectPtr, index, ptr, size));
+      if (name) filters.push(name);
+    }
+  }
+  if (typeof module.FPDFImageObj_GetImagePixelSize !== "function") {
+    return filters.length ? { width: 0, height: 0, horizontalDpi: 0, verticalDpi: 0, bitsPerPixel: 0, colorSpace: 0, colorSpaceName: "unknown", filters } : undefined;
+  }
+  const ptr = malloc(module, 8);
+  try {
+    if (!module.FPDFImageObj_GetImagePixelSize(objectPtr, ptr, ptr + 4)) return undefined;
+    const width = module.pdfium.HEAPU32[ptr >>> 2];
+    const height = module.pdfium.HEAPU32[(ptr >>> 2) + 1];
+    return {
+      width,
+      height,
+      horizontalDpi: 0,
+      verticalDpi: 0,
+      bitsPerPixel: 0,
+      colorSpace: 0,
+      colorSpaceName: "unknown",
+      filters,
+    };
+  } finally {
+    free(module, ptr);
+  }
 }
 
 async function loadUnicodeFont(module: PdfiumModule, docPtr: number): Promise<number> {
@@ -176,8 +283,11 @@ async function replaceTextObjectFontSize(
   try {
     if (!module.FPDFText_SetText(nextPtr, textPtr)) throw new Error("PDFium could not copy resized text.");
     if (!module.FPDFPageObj_SetMatrix(nextPtr, matrixPtr)) throw new Error("PDFium could not preserve text transform.");
-    const [r, g, b, a] = parseColor(fill);
-    module.FPDFPageObj_SetFillColor(nextPtr, r, g, b, a);
+    copyCommonStyle(module, objectPtr, nextPtr);
+    const renderMode = readTextRenderMode(module, objectPtr);
+    if (renderMode && typeof module.FPDFTextObj_SetTextRenderMode === "function") {
+      module.FPDFTextObj_SetTextRenderMode(nextPtr, TEXT_RENDER_MODE_NAMES.indexOf(renderMode));
+    }
     if (!module.FPDFPage_RemoveObject(pagePtr, objectPtr)) throw new Error("PDFium could not replace the old text object.");
     if (!module.FPDFPage_InsertObjectAtIndex(pagePtr, nextPtr, objectIndex)) {
       module.FPDFPage_InsertObject(pagePtr, nextPtr);
@@ -310,13 +420,18 @@ function copyCommonStyle(module: PdfiumModule, sourcePtr: number, targetPtr: num
   const width = readStrokeWidth(module, sourcePtr);
   if (width !== undefined) module.FPDFPageObj_SetStrokeWidth(targetPtr, width);
 
-  const lineCap = module.FPDFPageObj_GetLineCap(sourcePtr);
-  if (lineCap >= 0) module.FPDFPageObj_SetLineCap(targetPtr, lineCap);
-  const lineJoin = module.FPDFPageObj_GetLineJoin(sourcePtr);
-  if (lineJoin >= 0) module.FPDFPageObj_SetLineJoin(targetPtr, lineJoin);
+  const lineCap = typeof module.FPDFPageObj_GetLineCap === "function" ? module.FPDFPageObj_GetLineCap(sourcePtr) : -1;
+  if (lineCap >= 0 && typeof module.FPDFPageObj_SetLineCap === "function") module.FPDFPageObj_SetLineCap(targetPtr, lineCap);
+  const lineJoin = typeof module.FPDFPageObj_GetLineJoin === "function" ? module.FPDFPageObj_GetLineJoin(sourcePtr) : -1;
+  if (lineJoin >= 0 && typeof module.FPDFPageObj_SetLineJoin === "function") module.FPDFPageObj_SetLineJoin(targetPtr, lineJoin);
 
-  const dashCount = module.FPDFPageObj_GetDashCount(sourcePtr);
-  if (dashCount > 0) {
+  const dashCount = typeof module.FPDFPageObj_GetDashCount === "function" ? module.FPDFPageObj_GetDashCount(sourcePtr) : 0;
+  if (
+    dashCount > 0 &&
+    typeof module.FPDFPageObj_GetDashArray === "function" &&
+    typeof module.FPDFPageObj_GetDashPhase === "function" &&
+    typeof module.FPDFPageObj_SetDashArray === "function"
+  ) {
     const dashPtr = malloc(module, dashCount * 4);
     const phasePtr = malloc(module, 4);
     try {
@@ -585,6 +700,12 @@ function cropImageObject(
   }
 }
 
+function patchPageIndex(patch: PdfContentPatch): number {
+  return patch.type === "add-text" || patch.type === "add-rect" || patch.type === "add-image"
+    ? patch.pageIndex
+    : parseObjectId(patch.objectId).pageIndex;
+}
+
 function parseObjectId(id: string): { pageIndex: number; objectIndex: number } {
   const match = /^p(\d+)-o(\d+)$/.exec(id);
   if (!match) throw new Error(`Unsupported content object id: ${id}`);
@@ -665,14 +786,32 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
             matrix: readMatrix(module, objectPtr),
             ...readFill(module, objectPtr),
           };
+          object.hasTransparency = typeof module.FPDFPageObj_HasTransparency === "function"
+            ? Boolean(module.FPDFPageObj_HasTransparency(objectPtr))
+            : undefined;
+          object.markedContentId = typeof module.FPDFPageObj_GetMarkedContentID === "function"
+            ? module.FPDFPageObj_GetMarkedContentID(objectPtr)
+            : undefined;
           if (kind === "text" && textPagePtr) {
             object.text = readUtf16ObjectText(module, objectPtr, textPagePtr);
             object.fontFamily = readFontFamily(module, objectPtr);
             object.fontSize = readFontSize(module, objectPtr);
+            object.textRenderMode = readTextRenderMode(module, objectPtr);
+            object.strokeColor = readStroke(module, objectPtr);
+            object.strokeWidth = readStrokeWidth(module, objectPtr);
           } else if (kind === "path") {
             object.pathCommands = readPathCommands(module, objectPtr);
             object.strokeColor = readStroke(module, objectPtr);
             object.strokeWidth = readStrokeWidth(module, objectPtr);
+            object.lineCap = readLineCap(module, objectPtr);
+            object.lineJoin = readLineJoin(module, objectPtr);
+            Object.assign(object, readDash(module, objectPtr), readPathDrawMode(module, objectPtr));
+          } else if (kind === "image") {
+            object.imageInfo = readImageInfo(module, objectPtr);
+          } else if (kind === "form") {
+            object.formChildCount = typeof module.FPDFFormObj_CountObjects === "function"
+              ? module.FPDFFormObj_CountObjects(objectPtr)
+              : undefined;
           }
           objects.push(object);
         }
@@ -689,7 +828,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
     return withDocument(pdf, async (module, docPtr) => {
       const grouped = new Map<number, PdfContentPatch[]>();
       for (const patch of patches) {
-        const { pageIndex } = parseObjectId(patch.objectId);
+        const pageIndex = patchPageIndex(patch);
         grouped.set(pageIndex, [...(grouped.get(pageIndex) ?? []), patch]);
       }
 
@@ -699,6 +838,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
         try {
           const handles = new Map<string, number>();
           for (const patch of pagePatches) {
+            if (patch.type === "add-text" || patch.type === "add-rect" || patch.type === "add-image") continue;
             const { objectIndex } = parseObjectId(patch.objectId);
             const objectPtr = module.FPDFPage_GetObject(pagePtr, objectIndex);
             if (!objectPtr) throw new Error(`PDF content object no longer exists: ${patch.objectId}`);
@@ -706,6 +846,76 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
           }
 
           for (const patch of pagePatches) {
+            if (patch.type === "add-text") {
+              const fontPtr = patch.fontFamily === "__opdf_unicode__"
+                ? await loadUnicodeFont(module, docPtr)
+                : module.FPDFText_LoadStandardFont(docPtr, patch.fontFamily || "Helvetica");
+              if (!fontPtr) throw new Error("Unable to load font for new text.");
+              const textPtr = module.FPDFPageObj_CreateTextObj(docPtr, fontPtr, patch.fontSize);
+              if (!textPtr) throw new Error("PDFium could not create a new text object.");
+              const valuePtr = writeUtf16(module, patch.text);
+              try {
+                if (!module.FPDFText_SetText(textPtr, valuePtr)) throw new Error("PDFium could not set new text.");
+                const [r, g, b, a] = parseColor(patch.fillColor ?? "#000000");
+                module.FPDFPageObj_SetFillColor(textPtr, r, g, b, a);
+                if (patch.renderMode && typeof module.FPDFTextObj_SetTextRenderMode === "function") {
+                  module.FPDFTextObj_SetTextRenderMode(textPtr, TEXT_RENDER_MODE_NAMES.indexOf(patch.renderMode));
+                }
+                module.FPDFPageObj_Transform(textPtr, 1, 0, 0, 1, patch.x, patch.y);
+                module.FPDFPage_InsertObject(pagePtr, textPtr);
+              } catch (error) {
+                module.FPDFPageObj_Destroy(textPtr);
+                throw error;
+              } finally {
+                free(module, valuePtr);
+              }
+              continue;
+            }
+            if (patch.type === "add-rect") {
+              const pathPtr = module.FPDFPageObj_CreateNewRect(patch.x, patch.y, patch.width, patch.height);
+              if (!pathPtr) throw new Error("PDFium could not create a rectangle object.");
+              try {
+                if (patch.fillColor) {
+                  const [r, g, b, a] = parseColor(patch.fillColor);
+                  module.FPDFPageObj_SetFillColor(pathPtr, r, g, b, a);
+                }
+                if (patch.strokeColor) {
+                  const [r, g, b, a] = parseColor(patch.strokeColor);
+                  module.FPDFPageObj_SetStrokeColor(pathPtr, r, g, b, a);
+                }
+                if (patch.strokeWidth !== undefined) module.FPDFPageObj_SetStrokeWidth(pathPtr, patch.strokeWidth);
+                const fillMode = patch.fillMode === "alternate" ? 1 : patch.fillMode === "winding" ? 2 : 0;
+                module.FPDFPath_SetDrawMode(pathPtr, fillMode, Boolean(patch.stroke));
+                module.FPDFPage_InsertObject(pagePtr, pathPtr);
+              } catch (error) {
+                module.FPDFPageObj_Destroy(pathPtr);
+                throw error;
+              }
+              continue;
+            }
+            if (patch.type === "add-image") {
+              const imagePtr = module.FPDFPageObj_NewImageObj(docPtr);
+              if (!imagePtr) throw new Error("PDFium could not create an image object.");
+              try {
+                await replaceImageBitmap(module, pagePtr, imagePtr, patch.bytes, patch.mimeType);
+                if (typeof module.FPDFImageObj_SetMatrix === "function") {
+                  module.FPDFImageObj_SetMatrix(imagePtr, patch.width, 0, 0, patch.height, patch.x, patch.y);
+                } else {
+                  const matrixPtr = writeMatrix(module, [patch.width, 0, 0, patch.height, patch.x, patch.y]);
+                  try {
+                    module.FPDFPageObj_SetMatrix(imagePtr, matrixPtr);
+                  } finally {
+                    free(module, matrixPtr);
+                  }
+                }
+                module.FPDFPage_InsertObject(pagePtr, imagePtr);
+              } catch (error) {
+                module.FPDFPageObj_Destroy(imagePtr);
+                throw error;
+              }
+              continue;
+            }
+
             const objectPtr = handles.get(patch.objectId)!;
             if (patch.type === "replace-text") {
               const textPtr = writeUtf16(module, patch.text);
@@ -751,9 +961,22 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
                 );
                 handles.set(patch.objectId, styledObjectPtr);
               }
-              if (patch.fillColor) {
-                const [r, g, b, a] = parseColor(patch.fillColor);
-                if (!module.FPDFPageObj_SetFillColor(styledObjectPtr, r, g, b, a)) throw new Error(`Unable to change text color for ${patch.objectId}.`);
+              if (patch.fillColor || patch.fillOpacity !== undefined) {
+                const [r, g, b] = parseColor(patch.fillColor ?? readFill(module, styledObjectPtr).fillColor ?? "#000000");
+                const alpha = Math.round(255 * Math.max(0, Math.min(1, patch.fillOpacity ?? readFill(module, styledObjectPtr).opacity ?? 1)));
+                if (!module.FPDFPageObj_SetFillColor(styledObjectPtr, r, g, b, alpha)) throw new Error(`Unable to change text fill for ${patch.objectId}.`);
+              }
+              if (patch.strokeColor || patch.strokeOpacity !== undefined) {
+                const [r, g, b] = parseColor(patch.strokeColor ?? readStroke(module, styledObjectPtr) ?? "#000000");
+                const alpha = Math.round(255 * Math.max(0, Math.min(1, patch.strokeOpacity ?? 1)));
+                if (!module.FPDFPageObj_SetStrokeColor(styledObjectPtr, r, g, b, alpha)) throw new Error(`Unable to change text stroke for ${patch.objectId}.`);
+              }
+              if (patch.strokeWidth !== undefined) module.FPDFPageObj_SetStrokeWidth(styledObjectPtr, patch.strokeWidth);
+              if (patch.renderMode && typeof module.FPDFTextObj_SetTextRenderMode === "function") {
+                const mode = TEXT_RENDER_MODE_NAMES.indexOf(patch.renderMode);
+                if (mode >= 0 && !module.FPDFTextObj_SetTextRenderMode(styledObjectPtr, mode)) {
+                  throw new Error(`Unable to change text render mode for ${patch.objectId}.`);
+                }
               }
             } else if (patch.type === "replace-image") {
               if (module.FPDFPageObj_GetType(objectPtr) !== 3) throw new Error(`${patch.objectId} is not an image object.`);
@@ -777,16 +1000,49 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
                 throw error;
               }
             } else if (patch.type === "style-object") {
-              if (patch.fillColor) {
-                const [r, g, b, a] = parseColor(patch.fillColor);
-                if (!module.FPDFPageObj_SetFillColor(objectPtr, r, g, b, a)) throw new Error(`Unable to set fill color for ${patch.objectId}.`);
+              if (patch.fillColor || patch.fillOpacity !== undefined) {
+                const [r, g, b] = parseColor(patch.fillColor ?? readFill(module, objectPtr).fillColor ?? "#000000");
+                const alpha = Math.round(255 * Math.max(0, Math.min(1, patch.fillOpacity ?? readFill(module, objectPtr).opacity ?? 1)));
+                if (!module.FPDFPageObj_SetFillColor(objectPtr, r, g, b, alpha)) throw new Error(`Unable to set fill color for ${patch.objectId}.`);
               }
-              if (patch.strokeColor) {
-                const [r, g, b, a] = parseColor(patch.strokeColor);
-                if (!module.FPDFPageObj_SetStrokeColor(objectPtr, r, g, b, a)) throw new Error(`Unable to set stroke color for ${patch.objectId}.`);
+              if (patch.strokeColor || patch.strokeOpacity !== undefined) {
+                const [r, g, b] = parseColor(patch.strokeColor ?? readStroke(module, objectPtr) ?? "#000000");
+                const alpha = Math.round(255 * Math.max(0, Math.min(1, patch.strokeOpacity ?? 1)));
+                if (!module.FPDFPageObj_SetStrokeColor(objectPtr, r, g, b, alpha)) throw new Error(`Unable to set stroke color for ${patch.objectId}.`);
               }
               if (patch.strokeWidth !== undefined && !module.FPDFPageObj_SetStrokeWidth(objectPtr, patch.strokeWidth)) {
                 throw new Error(`Unable to set stroke width for ${patch.objectId}.`);
+              }
+              if (patch.lineCap && typeof module.FPDFPageObj_SetLineCap === "function") {
+                module.FPDFPageObj_SetLineCap(objectPtr, LINE_CAP_NAMES.indexOf(patch.lineCap));
+              }
+              if (patch.lineJoin && typeof module.FPDFPageObj_SetLineJoin === "function") {
+                module.FPDFPageObj_SetLineJoin(objectPtr, LINE_JOIN_NAMES.indexOf(patch.lineJoin));
+              }
+              if (patch.dashArray && typeof module.FPDFPageObj_SetDashArray === "function") {
+                const ptr = malloc(module, patch.dashArray.length * 4);
+                try {
+                  module.pdfium.HEAPF32.set(patch.dashArray, ptr >>> 2);
+                  module.FPDFPageObj_SetDashArray(objectPtr, ptr, patch.dashArray.length, patch.dashPhase ?? 0);
+                } finally {
+                  free(module, ptr);
+                }
+              }
+              if (
+                module.FPDFPageObj_GetType(objectPtr) === 2 &&
+                (patch.pathFillMode || patch.pathStroke !== undefined) &&
+                typeof module.FPDFPath_SetDrawMode === "function"
+              ) {
+                const current = readPathDrawMode(module, objectPtr);
+                const fillMode = (patch.pathFillMode ?? current.pathFillMode) === "alternate"
+                  ? 1
+                  : (patch.pathFillMode ?? current.pathFillMode) === "winding"
+                    ? 2
+                    : 0;
+                module.FPDFPath_SetDrawMode(objectPtr, fillMode, patch.pathStroke ?? current.pathStroke ?? true);
+              }
+              if (patch.blendMode && typeof module.FPDFPageObj_SetBlendMode === "function") {
+                module.FPDFPageObj_SetBlendMode(objectPtr, patch.blendMode);
               }
             } else {
               throw new Error(`Content patch ${patch.type} is not implemented by the PDFium engine yet.`);

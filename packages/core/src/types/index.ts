@@ -125,4 +125,18 @@ export interface SignOptions {
   height?: number;
 }
 
-export type { PdfContentObjectKind, PdfRect, PdfMatrix, PdfPathCommand, PdfContentObject, PdfContentPatch, PdfContentEditingEngine } from "./contentEditing.js";
+export type {
+  PdfBlendMode,
+  PdfContentEditingEngine,
+  PdfContentObject,
+  PdfContentObjectKind,
+  PdfContentPatch,
+  PdfImageInfo,
+  PdfLineCap,
+  PdfLineJoin,
+  PdfMatrix,
+  PdfPathCommand,
+  PdfPathFillMode,
+  PdfRect,
+  PdfTextRenderMode,
+} from "./contentEditing.js";

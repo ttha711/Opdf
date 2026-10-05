@@ -223,6 +223,28 @@ function parseDocumentRoute(pathname) {
   return { id: assertDocumentId(match[1]), child: match[2] || null };
 }
 
+function serverDocumentId(filePath) {
+  if (typeof filePath !== "string") return null;
+  const match = /^server:\/\/([0-9a-f-]{36})\//i.exec(filePath);
+  return match ? assertDocumentId(match[1]) : null;
+}
+
+async function sanitizeTenantSession(storage, session) {
+  const isAccessible = async (filePath) => {
+    const id = serverDocumentId(filePath);
+    if (!id) return typeof filePath === "string";
+    return Boolean(await storage.getDocument(id));
+  };
+  const openTabs = [];
+  for (const filePath of Array.isArray(session?.openTabs) ? session.openTabs.slice(0, 50) : []) {
+    if (await isAccessible(filePath)) openTabs.push(filePath);
+  }
+  const activeFilePath = await isAccessible(session?.activeFilePath)
+    ? session.activeFilePath
+    : null;
+  return { ...session, activeFilePath, openTabs };
+}
+
 async function serveDocument(req, res, storage, record, download) {
   const size = await storage.getDocumentSize(record.id);
   if (size == null) return sendError(res, 404, "Document file not found.");
@@ -779,13 +801,20 @@ async function handleApi(req, res, url) {
     if (req.method === "POST") {
       const body = await readJsonBody(req);
       if (typeof body.filePath !== "string") return sendError(res, 400, "filePath is required.");
+      const documentId = serverDocumentId(body.filePath);
+      if (documentId && !(await storage.getDocument(documentId))) {
+        return sendError(res, 404, "Document not found.");
+      }
       return sendJson(res, 200, await storage.pushRecent(body.filePath));
     }
   }
 
   if (url.pathname === "/api/opdf/session") {
     if (req.method === "GET") return sendJson(res, 200, await storage.getSession());
-    if (req.method === "PUT") return sendJson(res, 200, await storage.putSession(await readJsonBody(req)));
+    if (req.method === "PUT") {
+      const body = await sanitizeTenantSession(storage, await readJsonBody(req));
+      return sendJson(res, 200, await storage.putSession(body));
+    }
   }
 
   const route = parseDocumentRoute(url.pathname);
@@ -830,7 +859,7 @@ const server = http.createServer(async (req, res) => {
       await handleApi(req, res, url);
       return;
     }
-    if (auth.mode === "token" && url.pathname === "/") {
+    if (auth.mode === "token" && !extname(url.pathname)) {
       try {
         auth.authenticate(req, url);
       } catch (error) {

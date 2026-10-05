@@ -49,14 +49,30 @@ async function buildRotatedTextPdf() {
 
 function buildFormPdf() {
   const pageContent = "q\n1 0 0 1 100 100 cm\n/Fm0 Do\nQ";
-  const formContent = "BT\n/F1 20 Tf\n20 40 Td\n(Form child text) Tj\nET";
+  const formContent = [
+    "q",
+    "0.2 0.6 0.9 rg",
+    "20 10 60 20 re f",
+    "Q",
+    "q",
+    "20 0 0 20 120 20 cm",
+    "/Im0 Do",
+    "Q",
+    "BT",
+    "/F1 20 Tf",
+    "20 55 Td",
+    "(Form child text) Tj",
+    "ET",
+  ].join("\n");
+  const imageContent = "FF0000>";
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 420 300] /Resources << /XObject << /Fm0 5 0 R >> >> /Contents 4 0 R >>",
     `<< /Length ${Buffer.byteLength(pageContent, "ascii")} >>\nstream\n${pageContent}\nendstream`,
-    `<< /Type /XObject /Subtype /Form /FormType 1 /BBox [0 0 220 100] /Resources << /Font << /F1 6 0 R >> >> /Length ${Buffer.byteLength(formContent, "ascii")} >>\nstream\n${formContent}\nendstream`,
+    `<< /Type /XObject /Subtype /Form /FormType 1 /BBox [0 0 220 100] /Resources << /Font << /F1 6 0 R >> /XObject << /Im0 7 0 R >> >> /Length ${Buffer.byteLength(formContent, "ascii")} >>\nstream\n${formContent}\nendstream`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length ${Buffer.byteLength(imageContent, "ascii")} >>\nstream\n${imageContent}\nendstream`,
   ];
 
   let body = "%PDF-1.7\n";
@@ -195,7 +211,7 @@ test("native Edit PDF can add a new PDFium text object and persist it", async ({
 });
 
 
-test("native Edit PDF deep-edits text inside a Form XObject and persists it", async ({ page, request }) => {
+test("native Edit PDF deep-edits Form XObject text, path and image and persists it", async ({ page, request }) => {
   const upload = await request.post("/api/opdf/documents?name=native-form.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: buildFormPdf(),
@@ -208,17 +224,34 @@ test("native Edit PDF deep-edits text inside a Form XObject and persists it", as
   await page.getByTitle("Edit PDF Content").click();
 
   const editor = page.locator("[data-opdf-native-editor='true']");
-  const form = editor.locator("[data-opdf-object-depth='0']").filter({ hasText: "FORM" }).first();
+  const form = editor.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='form']").first();
   await expect(form).toBeVisible({ timeout: 20_000 });
-  const nestedText = editor.locator("[data-opdf-object-depth='1']").filter({ hasText: "Form child text" }).first();
-  await expect(nestedText).toBeVisible({ timeout: 20_000 });
-  await nestedText.click();
 
+  const nestedText = editor.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='text']").filter({ hasText: "Form child text" }).first();
+  const nestedPath = editor.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='path']").first();
+  const nestedImage = editor.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='image']").first();
+  await expect(nestedText).toBeVisible({ timeout: 20_000 });
+  await expect(nestedPath).toBeVisible({ timeout: 20_000 });
+  await expect(nestedImage).toBeVisible({ timeout: 20_000 });
+
+  await nestedText.click();
   await expect(editor.getByText("Nested in p0-o0", { exact: false })).toBeVisible();
   await expect(editor.getByLabel("Font size")).toBeDisabled();
   await editor.locator("textarea").fill("Edited inside Form");
   await editor.getByRole("button", { name: "Apply text" }).click();
   await expect(editor.getByText("Native PDF text updated.")).toBeVisible({ timeout: 20_000 });
+
+  await nestedPath.click();
+  await editor.getByLabel("Blend mode").selectOption("Multiply");
+  await editor.getByRole("button", { name: "Apply blend mode" }).click();
+  await expect(editor.getByText("Blend mode set to Multiply.")).toBeVisible({ timeout: 20_000 });
+
+  const beforeImageBounds = await nestedImage.getAttribute("data-opdf-bounds");
+  await nestedImage.click();
+  await editor.getByRole("button", { name: "→" }).click();
+  await expect(editor.getByText("Object moved.")).toBeVisible({ timeout: 20_000 });
+  const movedImage = editor.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='image']").first();
+  await expect(movedImage).not.toHaveAttribute("data-opdf-bounds", beforeImageBounds ?? "", { timeout: 20_000 });
 
   await page.getByTitle("Save (Ctrl+S)").click();
   await page.reload();
@@ -226,8 +259,19 @@ test("native Edit PDF deep-edits text inside a Form XObject and persists it", as
   await page.getByTitle("Edit PDF Content").click();
 
   const reopened = page.locator("[data-opdf-native-editor='true']");
-  await expect(reopened.locator("[data-opdf-object-depth='1']").filter({ hasText: "Edited inside Form" })).toHaveCount(1, { timeout: 20_000 });
+  const editedText = reopened.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='text']").filter({ hasText: "Edited inside Form" });
+  await expect(editedText).toHaveCount(1, { timeout: 20_000 });
   await expect(reopened.getByText("Form child text", { exact: false })).toHaveCount(0);
+  await expect(reopened.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='path']")).toHaveCount(1);
+  await expect(reopened.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='image']")).toHaveCount(1);
+
+  await editedText.click();
+  await reopened.getByRole("button", { name: "Delete object" }).click();
+  await expect(reopened.getByText("Object deleted.")).toBeVisible({ timeout: 20_000 });
+  await page.getByTitle("Save (Ctrl+S)").click();
+  await page.reload();
+  await page.getByTitle("Edit PDF Content").click();
+  await expect(page.locator("[data-opdf-native-editor='true'] [data-opdf-object-depth='1'][data-opdf-object-kind='text']")).toHaveCount(0, { timeout: 20_000 });
 });
 
 test("native Edit PDF exposes PDFium rotated bounds for precise selection", async ({ page, request }) => {

@@ -12,6 +12,8 @@ import type {
 type PdfiumModule = any;
 
 let pdfiumPromise: Promise<PdfiumModule> | null = null;
+const unicodeFontUrl = new URL("../../../../packages/core/src/assets/NotoSans-VietnameseMerged.ttf", import.meta.url).href;
+
 
 async function getPdfium(): Promise<PdfiumModule> {
   if (!pdfiumPromise) {
@@ -125,7 +127,22 @@ function objectKind(type: number): PdfContentObjectKind | null {
   return null;
 }
 
-function replaceTextObjectFontSize(
+async function loadUnicodeFont(module: PdfiumModule, docPtr: number): Promise<number> {
+  const response = await fetch(unicodeFontUrl);
+  if (!response.ok) throw new Error(`Unable to load OPDF Unicode font: ${response.status}`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const ptr = malloc(module, bytes.byteLength);
+  try {
+    module.pdfium.HEAPU8.set(bytes, ptr);
+    const fontPtr = module.FPDFText_LoadFont(docPtr, ptr, bytes.byteLength, 2, true);
+    if (!fontPtr) throw new Error("PDFium could not embed the OPDF Unicode font.");
+    return fontPtr;
+  } finally {
+    free(module, ptr);
+  }
+}
+
+async function replaceTextObjectFontSize(
   module: PdfiumModule,
   docPtr: number,
   pagePtr: number,
@@ -133,10 +150,12 @@ function replaceTextObjectFontSize(
   objectIndex: number,
   fontSize: number,
   fontFamily?: string,
-): number {
-  const fontPtr = fontFamily
-    ? module.FPDFText_LoadStandardFont(docPtr, fontFamily)
-    : module.FPDFTextObj_GetFont(objectPtr);
+): Promise<number> {
+  const fontPtr = fontFamily === "__opdf_unicode__"
+    ? await loadUnicodeFont(module, docPtr)
+    : fontFamily
+      ? module.FPDFText_LoadStandardFont(docPtr, fontFamily)
+      : module.FPDFTextObj_GetFont(objectPtr);
   if (!fontPtr) throw new Error("Unable to load the requested PDF font.");
   const textPagePtr = module.FPDFText_LoadPage(pagePtr);
   if (!textPagePtr) throw new Error("Unable to read text before resizing.");
@@ -371,7 +390,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               if (patch.fontSize !== undefined || patch.fontFamily) {
                 const { objectIndex } = parseObjectId(patch.objectId);
                 const currentSize = readFontSize(module, objectPtr) ?? 12;
-                styledObjectPtr = replaceTextObjectFontSize(
+                styledObjectPtr = await replaceTextObjectFontSize(
                   module,
                   docPtr,
                   pagePtr,

@@ -46,7 +46,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
         docBytes: null,
         documentIdentity: nextIdentity,
         annotations: state.annotations,
-        bookmarks: state.bookmarks,
         pageRotations: state.pageRotations,
       });
       state.setViewerError("Saved to OPDF Server.");
@@ -58,7 +57,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     state.sourceIdentity,
     state.fileName,
     state.annotations,
-    state.bookmarks,
     state.pageRotations,
     state.setDocBytes,
     state.setSourceBlob,
@@ -81,9 +79,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setPage: state.setPage,
     setTotalPages: state.setTotalPages,
     setViewerError: state.setViewerError,
-    setThumbnails: state.setThumbnails,
     setAnnotations: state.setAnnotations,
-    setBookmarks: state.setBookmarks,
     setPageRotations: state.setPageRotations,
     setSaveState: state.setSaveState,
     markDocumentSaved: state.markDocumentSaved,
@@ -309,8 +305,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     hasDocument: state.hasDocument,
     fileName: state.fileName,
     annotations: state.annotations,
-    thumbnails: state.thumbnails,
-    bookmarks: state.bookmarks,
     page: state.page,
     theme: state.theme,
     setFileName: state.setFileName,
@@ -319,8 +313,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setSourceIdentity: state.setSourceIdentity,
     setAnnotations: state.setAnnotations,
     setPage: state.setPage,
-    setThumbnails: state.setThumbnails,
-    setBookmarks: state.setBookmarks,
     setPageRotations: state.setPageRotations,
     setOpenMenu: state.setOpenMenu,
     setActiveTool: state.setActiveTool,
@@ -355,7 +347,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setSourceIdentity: state.setSourceIdentity,
     setPage: state.setPage,
     setViewerError: state.setViewerError,
-    setThumbnails: state.setThumbnails,
     setAnnotations: state.setAnnotations,
   });
 

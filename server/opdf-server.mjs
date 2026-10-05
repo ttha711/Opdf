@@ -15,6 +15,12 @@ import { createSigningApi } from "./opdf-signing-api.mjs";
 import { createAuthService } from "./opdf-auth.mjs";
 import { createTenantRuntime } from "./opdf-tenancy.mjs";
 import { createS3ObjectStoreFromEnv } from "./opdf-s3.mjs";
+import {
+  applyProductionSecurityHeaders,
+  assertSafeMutationRequest,
+  createLoginRateLimiter,
+  requestId,
+} from "./opdf-production-guard.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -48,9 +54,12 @@ const officeConverterScript = resolve(
 );
 const officeWorkerTimeoutMs = Number(process.env.OPDF_OFFICE_WORKER_TIMEOUT_MS || 5 * 60 * 1000);
 const libreOfficePath = process.env.OPDF_LIBREOFFICE_PATH || (process.platform === "win32" ? "soffice.exe" : "soffice");
+const loginRateLimiter = createLoginRateLimiter(process.env);
+let shuttingDown = false;
 
 
 function setBaseHeaders(res) {
+  applyProductionSecurityHeaders(res, process.env);
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "same-origin");
   res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
@@ -668,11 +677,30 @@ async function handleOcrApi(req, res, url) {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname === "/api/opdf/live" && req.method === "GET") {
+    return sendJson(res, 200, { ok: true, status: "live" });
+  }
+
+  if (url.pathname === "/api/opdf/ready" && req.method === "GET") {
+    return sendJson(res, shuttingDown ? 503 : 200, {
+      ok: !shuttingDown,
+      status: shuttingDown ? "draining" : "ready",
+      storage: objectStore ? "s3" : "local",
+    });
+  }
+
+  assertSafeMutationRequest(req, process.env);
+
   if (url.pathname === "/api/opdf/auth/login" && req.method === "POST") {
     if (!auth.enabled) return sendError(res, 404, "Authentication is disabled.");
     const body = await readJsonBody(req, 64 * 1024);
+    loginRateLimiter.assertAllowed(req, body.email);
     const user = await auth.authenticate(body.email, body.password);
-    if (!user) return sendError(res, 401, "Invalid email or password.");
+    if (!user) {
+      loginRateLimiter.recordFailure(req, body.email);
+      return sendError(res, 401, "Invalid email or password.");
+    }
+    loginRateLimiter.clear(req, body.email);
     auth.setSessionCookie(req, res, auth.issueToken(user));
     return sendJson(res, 200, { user: auth.publicUser(user) });
   }
@@ -860,10 +888,13 @@ async function handleApi(req, res, url) {
   });
 }
 
+if (objectStore) await objectStore.probe();
 await auth.ensure();
 await tenantRuntime.ensure();
 
 const server = http.createServer(async (req, res) => {
+  const id = requestId(req);
+  res.setHeader("X-Request-Id", id);
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
     if (url.pathname.startsWith("/api/opdf/")) {
@@ -874,6 +905,9 @@ const server = http.createServer(async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const status = error?.statusCode || (/too large|exceeds|quota/i.test(message) ? 413 : /Invalid document id|Invalid project id/.test(message) ? 400 : 500);
+    if (error?.retryAfterSeconds) {
+      res.setHeader("Retry-After", String(error.retryAfterSeconds));
+    }
     sendError(res, status, message);
   }
 });
@@ -882,3 +916,24 @@ server.listen(port, host, () => {
   console.log(`OPDF Server listening on http://${host}:${port}`);
   console.log(`Data directory: ${dataDir}`);
 });
+
+function beginShutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`OPDF Server received ${signal}; draining connections.`);
+  server.close((error) => {
+    if (error) {
+      console.error("OPDF Server shutdown failed:", error);
+      process.exitCode = 1;
+    }
+  });
+  const deadline = setTimeout(() => {
+    console.error("OPDF Server forced shutdown after drain timeout.");
+    process.exitCode = 1;
+    process.exit();
+  }, 10_000);
+  deadline.unref();
+}
+
+process.once("SIGTERM", () => beginShutdown("SIGTERM"));
+process.once("SIGINT", () => beginShutdown("SIGINT"));

@@ -1,5 +1,5 @@
 // opdf-file-size-allow: S3 SigV4 transport keeps signing and multipart protocol in one audited module.
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -333,6 +333,21 @@ export function createS3ObjectStore(config = {}) {
     ), [200, 204]);
   }
 
+  async function probe() {
+    const probeKey = `__health/probe-${randomUUID()}.txt`;
+    const bytes = Buffer.from("opdf-s3-health", "utf8");
+    try {
+      await put(probeKey, bytes, "text/plain", { ifNoneMatch: "*" });
+      const stored = await get(probeKey);
+      if (!stored || Buffer.compare(stored, bytes) !== 0) {
+        throw new Error("S3 readiness probe read-back mismatch.");
+      }
+      return true;
+    } finally {
+      await remove(probeKey).catch(() => {});
+    }
+  }
+
   return {
     kind: "s3",
     endpoint: endpoint.origin,
@@ -351,6 +366,7 @@ export function createS3ObjectStore(config = {}) {
     uploadPart,
     completeMultipart,
     abortMultipart,
+    probe,
   };
 }
 

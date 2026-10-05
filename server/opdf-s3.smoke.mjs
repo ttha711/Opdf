@@ -207,6 +207,8 @@ try {
     pathStyle: true,
   });
 
+  assert(await objectStore.probe(), "S3 startup probe failed");
+
   const direct = Buffer.from("shared-object-storage");
   const firstWrite = await objectStore.put(
     "smoke/direct.txt",

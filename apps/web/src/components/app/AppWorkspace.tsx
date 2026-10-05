@@ -12,11 +12,9 @@ import { InsertPdfModal } from "../InsertPdfModal";
 import { MergeModal } from "../MergeModal";
 import { SplitModal } from "../SplitModal";
 import type { MarkupTool } from "../../hooks/useDocumentActions";
-
 type Controllers = ReturnType<typeof import("../../hooks/useAppControllers").useAppControllers>;
 type Sidebars = ReturnType<typeof import("../../hooks/useResizableSidebars").useResizableSidebars>;
 type PageActions = ReturnType<typeof import("../../hooks/useAppPageManagement").useAppPageManagement>;
-
 type Props = {
   controllers: Controllers;
   sidebars: Sidebars;
@@ -34,7 +32,6 @@ type Props = {
   openMarkupSidebar: (tool: MarkupTool) => void;
   success: (message: string) => void;
 };
-
 export function AppWorkspace({
   controllers,
   sidebars,
@@ -91,7 +88,6 @@ export function AppWorkspace({
     showRight ? "6px" : "0px",
     showRight ? `${rightWidth}px` : "0px",
   ].join(" ");
-
   return (
     <main className="workspace acrobat-body" style={{ gridTemplateColumns: columns }}>
       {!state.hasDocument && state.activeDashboardTool ? (
@@ -157,7 +153,6 @@ export function AppWorkspace({
           ) : null}
         </>
       )}
-
       <SplitModal
         isOpen={state.showSplitModal}
         onClose={() => state.setShowSplitModal(false)}
@@ -197,7 +192,6 @@ export function AppWorkspace({
         hasDesktopBridge={state.hasDesktopBridge}
         bridge={bridge}
       />
-
       <div
         className={`sidebar-resizer ${isDraggingRight ? "dragging" : ""}`}
         onMouseDown={() => setIsDraggingRight(true)}
@@ -282,7 +276,6 @@ export function AppWorkspace({
           />
         ) : null}
       </div>
-
       {state.hasDocument && isLeftCollapsed ? (
         <button type="button" className="opdf-mobile-pages-toggle" onClick={() => setIsLeftCollapsed(false)}>
           Pages

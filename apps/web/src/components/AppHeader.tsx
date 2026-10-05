@@ -8,6 +8,7 @@ import { getEditorLaunchTitle } from "../lib/documentEditingExperience";
 import { useOpdfBridge } from "../hooks/useOpdfBridge";
 import { toast } from "./ToastProvider";
 import { AiSparkIcon } from "./AiSparkIcon";
+import { redoNativeContentEdit, undoNativeContentEdit } from "../lib/nativeContentHistory";
 
 export function AppHeader({
   fileInputRef,
@@ -229,7 +230,7 @@ export function AppHeader({
         </div>
         <div className="opdf-desktop-menus">
           <MenuDropdown label="File" items={fileMenuItems} isOpen={openMenu === "File"} onToggle={() => toggleMenu("File")} onClose={closeMenu} />
-          <MenuDropdown label="Edit" items={editMenuItems} isOpen={openMenu === "Edit"} onToggle={() => toggleMenu("Edit")} onClose={closeMenu} />
+          <MenuDropdown label="Edit" items={activeTool === "edit-content" ? editMenuItems.map((item) => item.kind === "action" && item.label === "Undo" ? { ...item, disabled: false, onClick: () => { void undoNativeContentEdit(); } } : item.kind === "action" && item.label === "Redo" ? { ...item, disabled: false, onClick: () => { void redoNativeContentEdit(); } } : item) : editMenuItems} isOpen={openMenu === "Edit"} onToggle={() => toggleMenu("Edit")} onClose={closeMenu} />
           <MenuDropdown label="View" items={viewMenuItems} isOpen={openMenu === "View"} onToggle={() => toggleMenu("View")} onClose={closeMenu} />
           <MenuDropdown label="Tools" items={compactToolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
         </div>
@@ -238,8 +239,8 @@ export function AppHeader({
             <>
               <button data-opdf-action="save" className="top-menu-btn" type="button" title="Save (Ctrl+S)" onClick={savePdf}>Save</button>
               <button data-opdf-action="edit-content" className="top-menu-btn" type="button" title="Edit PDF Content" onClick={() => setActiveTool("edit-content")}>Edit PDF</button>
-              <button data-opdf-action="undo" className="top-menu-btn" type="button" title="Undo (Ctrl+Z)" onClick={undoAnnotations}>Undo</button>
-              <button data-opdf-action="redo" className="top-menu-btn" type="button" title="Redo (Ctrl+Y)" onClick={redoAnnotations}>Redo</button>
+              <button data-opdf-action="undo" className="top-menu-btn" type="button" title="Undo (Ctrl+Z)" onClick={activeTool === "edit-content" ? () => { void undoNativeContentEdit(); } : undoAnnotations}>Undo</button>
+              <button data-opdf-action="redo" className="top-menu-btn" type="button" title="Redo (Ctrl+Y)" onClick={activeTool === "edit-content" ? () => { void redoNativeContentEdit(); } : redoAnnotations}>Redo</button>
             </>
           ) : null}
           <button

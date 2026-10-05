@@ -30,7 +30,13 @@ export async function openEmbedPdfSidebar(viewer: Locator) {
 export async function closeEmbedPdfSidebar(viewer: Locator) {
   const button = embedPdfSidebarButton(viewer);
   const panel = embedPdfSidebarPanel(viewer);
-  await button.click();
+  const mobileOverlay = panel.locator("xpath=preceding-sibling::div[1]");
+
+  if (await mobileOverlay.isVisible()) {
+    await mobileOverlay.click();
+  } else {
+    await button.click();
+  }
   await expect(panel).toBeHidden({ timeout: 15_000 });
 }
 

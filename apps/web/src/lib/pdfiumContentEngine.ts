@@ -267,6 +267,9 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               } finally {
                 free(module, matrixPtr);
               }
+            } else if (patch.type === "relative-transform") {
+              const [a, b, c, d, e, f] = patch.matrix;
+              module.FPDFPageObj_Transform(objectPtr, a, b, c, d, e, f);
             } else if (patch.type === "delete") {
               if (!module.FPDFPage_RemoveObject(pagePtr, objectPtr)) throw new Error(`Unable to delete ${patch.objectId}.`);
             } else if (patch.type === "style-text") {
@@ -278,6 +281,18 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
                 if (!module.FPDFPageObj_SetFillColor(objectPtr, r, g, b, a)) throw new Error(`Unable to change text color for ${patch.objectId}.`);
               }
               if (patch.fontFamily) throw new Error("Changing font family requires font embedding and is not enabled yet.");
+            } else if (patch.type === "style-object") {
+              if (patch.fillColor) {
+                const [r, g, b, a] = parseColor(patch.fillColor);
+                if (!module.FPDFPageObj_SetFillColor(objectPtr, r, g, b, a)) throw new Error(`Unable to set fill color for ${patch.objectId}.`);
+              }
+              if (patch.strokeColor) {
+                const [r, g, b, a] = parseColor(patch.strokeColor);
+                if (!module.FPDFPageObj_SetStrokeColor(objectPtr, r, g, b, a)) throw new Error(`Unable to set stroke color for ${patch.objectId}.`);
+              }
+              if (patch.strokeWidth !== undefined && !module.FPDFPageObj_SetStrokeWidth(objectPtr, patch.strokeWidth)) {
+                throw new Error(`Unable to set stroke width for ${patch.objectId}.`);
+              }
             } else {
               throw new Error(`Content patch ${patch.type} is not implemented by the PDFium engine yet.`);
             }

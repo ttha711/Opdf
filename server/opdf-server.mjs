@@ -9,6 +9,7 @@ import http from "node:http";
 import { DocumentService } from "@opdf/core";
 import { createOpdfStorage, assertDocumentId, sanitizeFileName } from "./opdf-storage.mjs";
 import { createChunkUploadApi } from "./opdf-upload.mjs";
+import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -24,6 +25,9 @@ const uploadChunkBytes = Number.isFinite(configuredUploadChunkBytes)
   : 8 * 1024 * 1024;
 const storage = createOpdfStorage(dataDir);
 const documentService = new DocumentService();
+const ocrQueue = createOcrJobQueue(dataDir, {
+  concurrency: Number(process.env.OPDF_OCR_CONCURRENCY || 1),
+});
 const pythonPath = process.env.OPDF_PYTHON_PATH || (process.platform === "win32" ? "python" : "python3");
 const officeConverterScript = resolve(
   process.env.OPDF_OFFICE_CONVERTER_SCRIPT ||
@@ -579,6 +583,54 @@ const handleChunkUpload = createChunkUploadApi({
   sendError,
 });
 
+async function handleOcrApi(req, res, url) {
+  if (url.pathname === "/api/opdf/ocr/jobs") {
+    if (req.method === "GET") return sendJson(res, 200, ocrQueue.list());
+    if (req.method === "POST") {
+      const body = await readJsonBody(req, 64 * 1024);
+      const filePath = typeof body.filePath === "string" ? body.filePath : "document.pdf";
+      const language = typeof body.language === "string" && body.language.trim()
+        ? body.language.trim()
+        : "eng+vie";
+      return sendJson(res, 201, ocrQueue.enqueue(filePath, language));
+    }
+    return sendError(res, 405, "Method not allowed.");
+  }
+
+  const match = url.pathname.match(/^\/api\/opdf\/ocr\/jobs\/([0-9a-f-]{36})(?:\/(run|output|cancel))?$/i);
+  if (!match) return false;
+  const jobId = match[1];
+  const action = match[2] || null;
+
+  if (!action && req.method === "GET") {
+    const job = ocrQueue.get(jobId);
+    return job ? sendJson(res, 200, job) : sendError(res, 404, "OCR job not found.");
+  }
+
+  if (action === "run" && req.method === "POST") {
+    const job = ocrQueue.get(jobId);
+    if (!job) return sendError(res, 404, "OCR job not found.");
+    if (job.status !== "queued") return sendJson(res, 200, job);
+    const inputPath = join(dataDir, "ocr", jobId, `input-${Date.now()}.pdf`);
+    await streamBodyToPath(req, inputPath);
+    const queued = await ocrQueue.submit(jobId, inputPath);
+    return sendJson(res, 202, queued);
+  }
+
+  if (action === "output" && req.method === "GET") {
+    const output = await ocrQueue.getOutput(jobId);
+    if (!output) return sendError(res, 404, "OCR output is not ready.");
+    return sendPdf(res, new Uint8Array(output.bytes));
+  }
+
+  if (action === "cancel" && req.method === "POST") {
+    const job = ocrQueue.cancel(jobId);
+    return job ? sendJson(res, 200, job) : sendError(res, 404, "OCR job not found.");
+  }
+
+  return sendError(res, 405, "Method not allowed.");
+}
+
 async function handleApi(req, res, url) {
   if (url.pathname === "/api/opdf/health" && req.method === "GET") {
     return sendJson(res, 200, {
@@ -601,12 +653,19 @@ async function handleApi(req, res, url) {
         rangePreview: true,
         resumableUpload: true,
         localFirstUpload: true,
+        ocrQueue: true,
+        searchablePdfOcr: true,
       },
     });
   }
 
   if (url.pathname === "/api/opdf/uploads" || url.pathname.startsWith("/api/opdf/uploads/")) {
     if (await handleChunkUpload(req, res, url)) return;
+  }
+
+  if (url.pathname === "/api/opdf/ocr/jobs" || url.pathname.startsWith("/api/opdf/ocr/jobs/")) {
+    const handled = await handleOcrApi(req, res, url);
+    if (handled !== false) return;
   }
 
   if (url.pathname === "/api/opdf/operations/convert-office") {
@@ -676,6 +735,7 @@ async function handleApi(req, res, url) {
 }
 
 await storage.ensure();
+await ocrQueue.ensure();
 
 const server = http.createServer(async (req, res) => {
   try {

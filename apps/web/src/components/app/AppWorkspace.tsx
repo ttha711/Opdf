@@ -147,7 +147,7 @@ export function AppWorkspace({
               style={{ gridColumn: 3 }}
             >
               <ViewerErrorBoundary>
-                <AdaptivePdfViewer {...viewerProps} />
+                <AdaptivePdfViewer {...viewerProps} getDocumentBytes={materializeDocumentBytes} />
               </ViewerErrorBoundary>
             </section>
           ) : null}

@@ -168,6 +168,13 @@ export function PdfViewer({
         redo: () => historyScope?.redo?.(),
         canUndo: () => Boolean(historyScope?.canUndo?.()),
         canRedo: () => Boolean(historyScope?.canRedo?.()),
+        goToPage: (pageNumber) => {
+          const scrollScope = scroll?.forDocument?.(DOCUMENT_ID) ?? scroll;
+          scrollScope?.scrollToPage?.({
+            pageNumber: Math.max(1, pageNumber),
+            behavior: "instant",
+          });
+        },
         executeCommand: async (commandId) => {
           await commandScope?.execute?.(commandId, "api");
         },

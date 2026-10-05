@@ -37,8 +37,23 @@ export function useOcrAction({
         throw new Error("Current document bytes are not a valid PDF input for OCR.");
       }
       setViewerError("Running OCR...");
-      const job = await bridge.enqueueOcr(fileName, "eng");
-      const result = await bridge.runOcr(job.id, sourceBytes);
+      const job = await bridge.enqueueOcr(fileName, "eng+vie");
+      let progressTimer: number | undefined;
+      progressTimer = window.setInterval(() => {
+        void bridge.listOcrJobs().then((jobs) => {
+          setOcrJobs(jobs);
+          const current = jobs.find((item) => item.id === job.id);
+          if (current && (current.status === "queued" || current.status === "running")) {
+            setViewerError(`Running OCR... ${Math.max(0, Math.min(100, current.progress))}%`);
+          }
+        }).catch(() => {});
+      }, 500);
+      let result;
+      try {
+        result = await bridge.runOcr(job.id, sourceBytes);
+      } finally {
+        if (progressTimer !== undefined) window.clearInterval(progressTimer);
+      }
       setOcrJobs(await bridge.listOcrJobs());
       if (!result) {
         throw new Error("OCR job not found");

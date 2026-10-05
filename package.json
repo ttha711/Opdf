@@ -32,7 +32,8 @@
     "audit:prod": "node scripts/opdf-cli.mjs audit smoke",
     "server-reliability": "node server/opdf-server.reliability.mjs",
     "check:file-size": "node scripts/check-file-size.mjs",
-    "perf:real-world": "node scripts/perf/real-world-pdf-smoke.mjs"
+    "perf:real-world": "node scripts/perf/real-world-pdf-smoke.mjs",
+    "server-auth-smoke": "node server/opdf-auth.smoke.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

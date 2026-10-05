@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { deflateSync } from "node:zlib";
 import { init } from "@embedpdf/pdfium";
 import { PdfiumNative, PdfEngine } from "@embedpdf/engines/pdfium";
@@ -72,7 +73,7 @@ export async function createPdfiumOcrRenderer(pdfBytes) {
     pdfBytes.byteOffset + pdfBytes.byteLength,
   );
   const document = await engine.openDocumentBuffer({
-    id: `ocr-${crypto.randomUUID()}`,
+    id: `ocr-${randomUUID()}`,
     content,
   }).toPromise();
 

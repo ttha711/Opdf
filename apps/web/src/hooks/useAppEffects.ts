@@ -29,7 +29,6 @@ type AppEffectsArgs = {
   setSourceIdentity: (v: string) => void;
   setAnnotations: (v: Annotation[]) => void;
   setPage: (v: number) => void;
-  setPageRotations: (v: Record<number, number>) => void;
   setOpenMenu: Dispatch<SetStateAction<string | null>>;
   setActiveTool: (v: ActiveTool) => void;
   setTheme: Dispatch<SetStateAction<"light" | "dark">>;
@@ -56,7 +55,7 @@ type AppEffectsArgs = {
 export function useAppEffects(args: AppEffectsArgs) {
   const {
     bridge, hasDesktopBridge, docBytes, hasDocument, fileName, annotations, page, theme,
-    setFileName, setDocBytes, setSourceBlob, setSourceIdentity, setAnnotations, setPage, setPageRotations, setOpenMenu, setActiveTool, setTheme,
+    setFileName, setDocBytes, setSourceBlob, setSourceIdentity, setAnnotations, setPage, setOpenMenu, setActiveTool, setTheme,
     openFile, savePdf, savePdfAs, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage,
 
     // NEW TABS PROPS
@@ -113,7 +112,6 @@ export function useAppEffects(args: AppEffectsArgs) {
             setSourceIdentity(targetTab.sourceIdentity ?? "");
             setPage(targetTab.page || 1);
             setAnnotations(targetTab.annotations || []);
-            setPageRotations(targetTab.pageRotations || {});
 
             if (bridge.replaceAnnotations) {
               await bridge.replaceAnnotations(
@@ -155,7 +153,6 @@ export function useAppEffects(args: AppEffectsArgs) {
             setSourceIdentity(newTab.sourceIdentity ?? "");
             setPage(newTab.page);
             setAnnotations(newTab.annotations);
-            setPageRotations({});
 
             if (bridge.replaceAnnotations) {
               await bridge.replaceAnnotations(

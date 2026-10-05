@@ -73,14 +73,21 @@ export function createOpdfStorage(rootDir) {
     }
   }
 
-  async function createDocument(fileName) {
+  async function createDocument(fileName, uploadExpectedSize = null) {
     await ensure();
     const id = randomUUID();
     const name = sanitizeFileName(fileName);
     const dir = docDir(id);
     await mkdir(dir, { recursive: true });
     const now = Date.now();
-    const meta = { id, fileName: name, size: 0, createdAt: now, updatedAt: now };
+    const meta = {
+      id,
+      fileName: name,
+      size: 0,
+      createdAt: now,
+      updatedAt: now,
+      ...(Number.isInteger(uploadExpectedSize) && uploadExpectedSize > 0 ? { uploadExpectedSize } : {}),
+    };
     await writeJsonAtomic(metaPath(id), meta);
     return {
       ...meta,
@@ -108,6 +115,8 @@ export function createOpdfStorage(rootDir) {
     const next = { ...current, size, updatedAt: Date.now() };
     delete next.filePath;
     delete next.pdfPath;
+    delete next.tempPath;
+    delete next.uploadExpectedSize;
     await writeJsonAtomic(metaPath(id), next);
     return getDocument(id);
   }

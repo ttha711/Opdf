@@ -1,4 +1,5 @@
-// opdf-file-size-allow: legacy server bridge coordinator; OCR transport stays isolated in serverOcr.ts.\nimport type {
+// opdf-file-size-allow: legacy server bridge coordinator; OCR transport stays isolated in serverOcr.ts.
+import type {
   Annotation, AnnotationCreateInput, OcrJob, OpenDocumentResult,
   RecentDocument, SessionSnapshot, PasswordOptions, PageNumbers,
   HeaderFooterLine, CropOptions, InsertOptions,

@@ -243,7 +243,24 @@ try {
   const pagesToggle = mobileViewer.getByRole("button", { name: /sidebar/i }).first();
   await pagesToggle.waitFor({ state: "visible", timeout: 5000 });
   await pagesToggle.click();
-  await mobileViewer.getByRole("button", { name: /Page 1$/i }).first().waitFor({ state: "visible", timeout: 5000 });
+  await page.waitForFunction(
+    () =>
+      Array.from(document.querySelectorAll(".viewer-shell img, .viewer-shell canvas")).some((surface) => {
+        const rect = surface.getBoundingClientRect();
+        return (
+          rect.width >= 48 &&
+          rect.width <= 240 &&
+          rect.height >= 64 &&
+          rect.height <= 340 &&
+          rect.bottom > 0 &&
+          rect.right > 0 &&
+          rect.top < window.innerHeight &&
+          rect.left < window.innerWidth
+        );
+      }),
+    undefined,
+    { timeout: 10000 },
+  );
   await shot("16-mobile-pages-drawer");
 
   await pagesToggle.click();

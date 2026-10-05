@@ -82,11 +82,11 @@ For a permanent hostname, point the Cloudflare Tunnel service at:
 http://127.0.0.1:8787
 ```
 
-Use Cloudflare Access (or another authenticated reverse proxy) in front of OPDF before exposing it to users. The first server-runtime phase intentionally does not implement user accounts or application-level authorization yet.
+Use Cloudflare Access in front of OPDF for Internet-facing deployments. OPDF can also enforce application-level token authentication or consume the authenticated Cloudflare Access email identity as described below.
 
 ## Data directory
 
-The server creates:
+With authentication disabled, the legacy layout remains unchanged:
 
 ```
 OPDF_DATA_DIR/
@@ -97,6 +97,25 @@ OPDF_DATA_DIR/
       annotations.json
   recents.json
   session.json
+```
+
+When multi-user authentication is enabled, PDF blobs keep stable UUID paths under `documents/`, while ownership is enforced from `meta.json`. User/project state is isolated under:
+
+```
+OPDF_DATA_DIR/
+  documents/
+    <uuid>/
+      document.pdf
+      meta.json        # ownerId + projectId
+      annotations.json
+  tenants/
+    <user-id>/
+      certificates/
+      projects/
+        <project-id>/
+          recents.json
+          session.json
+          ocr/
 ```
 
 Set `OPDF_DATA_DIR` outside the Git checkout for production so upgrades do not touch user data.
@@ -188,9 +207,10 @@ npm ci
 npm run server-build
 npm run server-smoke
 npm run server-reliability
+npm run server-auth-smoke
 ```
 
-The normal GitHub CI runs both `server-smoke` and `server-reliability` after the workspace build. The reliability audit verifies restart persistence, failed-save isolation, failed-upload cleanup, and safe fallback for corrupt session/annotation JSON.
+The normal GitHub CI runs all three server gates after the workspace build. The auth smoke verifies login/session cookies, user and project isolation, quota rejection, and Cloudflare Access identity allowlisting.
 
 ## Production process
 
@@ -271,12 +291,83 @@ OPDF_DATA_DIR/
 
 For remote use, keep the same-origin API behind HTTPS and configure reverse proxies not to log the `X-OPDF-Options` header because it carries the transient certificate passphrase during signing.
 
-## Next server phases
+## Multi-user authentication, projects, and quotas
 
-After server OCR and P12/PFX signing, the remaining production server phases are:
+Authentication is backward compatible and disabled by default:
 
-1. Multi-user authentication, authorization, quotas, and per-user/project storage.
-2. S3-compatible object storage for multi-node deployments.
+```powershell
+$env:OPDF_AUTH_MODE="disabled"
+```
+
+### Token mode
+
+Token mode is suitable for a private family/team deployment where OPDF itself owns the login boundary. Configure a JSON object keyed by long random bearer tokens:
+
+```powershell
+$env:OPDF_AUTH_MODE="token"
+$env:OPDF_AUTH_TOKENS='{
+  "replace-with-a-long-random-token-1": {
+    "userId": "alice",
+    "displayName": "Alice",
+    "quotaBytes": 5368709120,
+    "projects": ["default", "home"]
+  },
+  "replace-with-a-long-random-token-2": {
+    "userId": "bob",
+    "displayName": "Bob",
+    "quotaBytes": 2147483648,
+    "projects": ["default"]
+  }
+}'
+npm run server-start
+```
+
+The root URL shows the OPDF sign-in page until a valid token is entered. After login, OPDF stores the token in an `HttpOnly; SameSite=Strict` session cookie so PDFium range requests authenticate without exposing the token to application JavaScript. HTTPS deployments also receive the `Secure` cookie flag.
+
+### Cloudflare Access mode
+
+When Cloudflare Access already protects the Tunnel, OPDF can use the authenticated email header as its application identity:
+
+```powershell
+$env:OPDF_AUTH_MODE="cloudflare"
+$env:OPDF_CLOUDFLARE_ALLOWED_EMAILS="alice@example.com,bob@example.com"
+npm run server-start
+```
+
+Keep the OPDF origin bound to `127.0.0.1` or otherwise prevent direct bypass of Cloudflare Access. In this mode OPDF trusts the identity header supplied by the Access-protected reverse-proxy boundary.
+
+### Projects and isolation
+
+Each authenticated request resolves exactly one user and one active project. Documents, annotations, Recents, sessions, OCR jobs, and signing certificate storage are scoped so another user or project receives a normal 404 instead of learning that a UUID exists elsewhere.
+
+The header account menu shows:
+
+- signed-in identity;
+- active project;
+- used storage vs quota;
+- available projects;
+- project creation/switching;
+- Sign out in token mode.
+
+Switching projects reloads the workspace so tabs/Recents/session state are restored from the selected project only.
+
+### Storage quotas
+
+The default authenticated-user quota is 5 GiB:
+
+```powershell
+$env:OPDF_DEFAULT_USER_QUOTA_BYTES="5368709120"
+```
+
+Token entries can override `quotaBytes` per user. Resumable uploads are rejected before an upload session is created when the declared total would exceed quota. Normal uploads and replacements also check `Content-Length` before accepting the body and re-check the actual final byte count before persistence.
+
+Authentication-disabled legacy mode intentionally bypasses quotas so existing single-user deployments retain their current behavior.
+
+## Next server phase
+
+After OCR, encrypted signing, and multi-user isolation, the remaining production server phase is:
+
+1. S3-compatible object storage for multi-node deployments.
 
 
 ## Office to PDF conversion

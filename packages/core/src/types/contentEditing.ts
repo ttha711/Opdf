@@ -6,6 +6,8 @@ export type PdfMatrix = [number, number, number, number, number, number];
 export type PdfContentObject = {
   id: string;
   pageIndex: number;
+  pageWidth: number;
+  pageHeight: number;
   kind: PdfContentObjectKind;
   bounds: PdfRect;
   matrix: PdfMatrix;

@@ -233,7 +233,7 @@ export function AppHeader({
           Open
         </button>
         {hasDocument && (
-          <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${saveState === "saving" ? "bg-amber-100 text-amber-700" : saveState === "saved" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+          <span data-opdf-save-state={saveState} className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${saveState === "saving" ? "bg-amber-100 text-amber-700" : saveState === "saved" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
             {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Unsaved"}
           </span>
         )}

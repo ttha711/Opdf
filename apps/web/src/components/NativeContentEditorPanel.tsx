@@ -74,13 +74,18 @@ export function NativeContentEditorPanel({
     }
   };
 
-  const move = (dx: number, dy: number) => {
+  const transform = (matrix: [number, number, number, number, number, number], success: string) => {
     if (!selected) return;
-    const [a, b, c, d, e, f] = selected.matrix;
-    void apply(
-      [{ type: "transform", objectId: selected.id, matrix: [a, b, c, d, e + dx, f + dy] }],
-      "Object moved.",
-    );
+    void apply([{ type: "relative-transform", objectId: selected.id, matrix }], success);
+  };
+
+  const move = (dx: number, dy: number) => transform([1, 0, 0, 1, dx, dy], "Object moved.");
+  const scale = (factor: number) => transform([factor, 0, 0, factor, 0, 0], "Object resized.");
+  const rotate = (degrees: number) => {
+    const radians = degrees * Math.PI / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    transform([cos, sin, -sin, cos, 0, 0], "Object rotated.");
   };
 
   const saveText = () => {
@@ -166,6 +171,31 @@ export function NativeContentEditorPanel({
               <button type="button" onClick={() => move(5, 0)}>→</button>
             </div>
           </div>
+          <div className="native-content-editor__move">
+            <span>Transform</span>
+            <div>
+              <button type="button" onClick={() => scale(0.9)}>− Size</button>
+              <button type="button" onClick={() => scale(1.1)}>+ Size</button>
+              <button type="button" onClick={() => rotate(-5)}>↶ 5°</button>
+              <button type="button" onClick={() => rotate(5)}>↷ 5°</button>
+            </div>
+          </div>
+
+          {selected.kind === "path" ? (
+            <div className="native-content-editor__row">
+              <label>
+                Fill
+                <input
+                  type="color"
+                  value={draftColor}
+                  onChange={(event) => {
+                    setDraftColor(event.target.value);
+                    void apply([{ type: "style-object", objectId: selected.id, fillColor: event.target.value }], "Path fill updated.");
+                  }}
+                />
+              </label>
+            </div>
+          ) : null}
 
           <button
             type="button"

@@ -136,7 +136,7 @@ export function AppWorkspace({
             title="Drag to resize sidebar, Double click to collapse"
             style={{ gridColumn: 2, display: !showLeft || isLeftCollapsed ? "none" : "block" }}
           />
-          {state.hasDocument && activeTab ? (
+          {activeTab ? (
             <section
               key={activeTab.id}
               ref={viewerAreaRef}

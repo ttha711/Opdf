@@ -1,6 +1,7 @@
 import type { ChangeEvent, Ref } from "react";
 import { MenuDropdown, type MenuItemDef } from "./MenuDropdown";
 import type { ActiveTool } from "../lib/app-types";
+import type { DocumentTool } from "../lib/document-tools";
 import { TabBar } from "./TabBar";
 import type { OpdfTab } from "../lib/web-storage";
 import { getEditorLaunchTitle } from "../lib/documentEditingExperience";

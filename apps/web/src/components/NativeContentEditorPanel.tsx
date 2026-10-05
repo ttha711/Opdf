@@ -3,6 +3,7 @@ import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { beginViewerContentPick, registerViewerContentAreaListener } from "../lib/viewer-runtime";
 import { PathGeometryEditor } from "./PathGeometryEditor";
+import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
 
 type NativeContentEditorPanelProps = {
   page: number;
@@ -168,6 +169,13 @@ export function NativeContentEditorPanel({
     setMessage("Native content edit redone.");
     window.setTimeout(() => void refresh(), 50);
   };
+
+  useEffect(() => registerNativeContentHistoryControls({
+    undo,
+    redo,
+    canUndo: () => undoStack.length > 0,
+    canRedo: () => redoStack.length > 0,
+  }), [undoStack, redoStack]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

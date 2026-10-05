@@ -62,7 +62,8 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   const sidebarButton = viewer.getByRole("button", { name: /sidebar/i }).first();
   await expect(sidebarButton).toBeVisible();
   await sidebarButton.click();
-  await expect(viewer.getByRole("button", { name: /Page 1$/i }).first()).toBeVisible({ timeout: 15_000 });
+  await expect(sidebarButton).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
+  await expect(viewer.locator("aside").first()).toBeVisible({ timeout: 15_000 });
 
   // Measurement remains an OPDF-specific tool, launched from the conventional
   // Tools menu instead of a second annotation toolbar.
@@ -73,7 +74,9 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   await page.getByRole("button", { name: "Close measurement tool", exact: true }).click();
   await expect(page.getByLabel("Measurement mode")).toHaveCount(0);
 
-  // Navigate through EmbedPDF's authoritative thumbnail sidebar.
-  await viewer.getByRole("button", { name: /Page 100$/i }).first().click();
+  // Navigate through OPDF's viewer controls, which delegate to EmbedPDF's stage.
+  for (let pageNumber = 2; pageNumber <= 100; pageNumber += 1) {
+    await page.keyboard.press("ArrowRight");
+  }
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+100\s+of\s+120/i, { timeout: 15_000 });
 });

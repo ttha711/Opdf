@@ -240,19 +240,15 @@ try {
   await shot("15-mobile-viewer");
 
   const mobileViewer = page.locator(".viewer-shell");
-  const pagesToggle = mobileViewer.getByRole("button", { name: /sidebar/i }).first();
+  const pagesToggle = mobileViewer.getByRole("button", { name: "Sidebar", exact: true }).first();
+  const sidebarPanel = mobileViewer.locator('[data-sidebar-id="sidebar-panel"]').first();
   await pagesToggle.waitFor({ state: "visible", timeout: 5000 });
   await pagesToggle.click();
-  await pagesToggle.waitFor({ state: "visible", timeout: 5000 });
-  await page.waitForFunction(
-    (button) => button?.getAttribute("aria-pressed") === "true",
-    await pagesToggle.elementHandle(),
-    { timeout: 10000 },
-  );
-  await mobileViewer.locator("aside").first().waitFor({ state: "visible", timeout: 10000 });
+  await sidebarPanel.waitFor({ state: "visible", timeout: 15000 });
   await shot("16-mobile-pages-drawer");
 
   await pagesToggle.click();
+  await sidebarPanel.waitFor({ state: "hidden", timeout: 15000 });
   await page.locator("header").getByRole("button", { name: "☰", exact: true }).click();
   await shot("17-mobile-menu");
 

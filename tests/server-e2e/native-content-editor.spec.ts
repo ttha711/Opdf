@@ -236,21 +236,26 @@ test("native Edit PDF deep-edits Form XObject text, path and image and persists 
 
   await nestedText.click();
   await expect(editor.getByText("Nested in p0-o0", { exact: false })).toBeVisible();
-  await expect(editor.getByLabel("Font size")).toBeDisabled();
+  await expect(editor.getByText("Persistent Form edit")).toBeVisible();
+  await expect(editor.getByLabel("Font size")).toBeEnabled();
   await editor.locator("textarea").fill("Edited inside Form");
   await editor.getByRole("button", { name: "Apply text" }).click();
   await expect(editor.getByText("Native PDF text updated.")).toBeVisible({ timeout: 20_000 });
+  const promotedText = editor.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='text']").filter({ hasText: "Edited inside Form" }).first();
+  await expect(promotedText).toBeVisible({ timeout: 20_000 });
 
   await nestedPath.click();
   await editor.getByLabel("Blend mode").selectOption("Multiply");
   await editor.getByRole("button", { name: "Apply blend mode" }).click();
   await expect(editor.getByText("Blend mode set to Multiply.")).toBeVisible({ timeout: 20_000 });
+  await expect(editor.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='path']").first()).toBeVisible({ timeout: 20_000 });
 
   const beforeImageBounds = await nestedImage.getAttribute("data-opdf-bounds");
   await nestedImage.click();
   await editor.getByRole("button", { name: "→" }).click();
   await expect(editor.getByText("Object moved.")).toBeVisible({ timeout: 20_000 });
-  const movedImage = editor.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='image']").first();
+  const movedImage = editor.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='image']").first();
+  await expect(movedImage).toBeVisible({ timeout: 20_000 });
   await expect(movedImage).not.toHaveAttribute("data-opdf-bounds", beforeImageBounds ?? "", { timeout: 20_000 });
 
   await page.getByTitle("Save (Ctrl+S)").click();
@@ -259,11 +264,12 @@ test("native Edit PDF deep-edits Form XObject text, path and image and persists 
   await page.getByTitle("Edit PDF Content").click();
 
   const reopened = page.locator("[data-opdf-native-editor='true']");
-  const editedText = reopened.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='text']").filter({ hasText: "Edited inside Form" });
+  const editedText = reopened.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='text']").filter({ hasText: "Edited inside Form" });
   await expect(editedText).toHaveCount(1, { timeout: 20_000 });
   await expect(reopened.getByText("Form child text", { exact: false })).toHaveCount(0);
-  await expect(reopened.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='path']")).toHaveCount(1);
-  await expect(reopened.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='image']")).toHaveCount(1);
+  await expect(reopened.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='path']")).toHaveCount(1);
+  await expect(reopened.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='image']")).toHaveCount(1);
+  await expect(reopened.locator("[data-opdf-object-depth='1']")).toHaveCount(0);
 
   await editedText.click();
   await reopened.getByRole("button", { name: "Delete object" }).click();
@@ -271,7 +277,7 @@ test("native Edit PDF deep-edits Form XObject text, path and image and persists 
   await page.getByTitle("Save (Ctrl+S)").click();
   await page.reload();
   await page.getByTitle("Edit PDF Content").click();
-  await expect(page.locator("[data-opdf-native-editor='true'] [data-opdf-object-depth='1'][data-opdf-object-kind='text']")).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.locator("[data-opdf-native-editor='true'] [data-opdf-object-kind='text']").filter({ hasText: "Edited inside Form" })).toHaveCount(0, { timeout: 20_000 });
 });
 
 test("native Edit PDF exposes PDFium rotated bounds for precise selection", async ({ page, request }) => {

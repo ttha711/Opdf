@@ -1,9 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
+import type { PdfBlendMode, PdfContentObject, PdfContentPatch, PdfPoint, PdfQuad } from "@opdf/core";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { beginViewerContentPick, registerViewerContentAreaListener } from "../lib/viewer-runtime";
 import { PathGeometryEditor } from "./PathGeometryEditor";
 import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
+
+const BLEND_MODES: PdfBlendMode[] = [
+  "Normal", "Multiply", "Screen", "Overlay", "Darken", "Lighten",
+  "ColorDodge", "ColorBurn", "HardLight", "SoftLight", "Difference",
+  "Exclusion", "Hue", "Saturation", "Color", "Luminosity",
+];
+
+function pointInQuad(point: PdfPoint, quad: PdfQuad) {
+  let sign = 0;
+  for (let index = 0; index < quad.length; index += 1) {
+    const a = quad[index];
+    const b = quad[(index + 1) % quad.length];
+    const cross = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
+    if (Math.abs(cross) < 0.0001) continue;
+    const nextSign = Math.sign(cross);
+    if (sign && nextSign !== sign) return false;
+    sign = nextSign;
+  }
+  return true;
+}
 
 type NativeContentEditorPanelProps = {
   page: number;
@@ -30,6 +50,7 @@ export function NativeContentEditorPanel({
   const [draftLineCap, setDraftLineCap] = useState<"butt" | "round" | "square">("butt");
   const [draftLineJoin, setDraftLineJoin] = useState<"miter" | "round" | "bevel">("miter");
   const [draftDash, setDraftDash] = useState("");
+  const [draftBlendMode, setDraftBlendMode] = useState<PdfBlendMode>("Normal");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
@@ -40,6 +61,7 @@ export function NativeContentEditorPanel({
     () => objects.find((object) => object.id === selectedId) ?? null,
     [objects, selectedId],
   );
+  const deepFormReadOnly = Boolean(selected && (selected.depth ?? 0) > 1);
 
   useEffect(() => registerViewerContentAreaListener((area) => {
     if (area.pageIndex !== page - 1 || objects.length === 0) return;
@@ -48,6 +70,10 @@ export function NativeContentEditorPanel({
     const top1 = area.rect.origin.y;
     const top2 = top1 + area.rect.size.height;
 
+    const pickPoint = {
+      x: (x1 + x2) / 2,
+      y: objects[0].pageHeight - (top1 + top2) / 2,
+    };
     let best: { id: string; score: number } | null = null;
     for (const object of objects) {
       const ox1 = object.bounds.x;
@@ -58,8 +84,9 @@ export function NativeContentEditorPanel({
       const overlapHeight = Math.max(0, Math.min(top2, objectBottom) - Math.max(top1, objectTop));
       const overlap = overlapWidth * overlapHeight;
       const objectArea = Math.max(1, object.bounds.width * object.bounds.height);
-      const score = overlap / objectArea;
-      if (score > 0 && (!best || score > best.score)) best = { id: object.id, score };
+      const insideRotated = object.rotatedBounds ? pointInQuad(pickPoint, object.rotatedBounds) : false;
+      const score = (insideRotated ? 10 : 0) + overlap / objectArea + (object.depth ?? 0) * 0.1 + 1 / objectArea;
+      if ((insideRotated || overlap > 0) && (!best || score > best.score)) best = { id: object.id, score };
     }
     if (best) {
       setSelectedId(best.id);
@@ -111,6 +138,7 @@ export function NativeContentEditorPanel({
     setDraftLineCap(selected.lineCap ?? "butt");
     setDraftLineJoin(selected.lineJoin ?? "miter");
     setDraftDash((selected.dashArray ?? []).join(" "));
+    setDraftBlendMode("Normal");
     setDraftFont("");
   }, [selected?.id]);
 
@@ -151,8 +179,9 @@ export function NativeContentEditorPanel({
   const move = (dx: number, dy: number) => transform([1, 0, 0, 1, dx, dy], "Object moved.");
   const centeredTransform = (a: number, b: number, c: number, d: number, success: string) => {
     if (!selected) return;
-    const cx = selected.bounds.x + selected.bounds.width / 2;
-    const cy = selected.bounds.y + selected.bounds.height / 2;
+    const transformBounds = selected.localBounds ?? selected.bounds;
+    const cx = transformBounds.x + transformBounds.width / 2;
+    const cy = transformBounds.y + transformBounds.height / 2;
     const e = cx - a * cx - c * cy;
     const f = cy - b * cx - d * cy;
     transform([a, b, c, d, e, f], success);
@@ -215,18 +244,16 @@ export function NativeContentEditorPanel({
       { type: "replace-text", objectId: selected.id, text: draftText },
     ];
     const size = Number(draftSize);
-    if (Number.isFinite(size) && size > 0) {
-      patches.push({
-        type: "style-text",
-        objectId: selected.id,
-        fontSize: size,
-        fillColor: draftColor,
-        fontFamily: draftFont || undefined,
-        strokeColor: draftStroke,
-        strokeWidth: Number.isFinite(Number(draftStrokeWidth)) ? Number(draftStrokeWidth) : undefined,
-        renderMode: draftRenderMode,
-      });
-    }
+    patches.push({
+      type: "style-text",
+      objectId: selected.id,
+      fontSize: !deepFormReadOnly && Number.isFinite(size) && size > 0 ? size : undefined,
+      fillColor: draftColor,
+      fontFamily: !deepFormReadOnly ? draftFont || undefined : undefined,
+      strokeColor: draftStroke,
+      strokeWidth: Number.isFinite(Number(draftStrokeWidth)) ? Number(draftStrokeWidth) : undefined,
+      renderMode: draftRenderMode,
+    });
     void apply(patches, "Native PDF text updated.");
   };
 
@@ -328,8 +355,16 @@ export function NativeContentEditorPanel({
             key={object.id}
             className={object.id === selectedId ? "active" : ""}
             onClick={() => setSelectedId(object.id)}
+            data-opdf-object-id={object.id}
+            data-opdf-object-kind={object.kind}
+            data-opdf-object-depth={object.depth ?? 0}
+            data-opdf-rotated-bounds={object.rotatedBounds ? "true" : "false"}
+            data-opdf-bounds={`${object.bounds.x},${object.bounds.y},${object.bounds.width},${object.bounds.height}`}
+            data-opdf-fill-color={object.fillColor ?? ""}
+            data-opdf-stroke-color={object.strokeColor ?? ""}
+            style={{ paddingLeft: 8 + (object.depth ?? 0) * 14 }}
           >
-            <span>{object.kind.toUpperCase()}</span>
+            <span>{object.depth ? "↳ " : ""}{object.kind.toUpperCase()}</span>
             <small>{object.kind === "text" ? (object.text || "(empty text)").slice(0, 48) : object.id}</small>
           </button>
         ))}
@@ -337,11 +372,22 @@ export function NativeContentEditorPanel({
       </div>
 
       {selected ? (
-        <div className="native-content-editor__properties">
+        <fieldset className="native-content-editor__properties" disabled={deepFormReadOnly}>
           <div className="native-content-editor__meta">
             <strong>{selected.kind}</strong>
             <span>{selected.id}</span>
           </div>
+          {deepFormReadOnly ? (
+            <div className="native-content-editor__object-info">
+              <strong>Deep Form object is inspect-only</strong>
+              <span>PDFium can enumerate this depth, but cannot safely persist mutations beyond one Form level.</span>
+            </div>
+          ) : selected.depth === 1 ? (
+            <div className="native-content-editor__object-info">
+              <strong>Persistent Form edit</strong>
+              <span>On first edit, OPDF promotes this child to a page-level native object and removes the original from the Form so PDFium can serialize the change safely.</span>
+            </div>
+          ) : null}
 
           {selected.kind === "text" ? (
             <>
@@ -352,7 +398,7 @@ export function NativeContentEditorPanel({
               <div className="native-content-editor__row">
                 <label>
                   Font size
-                  <input value={draftSize} onChange={(event) => setDraftSize(event.target.value)} inputMode="decimal" />
+                  <input value={draftSize} onChange={(event) => setDraftSize(event.target.value)} inputMode="decimal" disabled={deepFormReadOnly} />
                 </label>
                 <label>
                   Color
@@ -361,7 +407,7 @@ export function NativeContentEditorPanel({
               </div>
               <label>
                 Font
-                <select value={draftFont} onChange={(event) => setDraftFont(event.target.value)}>
+                <select value={draftFont} onChange={(event) => setDraftFont(event.target.value)} disabled={deepFormReadOnly}>
                   <option value="">Keep existing ({selected.fontFamily || "embedded font"})</option>
                   <option value="__opdf_unicode__">Noto Sans Unicode / Vietnamese</option>
                   <option value="Helvetica">Helvetica</option>
@@ -384,6 +430,11 @@ export function NativeContentEditorPanel({
                   <input type="color" value={draftStroke} onChange={(event) => setDraftStroke(event.target.value)} />
                 </label>
               </div>
+              {selected.depth === 1 ? (
+                <div className="native-content-editor__object-info">
+                  <span>Text, font, size, color, stroke and render mode are preserved through Form-to-page promotion.</span>
+                </div>
+              ) : null}
               <button type="button" className="primary" onClick={saveText} disabled={loading}>Apply text</button>
             </>
           ) : null}
@@ -413,7 +464,7 @@ export function NativeContentEditorPanel({
               <button
                 type="button"
                 onClick={() => void apply([{ type: "duplicate", objectId: selected.id, offsetX: 12, offsetY: -12 }], "Object duplicated.")}
-                disabled={loading || (selected.kind !== "text" && selected.kind !== "image" && selected.kind !== "path")}
+                disabled={loading || deepFormReadOnly || (selected.kind !== "text" && selected.kind !== "image" && selected.kind !== "path")}
               >
                 Duplicate
               </button>
@@ -528,23 +579,60 @@ export function NativeContentEditorPanel({
               >
                 Apply path style
               </button>
-              <PathGeometryEditor
-                key={selected.id}
-                commands={selected.pathCommands ?? []}
-                disabled={loading}
-                onApply={(commands) => void apply([
-                  { type: "replace-path", objectId: selected.id, commands },
-                ], "Path geometry updated.")}
-              />
+              {deepFormReadOnly ? (
+                <div className="native-content-editor__object-info">
+                  <span>Path geometry is inspect-only at this Form depth.</span>
+                </div>
+              ) : (
+                <PathGeometryEditor
+                  key={selected.id}
+                  commands={selected.pathCommands ?? []}
+                  disabled={loading}
+                  onApply={(commands) => void apply([
+                    { type: "replace-path", objectId: selected.id, commands },
+                  ], "Path geometry updated.")}
+                />
+              )}
             </>
           ) : null}
 
           {selected.kind === "form" ? (
             <div className="native-content-editor__object-info">
               <strong>Form XObject</strong>
-              <span>{selected.formChildCount ?? 0} nested page object(s)</span>
+              <span>{selected.formChildCount ?? 0} nested page object(s) · children are listed directly below and can be edited in place.</span>
             </div>
           ) : null}
+          {selected.rotatedBounds ? (
+            <div className="native-content-editor__object-info" data-opdf-rotated-selection="true">
+              <strong>Rotated bounds active</strong>
+              <span>Selection uses PDFium's tight quadrilateral instead of only the axis-aligned box.</span>
+            </div>
+          ) : null}
+          {selected.parentId ? (
+            <div className="native-content-editor__object-info">
+              <strong>Nested in {selected.parentId}</strong>
+              <span>Depth {selected.depth}</span>
+            </div>
+          ) : null}
+          <label>
+            Blend mode
+            <select
+              aria-label="Blend mode"
+              value={draftBlendMode}
+              onChange={(event) => setDraftBlendMode(event.target.value as PdfBlendMode)}
+            >
+              {BLEND_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => void apply([
+              { type: "style-object", objectId: selected.id, blendMode: draftBlendMode },
+            ], `Blend mode set to ${draftBlendMode}.`)}
+            disabled={loading}
+          >
+            Apply blend mode
+          </button>
           {selected.hasTransparency ? <div className="native-content-editor__object-info"><span>Uses transparency</span></div> : null}
 
           <button
@@ -555,7 +643,7 @@ export function NativeContentEditorPanel({
           >
             Delete object
           </button>
-        </div>
+        </fieldset>
       ) : null}
     </aside>
   );

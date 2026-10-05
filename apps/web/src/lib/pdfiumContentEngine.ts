@@ -9,6 +9,17 @@ import type {
   PdfPathCommand,
   PdfRect,
 } from "@opdf/core";
+import {
+  childContentObjectId,
+  identityMatrix,
+  multiplyMatrices,
+  parseContentObjectId,
+  readRotatedBounds,
+  removeResolvedObject,
+  resolveContentObject,
+  transformQuad,
+  transformRect,
+} from "./pdfiumObjectTree";
 
 type PdfiumModule = any;
 
@@ -494,6 +505,7 @@ function duplicateTextObject(
   } finally {
     free(module, textPtr);
   }
+  return targetPtr;
 }
 
 function bitmapBytesPerPixel(format: number) {
@@ -533,6 +545,7 @@ function duplicateImageObject(
     free(module, pagesPtr);
     module.FPDFBitmap_Destroy(sourceBitmap);
   }
+  return targetPtr;
 }
 
 
@@ -652,6 +665,74 @@ function duplicatePathObject(
     module.FPDFPageObj_Destroy(targetPtr);
     throw error;
   }
+  return targetPtr;
+}
+
+function parentMatrixForResolved(module: PdfiumModule, resolved: ReturnType<typeof resolveContentObject>): PdfMatrix {
+  let matrix = identityMatrix();
+  for (const formPtr of resolved.formAncestorPtrs) {
+    matrix = multiplyMatrices(matrix, readMatrix(module, formPtr));
+  }
+  return matrix;
+}
+
+function promoteNestedObjectToPage(
+  module: PdfiumModule,
+  docPtr: number,
+  pagePtr: number,
+  resolved: ReturnType<typeof resolveContentObject>,
+) {
+  if (resolved.formChildIndices.length !== 1 || !resolved.parentFormPtr) {
+    throw new Error("Editing Form XObjects nested more than one level is read-only because PDFium cannot persist those child streams safely.");
+  }
+
+  const sourcePtr = resolved.objectPtr;
+  const objectType = module.FPDFPageObj_GetType(sourcePtr);
+  const pageCount = module.FPDFPage_CountObjects(pagePtr);
+  const insertAfter = Math.max(0, pageCount - 1);
+  let targetPtr = 0;
+
+  if (objectType === 1) {
+    targetPtr = duplicateTextObject(module, docPtr, pagePtr, sourcePtr, insertAfter, 0, 0);
+    const renderMode = readTextRenderMode(module, sourcePtr);
+    if (renderMode && typeof module.FPDFTextObj_SetTextRenderMode === "function") {
+      module.FPDFTextObj_SetTextRenderMode(targetPtr, TEXT_RENDER_MODE_NAMES.indexOf(renderMode));
+    }
+  } else if (objectType === 2) {
+    targetPtr = duplicatePathObject(module, pagePtr, sourcePtr, insertAfter, 0, 0);
+  } else if (objectType === 3) {
+    targetPtr = duplicateImageObject(module, docPtr, pagePtr, sourcePtr, insertAfter, 0, 0);
+  } else {
+    throw new Error("Only text, path, and image children can be promoted out of a Form XObject for editing.");
+  }
+
+  const worldMatrix = multiplyMatrices(parentMatrixForResolved(module, resolved), readMatrix(module, sourcePtr));
+  const matrixPtr = writeMatrix(module, worldMatrix);
+  try {
+    if (!module.FPDFPageObj_SetMatrix(targetPtr, matrixPtr)) {
+      throw new Error("Unable to preserve nested Form object transform while promoting it for editing.");
+    }
+  } catch (error) {
+    if (module.FPDFPage_RemoveObject(pagePtr, targetPtr)) module.FPDFPageObj_Destroy(targetPtr);
+    throw error;
+  } finally {
+    free(module, matrixPtr);
+  }
+
+  if (!removeResolvedObject(module, pagePtr, resolved)) {
+    if (module.FPDFPage_RemoveObject(pagePtr, targetPtr)) module.FPDFPageObj_Destroy(targetPtr);
+    throw new Error("Unable to remove the original object from its Form XObject after promotion.");
+  }
+
+  const rootObjectIndex = Math.max(0, module.FPDFPage_CountObjects(pagePtr) - 1);
+  return {
+    ...resolved,
+    objectPtr: targetPtr,
+    parentFormPtr: undefined,
+    formAncestorPtrs: [],
+    formChildIndices: [],
+    rootObjectIndex,
+  };
 }
 
 function cropImageObject(
@@ -703,13 +784,7 @@ function cropImageObject(
 function patchPageIndex(patch: PdfContentPatch): number {
   return patch.type === "add-text" || patch.type === "add-rect" || patch.type === "add-image"
     ? patch.pageIndex
-    : parseObjectId(patch.objectId).pageIndex;
-}
-
-function parseObjectId(id: string): { pageIndex: number; objectIndex: number } {
-  const match = /^p(\d+)-o(\d+)$/.exec(id);
-  if (!match) throw new Error(`Unsupported content object id: ${id}`);
-  return { pageIndex: Number(match[1]), objectIndex: Number(match[2]) };
+    : parseContentObjectId(patch.objectId).pageIndex;
 }
 
 function parseColor(value: string): [number, number, number, number] {
@@ -760,6 +835,125 @@ function saveDocument(module: PdfiumModule, docPtr: number): Uint8Array {
   }
 }
 
+function inspectObject(
+  module: PdfiumModule,
+  textPagePtr: number,
+  pageWidth: number,
+  pageHeight: number,
+  objectPtr: number,
+  id: string,
+  parentMatrix: PdfMatrix,
+  parentId: string | undefined,
+  depth: number,
+): PdfContentObject | null {
+  if (!objectPtr) return null;
+  const kind = objectKind(module.FPDFPageObj_GetType(objectPtr));
+  const localBounds = readBounds(module, objectPtr);
+  if (!kind || !localBounds) return null;
+  const matrix = readMatrix(module, objectPtr);
+  const localQuad = readRotatedBounds(module, objectPtr);
+  const object: PdfContentObject = {
+    id,
+    pageIndex: parseContentObjectId(id).pageIndex,
+    pageWidth,
+    pageHeight,
+    kind,
+    bounds: depth ? transformRect(parentMatrix, localBounds) : localBounds,
+    localBounds,
+    rotatedBounds: localQuad
+      ? (depth ? transformQuad(parentMatrix, localQuad) : localQuad)
+      : undefined,
+    matrix,
+    parentMatrix: depth ? parentMatrix : undefined,
+    parentId,
+    depth,
+    ...readFill(module, objectPtr),
+  };
+  object.hasTransparency = typeof module.FPDFPageObj_HasTransparency === "function"
+    ? Boolean(module.FPDFPageObj_HasTransparency(objectPtr))
+    : undefined;
+  object.markedContentId = typeof module.FPDFPageObj_GetMarkedContentID === "function"
+    ? module.FPDFPageObj_GetMarkedContentID(objectPtr)
+    : undefined;
+
+  if (kind === "text" && textPagePtr) {
+    object.text = readUtf16ObjectText(module, objectPtr, textPagePtr);
+    object.fontFamily = readFontFamily(module, objectPtr);
+    object.fontSize = readFontSize(module, objectPtr);
+    object.textRenderMode = readTextRenderMode(module, objectPtr);
+    object.strokeColor = readStroke(module, objectPtr);
+    object.strokeWidth = readStrokeWidth(module, objectPtr);
+  } else if (kind === "path") {
+    object.pathCommands = readPathCommands(module, objectPtr);
+    object.strokeColor = readStroke(module, objectPtr);
+    object.strokeWidth = readStrokeWidth(module, objectPtr);
+    object.lineCap = readLineCap(module, objectPtr);
+    object.lineJoin = readLineJoin(module, objectPtr);
+    Object.assign(object, readDash(module, objectPtr), readPathDrawMode(module, objectPtr));
+  } else if (kind === "image") {
+    object.imageInfo = readImageInfo(module, objectPtr);
+  } else if (kind === "form") {
+    object.formChildCount = typeof module.FPDFFormObj_CountObjects === "function"
+      ? module.FPDFFormObj_CountObjects(objectPtr)
+      : undefined;
+  }
+  return object;
+}
+
+function appendObjectTree(
+  module: PdfiumModule,
+  textPagePtr: number,
+  pageWidth: number,
+  pageHeight: number,
+  objectPtr: number,
+  id: string,
+  parentMatrix: PdfMatrix,
+  parentId: string | undefined,
+  depth: number,
+  objects: PdfContentObject[],
+) {
+  const object = inspectObject(
+    module,
+    textPagePtr,
+    pageWidth,
+    pageHeight,
+    objectPtr,
+    id,
+    parentMatrix,
+    parentId,
+    depth,
+  );
+  if (!object) return;
+  objects.push(object);
+
+  if (
+    object.kind !== "form" ||
+    depth >= 8 ||
+    typeof module.FPDFFormObj_CountObjects !== "function" ||
+    typeof module.FPDFFormObj_GetObject !== "function"
+  ) return;
+
+  const count = module.FPDFFormObj_CountObjects(objectPtr);
+  if (!Number.isFinite(count) || count <= 0) return;
+  const childParentMatrix = multiplyMatrices(parentMatrix, object.matrix);
+  for (let childIndex = 0; childIndex < count; childIndex += 1) {
+    const childPtr = module.FPDFFormObj_GetObject(objectPtr, childIndex);
+    if (!childPtr) continue;
+    appendObjectTree(
+      module,
+      textPagePtr,
+      pageWidth,
+      pageHeight,
+      childPtr,
+      childContentObjectId(id, childIndex),
+      childParentMatrix,
+      id,
+      depth + 1,
+      objects,
+    );
+  }
+}
+
 export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
   async inspectPage(pdf: Uint8Array, pageIndex: number): Promise<PdfContentObject[]> {
     return withDocument(pdf, async (module, docPtr) => {
@@ -771,49 +965,21 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
         const pageWidth = module.FPDF_GetPageWidthF(pagePtr);
         const pageHeight = module.FPDF_GetPageHeightF(pagePtr);
         const count = module.FPDFPage_CountObjects(pagePtr);
+        const rootMatrix = identityMatrix();
         for (let objectIndex = 0; objectIndex < count; objectIndex += 1) {
           const objectPtr = module.FPDFPage_GetObject(pagePtr, objectIndex);
-          const kind = objectKind(module.FPDFPageObj_GetType(objectPtr));
-          const bounds = readBounds(module, objectPtr);
-          if (!objectPtr || !kind || !bounds) continue;
-          const object: PdfContentObject = {
-            id: `p${pageIndex}-o${objectIndex}`,
-            pageIndex,
+          appendObjectTree(
+            module,
+            textPagePtr,
             pageWidth,
             pageHeight,
-            kind,
-            bounds,
-            matrix: readMatrix(module, objectPtr),
-            ...readFill(module, objectPtr),
-          };
-          object.hasTransparency = typeof module.FPDFPageObj_HasTransparency === "function"
-            ? Boolean(module.FPDFPageObj_HasTransparency(objectPtr))
-            : undefined;
-          object.markedContentId = typeof module.FPDFPageObj_GetMarkedContentID === "function"
-            ? module.FPDFPageObj_GetMarkedContentID(objectPtr)
-            : undefined;
-          if (kind === "text" && textPagePtr) {
-            object.text = readUtf16ObjectText(module, objectPtr, textPagePtr);
-            object.fontFamily = readFontFamily(module, objectPtr);
-            object.fontSize = readFontSize(module, objectPtr);
-            object.textRenderMode = readTextRenderMode(module, objectPtr);
-            object.strokeColor = readStroke(module, objectPtr);
-            object.strokeWidth = readStrokeWidth(module, objectPtr);
-          } else if (kind === "path") {
-            object.pathCommands = readPathCommands(module, objectPtr);
-            object.strokeColor = readStroke(module, objectPtr);
-            object.strokeWidth = readStrokeWidth(module, objectPtr);
-            object.lineCap = readLineCap(module, objectPtr);
-            object.lineJoin = readLineJoin(module, objectPtr);
-            Object.assign(object, readDash(module, objectPtr), readPathDrawMode(module, objectPtr));
-          } else if (kind === "image") {
-            object.imageInfo = readImageInfo(module, objectPtr);
-          } else if (kind === "form") {
-            object.formChildCount = typeof module.FPDFFormObj_CountObjects === "function"
-              ? module.FPDFFormObj_CountObjects(objectPtr)
-              : undefined;
-          }
-          objects.push(object);
+            objectPtr,
+            `p${pageIndex}-o${objectIndex}`,
+            rootMatrix,
+            undefined,
+            0,
+            objects,
+          );
         }
         return objects;
       } finally {
@@ -836,13 +1002,10 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
         const pagePtr = module.FPDF_LoadPage(docPtr, pageIndex);
         if (!pagePtr) throw new Error(`Unable to load PDF page ${pageIndex + 1} for editing.`);
         try {
-          const handles = new Map<string, number>();
+          const handles = new Map<string, ReturnType<typeof resolveContentObject>>();
           for (const patch of pagePatches) {
             if (patch.type === "add-text" || patch.type === "add-rect" || patch.type === "add-image") continue;
-            const { objectIndex } = parseObjectId(patch.objectId);
-            const objectPtr = module.FPDFPage_GetObject(pagePtr, objectIndex);
-            if (!objectPtr) throw new Error(`PDF content object no longer exists: ${patch.objectId}`);
-            handles.set(patch.objectId, objectPtr);
+            handles.set(patch.objectId, resolveContentObject(module, pagePtr, patch.objectId));
           }
 
           for (const patch of pagePatches) {
@@ -916,7 +1079,15 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               continue;
             }
 
-            const objectPtr = handles.get(patch.objectId)!;
+            let resolved = handles.get(patch.objectId)!;
+            if (resolved.formChildIndices.length > 1) {
+              throw new Error("Form XObjects nested more than one level are inspect-only; PDFium cannot persist safe deep mutations at that depth.");
+            }
+            if (resolved.formChildIndices.length === 1 && patch.type !== "delete") {
+              resolved = promoteNestedObjectToPage(module, docPtr, pagePtr, resolved);
+              handles.set(patch.objectId, resolved);
+            }
+            const objectPtr = resolved.objectPtr;
             if (patch.type === "replace-text") {
               const textPtr = writeUtf16(module, patch.text);
               try {
@@ -935,9 +1106,9 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               const [a, b, c, d, e, f] = patch.matrix;
               module.FPDFPageObj_Transform(objectPtr, a, b, c, d, e, f);
             } else if (patch.type === "delete") {
-              if (!module.FPDFPage_RemoveObject(pagePtr, objectPtr)) throw new Error(`Unable to delete ${patch.objectId}.`);
+              if (!removeResolvedObject(module, pagePtr, resolved)) throw new Error(`Unable to delete ${patch.objectId}.`);
             } else if (patch.type === "duplicate") {
-              const { objectIndex } = parseObjectId(patch.objectId);
+              const objectIndex = resolved.rootObjectIndex;
               const dx = patch.offsetX ?? 12;
               const dy = patch.offsetY ?? -12;
               const objectType = module.FPDFPageObj_GetType(objectPtr);
@@ -948,7 +1119,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
             } else if (patch.type === "style-text") {
               let styledObjectPtr = objectPtr;
               if (patch.fontSize !== undefined || patch.fontFamily) {
-                const { objectIndex } = parseObjectId(patch.objectId);
+                const objectIndex = resolved.rootObjectIndex;
                 const currentSize = readFontSize(module, objectPtr) ?? 12;
                 styledObjectPtr = await replaceTextObjectFontSize(
                   module,
@@ -959,7 +1130,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
                   patch.fontSize ?? currentSize,
                   patch.fontFamily,
                 );
-                handles.set(patch.objectId, styledObjectPtr);
+                handles.set(patch.objectId, { ...resolved, objectPtr: styledObjectPtr });
               }
               if (patch.fillColor || patch.fillOpacity !== undefined) {
                 const [r, g, b] = parseColor(patch.fillColor ?? readFill(module, styledObjectPtr).fillColor ?? "#000000");
@@ -986,7 +1157,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               cropImageObject(module, pagePtr, objectPtr, patch);
             } else if (patch.type === "replace-path") {
               if (module.FPDFPageObj_GetType(objectPtr) !== 2) throw new Error(`${patch.objectId} is not a path object.`);
-              const { objectIndex } = parseObjectId(patch.objectId);
+              const objectIndex = resolved.rootObjectIndex;
               const nextPtr = createPathFromCommands(module, patch.commands);
               try {
                 copyPathDrawMode(module, objectPtr, nextPtr);
@@ -994,7 +1165,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
                 if (!module.FPDFPage_RemoveObject(pagePtr, objectPtr)) throw new Error(`Unable to replace path ${patch.objectId}.`);
                 if (!module.FPDFPage_InsertObjectAtIndex(pagePtr, nextPtr, objectIndex)) module.FPDFPage_InsertObject(pagePtr, nextPtr);
                 module.FPDFPageObj_Destroy(objectPtr);
-                handles.set(patch.objectId, nextPtr);
+                handles.set(patch.objectId, { ...resolved, objectPtr: nextPtr });
               } catch (error) {
                 module.FPDFPageObj_Destroy(nextPtr);
                 throw error;

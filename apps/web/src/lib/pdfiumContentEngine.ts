@@ -314,6 +314,8 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
       const textPagePtr = module.FPDFText_LoadPage(pagePtr);
       try {
         const objects: PdfContentObject[] = [];
+        const pageWidth = module.FPDF_GetPageWidthF(pagePtr);
+        const pageHeight = module.FPDF_GetPageHeightF(pagePtr);
         const count = module.FPDFPage_CountObjects(pagePtr);
         for (let objectIndex = 0; objectIndex < count; objectIndex += 1) {
           const objectPtr = module.FPDFPage_GetObject(pagePtr, objectIndex);
@@ -323,6 +325,8 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
           const object: PdfContentObject = {
             id: `p${pageIndex}-o${objectIndex}`,
             pageIndex,
+            pageWidth,
+            pageHeight,
             kind,
             bounds,
             matrix: readMatrix(module, objectPtr),

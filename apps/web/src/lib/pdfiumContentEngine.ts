@@ -12,6 +12,7 @@ import type {
 import {
   childContentObjectId,
   identityMatrix,
+  markFormAncestorsDirty,
   multiplyMatrices,
   parseContentObjectId,
   readRotatedBounds,
@@ -1149,6 +1150,9 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               }
             } else {
               throw new Error(`Content patch ${patch.type} is not implemented by the PDFium engine yet.`);
+            }
+            if (resolved.formChildIndices.length) {
+              markFormAncestorsDirty(module, resolved);
             }
           }
 

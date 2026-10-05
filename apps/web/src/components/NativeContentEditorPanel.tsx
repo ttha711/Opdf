@@ -220,7 +220,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   const saveText = useCallback(() => {
     if (!selected || selected.kind !== "text") return;
     const size = Number(draft.size);
-    const unicodeFallback = /[^\\x00-\\x7F]/.test(draft.text);
+    const unicodeFallback = /[^\x00-\x7F]/.test(draft.text);
     const fontFamily = !deepFormReadOnly
       ? unicodeFallback ? "__opdf_unicode__" : draft.font || undefined
       : undefined;
@@ -236,9 +236,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
         renderMode: draft.renderMode,
       },
       { type: "replace-text", objectId: selected.id, text: draft.text },
-    ], unicodeFallback
-      ? "Native PDF text updated with Unicode fallback."
-      : "Native PDF text updated.");
+    ], "Native PDF text updated.");
   }, [apply, deepFormReadOnly, draft, selected]);
 
   const selectFromPanel = useCallback((id: string) => {

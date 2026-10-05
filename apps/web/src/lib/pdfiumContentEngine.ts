@@ -273,19 +273,66 @@ function readStrokeWidth(module: PdfiumModule, objectPtr: number): number | unde
   return value?.[0];
 }
 
+function copyPageObjectColor(
+  module: PdfiumModule,
+  sourcePtr: number,
+  targetPtr: number,
+  getter: (objectPtr: number, r: number, g: number, b: number, a: number) => boolean,
+  setter: (objectPtr: number, r: number, g: number, b: number, a: number) => boolean,
+) {
+  const ptr = malloc(module, 16);
+  try {
+    if (!getter(sourcePtr, ptr, ptr + 4, ptr + 8, ptr + 12)) return;
+    const heap = module.pdfium.HEAPU32;
+    const base = ptr >>> 2;
+    setter(targetPtr, heap[base], heap[base + 1], heap[base + 2], heap[base + 3]);
+  } finally {
+    free(module, ptr);
+  }
+}
+
 function copyCommonStyle(module: PdfiumModule, sourcePtr: number, targetPtr: number) {
-  const fill = readFill(module, sourcePtr).fillColor;
-  if (fill) {
-    const [r, g, b, a] = parseColor(fill);
-    module.FPDFPageObj_SetFillColor(targetPtr, r, g, b, a);
-  }
-  const stroke = readStroke(module, sourcePtr);
-  if (stroke) {
-    const [r, g, b, a] = parseColor(stroke);
-    module.FPDFPageObj_SetStrokeColor(targetPtr, r, g, b, a);
-  }
+  copyPageObjectColor(
+    module,
+    sourcePtr,
+    targetPtr,
+    module.FPDFPageObj_GetFillColor.bind(module),
+    module.FPDFPageObj_SetFillColor.bind(module),
+  );
+  copyPageObjectColor(
+    module,
+    sourcePtr,
+    targetPtr,
+    module.FPDFPageObj_GetStrokeColor.bind(module),
+    module.FPDFPageObj_SetStrokeColor.bind(module),
+  );
+
   const width = readStrokeWidth(module, sourcePtr);
   if (width !== undefined) module.FPDFPageObj_SetStrokeWidth(targetPtr, width);
+
+  const lineCap = module.FPDFPageObj_GetLineCap(sourcePtr);
+  if (lineCap >= 0) module.FPDFPageObj_SetLineCap(targetPtr, lineCap);
+  const lineJoin = module.FPDFPageObj_GetLineJoin(sourcePtr);
+  if (lineJoin >= 0) module.FPDFPageObj_SetLineJoin(targetPtr, lineJoin);
+
+  const dashCount = module.FPDFPageObj_GetDashCount(sourcePtr);
+  if (dashCount > 0) {
+    const dashPtr = malloc(module, dashCount * 4);
+    const phasePtr = malloc(module, 4);
+    try {
+      if (
+        module.FPDFPageObj_GetDashArray(sourcePtr, dashPtr, dashCount) &&
+        module.FPDFPageObj_GetDashPhase(sourcePtr, phasePtr)
+      ) {
+        const phase = module.pdfium.HEAPF32[phasePtr >>> 2];
+        module.FPDFPageObj_SetDashArray(targetPtr, dashPtr, dashCount, phase);
+      }
+    } finally {
+      free(module, phasePtr);
+      free(module, dashPtr);
+    }
+  }
+
   const matrixPtr = writeMatrix(module, readMatrix(module, sourcePtr));
   try {
     module.FPDFPageObj_SetMatrix(targetPtr, matrixPtr);

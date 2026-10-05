@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy automation driver; this migration replaces removed OPDF viewer hooks with the EmbedPDF contract without expanding command scope.
 import { chromium } from "playwright";
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -218,12 +219,16 @@ export class OpdfDriver {
       }).map((element) => element.getAttribute("data-opdf-dialog")),
     );
 
-    const internalSidebarVisible = await this.page.locator('[data-epdf-cat*="panel-sidebar"]').evaluateAll((items) =>
-      items.some((element) => {
-        const rect = element.getBoundingClientRect();
-        return rect.width > 1 && rect.height > 1 && getComputedStyle(element).display !== "none";
-      }),
-    );
+    const embedPdfSidebar = viewer.locator('[data-sidebar-id="sidebar-panel"]').first();
+    const embedPdfSidebarVisible = viewerVisible
+      ? await embedPdfSidebar.isVisible().catch(() => false)
+      : false;
+    const embedPdfSidebarAvailable = viewerVisible
+      ? (await viewer.getByRole("button", { name: "Sidebar", exact: true }).count()) > 0
+      : false;
+    const embedPdfThumbnailCount = embedPdfSidebarVisible
+      ? await embedPdfSidebar.locator('button[title^="Page "]').count()
+      : 0;
 
     const buildSha = String(await this.page.locator('meta[name="opdf-build-sha"]').getAttribute("content").catch(() => "") || "");
 
@@ -242,9 +247,10 @@ export class OpdfDriver {
         renderedSurfaces: surfaces,
       },
       navigation: {
-        thumbnailCount: await this.page.locator('[data-opdf-page-action="goto"]').count(),
+        thumbnailCount: embedPdfThumbnailCount,
         opdfThumbnailPanels: await this.page.locator('[data-opdf-panel="pages"]').count(),
-        embedPdfSidebarVisible: internalSidebarVisible,
+        embedPdfSidebarAvailable,
+        embedPdfSidebarVisible,
       },
       panels: [...new Set(panels.filter(Boolean))],
       dialogs: [...new Set(dialogs.filter(Boolean))],
@@ -259,11 +265,15 @@ export class OpdfDriver {
   async gotoPage(pageNumber) {
     const numeric = Number(pageNumber);
     if (!Number.isInteger(numeric) || numeric < 1) throw new Error("Page number must be a positive integer");
-    const target = this.page.locator(`[data-opdf-page-action="goto"][data-opdf-page="${numeric}"]`);
-    await target.scrollIntoViewIfNeeded();
-    await target.click();
+
+    const viewer = this.page.locator('[data-opdf-engine="pdfium-wasm"]');
+    const input = viewer.locator('[data-epdf-i="page-controls"] input[inputmode="numeric"]').first();
+    await input.waitFor({ state: "attached" });
+    await input.fill(String(numeric));
+    await input.press("Enter");
     await this.page.locator(`[data-opdf-region="status-bar"][data-opdf-page="${numeric}"]`).waitFor({
       state: "visible",
+      timeout: this.options.timeout,
     });
     return this.inspect();
   }

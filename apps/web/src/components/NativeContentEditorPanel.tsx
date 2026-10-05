@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
+import { beginViewerContentPick, registerViewerContentAreaListener } from "../lib/viewer-runtime";
 
 type NativeContentEditorPanelProps = {
   page: number;
@@ -30,6 +31,34 @@ export function NativeContentEditorPanel({
     () => objects.find((object) => object.id === selectedId) ?? null,
     [objects, selectedId],
   );
+
+  useEffect(() => registerViewerContentAreaListener((area) => {
+    if (area.pageIndex !== page - 1 || objects.length === 0) return;
+    const x1 = area.rect.origin.x;
+    const x2 = x1 + area.rect.size.width;
+    const top1 = area.rect.origin.y;
+    const top2 = top1 + area.rect.size.height;
+
+    let best: { id: string; score: number } | null = null;
+    for (const object of objects) {
+      const ox1 = object.bounds.x;
+      const ox2 = object.bounds.x + object.bounds.width;
+      const objectTop = object.pageHeight - object.bounds.y - object.bounds.height;
+      const objectBottom = object.pageHeight - object.bounds.y;
+      const overlapWidth = Math.max(0, Math.min(x2, ox2) - Math.max(x1, ox1));
+      const overlapHeight = Math.max(0, Math.min(top2, objectBottom) - Math.max(top1, objectTop));
+      const overlap = overlapWidth * overlapHeight;
+      const objectArea = Math.max(1, object.bounds.width * object.bounds.height);
+      const score = overlap / objectArea;
+      if (score > 0 && (!best || score > best.score)) best = { id: object.id, score };
+    }
+    if (best) {
+      setSelectedId(best.id);
+      setMessage("Object selected from page.");
+    } else {
+      setMessage("No editable object intersects that area.");
+    }
+  }), [objects, page]);
 
   const refresh = async () => {
     setLoading(true);
@@ -167,9 +196,14 @@ export function NativeContentEditorPanel({
       </div>
 
       {message ? <div className="native-content-editor__message">{message}</div> : null}
-      <button type="button" className="native-content-editor__refresh" onClick={() => void refresh()} disabled={loading}>
-        {loading ? "Working…" : "Refresh objects"}
-      </button>
+      <div className="native-content-editor__row">
+        <button type="button" className="native-content-editor__refresh" onClick={beginViewerContentPick} disabled={loading}>
+          Pick on page
+        </button>
+        <button type="button" className="native-content-editor__refresh" onClick={() => void refresh()} disabled={loading}>
+          {loading ? "Working…" : "Refresh"}
+        </button>
+      </div>
       <div className="native-content-editor__row">
         <button type="button" className="native-content-editor__refresh" onClick={() => void undo()} disabled={!undoStack.length || loading}>
           Undo

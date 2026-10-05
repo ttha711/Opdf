@@ -602,6 +602,7 @@ const handleChunkUpload = createChunkUploadApi({
   chunkBytes: uploadChunkBytes,
   sendJson,
   sendError,
+  assertCanAdd: (bytes) => tenantRuntime.assertCanAdd(bytes),
 });
 
 const handleSigningApi = createSigningApi({

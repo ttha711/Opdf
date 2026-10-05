@@ -247,7 +247,9 @@ try {
   await sidebarPanel.waitFor({ state: "visible", timeout: 15000 });
   await shot("16-mobile-pages-drawer");
 
-  await pagesToggle.click();
+  const sidebarOverlay = sidebarPanel.locator("xpath=preceding-sibling::div[1]");
+  if (await sidebarOverlay.isVisible()) await sidebarOverlay.click();
+  else await pagesToggle.click();
   await sidebarPanel.waitFor({ state: "hidden", timeout: 15000 });
   await page.locator("header").getByRole("button", { name: "☰", exact: true }).click();
   await shot("17-mobile-menu");

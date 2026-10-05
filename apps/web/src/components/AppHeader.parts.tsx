@@ -227,6 +227,13 @@ export function AnnotationsHistoryGroup({
     <div className="flex flex-col items-center gap-1 rounded-[var(--ui-radius-md)] border border-[var(--border-color)] bg-[var(--bg-toolbar)] p-[var(--ui-pad-sm)] shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
       <span className="text-center text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--text-secondary)] opacity-70">Annotations & History</span>
       <div ref={settingsRef} className="relative flex flex-1 items-center gap-[var(--ui-gap-xs)]">
+        <ToolIconButton label="Edit PDF Content" active={activeTool === "edit-content"} disabled={!hasDocument} onClick={() => setActiveTool("edit-content")}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h10v16H4z" />
+            <path d="m14 15 6-6 2 2-6 6-3 1z" />
+            <path d="M7 8h4M7 12h4" />
+          </svg>
+        </ToolIconButton>
         <ToolIconButton label="Highlight" active={activeTool === "highlight"} disabled={!hasDocument} onClick={() => pickTool("highlight")}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m14 4 6 6-11 11H4v-5z" />

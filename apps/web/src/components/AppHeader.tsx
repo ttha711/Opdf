@@ -8,6 +8,7 @@ import { getEditorLaunchTitle } from "../lib/documentEditingExperience";
 import { useOpdfBridge } from "../hooks/useOpdfBridge";
 import { toast } from "./ToastProvider";
 import { AiSparkIcon } from "./AiSparkIcon";
+import { redoNativeContentEdit, undoNativeContentEdit } from "../lib/nativeContentHistory";
 
 export function AppHeader({
   fileInputRef,
@@ -178,6 +179,8 @@ export function AppHeader({
     { kind: "section", label: "Convert" },
     { kind: "action", label: "Compress PDF", disabled: !hasDocument, onClick: compressDocument },
     { kind: "action", label: "Convert to Images", disabled: !hasDocument, onClick: convertToImages },
+    { kind: "section", label: "Edit PDF" },
+    { kind: "action", label: "Edit PDF Content", disabled: !hasDocument, onClick: () => setActiveTool("edit-content") },
     { kind: "section", label: "Review & Security" },
     { kind: "action", label: "Measure Drawing", disabled: !hasDocument, onClick: () => setActiveTool("measure") },
     { kind: "action", label: "Compare Revisions...", disabled: !hasDocument, onClick: compareRevisions },
@@ -186,12 +189,22 @@ export function AppHeader({
     { kind: "section", label: "Advanced" },
     { kind: "action", label: "Advanced PDF...", disabled: !hasDocument, onClick: advancedPdf },
   ];
+  const effectiveEditMenuItems = activeTool === "edit-content"
+    ? editMenuItems.map((item) =>
+        item.kind === "action" && item.label === "Undo"
+          ? { ...item, disabled: false, onClick: () => { void undoNativeContentEdit(); } }
+          : item.kind === "action" && item.label === "Redo"
+            ? { ...item, disabled: false, onClick: () => { void redoNativeContentEdit(); } }
+            : item,
+      )
+    : editMenuItems;
+
   const mobileMenuItems: MenuItemDef[] = [
     { kind: "section", label: "File" },
     ...fileMenuItems,
     { kind: "separator" },
     { kind: "section", label: "Edit" },
-    ...editMenuItems,
+    ...effectiveEditMenuItems,
     { kind: "separator" },
     { kind: "section", label: "View" },
     ...viewMenuItems,
@@ -227,7 +240,7 @@ export function AppHeader({
         </div>
         <div className="opdf-desktop-menus">
           <MenuDropdown label="File" items={fileMenuItems} isOpen={openMenu === "File"} onToggle={() => toggleMenu("File")} onClose={closeMenu} />
-          <MenuDropdown label="Edit" items={editMenuItems} isOpen={openMenu === "Edit"} onToggle={() => toggleMenu("Edit")} onClose={closeMenu} />
+          <MenuDropdown label="Edit" items={effectiveEditMenuItems} isOpen={openMenu === "Edit"} onToggle={() => toggleMenu("Edit")} onClose={closeMenu} />
           <MenuDropdown label="View" items={viewMenuItems} isOpen={openMenu === "View"} onToggle={() => toggleMenu("View")} onClose={closeMenu} />
           <MenuDropdown label="Tools" items={compactToolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
         </div>
@@ -235,8 +248,9 @@ export function AppHeader({
           {hasDocument ? (
             <>
               <button data-opdf-action="save" className="top-menu-btn" type="button" title="Save (Ctrl+S)" onClick={savePdf}>Save</button>
-              <button data-opdf-action="undo" className="top-menu-btn" type="button" title="Undo (Ctrl+Z)" onClick={undoAnnotations}>Undo</button>
-              <button data-opdf-action="redo" className="top-menu-btn" type="button" title="Redo (Ctrl+Y)" onClick={redoAnnotations}>Redo</button>
+              <button data-opdf-action="edit-content" className="top-menu-btn" type="button" title="Edit PDF Content" onClick={() => setActiveTool("edit-content")}>Edit PDF</button>
+              <button data-opdf-action="undo" className="top-menu-btn" type="button" title="Undo (Ctrl+Z)" onClick={activeTool === "edit-content" ? () => { void undoNativeContentEdit(); } : undoAnnotations}>Undo</button>
+              <button data-opdf-action="redo" className="top-menu-btn" type="button" title="Redo (Ctrl+Y)" onClick={activeTool === "edit-content" ? () => { void redoNativeContentEdit(); } : redoAnnotations}>Redo</button>
             </>
           ) : null}
           <button

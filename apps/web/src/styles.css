@@ -1,3 +1,4 @@
+@import "./styles/native-content-editor.css";
 @import "tailwindcss";
 
 @import "./styles/variables.css";
@@ -9,3 +10,4 @@
 @import "./styles/tool-panel.css";
 @import "./styles/ai-chat.css";
 @import "./styles/live-editor.css";
+

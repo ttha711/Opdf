@@ -53,7 +53,7 @@ Current first-page budgets on GitHub-hosted Linux runners:
 - WSDOT E-20.20-00 Buried Structure Three-Sided: **60 seconds**
 - WSDOT Plans Preparation Manual M22-31: **120 seconds**
 
-The structural mutation case must also complete and persist within **30 seconds**. Results are written into the GitHub Actions job summary.
+The structural mutation case must also complete and persist within **90 seconds**. The server writes rotated PDFs with PDF object streams enabled to avoid unnecessarily expanding large engineering files during serialization. Results are written into the GitHub Actions job summary.
 
 The deterministic 100/250/500 MB generated stress gate remains separate from this external corpus. The external workflow also runs weekly so upstream document or engine regressions are visible even when application code has not changed.
 

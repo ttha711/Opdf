@@ -72,12 +72,12 @@ export function NativeEditPdfViewer({
         withAnnotations: true,
       }),
       createPluginRegistration(ZoomPluginPackage, {
-        defaultZoomLevel: Number.isFinite(scale) && scale > 0 ? scale : 1,
+        defaultZoomLevel: 1,
         minZoom: 0.05,
         maxZoom: 5,
       }),
     ];
-  }, [scale, sourceUrl]);
+  }, [sourceUrl]);
 
   if (!sourceUrl) {
     return <div className="native-edit-error">No PDF source is available for editing.</div>;

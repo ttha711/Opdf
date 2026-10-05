@@ -30,6 +30,14 @@ import {
 } from "../lib/measurement";
 
 const DOCUMENT_ID = "opdf-active-document";
+const SIDEBAR_PREF_KEY = "opdf-embedpdf-sidebar";
+
+function isVisibleElement(element: HTMLElement | null) {
+  if (!element) return false;
+  const style = window.getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+}
 
 
 export function PdfViewer({
@@ -46,9 +54,12 @@ export function PdfViewer({
   onViewerScaleChange,
   onPatchApplied,
   onActiveToolChange,
+  onViewerReady,
 }: PdfViewerProps) {
   const [readyViewer, setReadyViewer] = useState<{ sourceUrl: string; registry: any } | null>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
+  const viewerRootRef = useRef<HTMLDivElement>(null);
+  const viewerReadySourceRef = useRef<string | null>(null);
   const localSourceKeyRef = useRef<Uint8Array | Blob | null>(null);
   const suppressExternalPageRef = useRef(false);
   const preserveNativeToolRef = useRef(false);
@@ -100,6 +111,44 @@ export function PdfViewer({
   // server document that Save should update.
   const sourceUrl = localUrl ?? serverUrl;
   const activeRegistry = readyViewer?.sourceUrl === sourceUrl ? readyViewer.registry : null;
+
+  useEffect(() => {
+    if (!sourceUrl || !activeRegistry || window.innerWidth < 900) return;
+    const root = viewerRootRef.current;
+    if (!root) return;
+
+    let sidebarButton: HTMLButtonElement | null = null;
+    let sidebarPanel: HTMLElement | null = null;
+    let detach: (() => void) | null = null;
+
+    const timer = window.setTimeout(() => {
+      sidebarButton = root.querySelector<HTMLButtonElement>('button[aria-label="Sidebar"]');
+      sidebarPanel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
+      if (!sidebarButton || !sidebarPanel) return;
+
+      const preference = window.localStorage.getItem(SIDEBAR_PREF_KEY);
+      const shouldOpen = preference !== "closed";
+      if (shouldOpen && !isVisibleElement(sidebarPanel)) {
+        sidebarButton.click();
+      }
+
+      const remember = () => {
+        window.setTimeout(() => {
+          window.localStorage.setItem(
+            SIDEBAR_PREF_KEY,
+            isVisibleElement(sidebarPanel) ? "open" : "closed",
+          );
+        }, 250);
+      };
+      sidebarButton.addEventListener("click", remember);
+      detach = () => sidebarButton?.removeEventListener("click", remember);
+    }, 100);
+
+    return () => {
+      window.clearTimeout(timer);
+      detach?.();
+    };
+  }, [activeRegistry, sourceUrl]);
 
   const config = useMemo(() => {
     if (!sourceUrl) return null;
@@ -373,19 +422,26 @@ export function PdfViewer({
         if (typeof off === "function") unsubscribers.push(off);
       }
 
+      const signalViewerReady = () => {
+        if (viewerReadySourceRef.current === sourceUrl) return;
+        viewerReadySourceRef.current = sourceUrl;
+        onViewerReady?.();
+      };
+
       if (documentManager?.onDocumentOpened) {
         const off = documentManager.onDocumentOpened((doc: any) => {
           const openedId = doc?.id ?? doc?.document?.id;
           if (openedId && openedId !== DOCUMENT_ID) return;
-          syncPageCount(doc);
+          const count = syncPageCount(doc);
           onError?.(null);
+          if (count) signalViewerReady();
         });
         if (typeof off === "function") unsubscribers.push(off);
       }
 
       // If document-open/layout events happened before this bridge attached,
       // the live plugin state still contains the authoritative page count.
-      syncPageCount();
+      if (syncPageCount()) signalViewerReady();
 
       if (documentManager?.onDocumentError) {
         const off = documentManager.onDocumentError((event: any) => {
@@ -414,6 +470,7 @@ export function PdfViewer({
     onViewerDirty,
     onViewerScaleChange,
     onPatchApplied,
+    onViewerReady,
   ]);
 
   useEffect(() => {
@@ -565,6 +622,7 @@ export function PdfViewer({
 
   return (
     <div
+      ref={viewerRootRef}
       className="viewer-shell relative h-full min-h-0 overflow-hidden"
       data-opdf-engine="pdfium-wasm"
       data-opdf-source={localUrl ? "working-copy" : serverUrl ? "server" : "none"}

@@ -13,7 +13,6 @@ import { AppWorkspace } from "./components/app/AppWorkspace";
 import { useToast } from "./components/ToastProvider";
 import type { MarkupTool } from "./hooks/useDocumentActions";
 import { useAppControllers } from "./hooks/useAppControllers";
-import { useAppPageManagement } from "./hooks/useAppPageManagement";
 import { useDocumentScopedUiReset } from "./hooks/useDocumentScopedUiReset";
 import { useDraggableFab } from "./hooks/useDraggableFab";
 import { useIntegratedFileConverter } from "./hooks/useIntegratedFileConverter";
@@ -35,7 +34,6 @@ export function App() {
 
   const [updateInfo, setUpdateInfo] = useState<{ version: string; description?: string } | null>(null);
   const [activeMarkupTool, setActiveMarkupTool] = useState<MarkupTool | null>(null);
-  const [selectedThumbnailPages, setSelectedThumbnailPages] = useState<Set<number>>(new Set());
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isLiveEditorOpen, setIsLiveEditorOpen] = useState(false);
   const [liveEditorHtml, setLiveEditorHtml] = useState<string | null>(null);
@@ -59,14 +57,6 @@ export function App() {
     setPage: state.setPage,
     setViewerError: state.setViewerError,
   });
-  const pageActions = useAppPageManagement({
-    state,
-    bridge,
-    materializeDocumentBytes,
-    replaceDocumentBytes,
-    setSelectedThumbnailPages,
-  });
-
   useEffect(() => {
     if (!window.opdfUpdate) return;
     window.opdfUpdate.onUpdateReady(setUpdateInfo);
@@ -103,7 +93,6 @@ export function App() {
     state.setActiveDashboardTool(null);
     state.setShowDashboard(false);
     setActiveMarkupTool(null);
-    setSelectedThumbnailPages(new Set());
     setIsAiPanelOpen(false);
     setIsLiveEditorOpen(false);
     setLiveEditorHtml(null);
@@ -217,7 +206,6 @@ export function App() {
           onTriggerCompress={() => openSidebarTool("compress-pdf")}
           onTriggerMerge={() => openSidebarTool("merge-pdf")}
           onTriggerSplit={() => openSidebarTool("split-pdf")}
-          onTriggerOrganizePages={() => { state.setShowDashboard(false); sidebars.setIsLeftCollapsed(false); }}
           onTriggerFillForm={() => setShowAdvancedPdf(true)}
           onTriggerOcr={() => void headerProps.runOcr()}
           onTriggerWatermark={() => openSidebarTool("watermark-pdf")}
@@ -243,11 +231,8 @@ export function App() {
         <AppWorkspace
           controllers={controllers}
           sidebars={sidebars}
-          pageActions={pageActions}
           activeMarkupTool={activeMarkupTool}
           setActiveMarkupTool={setActiveMarkupTool}
-          selectedThumbnailPages={selectedThumbnailPages}
-          setSelectedThumbnailPages={setSelectedThumbnailPages}
           handleIntegratedFileSelected={handleIntegratedFileSelected}
           isAiPanelOpen={isAiPanelOpen}
           setIsAiPanelOpen={setIsAiPanelOpen}

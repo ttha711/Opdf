@@ -22,10 +22,7 @@ export function useDocumentLifecycle({
   setPage,
   setTotalPages,
   setViewerError,
-  setThumbnails,
   setAnnotations,
-  setBookmarks,
-  setPageRotations,
   setSaveState,
   markDocumentSaved,
   clearDocumentSaveTracking,
@@ -43,18 +40,13 @@ export function useDocumentLifecycle({
   setPage: Dispatch<SetStateAction<number>>;
   setTotalPages: Dispatch<SetStateAction<number>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
-  setThumbnails: Dispatch<SetStateAction<Array<{ page: number; url: string; blob: Blob }>>>;
   setAnnotations: Dispatch<SetStateAction<Annotation[]>>;
-  setBookmarks: Dispatch<SetStateAction<Array<{ id: string; page: number; title: string; createdAt: number }>>>;
-  setPageRotations: Dispatch<SetStateAction<Record<number, number>>>;
   setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
   markDocumentSaved: (snapshot?: {
     fileName?: string;
     docBytes?: Uint8Array | null;
     documentIdentity?: string;
     annotations?: Annotation[];
-    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
-    pageRotations?: Record<number, number>;
   }) => void;
   clearDocumentSaveTracking: () => void;
 }) {
@@ -73,11 +65,8 @@ export function useDocumentLifecycle({
     setPage,
     setTotalPages,
     setViewerError,
-    setThumbnails,
-    setAnnotations,
-    setBookmarks,
-    setPageRotations,
-    markDocumentSaved,
+      setAnnotations,
+        markDocumentSaved,
   });
 
   async function loadBrowserFile(file: File) {
@@ -95,17 +84,12 @@ export function useDocumentLifecycle({
     setPage(1);
     setTotalPages(0);
     setViewerError(null);
-    setThumbnails([]);
     setAnnotations(savedAnnotations);
-    setBookmarks([]);
-    setPageRotations({});
     markDocumentSaved({
       fileName: file.name,
       docBytes: null,
       documentIdentity: identity,
       annotations: savedAnnotations,
-      bookmarks: [],
-      pageRotations: {},
     });
   }
 
@@ -150,18 +134,13 @@ export function useDocumentLifecycle({
         setPage(1);
         setTotalPages(0);
         setViewerError(null);
-        setThumbnails([]);
-        setBookmarks([]);
-        setPageRotations({});
-        await bridge.pushRecent(result.filePath);
+                    await bridge.pushRecent(result.filePath);
         setAnnotations(loadedAnnotations);
         markDocumentSaved({
           fileName: result.filePath,
           docBytes: result.bytes,
           annotations: loadedAnnotations,
-          bookmarks: [],
-          pageRotations: {},
-        });
+                });
       }
     } catch (error) {
       console.warn("openFile failed:", error);
@@ -182,11 +161,8 @@ export function useDocumentLifecycle({
     setPage,
     setTotalPages,
     setViewerError,
-    setThumbnails,
-    setAnnotations,
-    setBookmarks,
-    setPageRotations,
-    markDocumentSaved,
+      setAnnotations,
+        markDocumentSaved,
     onError: (message) => toast.error(message),
   });
 
@@ -210,11 +186,8 @@ export function useDocumentLifecycle({
         : "",
     );
     if (!options.preserveAnnotations) setAnnotations([]);
-    setThumbnails([]);
     if (options.resetDocumentMetadata) {
-      setBookmarks([]);
-      setPageRotations({});
-    }
+        }
     setTotalPages(0);
     setViewerError(null);
     setPage(Math.max(1, nextPage));
@@ -241,10 +214,7 @@ export function useDocumentLifecycle({
     setPage(1);
     setTotalPages(0);
     setViewerError(null);
-    setThumbnails([]);
     setAnnotations([]);
-    setBookmarks([]);
-    setPageRotations({});
     clearDocumentSaveTracking();
     const { clearDraft } = await import("../lib/web-storage");
     await clearDraft();
@@ -260,11 +230,8 @@ export function useDocumentLifecycle({
     setPage,
     setTotalPages,
     setViewerError,
-    setThumbnails,
-    setAnnotations,
-    setBookmarks,
-    setPageRotations,
-    markDocumentSaved,
+      setAnnotations,
+        markDocumentSaved,
   });
 
   return { openFile, openFileWithPath, onSelectLocalFile, replaceDocumentBytes, closeDocument };

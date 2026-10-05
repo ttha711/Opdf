@@ -103,13 +103,18 @@ The current branch implements the native editor with direct `@embedpdf/pdfium` p
 - native content bytes remain separate from annotation workflows;
 - server Save + reload regression coverage for edited and duplicated native text.
 
-The remaining production-quality work is deliberately treated as a gate, not a reduced scope:
+The canvas editor milestone is now implemented rather than pending:
 
-- direct canvas selection handles and inline text editing should match the object panel behavior;
-- extend rotated-quad selection from Pick-on-page scoring into visible canvas handles;
-- add deterministic image/path persistence fixtures, including crop and Bezier geometry;
-- exercise Unicode/subset-font, rotated-object, scanned-page, encrypted-PDF and malformed-PDF fixtures;
-- run real engineering PDFs and performance budgets before calling M8 complete.
+- direct canvas selection, eight resize handles, a rotation handle, drag/move, and inline text editing are wired to the same PDFium patch/history pipeline as the object panel;
+- rotated PDFium quadrilateral bounds drive visible canvas selection handles;
+- deterministic server E2E already covers image/path persistence, crop/Bezier editing, Form-child promotion, and save/reload;
+- the production gate additionally verifies Unicode replacement on rotated text and image-only scanned-page transforms survive save/reload.
+
+M8 still requires external/adversarial coverage before the editor should be called universally complete:
+
+- subset-font fixtures that cannot be represented by the current generated Helvetica fixtures;
+- encrypted/password-protected and deliberately malformed PDFs with explicit safe-degradation assertions;
+- representative real engineering PDFs and measured performance budgets across Windows, macOS, browser/server runtimes.
 
 
 ## PDFium capability policy

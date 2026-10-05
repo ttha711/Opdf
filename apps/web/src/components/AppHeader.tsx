@@ -1,6 +1,6 @@
-import type { ChangeEvent, Dispatch, Ref, SetStateAction } from "react";
+import type { ChangeEvent, Ref } from "react";
 import { MenuDropdown, type MenuItemDef } from "./MenuDropdown";
-import type { ActiveTool, AnnotationToolDefaults, ViewMode, ZoomPreset } from "../lib/app-types";
+import type { ActiveTool } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
 import { TabBar } from "./TabBar";
 import type { OpdfTab } from "../lib/web-storage";
@@ -15,39 +15,18 @@ export function AppHeader({
   hasDesktopBridge,
   isPublic,
   hasDocument,
-  fileName,
   openFile,
-  closeDocument,
   fileMenuItems,
   editMenuItems,
   viewMenuItems,
-  toolsMenuItems,
   openMenu,
   toggleMenu,
   closeMenu,
   activeTool,
   setActiveTool,
-  annotationToolDefaults,
-  setAnnotationToolDefaults,
-  exportPdf,
-  page,
-  totalPages,
-  setPage,
-  goPrevPage,
-  goNextPage,
-  zoomOut,
-  zoomIn,
-  resetZoom,
-  scale,
-  zoomPreset,
-  applyZoomPreset,
-  viewMode,
-  setViewMode,
   undoAnnotations,
   redoAnnotations,
   runOcr,
-  rotateLeft,
-  rotateRight,
   compressDocument,
   addWatermark,
   splitDocument,
@@ -57,8 +36,6 @@ export function AppHeader({
   searchRedact,
   advancedPdf,
   digitalSign,
-  documentTool,
-  setDocumentTool,
   runDocumentTool,
   openDocumentMarkupTool,
   onSelectLocalFile,
@@ -68,7 +45,6 @@ export function AppHeader({
   setShowDashboard,
   onOpenAiEditorWindow,
   savePdf,
-  savePdfAs,
   saveState,
 
   // NEW TABS PROPS
@@ -88,39 +64,18 @@ export function AppHeader({
   hasDesktopBridge: boolean;
   isPublic: boolean;
   hasDocument: boolean;
-  fileName: string;
   openFile: () => void;
-  closeDocument: () => void;
   fileMenuItems: MenuItemDef[];
   editMenuItems: MenuItemDef[];
   viewMenuItems: MenuItemDef[];
-  toolsMenuItems: MenuItemDef[];
   openMenu: string | null;
   toggleMenu: (label: string) => void;
   closeMenu: () => void;
   activeTool: ActiveTool;
   setActiveTool: (tool: ActiveTool) => void;
-  annotationToolDefaults: AnnotationToolDefaults;
-  setAnnotationToolDefaults: Dispatch<SetStateAction<AnnotationToolDefaults>>;
-  exportPdf: () => void;
-  page: number;
-  totalPages: number;
-  setPage: (page: number) => void;
-  goPrevPage: () => void;
-  goNextPage: () => void;
-  zoomOut: () => void;
-  zoomIn: () => void;
-  resetZoom: () => void;
-  scale: number;
-  zoomPreset: ZoomPreset;
-  applyZoomPreset: (preset: ZoomPreset) => void;
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
   undoAnnotations: () => void;
   redoAnnotations: () => void;
   runOcr: () => void;
-  rotateLeft: () => void;
-  rotateRight: () => void;
   compressDocument: () => void;
   addWatermark: () => void;
   splitDocument: () => void;
@@ -130,8 +85,6 @@ export function AppHeader({
   searchRedact: () => void;
   advancedPdf: () => void;
   digitalSign: () => void;
-  documentTool: DocumentTool;
-  setDocumentTool: (tool: DocumentTool) => void;
   runDocumentTool: (tool?: DocumentTool) => void;
   openDocumentMarkupTool: (tool: "page-numbers" | "header" | "footer" | "bates") => void;
   onSelectLocalFile: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -141,7 +94,6 @@ export function AppHeader({
   setShowDashboard: (show: boolean) => void;
   onOpenAiEditorWindow?: () => void;
   savePdf: () => void;
-  savePdfAs: () => void;
   saveState: "idle" | "saving" | "saved";
 
   // NEW TABS TYPES
@@ -211,12 +163,21 @@ export function AppHeader({
     { kind: "separator" },
     { kind: "section", label: "Tools" },
     ...compactToolsMenuItems,
+    { kind: "separator" },
+    { kind: "section", label: "AI" },
+    {
+      kind: "action",
+      label: "AI Edit",
+      onClick: isPublic
+        ? () => toast.info("This feature is only available in the Local or Desktop App.")
+        : () => onOpenAiEditorWindow?.(),
+    },
   ];
 
 
   return (
-    <header data-opdf-region="app-header" className="flex flex-col border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm" style={{ zIndex: "var(--z-dropdown)" }}>
-      <div className="flex h-9 items-center gap-[var(--ui-gap-xs)] overflow-visible whitespace-nowrap border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[var(--ui-pad-sm)]">
+    <header data-opdf-region="app-header" className="opdf-app-header flex flex-col border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm" style={{ zIndex: "var(--z-dropdown)" }}>
+      <div className="opdf-topbar flex h-9 items-center gap-[var(--ui-gap-xs)] overflow-visible whitespace-nowrap border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[var(--ui-pad-sm)]">
         <div className="inline-flex select-none items-center gap-[var(--ui-gap-sm)] px-[10px] pl-[var(--ui-gap-sm)] text-[14px] font-bold tracking-[-0.3px] text-[#e03e2d]">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="#e03e2d"><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6z" /><path fill="white" d="M14 2v6h6" /><text x="5" y="17" fontSize="6" fill="white" fontWeight="bold">PDF</text></svg>
           <span className="text-[var(--ui-font-sm)] font-bold">Opdf</span>
@@ -244,7 +205,7 @@ export function AppHeader({
           <MenuDropdown label="View" items={viewMenuItems} isOpen={openMenu === "View"} onToggle={() => toggleMenu("View")} onClose={closeMenu} />
           <MenuDropdown label="Tools" items={compactToolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
         </div>
-        <div className="ml-auto flex items-center gap-1">
+        <div className="opdf-header-actions ml-auto flex items-center gap-1">
           {hasDocument ? (
             <>
               <button data-opdf-action="save" className="top-menu-btn" type="button" title="Save (Ctrl+S)" onClick={savePdf}>Save</button>
@@ -272,7 +233,7 @@ export function AppHeader({
           Open
         </button>
         {hasDocument && (
-          <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${saveState === "saving" ? "bg-amber-100 text-amber-700" : saveState === "saved" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+          <span data-opdf-save-state={saveState} className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${saveState === "saving" ? "bg-amber-100 text-amber-700" : saveState === "saved" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
             {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Unsaved"}
           </span>
         )}

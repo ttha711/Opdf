@@ -11,7 +11,6 @@ export function useViewerControls({
   setPage,
   setZoomPreset,
   setScale,
-  setPageRotations,
   lastWheelFlipAtRef,
 }: {
   hasDocument: boolean;
@@ -22,15 +21,26 @@ export function useViewerControls({
   setPage: Dispatch<SetStateAction<number>>;
   setZoomPreset: Dispatch<SetStateAction<ZoomPreset>>;
   setScale: Dispatch<SetStateAction<number>>;
-  setPageRotations: Dispatch<SetStateAction<Record<number, number>>>;
   lastWheelFlipAtRef: MutableRefObject<number>;
 }) {
+  function goToPage(nextPage: number) {
+    const target = totalPages > 0
+      ? Math.min(totalPages, Math.max(1, nextPage))
+      : Math.max(1, nextPage);
+    const viewer = getViewerControls();
+    if (viewer?.goToPage) {
+      viewer.goToPage(target);
+      return;
+    }
+    setPage(target);
+  }
+
   function goPrevPage() {
-    setPage((p) => Math.max(1, p - 1));
+    goToPage(page - 1);
   }
 
   function goNextPage() {
-    setPage((p) => (totalPages > 0 ? Math.min(totalPages, p + 1) : p + 1));
+    goToPage(page + 1);
   }
 
   const clampScale = (value: number) => Math.min(5, Math.max(0.05, value));
@@ -110,29 +120,11 @@ export function useViewerControls({
   }
 
   function rotateLeft() {
-    const viewer = getViewerControls();
-    if (viewer?.rotateBackward) {
-      viewer.rotateBackward();
-      return;
-    }
-    setPageRotations((prev) => {
-      const currentRotation = prev[page] || 0;
-      const nextRotation = (currentRotation - 90 + 360) % 360;
-      return { ...prev, [page]: nextRotation };
-    });
+    getViewerControls()?.rotateBackward?.();
   }
 
   function rotateRight() {
-    const viewer = getViewerControls();
-    if (viewer?.rotateForward) {
-      viewer.rotateForward();
-      return;
-    }
-    setPageRotations((prev) => {
-      const currentRotation = prev[page] || 0;
-      const nextRotation = (currentRotation + 90) % 360;
-      return { ...prev, [page]: nextRotation };
-    });
+    getViewerControls()?.rotateForward?.();
   }
 
   function onViewerWheel(event: WheelEvent<HTMLElement>) {
@@ -150,6 +142,7 @@ export function useViewerControls({
   }, [setPage]);
 
   return {
+    goToPage,
     goPrevPage,
     goNextPage,
     zoomIn,

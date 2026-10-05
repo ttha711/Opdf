@@ -220,18 +220,22 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   const saveText = useCallback(() => {
     if (!selected || selected.kind !== "text") return;
     const size = Number(draft.size);
+    const unicodeFallback = /[^\x00-\x7F]/.test(draft.text);
+    const fontFamily = !deepFormReadOnly
+      ? unicodeFallback ? "__opdf_unicode__" : draft.font || undefined
+      : undefined;
     void apply([
-      { type: "replace-text", objectId: selected.id, text: draft.text },
       {
         type: "style-text",
         objectId: selected.id,
         fontSize: !deepFormReadOnly && Number.isFinite(size) && size > 0 ? size : undefined,
         fillColor: draft.color,
-        fontFamily: !deepFormReadOnly ? draft.font || undefined : undefined,
+        fontFamily,
         strokeColor: draft.stroke,
         strokeWidth: Number.isFinite(Number(draft.strokeWidth)) ? Number(draft.strokeWidth) : undefined,
         renderMode: draft.renderMode,
       },
+      { type: "replace-text", objectId: selected.id, text: draft.text },
     ], "Native PDF text updated.");
   }, [apply, deepFormReadOnly, draft, selected]);
 

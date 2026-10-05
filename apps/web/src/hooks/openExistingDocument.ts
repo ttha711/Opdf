@@ -7,8 +7,6 @@ type SavedSnapshot = {
   docBytes?: Uint8Array | null;
   documentIdentity?: string;
   annotations?: Annotation[];
-  bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
-  pageRotations?: Record<number, number>;
 };
 
 type Args = {
@@ -21,10 +19,7 @@ type Args = {
   setPage: (value: number) => void;
   setTotalPages: (value: number) => void;
   setViewerError: (value: string | null) => void;
-  setThumbnails: (value: Array<{ page: number; url: string; blob: Blob }>) => void;
   setAnnotations: (value: Annotation[]) => void;
-  setBookmarks: (value: Array<{ id: string; page: number; title: string; createdAt: number }>) => void;
-  setPageRotations: (value: Record<number, number>) => void;
   markDocumentSaved: (snapshot?: SavedSnapshot) => void;
   onError: (message: string) => void;
 };
@@ -47,17 +42,12 @@ export function createOpenExistingDocument(args: Args) {
         args.setPage(1);
         args.setTotalPages(0);
         args.setViewerError(null);
-        args.setThumbnails([]);
         args.setAnnotations(annotations);
-        args.setBookmarks([]);
-        args.setPageRotations({});
         await args.bridge.pushRecent(result.filePath);
         args.markDocumentSaved({
           fileName: result.filePath,
           docBytes: result.bytes,
           annotations,
-          bookmarks: [],
-          pageRotations: {},
         });
       } catch {
         args.onError("Unable to open the file. Please try again.");
@@ -90,18 +80,13 @@ export function createOpenExistingDocument(args: Args) {
       args.setPage(1);
       args.setTotalPages(0);
       args.setViewerError(null);
-      args.setThumbnails([]);
       args.setAnnotations(annotations);
-      args.setBookmarks([]);
-      args.setPageRotations({});
       if (isServerDocument) await args.bridge.pushRecent(identity);
       args.markDocumentSaved({
         fileName: displayName,
         docBytes: null,
         documentIdentity: identity,
         annotations,
-        bookmarks: [],
-        pageRotations: {},
       });
     } catch (error) {
       args.setViewerError(error instanceof Error ? error.message : "Unable to open file");

@@ -1,3 +1,5 @@
+import { executeViewerCommand } from "../lib/viewer-runtime";
+
 type UseAppViewModelArgs = {
   state: any;
   actions: any;
@@ -6,53 +8,36 @@ type UseAppViewModelArgs = {
 };
 
 export function useAppViewModel({ state, actions, menuItems, callbacks }: UseAppViewModelArgs) {
+  const setActiveTool = (tool: any) => {
+    if (tool === "signature") {
+      void executeViewerCommand("insert:add-signature");
+      return;
+    }
+    state.setActiveTool(tool);
+  };
   const headerProps = {
     fileInputRef: state.fileInputRef,
     hasDesktopBridge: state.hasDesktopBridge,
     hasDocument: state.hasDocument,
-    fileName: state.fileName,
     openFile: actions.openFile,
-    closeDocument: actions.closeDocument,
     fileMenuItems: menuItems.fileMenuItems,
     editMenuItems: menuItems.editMenuItems,
     viewMenuItems: menuItems.viewMenuItems,
-    toolsMenuItems: menuItems.toolsMenuItems,
     openMenu: state.openMenu,
     toggleMenu: callbacks.toggleMenu,
     closeMenu: callbacks.closeMenu,
     activeTool: state.activeTool,
-    setActiveTool: state.setActiveTool,
-    annotationToolDefaults: state.annotationToolDefaults,
-    setAnnotationToolDefaults: state.setAnnotationToolDefaults,
+    setActiveTool,
     savePdf: actions.savePdf,
-    savePdfAs: actions.savePdfAs,
-    exportPdf: actions.exportPdf,
     saveState: state.saveState,
-    page: state.page,
-    totalPages: state.totalPages,
-    setPage: state.setPage,
-    goPrevPage: actions.goPrevPage,
-    goNextPage: actions.goNextPage,
-    zoomOut: actions.zoomOut,
-    zoomIn: actions.zoomIn,
-    resetZoom: actions.resetZoom,
-    scale: state.scale,
-    zoomPreset: state.zoomPreset,
-    applyZoomPreset: actions.applyZoomPreset,
-    viewMode: state.viewMode,
-    setViewMode: state.setViewMode,
     undoAnnotations: actions.undoAnnotations,
     redoAnnotations: actions.redoAnnotations,
     runOcr: actions.runOcr,
-    rotateLeft: actions.rotateLeft,
-    rotateRight: actions.rotateRight,
     compressDocument: actions.compressDocument,
     addWatermark: actions.addWatermark,
     splitDocument: actions.splitDocument,
     mergeDocuments: actions.mergeDocuments,
     convertToImages: actions.convertToImages,
-    documentTool: state.documentTool,
-    setDocumentTool: state.setDocumentTool,
     runDocumentTool: actions.runDocumentTool,
     openDocumentMarkupTool: actions.openDocumentMarkupTool,
     onSelectLocalFile: actions.onSelectLocalFile,
@@ -69,7 +54,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     page: state.page,
     scale: state.scale,
     activeTool: state.activeTool,
-    onActiveToolChange: state.setActiveTool,
+    onActiveToolChange: setActiveTool,
     onDocumentLoaded: callbacks.onLoaded,
     onError: state.setViewerError,
     onActivePageChange: actions.onActivePageChange,

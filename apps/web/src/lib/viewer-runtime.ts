@@ -10,35 +10,31 @@ export type ActiveViewerControls = {
   redo?: () => void;
   canUndo?: () => boolean;
   canRedo?: () => boolean;
+  goToPage?: (pageNumber: number) => void;
+  executeCommand?: (commandId: string) => void | Promise<void>;
 };
 
 type ViewerBytesProvider = () => Promise<Uint8Array | null>;
-type ViewerThumbnailProvider = (pageNumber: number) => Promise<Blob | null>;
-
+type ViewerPageImageProvider = (pageNumber: number) => Promise<Blob | null>;
 let activeProvider: ViewerBytesProvider | null = null;
-let activeThumbnailProvider: ViewerThumbnailProvider | null = null;
+let activeProviderSource: unknown = null;
+let activePageImageProvider: ViewerPageImageProvider | null = null;
 let activeControls: ActiveViewerControls | null = null;
 
-export function registerViewerBytesProvider(provider: ViewerBytesProvider) {
+export function registerViewerBytesProvider(provider: ViewerBytesProvider, source: unknown = null) {
   activeProvider = provider;
+  activeProviderSource = source;
   return () => {
-    if (activeProvider === provider) activeProvider = null;
+    if (activeProvider !== provider) return;
+    activeProvider = null;
+    activeProviderSource = null;
   };
 }
 
-export async function getViewerDocumentBytes() {
-  return activeProvider ? activeProvider() : null;
-}
-
-export function registerViewerThumbnailProvider(provider: ViewerThumbnailProvider) {
-  activeThumbnailProvider = provider;
-  return () => {
-    if (activeThumbnailProvider === provider) activeThumbnailProvider = null;
-  };
-}
-
-export async function getViewerThumbnail(pageNumber: number) {
-  return activeThumbnailProvider ? activeThumbnailProvider(pageNumber) : null;
+export async function getViewerDocumentBytes(expectedSource?: unknown) {
+  if (!activeProvider) return null;
+  if (arguments.length > 0 && expectedSource !== activeProviderSource) return null;
+  return activeProvider();
 }
 
 export function registerViewerControls(controls: ActiveViewerControls) {
@@ -52,31 +48,37 @@ export function getViewerControls() {
   return activeControls;
 }
 
+export async function executeViewerCommand(commandId: string) {
+  await activeControls?.executeCommand?.(commandId);
+}
 
-export type ViewerThumbnail = {
-  page: number;
-  blob: Blob;
-};
 
-export async function collectViewerThumbnails(pageCount: number): Promise<ViewerThumbnail[]> {
+export function registerViewerPageImageProvider(provider: ViewerPageImageProvider) {
+  activePageImageProvider = provider;
+  return () => {
+    if (activePageImageProvider === provider) activePageImageProvider = null;
+  };
+}
+
+export async function renderViewerPageImage(pageNumber: number) {
+  return activePageImageProvider ? activePageImageProvider(pageNumber) : null;
+}
+
+export async function renderViewerPageImages(pageCount: number) {
   if (!Number.isFinite(pageCount) || pageCount < 1) return [];
-
-  const thumbnails: ViewerThumbnail[] = [];
-  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+  const pages: Array<{ page: number; blob: Blob }> = [];
+  for (let page = 1; page <= pageCount; page += 1) {
     let blob: Blob | null = null;
     for (let attempt = 0; attempt < 20 && !blob; attempt += 1) {
-      blob = await getViewerThumbnail(pageNumber);
-      if (!blob && attempt < 19) {
-        await new Promise((resolve) => window.setTimeout(resolve, 50));
-      }
+      blob = await renderViewerPageImage(page);
+      if (!blob && attempt < 19) await new Promise((resolve) => window.setTimeout(resolve, 50));
     }
-    if (!blob) {
-      throw new Error(`Unable to render page ${pageNumber} from the active PDFium viewer.`);
-    }
-    thumbnails.push({ page: pageNumber, blob });
+    if (!blob) throw new Error(`Unable to render page ${page} from the active viewer.`);
+    pages.push({ page, blob });
   }
-  return thumbnails;
+  return pages;
 }
+
 
 export type ViewerContentArea = {
   pageIndex: number;

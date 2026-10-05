@@ -3,8 +3,6 @@ type FingerprintInput = {
   docBytes: Uint8Array | null;
   documentIdentity?: string;
   annotations?: unknown;
-  bookmarks?: unknown;
-  pageRotations?: unknown;
 };
 
 function fnv1aUpdate(hash: number, value: number) {
@@ -20,7 +18,7 @@ function hashString(hash: number, text: string) {
 }
 
 function hashBytes(hash: number, bytes: Uint8Array) {
-  // Dirty-state checks run whenever annotations/bookmarks change. Scanning an
+  // Dirty-state checks run whenever document metadata changes. Scanning an
   // entire 300+ MB PDF here stalls the main thread, so keep the fingerprint
   // bounded by sampling at most 4096 bytes plus the document length.
   const sampleCount = Math.min(4096, bytes.length);
@@ -37,8 +35,6 @@ export function buildDocumentFingerprint({
   docBytes,
   documentIdentity = "",
   annotations = [],
-  bookmarks = [],
-  pageRotations = {},
 }: FingerprintInput): string {
   if (!fileName || (!docBytes && !documentIdentity)) return "";
 
@@ -46,7 +42,5 @@ export function buildDocumentFingerprint({
   hash = hashString(hash, fileName);
   hash = docBytes ? hashBytes(hash, docBytes) : hashString(hash, documentIdentity);
   hash = hashString(hash, JSON.stringify(annotations));
-  hash = hashString(hash, JSON.stringify(bookmarks));
-  hash = hashString(hash, JSON.stringify(pageRotations));
   return hash.toString(36);
 }

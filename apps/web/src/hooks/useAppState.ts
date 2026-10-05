@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy centralized app state; this PR removes viewer mirror state and does not add new state responsibilities.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation, OcrJob } from "@opdf/core";
 import type { ActiveTool, AnnotationToolDefaults, ViewMode, ZoomPreset } from "../lib/app-types";
@@ -15,7 +16,6 @@ export function useAppState() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1);
-  const [pageRotations, setPageRotations] = useState<Record<number, number>>({});
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [ocrJobs, setOcrJobs] = useState<OcrJob[]>([]);
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
@@ -33,8 +33,6 @@ export function useAppState() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [viewMode, setViewMode] = useState<ViewMode>("continuous");
   const [documentTool, setDocumentTool] = useState<DocumentTool>("delete-pages");
-  const [thumbnails, setThumbnails] = useState<Array<{ page: number; url: string; blob: Blob }>>([]);
-  const [bookmarks, setBookmarks] = useState<Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
   const [activeDashboardTool, setActiveDashboardTool] = useState<string | null>(null);
@@ -79,8 +77,6 @@ export function useAppState() {
       docBytes,
       documentIdentity: sourceIdentity,
       annotations,
-      bookmarks,
-      pageRotations,
     });
 
     if (!currentFingerprint) {
@@ -112,27 +108,23 @@ export function useAppState() {
     } else if (saveState !== "idle") {
       setSaveState("idle");
     }
-  }, [annotations, bookmarks, docBytes, fileName, pageRotations, saveState, sourceIdentity]);
+  }, [annotations, docBytes, fileName, saveState, sourceIdentity]);
 
   const markDocumentSaved = useCallback((snapshot?: {
     fileName?: string;
     docBytes?: Uint8Array | null;
     documentIdentity?: string;
     annotations?: Annotation[];
-    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>;
-    pageRotations?: Record<number, number>;
   }) => {
     const fingerprint = buildDocumentFingerprint({
       fileName: snapshot?.fileName ?? fileName,
       docBytes: snapshot?.docBytes ?? docBytes,
       documentIdentity: snapshot?.documentIdentity ?? sourceIdentity,
       annotations: snapshot?.annotations ?? annotations,
-      bookmarks: snapshot?.bookmarks ?? bookmarks,
-      pageRotations: snapshot?.pageRotations ?? pageRotations,
     });
     savedFingerprintRef.current = fingerprint;
     setSaveState(fingerprint ? "saved" : "idle");
-  }, [annotations, bookmarks, docBytes, fileName, pageRotations, sourceIdentity]);
+  }, [annotations, docBytes, fileName, sourceIdentity]);
 
   const clearDocumentSaveTracking = useCallback(() => {
     savedFingerprintRef.current = "";
@@ -141,7 +133,8 @@ export function useAppState() {
 
   const materializeDocumentBytes = useCallback(async (): Promise<Uint8Array | null> => {
     const { getViewerDocumentBytes } = await import("../lib/viewer-runtime");
-    const viewerBytes = await getViewerDocumentBytes();
+    const currentSource = docBytes ?? sourceBlob ?? sourceIdentity;
+    const viewerBytes = await getViewerDocumentBytes(currentSource);
     if (viewerBytes) {
       setDocBytes(viewerBytes);
       return viewerBytes;
@@ -193,16 +186,11 @@ export function useAppState() {
     setPage(targetTab.page || 1);
     setTotalPages(targetTab.totalPages || 0);
     setAnnotations(targetTab.annotations || []);
-    setBookmarks(targetTab.bookmarks || []);
-    setThumbnails(targetTab.thumbnails || []);
-    setPageRotations(targetTab.pageRotations || {});
     markDocumentSaved({
       fileName: targetTab.fileName,
       docBytes: targetTab.docBytes,
       documentIdentity: targetTab.sourceIdentity ?? "",
       annotations: targetTab.annotations || [],
-      bookmarks: targetTab.bookmarks || [],
-      pageRotations: targetTab.pageRotations || {},
     });
     // The switch lock is released deterministically by an effect once the
     // render carrying the new activeTabId has committed (no arbitrary timeout).
@@ -237,19 +225,6 @@ export function useAppState() {
       }
     }
 
-    // Free up Blob URLs of thumbnails to prevent memory leaks
-    if (tabToClose.thumbnails) {
-      tabToClose.thumbnails.forEach(thumb => {
-        if (thumb.url && thumb.url.startsWith("blob:")) {
-          try {
-            URL.revokeObjectURL(thumb.url);
-          } catch (err) {
-            console.error("Failed to revoke blob URL:", err);
-          }
-        }
-      });
-    }
-
     setTabs(remainingTabs);
 
     if (activeTabId === tabId) {
@@ -266,9 +241,6 @@ export function useAppState() {
         setPage(1);
         setTotalPages(0);
         setAnnotations([]);
-        setBookmarks([]);
-        setThumbnails([]);
-        setPageRotations({});
         setShowDashboard(false);
         clearDocumentSaveTracking();
       }
@@ -344,21 +316,6 @@ export function useAppState() {
       const remainingTabs = prevTabs.filter(t => t.group !== groupName);
       const tabsToClose = prevTabs.filter(t => t.group === groupName);
       
-      // Free up Blob URLs of thumbnails in the closed group
-      tabsToClose.forEach(tabToClose => {
-        if (tabToClose.thumbnails) {
-          tabToClose.thumbnails.forEach(thumb => {
-            if (thumb.url && thumb.url.startsWith("blob:")) {
-              try {
-                URL.revokeObjectURL(thumb.url);
-              } catch (err) {
-                console.error("Failed to revoke blob URL:", err);
-              }
-            }
-          });
-        }
-      });
-
       const isActiveInClosedGroup = tabsToClose.some(t => t.id === activeTabId);
       
       if (isActiveInClosedGroup) {
@@ -375,10 +332,7 @@ export function useAppState() {
           setPage(1);
           setTotalPages(0);
           setAnnotations([]);
-          setBookmarks([]);
-          setThumbnails([]);
-          setPageRotations({});
-          setShowDashboard(false);
+            setShowDashboard(false);
           clearDocumentSaveTracking();
         }
       }
@@ -421,10 +375,7 @@ export function useAppState() {
               t.sourceIdentity !== sourceIdentity ||
               t.page !== page ||
               t.totalPages !== totalPages ||
-              t.annotations !== annotations ||
-              t.bookmarks !== bookmarks ||
-              t.thumbnails !== thumbnails ||
-              t.pageRotations !== pageRotations
+              t.annotations !== annotations
             ) {
               return {
                 ...t,
@@ -434,9 +385,6 @@ export function useAppState() {
                 page,
                 totalPages,
                 annotations,
-                bookmarks,
-                thumbnails,
-                pageRotations
               };
             }
           }
@@ -458,17 +406,14 @@ export function useAppState() {
         page,
         totalPages: 0,
         annotations,
-        bookmarks: [],
         group: activeGroupFilter,
         groupColor: activeGroupFilter ? randomColor : null,
-        thumbnails: [],
-        pageRotations: {},
       };
       
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTabId);
     }
-  }, [fileName, docBytes, sourceBlob, sourceIdentity, page, totalPages, annotations, bookmarks, thumbnails, pageRotations, activeTabId, activeGroupFilter]);
+  }, [fileName, docBytes, sourceBlob, sourceIdentity, page, totalPages, annotations, activeTabId, activeGroupFilter]);
 
   // Deterministic release of the tab-switch lock: once the render carrying the
   // switched-to activeTabId has committed (this effect runs after the sync
@@ -483,11 +428,11 @@ export function useAppState() {
   });
 
   return {
-    fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale, pageRotations, setPageRotations,
+    fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale,
     annotations, setAnnotations, ocrJobs, setOcrJobs, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
     saveState, setSaveState,
-    thumbnails, setThumbnails, bookmarks, setBookmarks, openMenu, setOpenMenu,
+    openMenu, setOpenMenu,
     theme, setTheme, fileInputRef, lastWheelFlipAtRef, hasDocument, hasDesktopBridge,
     showDashboard, setShowDashboard, activeDashboardTool, setActiveDashboardTool,
 

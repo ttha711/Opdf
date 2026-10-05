@@ -336,12 +336,6 @@
     box-shadow: 0 10px 36px rgba(0, 0, 0, .22);
   }
 
-  .opdf-side-panel--left {
-    left: 0;
-    grid-column: 1 !important;
-    border-right: 1px solid var(--border-color);
-  }
-
   .opdf-side-panel--right {
     right: 0;
     grid-column: 1 !important;
@@ -427,94 +421,35 @@
   .opdf-mobile-menu { display: block; }
   .opdf-desktop-menus { display: none; }
 
+  .opdf-app-header {
+    min-width: 0;
+    max-width: 100vw;
+    overflow-x: clip;
+  }
+
   .opdf-topbar {
+    min-width: 0;
+    max-width: 100%;
     overflow: visible;
   }
 
-  .opdf-app-header {
-    min-width: 0;
+  .opdf-header-actions {
+    display: none;
   }
 }
 
 
 /* Mobile touch ergonomics */
-.thumbnail-drag-handle {
-  touch-action: none;
-}
-
 @media (max-width: 900px) {
   .top-menu-btn,
   .opdf-home__primary,
   .opdf-home__secondary,
-  .thumbnail-drag-handle,
-  .thumbnail-bookmark-toggle,
-  .thumbnail-select-toggle {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  .thumbnail-drag-handle,
-  .thumbnail-bookmark-toggle,
-  .thumbnail-select-toggle {
-    opacity: 1 !important;
-    transform: none !important;
-  }
-
-  .thumbnail-drag-handle {
-    bottom: 34px;
-    left: 8px;
-  }
-
-  .thumbnail-bookmark-toggle {
-    top: 8px;
-    right: 8px;
-  }
-
-  .thumbnail-select-toggle {
-    top: 8px;
-    left: 8px;
-  }
-
-  .left-panel button,
   .acrobat-tool-panel button {
-    min-height: 44px;
-  }
-
-  .left-panel .thumbnail-drag-handle,
-  .left-panel .thumbnail-bookmark-toggle,
-  .left-panel .thumbnail-select-toggle {
     min-width: 44px;
     min-height: 44px;
   }
 
   .opdf-home__recent-card {
     min-height: 64px;
-  }
-}
-
-
-.opdf-mobile-pages-toggle {
-  display: none;
-}
-
-@media (max-width: 900px) {
-  .opdf-mobile-pages-toggle {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    z-index: var(--z-panel);
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    padding: 0 13px;
-    background: color-mix(in srgb, var(--bg-toolbar) 94%, transparent);
-    color: var(--text-primary);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
-    font-size: 12px;
-    font-weight: 700;
-    backdrop-filter: blur(10px);
   }
 }

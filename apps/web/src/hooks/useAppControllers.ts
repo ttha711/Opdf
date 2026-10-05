@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy app composition coordinator; this PR deletes mirrored viewer state and does not add new controller surface.
 import { useCallback, useEffect, useRef } from "react";
 import { useOpdfBridge } from "./useOpdfBridge";
 import { useAppState } from "./useAppState";
@@ -46,8 +47,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
         docBytes: null,
         documentIdentity: nextIdentity,
         annotations: state.annotations,
-        bookmarks: state.bookmarks,
-        pageRotations: state.pageRotations,
       });
       state.setViewerError("Saved to OPDF Server.");
       window.setTimeout(() => state.setViewerError(null), 3000);
@@ -58,8 +57,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     state.sourceIdentity,
     state.fileName,
     state.annotations,
-    state.bookmarks,
-    state.pageRotations,
     state.setDocBytes,
     state.setSourceBlob,
     state.setSourceIdentity,
@@ -81,10 +78,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setPage: state.setPage,
     setTotalPages: state.setTotalPages,
     setViewerError: state.setViewerError,
-    setThumbnails: state.setThumbnails,
     setAnnotations: state.setAnnotations,
-    setBookmarks: state.setBookmarks,
-    setPageRotations: state.setPageRotations,
     setSaveState: state.setSaveState,
     markDocumentSaved: state.markDocumentSaved,
     clearDocumentSaveTracking: state.clearDocumentSaveTracking,
@@ -137,6 +131,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   }, [state.hasDocument, state.setActiveDashboardTool]);
 
   const {
+    goToPage,
     goPrevPage,
     goNextPage,
     zoomIn,
@@ -156,7 +151,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setPage: state.setPage,
     setZoomPreset: state.setZoomPreset,
     setScale: state.setScale,
-    setPageRotations: state.setPageRotations,
     lastWheelFlipAtRef: state.lastWheelFlipAtRef,
   });
 
@@ -309,8 +303,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     hasDocument: state.hasDocument,
     fileName: state.fileName,
     annotations: state.annotations,
-    thumbnails: state.thumbnails,
-    bookmarks: state.bookmarks,
     page: state.page,
     theme: state.theme,
     setFileName: state.setFileName,
@@ -319,9 +311,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setSourceIdentity: state.setSourceIdentity,
     setAnnotations: state.setAnnotations,
     setPage: state.setPage,
-    setThumbnails: state.setThumbnails,
-    setBookmarks: state.setBookmarks,
-    setPageRotations: state.setPageRotations,
     setOpenMenu: state.setOpenMenu,
     setActiveTool: state.setActiveTool,
     setTheme: state.setTheme,
@@ -355,7 +344,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setSourceIdentity: state.setSourceIdentity,
     setPage: state.setPage,
     setViewerError: state.setViewerError,
-    setThumbnails: state.setThumbnails,
     setAnnotations: state.setAnnotations,
   });
 
@@ -432,7 +420,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
       runConfiguredDocumentTool,
       runConfiguredMarkupTool,
       runConfiguredWatermark,
-      setPage: state.setPage,
+      setPage: goToPage,
       setViewMode: state.setViewMode,
       setActiveTool: state.setActiveTool,
       setShowDashboard: state.setShowDashboard,
@@ -470,5 +458,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     updateAnnotation,
     openAiEditorWindow,
     openFileWithPath,
+    goToPage,
   };
 }

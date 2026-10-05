@@ -38,7 +38,6 @@ export function useExportAction({
     docBytes?: Uint8Array | null;
     documentIdentity?: string;
     annotations?: any[];
-    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
     pageRotations?: Record<number, number>;
   }) => void;
 }) {
@@ -90,7 +89,7 @@ export function useExportAction({
         return;
       }
 
-      await saveWebState({ fileName, annotations, thumbnails: [], page: 1 });
+      await saveWebState({ fileName, annotations, page: 1 });
       markDocumentSaved({
         fileName,
         docBytes,

@@ -13,17 +13,12 @@ type Args = {
   setPage: (value: number) => void;
   setTotalPages: (value: number) => void;
   setViewerError: (value: string | null) => void;
-  setThumbnails: (value: Array<{ page: number; url: string; blob: Blob }>) => void;
   setAnnotations: (value: Annotation[]) => void;
-  setBookmarks: (value: Array<{ id: string; page: number; title: string; createdAt: number }>) => void;
-  setPageRotations: (value: Record<number, number>) => void;
   markDocumentSaved: (snapshot: {
     fileName: string;
     docBytes: Uint8Array | null;
     documentIdentity: string;
     annotations: Annotation[];
-    bookmarks: Array<{ id: string; page: number; title: string; createdAt: number }>;
-    pageRotations: Record<number, number>;
   }) => void;
 };
 
@@ -67,18 +62,13 @@ export function useOpenPathEffect(args: Args) {
         current.setPage(1);
         current.setTotalPages(0);
         current.setViewerError(null);
-        current.setThumbnails([]);
         current.setAnnotations(annotations);
-        current.setBookmarks([]);
-        current.setPageRotations({});
         if (isServerDocument) await current.bridge.pushRecent(identity);
         current.markDocumentSaved({
           fileName: displayName,
           docBytes: null,
           documentIdentity: identity,
           annotations,
-          bookmarks: [],
-          pageRotations: {},
         });
       } catch {
         if (!cancelled) argsRef.current.setViewerError("Unable to open file");

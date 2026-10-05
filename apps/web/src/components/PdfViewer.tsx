@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy EmbedPDF integration coordinator; this patch fixes tool/panel lifecycle without expanding the component surface.
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PDFViewer as EmbedPdfViewer,
@@ -6,13 +7,13 @@ import {
 } from "@embedpdf/react-pdf-viewer";
 import type { PdfViewerProps } from "./PdfViewer.types";
 import type { ActiveTool } from "../lib/app-types";
-import { mapActiveToolToEmbedPdfAnnotation } from "../lib/annotationToolMapping";
+import { isEmbedPdfReplaceTextTool, mapActiveToolToEmbedPdfAnnotation } from "../lib/annotationToolMapping";
 import {
   emitViewerContentArea,
   registerViewerBytesProvider,
   registerViewerContentPickStarter,
   registerViewerControls,
-  registerViewerThumbnailProvider,
+  registerViewerPageImageProvider,
 } from "../lib/viewer-runtime";
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
 import { AiPatchDialog } from "./AiPatchDialog";
@@ -48,6 +49,7 @@ export function PdfViewer({
 }: PdfViewerProps) {
   const [readyViewer, setReadyViewer] = useState<{ sourceUrl: string; registry: any } | null>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
+  const localSourceKeyRef = useRef<Uint8Array | Blob | null>(null);
   const suppressExternalPageRef = useRef(false);
   const preserveNativeToolRef = useRef(false);
   const lastPageRef = useRef(page);
@@ -82,11 +84,13 @@ export function PdfViewer({
   useEffect(() => {
     const blob = sourceBlob ?? (data ? new Blob([data as unknown as BlobPart], { type: "application/pdf" }) : null);
     if (!blob) {
+      localSourceKeyRef.current = null;
       setLocalUrl(null);
       return;
     }
 
     const url = URL.createObjectURL(blob);
+    localSourceKeyRef.current = sourceBlob ?? data ?? null;
     setLocalUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [data, sourceBlob]);
@@ -111,9 +115,6 @@ export function PdfViewer({
         maxDocuments: 1,
       },
       tabBar: "never",
-      // OPDF owns the page thumbnail rail. Keep EmbedPDF focused on the
-      // document canvas + toolbar so users never see two page navigators.
-      disabledCategories: ["panel-sidebar"],
       theme: { preference: "light" },
       annotations: { annotationAuthor: "OPDF" },
       pan: { defaultMode: "mobile" },
@@ -146,13 +147,15 @@ export function PdfViewer({
       const redactionApi = registry.getPlugin?.("redaction")?.provides?.() as any;
       const zoomApi = registry.getPlugin?.("zoom")?.provides?.() as any;
       const rotateApi = registry.getPlugin?.("rotate")?.provides?.() as any;
-      const thumbnailApi = registry.getPlugin?.("thumbnail")?.provides?.() as any;
       const captureApi = registry.getPlugin?.("capture")?.provides?.() as any;
       const historyApi = registry.getPlugin?.("history")?.provides?.() as any;
+      const thumbnailApi = registry.getPlugin?.("thumbnail")?.provides?.() as any;
+      const commandsApi = registry.getPlugin?.("commands")?.provides?.() as any;
 
       const zoomScope = zoomApi?.forDocument?.(DOCUMENT_ID) ?? zoomApi;
       const rotateScope = rotateApi?.forDocument?.(DOCUMENT_ID) ?? rotateApi;
       const historyScope = historyApi?.forDocument?.(DOCUMENT_ID) ?? historyApi;
+      const commandScope = commandsApi?.forDocument?.(DOCUMENT_ID) ?? commandsApi;
       const unregisterControls = registerViewerControls({
         zoomIn: () => zoomScope?.zoomIn?.(),
         zoomOut: () => zoomScope?.zoomOut?.(),
@@ -165,19 +168,29 @@ export function PdfViewer({
         redo: () => historyScope?.redo?.(),
         canUndo: () => Boolean(historyScope?.canUndo?.()),
         canRedo: () => Boolean(historyScope?.canRedo?.()),
+        goToPage: (pageNumber) => {
+          const scrollScope = scroll?.forDocument?.(DOCUMENT_ID) ?? scroll;
+          scrollScope?.scrollToPage?.({
+            pageNumber: Math.max(1, pageNumber),
+            behavior: "instant",
+          });
+        },
+        executeCommand: async (commandId) => {
+          await commandScope?.execute?.(commandId, "api");
+        },
       });
       unsubscribers.push(unregisterControls);
 
       const thumbnailScope = thumbnailApi?.forDocument?.(DOCUMENT_ID) ?? thumbnailApi;
       if (thumbnailScope?.renderThumb) {
-        const unregisterThumbs = registerViewerThumbnailProvider(async (pageNumber) => {
+        const unregisterPageImages = registerViewerPageImageProvider(async (pageNumber) => {
           try {
             return await thumbnailScope.renderThumb(Math.max(0, pageNumber - 1), 1).toPromise();
           } catch {
             return null;
           }
         });
-        unsubscribers.push(unregisterThumbs);
+        unsubscribers.push(unregisterPageImages);
       }
 
       if (zoomScope?.onStateChange) {
@@ -192,10 +205,11 @@ export function PdfViewer({
 
       const exportScope = exportApi?.forDocument?.(DOCUMENT_ID) ?? exportApi;
       if (exportScope?.saveAsCopy) {
+        const viewerSource = localUrl ? localSourceKeyRef.current : sourceIdentity;
         const unregister = registerViewerBytesProvider(async () => {
           const buffer = await exportScope.saveAsCopy().toPromise();
           return buffer ? new Uint8Array(buffer) : null;
-        });
+        }, viewerSource);
         unsubscribers.push(unregister);
       }
 
@@ -266,8 +280,14 @@ export function PdfViewer({
 
       if (annotationApi?.onActiveToolChange && onActiveToolChange) {
         const off = annotationApi.onActiveToolChange((event: any) => {
-          if (activeTool !== "measure") return;
           const rawTool = String(event?.tool?.id ?? event?.tool?.name ?? "").toLowerCase();
+          if (isEmbedPdfReplaceTextTool(rawTool)) {
+            const scope = annotationApi?.forDocument?.(DOCUMENT_ID) ?? annotationApi;
+            scope?.setActiveTool?.(null);
+            onActiveToolChange("edit-content");
+            return;
+          }
+          if (activeTool !== "measure") return;
           const expectedMeasureTool =
             measurementMode === "area" ? "polygon" :
             measurementMode === "perimeter" ? "polyline" :
@@ -424,7 +444,6 @@ export function PdfViewer({
 
       const annotation = registry.getPlugin?.("annotation")?.provides?.() as any;
       const redaction = registry.getPlugin?.("redaction")?.provides?.() as any;
-      const commands = registry.getPlugin?.("commands")?.provides?.() as any;
       const capture = registry.getPlugin?.("capture")?.provides?.() as any;
       const redactionScope = redaction?.forDocument?.(DOCUMENT_ID) ?? redaction;
       const annotationScope = annotation?.forDocument?.(DOCUMENT_ID) ?? annotation;
@@ -445,12 +464,6 @@ export function PdfViewer({
       }
 
       if (captureScope?.isMarqueeCaptureActive?.()) captureScope?.disableMarqueeCapture?.();
-
-      if (activeTool === "signature") {
-        annotationScope?.setActiveTool?.(null);
-        commands?.forDocument?.(DOCUMENT_ID)?.execute?.("insert:add-signature", "api");
-        return;
-      }
 
       if (activeTool === "measure") {
         const tool = measurementMode === "area" ? "polygon" : measurementMode === "perimeter" ? "polyline" : "line";

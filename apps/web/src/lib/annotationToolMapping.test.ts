@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapActiveToolToEmbedPdfAnnotation } from "./annotationToolMapping";
+import { isEmbedPdfReplaceTextTool, mapActiveToolToEmbedPdfAnnotation } from "./annotationToolMapping";
 
 describe("annotation tool mapping", () => {
   it("maps OPDF text to editable EmbedPDF FreeText", () => {
@@ -15,5 +15,10 @@ describe("annotation tool mapping", () => {
     expect(mapActiveToolToEmbedPdfAnnotation("shape")).toBe("square");
     expect(mapActiveToolToEmbedPdfAnnotation("draw")).toBe("ink");
     expect(mapActiveToolToEmbedPdfAnnotation("select")).toBeNull();
+  });
+  it("recognizes EmbedPDF replace-text variants for native content editing", () => {
+    expect(isEmbedPdfReplaceTextTool("replace-text")).toBe(true);
+    expect(isEmbedPdfReplaceTextTool("replaceText")).toBe(true);
+    expect(isEmbedPdfReplaceTextTool("strikeout")).toBe(false);
   });
 });

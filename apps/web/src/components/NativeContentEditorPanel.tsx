@@ -26,6 +26,10 @@ export function NativeContentEditorPanel({
   const [draftFont, setDraftFont] = useState("");
   const [draftStroke, setDraftStroke] = useState("#000000");
   const [draftStrokeWidth, setDraftStrokeWidth] = useState("1");
+  const [draftRenderMode, setDraftRenderMode] = useState<"fill" | "stroke" | "fill-stroke" | "invisible">("fill");
+  const [draftLineCap, setDraftLineCap] = useState<"butt" | "round" | "square">("butt");
+  const [draftLineJoin, setDraftLineJoin] = useState<"miter" | "round" | "bevel">("miter");
+  const [draftDash, setDraftDash] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
@@ -99,6 +103,14 @@ export function NativeContentEditorPanel({
     setDraftColor(selected.fillColor ?? "#000000");
     setDraftStroke(selected.strokeColor ?? "#000000");
     setDraftStrokeWidth(String(selected.strokeWidth ?? 1));
+    setDraftRenderMode(
+      selected.textRenderMode === "stroke" || selected.textRenderMode === "fill-stroke" || selected.textRenderMode === "invisible"
+        ? selected.textRenderMode
+        : "fill",
+    );
+    setDraftLineCap(selected.lineCap ?? "butt");
+    setDraftLineJoin(selected.lineJoin ?? "miter");
+    setDraftDash((selected.dashArray ?? []).join(" "));
     setDraftFont("");
   }, [selected?.id]);
 
@@ -210,6 +222,9 @@ export function NativeContentEditorPanel({
         fontSize: size,
         fillColor: draftColor,
         fontFamily: draftFont || undefined,
+        strokeColor: draftStroke,
+        strokeWidth: Number.isFinite(Number(draftStrokeWidth)) ? Number(draftStrokeWidth) : undefined,
+        renderMode: draftRenderMode,
       });
     }
     void apply(patches, "Native PDF text updated.");
@@ -234,6 +249,69 @@ export function NativeContentEditorPanel({
           {loading ? "Working…" : "Refresh"}
         </button>
       </div>
+      <div className="native-content-editor__row">
+        <button
+          type="button"
+          className="native-content-editor__refresh"
+          onClick={() => void apply([{
+            type: "add-text",
+            pageIndex: Math.max(0, page - 1),
+            text: "New text",
+            x: 48,
+            y: 72,
+            fontSize: 18,
+            fillColor: "#000000",
+            fontFamily: "__opdf_unicode__",
+          }], "Native text object added.")}
+          disabled={loading}
+        >
+          + Text
+        </button>
+        <button
+          type="button"
+          className="native-content-editor__refresh"
+          onClick={() => void apply([{
+            type: "add-rect",
+            pageIndex: Math.max(0, page - 1),
+            x: 48,
+            y: 48,
+            width: 120,
+            height: 60,
+            fillColor: "#ffffff",
+            strokeColor: "#000000",
+            strokeWidth: 1,
+            fillMode: "winding",
+            stroke: true,
+          }], "Native rectangle added.")}
+          disabled={loading}
+        >
+          + Rectangle
+        </button>
+      </div>
+      <label className="native-content-editor__add-image">
+        + Image
+        <input
+          type="file"
+          accept="image/png,image/jpeg"
+          disabled={loading}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
+            void file.arrayBuffer().then((buffer) => apply([{
+              type: "add-image",
+              pageIndex: Math.max(0, page - 1),
+              bytes: new Uint8Array(buffer),
+              mimeType,
+              x: 48,
+              y: 48,
+              width: 160,
+              height: 120,
+            }], "Native image object added."));
+            event.currentTarget.value = "";
+          }}
+        />
+      </label>
       <div className="native-content-editor__row">
         <button type="button" className="native-content-editor__refresh" onClick={() => void undo()} disabled={!undoStack.length || loading}>
           Undo
@@ -291,6 +369,21 @@ export function NativeContentEditorPanel({
                   <option value="Courier">Courier</option>
                 </select>
               </label>
+              <div className="native-content-editor__row">
+                <label>
+                  Render
+                  <select value={draftRenderMode} onChange={(event) => setDraftRenderMode(event.target.value as typeof draftRenderMode)}>
+                    <option value="fill">Fill</option>
+                    <option value="stroke">Stroke</option>
+                    <option value="fill-stroke">Fill + stroke</option>
+                    <option value="invisible">Invisible</option>
+                  </select>
+                </label>
+                <label>
+                  Stroke
+                  <input type="color" value={draftStroke} onChange={(event) => setDraftStroke(event.target.value)} />
+                </label>
+              </div>
               <button type="button" className="primary" onClick={saveText} disabled={loading}>Apply text</button>
             </>
           ) : null}
@@ -329,6 +422,12 @@ export function NativeContentEditorPanel({
 
           {selected.kind === "image" ? (
             <>
+              {selected.imageInfo ? (
+                <div className="native-content-editor__object-info">
+                  <strong>{selected.imageInfo.width} × {selected.imageInfo.height}px</strong>
+                  <span>{selected.imageInfo.filters.length ? selected.imageInfo.filters.join(" → ") : "No PDF image filter reported"}</span>
+                </div>
+              ) : null}
               <label>
                 Replace image
                 <input
@@ -380,6 +479,32 @@ export function NativeContentEditorPanel({
                   onChange={(event) => setDraftStrokeWidth(event.target.value)}
                 />
               </label>
+              <div className="native-content-editor__row">
+                <label>
+                  Line cap
+                  <select value={draftLineCap} onChange={(event) => setDraftLineCap(event.target.value as typeof draftLineCap)}>
+                    <option value="butt">Butt</option>
+                    <option value="round">Round</option>
+                    <option value="square">Square</option>
+                  </select>
+                </label>
+                <label>
+                  Line join
+                  <select value={draftLineJoin} onChange={(event) => setDraftLineJoin(event.target.value as typeof draftLineJoin)}>
+                    <option value="miter">Miter</option>
+                    <option value="round">Round</option>
+                    <option value="bevel">Bevel</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                Dash pattern
+                <input
+                  value={draftDash}
+                  placeholder="e.g. 6 3"
+                  onChange={(event) => setDraftDash(event.target.value)}
+                />
+              </label>
               <button
                 type="button"
                 className="primary"
@@ -391,6 +516,12 @@ export function NativeContentEditorPanel({
                     fillColor: draftColor,
                     strokeColor: draftStroke,
                     strokeWidth: Number.isFinite(strokeWidth) && strokeWidth >= 0 ? strokeWidth : undefined,
+                    lineCap: draftLineCap,
+                    lineJoin: draftLineJoin,
+                    dashArray: draftDash.trim()
+                      ? draftDash.trim().split(/[ ,]+/).map(Number).filter((value) => Number.isFinite(value) && value >= 0)
+                      : undefined,
+                    dashPhase: 0,
                   }], "Path style updated.");
                 }}
                 disabled={loading}
@@ -407,6 +538,14 @@ export function NativeContentEditorPanel({
               />
             </>
           ) : null}
+
+          {selected.kind === "form" ? (
+            <div className="native-content-editor__object-info">
+              <strong>Form XObject</strong>
+              <span>{selected.formChildCount ?? 0} nested page object(s)</span>
+            </div>
+          ) : null}
+          {selected.hasTransparency ? <div className="native-content-editor__object-info"><span>Uses transparency</span></div> : null}
 
           <button
             type="button"

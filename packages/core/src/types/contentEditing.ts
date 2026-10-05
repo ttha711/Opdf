@@ -1,5 +1,7 @@
 export type PdfContentObjectKind = "text" | "image" | "path" | "shading" | "form";
 
+export type PdfPoint = { x: number; y: number };
+export type PdfQuad = [PdfPoint, PdfPoint, PdfPoint, PdfPoint];
 export type PdfRect = { x: number; y: number; width: number; height: number };
 export type PdfMatrix = [number, number, number, number, number, number];
 
@@ -59,7 +61,12 @@ export type PdfContentObject = {
   pageHeight: number;
   kind: PdfContentObjectKind;
   bounds: PdfRect;
+  localBounds?: PdfRect;
+  rotatedBounds?: PdfQuad;
   matrix: PdfMatrix;
+  parentMatrix?: PdfMatrix;
+  parentId?: string;
+  depth?: number;
   text?: string;
   fontFamily?: string;
   fontSize?: number;

@@ -86,6 +86,7 @@ export class OcrService {
     job.progress = 1;
     job.error = undefined;
     job.outputBytes = undefined;
+    const isCancelled = () => this.jobs.get(id)?.status === "cancelled";
 
     try {
       job.outputBytes = await this.createSearchablePdf(pdfBytes, job.language, {
@@ -94,14 +95,14 @@ export class OcrService {
           job.progress = progress;
           options.onProgress?.(progress);
         },
-        isCancelled: () => job.status === "cancelled" || Boolean(options.isCancelled?.()),
+        isCancelled: () => isCancelled() || Boolean(options.isCancelled?.()),
       });
-      if (job.status !== "cancelled") {
+      if (!isCancelled()) {
         job.progress = 100;
         job.status = "done";
       }
     } catch (error) {
-      if (job.status !== "cancelled") {
+      if (!isCancelled()) {
         job.status = "failed";
         job.error = error instanceof Error ? error.message : "OCR failed";
       }

@@ -1,4 +1,5 @@
-// opdf-file-size-allow: legacy digital-signature dialog; M10 only updates runtime/security copy while signing transport stays in bridge modules.\nimport { useMemo, useState } from "react";
+// opdf-file-size-allow: legacy digital-signature dialog; M10 only updates runtime/security copy while signing transport stays in bridge modules.
+import { useMemo, useState } from "react";
 import type { P12CertificateInfo, PdfSignatureInspection } from "../types/opdf";
 import { pdfSourceToBytes, type PdfSource } from "../lib/documentSource";
 import { useDialogClose } from "../hooks/useDialogClose";

@@ -32,6 +32,8 @@ export type BridgeCapabilities = {
   bookmarksPersist: boolean;
   pdfA: boolean;
   digitalSignature?: boolean;
+  certificateStorage?: boolean;
+  signatureInspection?: boolean;
   storedMutations?: boolean;
   rangePreview?: boolean;
   ocrQueue?: boolean;

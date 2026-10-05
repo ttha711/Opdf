@@ -238,13 +238,45 @@ npm run server-start
 
 The server exposes OCR job progress and cancellation through the same-origin OPDF API. Completed OCR output is stored under `OPDF_DATA_DIR\ocr` while the server is running.
 
+## Server P12/PFX signing
+
+OPDF Server can use the same detached PKCS#7 signing engine as Desktop. Server signing is disabled until encrypted certificate storage is configured.
+
+Set a strong server-only secret before starting OPDF:
+
+```powershell
+$env:OPDF_CERTIFICATE_MASTER_KEY="<at-least-16-characters, preferably a long random secret>"
+npm run server-start
+```
+
+Certificate handling rules:
+
+- uploaded P12/PFX bytes are inspected before storage;
+- certificate bytes are encrypted at rest with AES-256-GCM;
+- the encryption key is derived from `OPDF_CERTIFICATE_MASTER_KEY` and is never written under `OPDF_DATA_DIR`;
+- the P12/PFX passphrase is used only for inspection/signing and is never stored;
+- identical certificate files are deduplicated by SHA-256 fingerprint;
+- deleting a stored certificate removes its encrypted envelope and metadata;
+- PDF signature inspection remains conservative and does not claim OS trust-chain or revocation validation.
+
+Stored certificate data lives under:
+
+```
+OPDF_DATA_DIR/
+  certificates/
+    <uuid>/
+      certificate.json
+      meta.json
+```
+
+For remote use, keep the same-origin API behind HTTPS and configure reverse proxies not to log the `X-OPDF-Options` header because it carries the transient certificate passphrase during signing.
+
 ## Next server phases
 
-The server bridge is designed so native/server workers can be added without changing the main UI. After server OCR, the next logical migrations are:
+After server OCR and P12/PFX signing, the remaining production server phases are:
 
-1. Server-side P12/PFX signing policy and certificate storage.
-2. Multi-user authentication, authorization, quotas, and per-user/project storage.
-3. S3-compatible object storage for multi-node deployments.
+1. Multi-user authentication, authorization, quotas, and per-user/project storage.
+2. S3-compatible object storage for multi-node deployments.
 
 
 ## Office to PDF conversion

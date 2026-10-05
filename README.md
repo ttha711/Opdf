@@ -29,7 +29,8 @@ Offline-first PDF desktop app with a web-first development workflow. OPDF target
 
 ### Signatures
 - Visible local signatures.
-- Desktop P12/PFX cryptographic signing using detached PKCS#7.
+- Desktop and OPDF Server P12/PFX cryptographic signing using the same shared detached PKCS#7 engine.
+- Server certificates are encrypted at rest with AES-256-GCM when `OPDF_CERTIFICATE_MASTER_KEY` is configured; P12/PFX passwords are never persisted.
 - Certificate metadata inspection.
 - Existing PDF signature inspection for ByteRange/CMS structure and later revisions.
 

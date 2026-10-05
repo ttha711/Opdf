@@ -3,6 +3,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PDFDocument } from "pdf-lib";
+import { runSigningSmoke } from "./opdf-signing.smoke.mjs";
 
 const port = 18787;
 const dataDir = await mkdtemp(join(tmpdir(), "opdf-server-smoke-"));
@@ -15,6 +16,7 @@ const child = spawn(process.execPath, ["server/opdf-server.mjs"], {
     OPDF_WEB_DIST: join(process.cwd(), "apps", "web", "dist"),
     OPDF_PYTHON_PATH: process.platform === "win32" ? "python" : "python3",
     OPDF_OFFICE_CONVERTER_SCRIPT: join(process.cwd(), "server", "office-converter-smoke.py"),
+    OPDF_CERTIFICATE_MASTER_KEY: "opdf-ci-master-key-2026",
   },
   stdio: ["ignore", "pipe", "pipe"],
 });
@@ -49,6 +51,9 @@ try {
   assert(health.runtime === "server", "health runtime must be server");
   assert(health.capabilities?.ocrQueue === true, "health must expose OCR queue support");
   assert(health.capabilities?.searchablePdfOcr === true, "health must expose searchable PDF OCR support");
+  assert(health.capabilities?.digitalSignature === true, "health must expose server digital signing");
+  assert(health.capabilities?.certificateStorage === true, "health must expose encrypted certificate storage");
+  assert(health.capabilities?.signatureInspection === true, "health must expose signature inspection");
 
   const ocrCreate = await fetch(`${base}/api/opdf/ocr/jobs`, {
     method: "POST",
@@ -232,6 +237,8 @@ try {
 
   const encodeOptions = (value) =>
     Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+
+  await runSigningSmoke({ base, pdfBytes: updatedSample, assert });
 
   const encryptedResponse = await fetch(`${base}/api/opdf/operations/encrypt`, {
     method: "POST",

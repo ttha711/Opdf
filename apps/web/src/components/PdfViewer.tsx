@@ -13,6 +13,7 @@ import {
   registerViewerBytesProvider,
   registerViewerContentPickStarter,
   registerViewerControls,
+  registerViewerPageImageProvider,
 } from "../lib/viewer-runtime";
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
 import { AiPatchDialog } from "./AiPatchDialog";
@@ -148,6 +149,7 @@ export function PdfViewer({
       const rotateApi = registry.getPlugin?.("rotate")?.provides?.() as any;
       const captureApi = registry.getPlugin?.("capture")?.provides?.() as any;
       const historyApi = registry.getPlugin?.("history")?.provides?.() as any;
+      const thumbnailApi = registry.getPlugin?.("thumbnail")?.provides?.() as any;
       const commandsApi = registry.getPlugin?.("commands")?.provides?.() as any;
 
       const zoomScope = zoomApi?.forDocument?.(DOCUMENT_ID) ?? zoomApi;
@@ -171,6 +173,18 @@ export function PdfViewer({
         },
       });
       unsubscribers.push(unregisterControls);
+
+      const thumbnailScope = thumbnailApi?.forDocument?.(DOCUMENT_ID) ?? thumbnailApi;
+      if (thumbnailScope?.renderThumb) {
+        const unregisterPageImages = registerViewerPageImageProvider(async (pageNumber) => {
+          try {
+            return await thumbnailScope.renderThumb(Math.max(0, pageNumber - 1), 1).toPromise();
+          } catch {
+            return null;
+          }
+        });
+        unsubscribers.push(unregisterPageImages);
+      }
 
       if (zoomScope?.onStateChange) {
         const off = zoomScope.onStateChange((state: any) => {

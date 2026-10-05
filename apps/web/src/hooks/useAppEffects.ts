@@ -21,8 +21,6 @@ type AppEffectsArgs = {
   hasDocument: boolean;
   fileName: string;
   annotations: Annotation[];
-  thumbnails: Array<{ page: number; url: string; blob: Blob }>;
-  bookmarks: Array<{ id: string; page: number; title: string; createdAt: number }>;
   page: number;
   theme: "light" | "dark";
   setFileName: (v: string) => void;
@@ -31,8 +29,6 @@ type AppEffectsArgs = {
   setSourceIdentity: (v: string) => void;
   setAnnotations: (v: Annotation[]) => void;
   setPage: (v: number) => void;
-  setThumbnails: (v: Array<{ page: number; url: string; blob: Blob }>) => void;
-  setBookmarks: (v: Array<{ id: string; page: number; title: string; createdAt: number }>) => void;
   setPageRotations: (v: Record<number, number>) => void;
   setOpenMenu: Dispatch<SetStateAction<string | null>>;
   setActiveTool: (v: ActiveTool) => void;
@@ -59,8 +55,8 @@ type AppEffectsArgs = {
 
 export function useAppEffects(args: AppEffectsArgs) {
   const {
-    bridge, hasDesktopBridge, docBytes, hasDocument, fileName, annotations, thumbnails, bookmarks, page, theme,
-    setFileName, setDocBytes, setSourceBlob, setSourceIdentity, setAnnotations, setPage, setThumbnails, setBookmarks, setPageRotations, setOpenMenu, setActiveTool, setTheme,
+    bridge, hasDesktopBridge, docBytes, hasDocument, fileName, annotations, page, theme,
+    setFileName, setDocBytes, setSourceBlob, setSourceIdentity, setAnnotations, setPage, setPageRotations, setOpenMenu, setActiveTool, setTheme,
     openFile, savePdf, savePdfAs, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage,
 
     // NEW TABS PROPS
@@ -79,20 +75,6 @@ export function useAppEffects(args: AppEffectsArgs) {
     if (urlParams.has("open")) return;
 
     let cancelled = false;
-    const createdObjectUrls: string[] = [];
-
-    const makeThumbUrls = (tab: OpdfTab) => {
-      if (!tab.thumbnails || tab.thumbnails.length === 0) return tab.thumbnails;
-      return tab.thumbnails.map((thumb) => {
-        const url = URL.createObjectURL(thumb.blob);
-        createdObjectUrls.push(url);
-        return {
-          ...thumb,
-          url,
-        };
-      });
-    };
-
     async function initTabs() {
       try {
         const [loadedTabs, loadedActiveId] = await Promise.all([
@@ -104,16 +86,12 @@ export function useAppEffects(args: AppEffectsArgs) {
         const groupFilter = urlParams.get("group") || null;
 
         if (loadedTabs && loadedTabs.length > 0) {
-          const tabsWithUrls = loadedTabs.map((tab) => ({
-            ...tab,
-            thumbnails: makeThumbUrls(tab),
-          }));
-          setTabs(tabsWithUrls);
+          setTabs(loadedTabs);
 
-          let targetTab = tabsWithUrls.find(t => t.id === loadedActiveId);
+          let targetTab = loadedTabs.find(t => t.id === loadedActiveId);
 
           if (groupFilter) {
-            const groupTabs = tabsWithUrls.filter(t => t.group === groupFilter);
+            const groupTabs = loadedTabs.filter(t => t.group === groupFilter);
             if (groupTabs.length > 0) {
               if (!targetTab || targetTab.group !== groupFilter) {
                 targetTab = groupTabs[0];
@@ -135,8 +113,6 @@ export function useAppEffects(args: AppEffectsArgs) {
             setSourceIdentity(targetTab.sourceIdentity ?? "");
             setPage(targetTab.page || 1);
             setAnnotations(targetTab.annotations || []);
-            setBookmarks(targetTab.bookmarks || []);
-            setThumbnails(targetTab.thumbnails || []);
             setPageRotations(targetTab.pageRotations || {});
 
             if (bridge.replaceAnnotations) {
@@ -166,7 +142,6 @@ export function useAppEffects(args: AppEffectsArgs) {
               page: draft.state.page || 1,
               totalPages: 0,
               annotations: draft.state.annotations || [],
-              bookmarks: draft.state.bookmarks || [],
               group: null,
               groupColor: null
             };
@@ -180,7 +155,6 @@ export function useAppEffects(args: AppEffectsArgs) {
             setSourceIdentity(newTab.sourceIdentity ?? "");
             setPage(newTab.page);
             setAnnotations(newTab.annotations);
-            setBookmarks(newTab.bookmarks);
             setPageRotations({});
 
             if (bridge.replaceAnnotations) {
@@ -205,13 +179,6 @@ export function useAppEffects(args: AppEffectsArgs) {
 
     return () => {
       cancelled = true;
-      createdObjectUrls.forEach((url) => {
-        try {
-          URL.revokeObjectURL(url);
-        } catch {
-          // Ignore cleanup failures during teardown.
-        }
-      });
     };
   }, [bridge, hasDesktopBridge]);
 

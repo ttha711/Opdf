@@ -67,6 +67,10 @@ export function useGlobalKeyboardShortcuts(args: Args) {
 
       if (event.key === "+" || event.key === "=") return zoomIn();
       if (event.key === "-") return zoomOut();
+
+      // Native Edit PDF owns arrows and tool-like single keys while it is active.
+      if (document.querySelector("[data-opdf-native-editor='true']")) return;
+
       if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
         event.preventDefault();
         goPrevPage();

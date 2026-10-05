@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { openEmbedPdfSidebar } from "../helpers/embedpdf";
 
 async function clickHeaderMenuItem(page: Page, menu: "File" | "View" | "Tools", item: string) {
   const header = page.locator("header");
@@ -100,6 +101,46 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   await expect(page.getByText(/Page\s+1\s+of\s+24/i)).toBeVisible({ timeout: 30_000 });
 });
 
+
+test("large persisted PDFs keep the full EmbedPDF toolbar and sidebar", async ({ page, request }) => {
+  const pdf = await PDFDocument.create();
+  const sheet = pdf.addPage([842, 595]);
+  sheet.drawText("LARGE SERVER VIEWER SHELL", { x: 48, y: 520, size: 20 });
+  const bytes = Buffer.from(await pdf.save());
+
+  const upload = await request.post("/api/opdf/documents?name=large-viewer-shell.pdf", {
+    headers: { "content-type": "application/pdf" },
+    data: bytes,
+  });
+  expect(upload.ok()).toBeTruthy();
+  const stored = await upload.json() as { filePath: string };
+
+  await page.route("**/api/opdf/documents/**", async (route) => {
+    if (route.request().method() !== "HEAD") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "content-type": "application/pdf",
+        "content-length": String(40 * 1024 * 1024),
+        "accept-ranges": "bytes",
+      },
+      body: "",
+    });
+  });
+
+  await page.goto(`/?open=${encodeURIComponent(stored.filePath)}`);
+  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  await expect(viewer).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-opdf-engine="pdfjs-range"]')).toHaveCount(0);
+  await expect(viewer.getByRole("button", { name: "View", exact: true })).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "Annotate", exact: true })).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "Shapes", exact: true })).toBeVisible();
+
+  await openEmbedPdfSidebar(viewer);
+});
 
 test("server persists page reorder mutations", async ({ request }) => {
   const pdf = await PDFDocument.create();

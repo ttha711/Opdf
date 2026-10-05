@@ -234,6 +234,21 @@ export function createOpdfStorage(rootDir, tenant = null) {
     return total;
   }
 
+  async function getOwnerUsageBytes(ownerId) {
+    const safeOwnerId = assertTenantId(ownerId, "user id");
+    await ensure();
+    const entries = await readdir(documentsRoot, { withFileTypes: true }).catch(() => []);
+    let total = 0;
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !UUID_RE.test(entry.name)) continue;
+      const meta = await readJson(metaPath(entry.name), null);
+      if (!meta || meta.ownerId !== safeOwnerId) continue;
+      const reserved = Number(meta.uploadExpectedSize || 0);
+      total += Math.max(Number(meta.size || 0), reserved);
+    }
+    return total;
+  }
+
   return {
     root,
     stateRoot,
@@ -252,5 +267,6 @@ export function createOpdfStorage(rootDir, tenant = null) {
     getDocumentSize,
     getUploadSize,
     getUsageBytes,
+    getOwnerUsageBytes,
   };
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { beginViewerContentPick, registerViewerContentAreaListener } from "../lib/viewer-runtime";
+import { PathGeometryEditor } from "./PathGeometryEditor";
 
 type NativeContentEditorPanelProps = {
   page: number;
@@ -89,6 +90,8 @@ export function NativeContentEditorPanel({
     setDraftText(selected.text ?? "");
     setDraftSize(String(Math.round((selected.fontSize ?? 12) * 100) / 100));
     setDraftColor(selected.fillColor ?? "#000000");
+    setDraftStroke(selected.strokeColor ?? "#000000");
+    setDraftStrokeWidth(String(selected.strokeWidth ?? 1));
     setDraftFont("");
   }, [selected?.id]);
 
@@ -377,6 +380,14 @@ export function NativeContentEditorPanel({
               >
                 Apply path style
               </button>
+              <PathGeometryEditor
+                key={selected.id}
+                commands={selected.pathCommands ?? []}
+                disabled={loading}
+                onApply={(commands) => void apply([
+                  { type: "replace-path", objectId: selected.id, commands },
+                ], "Path geometry updated.")}
+              />
             </>
           ) : null}
 

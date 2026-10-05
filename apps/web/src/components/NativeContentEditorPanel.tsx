@@ -22,6 +22,8 @@ export function NativeContentEditorPanel({
   const [draftSize, setDraftSize] = useState("12");
   const [draftColor, setDraftColor] = useState("#000000");
   const [draftFont, setDraftFont] = useState("");
+  const [draftStroke, setDraftStroke] = useState("#000000");
+  const [draftStrokeWidth, setDraftStrokeWidth] = useState("1");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
@@ -315,19 +317,43 @@ export function NativeContentEditorPanel({
           ) : null}
 
           {selected.kind === "path" ? (
-            <div className="native-content-editor__row">
+            <>
+              <div className="native-content-editor__row">
+                <label>
+                  Fill
+                  <input type="color" value={draftColor} onChange={(event) => setDraftColor(event.target.value)} />
+                </label>
+                <label>
+                  Stroke
+                  <input type="color" value={draftStroke} onChange={(event) => setDraftStroke(event.target.value)} />
+                </label>
+              </div>
               <label>
-                Fill
+                Stroke width
                 <input
-                  type="color"
-                  value={draftColor}
-                  onChange={(event) => {
-                    setDraftColor(event.target.value);
-                    void apply([{ type: "style-object", objectId: selected.id, fillColor: event.target.value }], "Path fill updated.");
-                  }}
+                  value={draftStrokeWidth}
+                  inputMode="decimal"
+                  onChange={(event) => setDraftStrokeWidth(event.target.value)}
                 />
               </label>
-            </div>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  const strokeWidth = Number(draftStrokeWidth);
+                  void apply([{
+                    type: "style-object",
+                    objectId: selected.id,
+                    fillColor: draftColor,
+                    strokeColor: draftStroke,
+                    strokeWidth: Number.isFinite(strokeWidth) && strokeWidth >= 0 ? strokeWidth : undefined,
+                  }], "Path style updated.");
+                }}
+                disabled={loading}
+              >
+                Apply path style
+              </button>
+            </>
           ) : null}
 
           <button

@@ -124,12 +124,20 @@ export function NativeContentEditorPanel({
   };
 
   const move = (dx: number, dy: number) => transform([1, 0, 0, 1, dx, dy], "Object moved.");
-  const scale = (factor: number) => transform([factor, 0, 0, factor, 0, 0], "Object resized.");
+  const centeredTransform = (a: number, b: number, c: number, d: number, success: string) => {
+    if (!selected) return;
+    const cx = selected.bounds.x + selected.bounds.width / 2;
+    const cy = selected.bounds.y + selected.bounds.height / 2;
+    const e = cx - a * cx - c * cy;
+    const f = cy - b * cx - d * cy;
+    transform([a, b, c, d, e, f], success);
+  };
+  const scale = (factor: number) => centeredTransform(factor, 0, 0, factor, "Object resized.");
   const rotate = (degrees: number) => {
     const radians = degrees * Math.PI / 180;
     const cos = Math.cos(radians);
     const sin = Math.sin(radians);
-    transform([cos, sin, -sin, cos, 0, 0], "Object rotated.");
+    centeredTransform(cos, sin, -sin, cos, "Object rotated.");
   };
 
   const undo = async () => {

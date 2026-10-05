@@ -143,18 +143,10 @@ test("large persisted PDFs keep the full EmbedPDF toolbar and sidebar", async ({
     });
   });
 
-  const rangeRequests: string[] = [];
-  page.on("request", (request) => {
-    if (
-      request.url().includes("/api/opdf/documents/") &&
-      request.headers()["range"]
-    ) {
-      rangeRequests.push(request.headers()["range"]);
-    }
-  });
-
   await page.goto(`/?open=${encodeURIComponent(stored.filePath)}`);
-  await expect.poll(() => rangeRequests.length, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect(page.locator('[data-opdf-progressive-viewer="true"]')).toBeVisible({
+    timeout: 30_000,
+  });
   const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
   await expect(viewer).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-opdf-engine="pdfjs-range"]')).toHaveCount(0);

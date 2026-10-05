@@ -523,70 +523,19 @@ function duplicatePathObject(
   dx: number,
   dy: number,
 ) {
-  const count = module.FPDFPath_CountSegments(sourcePtr);
-  if (!count) throw new Error("Unable to duplicate an empty path.");
-  const first = module.FPDFPath_GetPathSegment(sourcePtr, 0);
-  const pointPtr = malloc(module, 8);
-  let targetPtr = 0;
+  const commands = readPathCommands(module, sourcePtr);
+  if (!commands.length) throw new Error("Unable to duplicate an empty path.");
+  const targetPtr = createPathFromCommands(module, commands);
   try {
-    if (!first || !module.FPDFPathSegment_GetPoint(first, pointPtr, pointPtr + 4)) throw new Error("Unable to read path start.");
-    const heap = module.pdfium.HEAPF32;
-    const base = pointPtr >>> 2;
-    targetPtr = module.FPDFPageObj_CreateNewPath(heap[base], heap[base + 1]);
-    if (!targetPtr) throw new Error("PDFium could not create duplicated path.");
-
-    for (let index = 1; index < count; index += 1) {
-      const segment = module.FPDFPath_GetPathSegment(sourcePtr, index);
-      if (!segment) continue;
-      const type = module.FPDFPathSegment_GetType(segment);
-      if (type === 0 || type === 2) {
-        if (!module.FPDFPathSegment_GetPoint(segment, pointPtr, pointPtr + 4)) continue;
-        const x = heap[base];
-        const y = heap[base + 1];
-        if (type === 2) module.FPDFPath_MoveTo(targetPtr, x, y);
-        else module.FPDFPath_LineTo(targetPtr, x, y);
-        if (module.FPDFPathSegment_GetClose(segment)) module.FPDFPath_Close(targetPtr);
-        continue;
-      }
-      if (type !== 1 || index + 2 >= count) continue;
-
-      const control1 = segment;
-      const control2 = module.FPDFPath_GetPathSegment(sourcePtr, index + 1);
-      const end = module.FPDFPath_GetPathSegment(sourcePtr, index + 2);
-      if (
-        !control2 ||
-        !end ||
-        module.FPDFPathSegment_GetType(control2) !== 1 ||
-        module.FPDFPathSegment_GetType(end) !== 1
-      ) continue;
-
-      const pts = malloc(module, 24);
-      try {
-        if (
-          module.FPDFPathSegment_GetPoint(control1, pts, pts + 4) &&
-          module.FPDFPathSegment_GetPoint(control2, pts + 8, pts + 12) &&
-          module.FPDFPathSegment_GetPoint(end, pts + 16, pts + 20)
-        ) {
-          const h = module.pdfium.HEAPF32;
-          const p = pts >>> 2;
-          module.FPDFPath_BezierTo(targetPtr, h[p], h[p + 1], h[p + 2], h[p + 3], h[p + 4], h[p + 5]);
-          if (module.FPDFPathSegment_GetClose(end)) module.FPDFPath_Close(targetPtr);
-        }
-      } finally {
-        free(module, pts);
-      }
-      index += 2;
-    }
-
     copyPathDrawMode(module, sourcePtr, targetPtr);
     copyCommonStyle(module, sourcePtr, targetPtr);
     offsetObject(module, targetPtr, dx, dy);
-    if (!module.FPDFPage_InsertObjectAtIndex(pagePtr, targetPtr, objectIndex + 1)) module.FPDFPage_InsertObject(pagePtr, targetPtr);
+    if (!module.FPDFPage_InsertObjectAtIndex(pagePtr, targetPtr, objectIndex + 1)) {
+      module.FPDFPage_InsertObject(pagePtr, targetPtr);
+    }
   } catch (error) {
-    if (targetPtr) module.FPDFPageObj_Destroy(targetPtr);
+    module.FPDFPageObj_Destroy(targetPtr);
     throw error;
-  } finally {
-    free(module, pointPtr);
   }
 }
 

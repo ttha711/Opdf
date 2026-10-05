@@ -84,6 +84,7 @@ function downloadBytes(bytes: Uint8Array, name: string) {
 
 export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
   const browser = createMockBridge();
+  const runtimeCapabilities = window.__OPDF_SERVER_CAPABILITIES__ ?? {};
   const serverOcr = createServerOcrClient(baseUrl);
   const serverSigning = createServerSigningClient(baseUrl);
   const annotationUndo = new Map<string, Annotation[][]>();
@@ -126,13 +127,16 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
       encrypt: true,
       bookmarksPersist: true,
       pdfA: browser.capabilities?.pdfA ?? false,
-      digitalSignature: true,
-      certificateStorage: true,
-      signatureInspection: true,
+      digitalSignature: runtimeCapabilities.digitalSignature ?? false,
+      certificateStorage: runtimeCapabilities.certificateStorage ?? false,
+      signatureInspection: runtimeCapabilities.signatureInspection ?? true,
       storedMutations: true,
       rangePreview: true,
       ocrQueue: true,
       searchablePdfOcr: true,
+      multiUserAuth: runtimeCapabilities.multiUserAuth ?? false,
+      perUserProjectStorage: runtimeCapabilities.perUserProjectStorage ?? false,
+      quotas: runtimeCapabilities.quotas ?? false,
     },
 
     async compressPdf(bytes: Uint8Array) {

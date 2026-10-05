@@ -1,5 +1,5 @@
 import { createReadStream, createWriteStream } from "node:fs";
-import { appendFile, mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";

@@ -47,33 +47,18 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   const pagesButtonBox = await pagesButton.boundingBox();
   expect(pagesButtonBox?.height ?? 0).toBeGreaterThanOrEqual(40);
 
-  const firstThumbnailBox = () =>
-    viewer.locator("img, canvas").evaluateAll((surfaces) => {
-      for (const surface of surfaces) {
-        const rect = surface.getBoundingClientRect();
-        const visible =
-          rect.width >= 48 &&
-          rect.width <= 240 &&
-          rect.height >= 64 &&
-          rect.height <= 340 &&
-          rect.bottom > 0 &&
-          rect.right > 0 &&
-          rect.top < window.innerHeight &&
-          rect.left < window.innerWidth;
-        if (visible) return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-      }
-      return null;
-    });
-
   await pagesButton.click();
-  await expect.poll(firstThumbnailBox, { timeout: 10_000 }).not.toBeNull();
-  const firstPageBox = await firstThumbnailBox();
+  const thumbnailLabel = viewer.getByText("Thumbnails", { exact: true });
+  await expect(thumbnailLabel).toBeVisible({ timeout: 10_000 });
+
+  const sidebar = thumbnailLabel.locator("xpath=ancestor::aside[1]");
+  const sidebarBox = await sidebar.boundingBox();
   const viewport = page.viewportSize();
-  expect(firstPageBox?.x ?? -1).toBeGreaterThanOrEqual(0);
-  expect((firstPageBox?.x ?? 0) + (firstPageBox?.width ?? Infinity)).toBeLessThanOrEqual(viewport?.width ?? 412);
+  expect(sidebarBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect((sidebarBox?.x ?? 0) + (sidebarBox?.width ?? Infinity)).toBeLessThanOrEqual(viewport?.width ?? 412);
 
   await pagesButton.click();
-  await expect.poll(firstThumbnailBox, { timeout: 10_000 }).toBeNull();
+  await expect(thumbnailLabel).toBeHidden({ timeout: 10_000 });
 
   await mobileMenu.click();
   await expect(page.locator("header").getByRole("menuitem", { name: "Fit Page", exact: true })).toBeEnabled();

@@ -239,13 +239,14 @@ try {
   await page.waitForTimeout(800);
   await shot("15-mobile-viewer");
 
-  const pagesToggle = page.getByRole("button", { name: "Open pages panel", exact: true });
+  const mobileViewer = page.locator(".viewer-shell");
+  const pagesToggle = mobileViewer.getByRole("button", { name: /sidebar/i }).first();
   await pagesToggle.waitFor({ state: "visible", timeout: 5000 });
   await pagesToggle.click();
-  await page.locator(".left-panel").waitFor({ state: "visible", timeout: 5000 });
+  await mobileViewer.getByRole("button", { name: /Page 1$/i }).first().waitFor({ state: "visible", timeout: 5000 });
   await shot("16-mobile-pages-drawer");
 
-  await page.getByTitle("Collapse Left Sidebar").click();
+  await pagesToggle.click();
   await page.locator("header").getByRole("button", { name: "☰", exact: true }).click();
   await shot("17-mobile-menu");
 

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
+import { saveServerDocumentAndWait } from "../helpers/save";
 
 test.setTimeout(90_000);
 
@@ -124,7 +125,7 @@ test("native Edit PDF changes existing text and survives save/reload", async ({ 
     editor.locator(".native-content-editor__objects button").filter({ hasText: "Edited OPDF native text" }),
   ).toHaveCount(2, { timeout: 20_000 });
 
-  await page.getByTitle("Save (Ctrl+S)").click();
+  await saveServerDocumentAndWait(page);
   await page.waitForTimeout(500);
   await page.reload();
   await expect(page.locator("[data-opdf-engine=\'pdfium-wasm\']")).toBeVisible({ timeout: 30_000 });
@@ -173,7 +174,7 @@ test("native Edit PDF edits vector geometry and crops/duplicates images", async 
   await editor.getByRole("button", { name: "Duplicate" }).click();
   await expect(objectButtons.filter({ hasText: "IMAGE" })).toHaveCount(2, { timeout: 20_000 });
 
-  await page.getByTitle("Save (Ctrl+S)").click();
+  await saveServerDocumentAndWait(page);
   await page.reload();
   await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
@@ -201,7 +202,7 @@ test("native Edit PDF can add a new PDFium text object and persist it", async ({
   await expect(editor.getByText("Native text object added.")).toBeVisible({ timeout: 20_000 });
   await expect(editor.locator(".native-content-editor__objects button").filter({ hasText: "New text" })).toHaveCount(1, { timeout: 20_000 });
 
-  await page.getByTitle("Save (Ctrl+S)").click();
+  await saveServerDocumentAndWait(page);
   await page.reload();
   await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
@@ -258,7 +259,7 @@ test("native Edit PDF deep-edits Form XObject text, path and image and persists 
   await expect(movedImage).toBeVisible({ timeout: 20_000 });
   await expect(movedImage).not.toHaveAttribute("data-opdf-bounds", beforeImageBounds ?? "", { timeout: 20_000 });
 
-  await page.getByTitle("Save (Ctrl+S)").click();
+  await saveServerDocumentAndWait(page);
   await page.reload();
   await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
@@ -274,7 +275,7 @@ test("native Edit PDF deep-edits Form XObject text, path and image and persists 
   await editedText.click();
   await reopened.getByRole("button", { name: "Delete object" }).click();
   await expect(reopened.getByText("Object deleted.")).toBeVisible({ timeout: 20_000 });
-  await page.getByTitle("Save (Ctrl+S)").click();
+  await saveServerDocumentAndWait(page);
   await page.reload();
   await page.getByTitle("Edit PDF Content").click();
   await expect(page.locator("[data-opdf-native-editor='true'] [data-opdf-object-kind='text']").filter({ hasText: "Edited inside Form" })).toHaveCount(0, { timeout: 20_000 });
@@ -317,7 +318,7 @@ test("native Edit PDF writes PDFium blend mode into saved PDF", async ({ page, r
   await editor.getByRole("button", { name: "Apply blend mode" }).click();
   await expect(editor.getByText("Blend mode set to Multiply.")).toBeVisible({ timeout: 20_000 });
 
-  await page.getByTitle("Save (Ctrl+S)").click();
+  await saveServerDocumentAndWait(page);
   const saved = await request.get(`/api/opdf/documents/${document.id}`);
   expect(saved.status()).toBe(200);
   const bytes = Buffer.from(await saved.body()).toString("latin1");

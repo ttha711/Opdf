@@ -75,7 +75,10 @@ export function createTenantManager({
   }
 
   async function usage(context) {
-    return (await storage(context)).getUsageBytes();
+    const activeStorage = await storage(context);
+    return context.legacy
+      ? activeStorage.getUsageBytes()
+      : activeStorage.getOwnerUsageBytes(context.userId);
   }
 
   async function assertQuota(context, incomingBytes, replacingBytes = 0) {

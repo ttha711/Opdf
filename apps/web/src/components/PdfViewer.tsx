@@ -117,84 +117,41 @@ export function PdfViewer({
     if (
       !sourceUrl ||
       documentReadySource !== sourceUrl ||
+      !activeRegistry ||
       window.innerWidth < 900
     ) return;
-    const root = viewerRootRef.current;
-    if (!root) return;
 
-    let sidebarButton: HTMLButtonElement | null = null;
-    let detach: (() => void) | null = null;
-    let timer = 0;
-    let attempts = 0;
-    let openAttempts = 0;
-    let cancelled = false;
+    const ui = activeRegistry.getPlugin?.("ui")?.provides?.() as any;
+    const scope = ui?.forDocument?.(DOCUMENT_ID) ?? ui;
+    if (!scope?.isSidebarOpen || !scope?.setActiveSidebar) return;
 
-    const retry = (delay = 150) => {
-      if (cancelled || attempts >= 80) return;
-      attempts += 1;
-      timer = window.setTimeout(ensureSidebarState, delay);
+    const placement = "left";
+    const slot = "main";
+    const sidebarId = "sidebar-panel";
+    const shouldOpen = window.localStorage.getItem(SIDEBAR_PREF_KEY) !== "closed";
+
+    if (shouldOpen && !scope.isSidebarOpen(placement, slot, sidebarId)) {
+      scope.setActiveSidebar(placement, slot, sidebarId);
+    }
+
+    const remember = (event: any) => {
+      if (
+        event?.placement && event.placement !== placement ||
+        event?.slot && event.slot !== slot
+      ) return;
+      queueMicrotask(() => {
+        window.localStorage.setItem(
+          SIDEBAR_PREF_KEY,
+          scope.isSidebarOpen(placement, slot, sidebarId) ? "open" : "closed",
+        );
+      });
     };
 
-    const ensureSidebarState = () => {
-      if (cancelled) return;
-
-      // ProgressiveServerPdfViewer mounts PDFium invisibly while the Range
-      // preview is still on top. Opening the sidebar during that hidden phase
-      // can be undone when EmbedPDF recalculates its responsive layout.
-      if (root.closest('[aria-hidden="true"]')) {
-        retry();
-        return;
-      }
-
-      const sidebarButtons = Array.from(
-        root.querySelectorAll<HTMLButtonElement>('button[aria-label="Sidebar"]'),
-      );
-      sidebarButton = sidebarButtons.find(
-        (button) => !button.disabled && isVisibleElement(button),
-      ) ?? null;
-      if (!sidebarButton) {
-        retry();
-        return;
-      }
-
-      const preference = window.localStorage.getItem(SIDEBAR_PREF_KEY);
-      const shouldOpen = preference !== "closed";
-      const panel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
-
-      if (shouldOpen && !isVisibleElement(panel)) {
-        // The button can appear before the sidebar controller is fully wired,
-        // especially after the large-PDF progressive handoff. Retry the open
-        // until the panel is actually present instead of relying on one click.
-        if (openAttempts < 8) {
-          openAttempts += 1;
-          sidebarButton.click();
-          retry(600);
-        }
-        return;
-      }
-
-      if (!detach) {
-        const remember = () => {
-          window.setTimeout(() => {
-            const currentPanel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
-            window.localStorage.setItem(
-              SIDEBAR_PREF_KEY,
-              isVisibleElement(currentPanel) ? "open" : "closed",
-            );
-          }, 250);
-        };
-        sidebarButton.addEventListener("click", remember);
-        detach = () => sidebarButton?.removeEventListener("click", remember);
-      }
-    };
-
-    retry(100);
+    const off = scope.onSidebarChanged?.(remember);
     return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-      detach?.();
+      if (typeof off === "function") off();
     };
-  }, [documentReadySource, sourceUrl]);
+  }, [activeRegistry, documentReadySource, sourceUrl]);
 
   const config = useMemo(() => {
     if (!sourceUrl) return null;

@@ -421,12 +421,20 @@
   .opdf-mobile-menu { display: block; }
   .opdf-desktop-menus { display: none; }
 
+  .opdf-app-header {
+    min-width: 0;
+    max-width: 100vw;
+    overflow-x: clip;
+  }
+
   .opdf-topbar {
+    min-width: 0;
+    max-width: 100%;
     overflow: visible;
   }
 
-  .opdf-app-header {
-    min-width: 0;
+  .opdf-header-actions {
+    display: none;
   }
 }
 

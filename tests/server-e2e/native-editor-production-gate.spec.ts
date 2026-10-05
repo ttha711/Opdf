@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument, StandardFonts, degrees } from "pdf-lib";
+import { saveServerDocumentAndWait } from "../helpers/save";
 
 test.setTimeout(90_000);
 
@@ -95,7 +96,7 @@ test("Unicode replacement preserves rotated native text after save and reload", 
     timeout: 20_000,
   });
 
-  await page.getByTitle("Save (Ctrl+S)").click();
+  await saveServerDocumentAndWait(page);
   const reopened = await reopenEditor(page);
 
   const persisted = reopened
@@ -135,7 +136,7 @@ test("image-only scanned page stays editable and persists native transforms", as
   const movedBounds = await moved.getAttribute("data-opdf-bounds");
   expect(movedBounds).toBeTruthy();
 
-  await page.getByTitle("Save (Ctrl+S)").click();
+  await saveServerDocumentAndWait(page);
   const reopened = await reopenEditor(page);
   await expect(reopened.locator("[data-opdf-object-kind='text']")).toHaveCount(0);
   await expect(reopened.locator("[data-opdf-object-kind='image']").first())

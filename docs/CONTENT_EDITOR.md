@@ -87,6 +87,12 @@ The current branch implements the native editor with direct `@embedpdf/pdfium` p
 - image replacement and bitmap crop;
 - path fill/stroke/stroke-width editing;
 - path geometry inspection and Move/Line/Bezier point editing;
+- PDFium-native creation of new text, rectangle/path, and image page objects;
+- text render modes (fill/stroke/fill+stroke/invisible) and text stroke controls;
+- path line cap, line join, dash-pattern inspection/editing;
+- Form XObject and shading discovery, including Form child counts;
+- image pixel dimensions and image filter inspection;
+- transparency and marked-content discovery where exposed by the PDFium WASM build;
 - page-area hit testing from the active PDF viewer;
 - bounded byte-snapshot Undo/Redo;
 - native content bytes remain separate from annotation workflows;
@@ -98,3 +104,8 @@ The remaining production-quality work is deliberately treated as a gate, not a r
 - add deterministic image/path persistence fixtures, including crop and Bezier geometry;
 - exercise Unicode/subset-font, rotated-object, scanned-page, encrypted-PDF and malformed-PDF fixtures;
 - run real engineering PDFs and performance budgets before calling M8 complete.
+
+
+## PDFium capability policy
+
+OPDF now treats PDFium as the primary source of truth for native page-object capabilities. New capabilities are exposed with runtime feature detection so a missing optional export in a particular WASM build does not break the editor. The editor should prefer a PDFium primitive over reimplementing the same PDF operation in JavaScript whenever that primitive is available and serializes cleanly through `FPDFPage_GenerateContent` + the existing PDFium writer.

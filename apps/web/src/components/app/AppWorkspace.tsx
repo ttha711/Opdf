@@ -277,7 +277,13 @@ export function AppWorkspace({
         ) : null}
       </div>
       {state.hasDocument && isLeftCollapsed ? (
-        <button type="button" className="opdf-mobile-pages-toggle" onClick={() => setIsLeftCollapsed(false)}>
+        <button
+          type="button"
+          className="opdf-mobile-pages-toggle"
+          onClick={() => setIsLeftCollapsed(false)}
+          aria-label="Open pages panel"
+          title="Open Pages"
+        >
           Pages
         </button>
       ) : null}

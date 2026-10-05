@@ -116,3 +116,35 @@
   color: inherit;
   cursor: pointer;
 }
+
+.native-content-editor__path-editor {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+.native-content-editor__path-commands {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+}
+.native-content-editor__path-command {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--ui-muted-bg);
+}
+.native-content-editor__path-command .native-content-editor__row {
+  align-items: end;
+}
+.native-content-editor__path-command label {
+  min-width: 0;
+  font-size: 11px;
+}
+.native-content-editor__path-command input[type="checkbox"] {
+  width: auto;
+  justify-self: start;
+}

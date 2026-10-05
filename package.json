@@ -30,7 +30,8 @@
     "opdf": "node scripts/opdf-cli.mjs",
     "test:cli": "node --test tests/cli/*.test.mjs",
     "audit:prod": "node scripts/opdf-cli.mjs audit smoke",
-    "server-reliability": "node server/opdf-server.reliability.mjs"
+    "server-reliability": "node server/opdf-server.reliability.mjs",
+    "check:file-size": "node scripts/check-file-size.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

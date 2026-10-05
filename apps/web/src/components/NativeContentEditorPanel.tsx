@@ -294,26 +294,50 @@ export function NativeContentEditorPanel({
             </div>
           </div>
 
+          <div className="native-content-editor__move">
+            <span>Object</span>
+            <div>
+              <button
+                type="button"
+                onClick={() => void apply([{ type: "duplicate", objectId: selected.id, offsetX: 12, offsetY: -12 }], "Object duplicated.")}
+                disabled={loading}
+              >
+                Duplicate
+              </button>
+            </div>
+          </div>
+
           {selected.kind === "image" ? (
-            <label>
-              Replace image
-              <input
-                type="file"
-                accept="image/png,image/jpeg"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (!file) return;
-                  const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
-                  void file.arrayBuffer().then((buffer) =>
-                    apply(
-                      [{ type: "replace-image", objectId: selected.id, bytes: new Uint8Array(buffer), mimeType }],
-                      "Image replaced.",
-                    ),
-                  );
-                  event.currentTarget.value = "";
-                }}
-              />
-            </label>
+            <>
+              <label>
+                Replace image
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
+                    void file.arrayBuffer().then((buffer) =>
+                      apply(
+                        [{ type: "replace-image", objectId: selected.id, bytes: new Uint8Array(buffer), mimeType }],
+                        "Image replaced.",
+                      ),
+                    );
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              <div className="native-content-editor__move">
+                <span>Crop image 5%</span>
+                <div>
+                  <button type="button" onClick={() => void apply([{ type: "crop-image", objectId: selected.id, left: 0.05, top: 0, right: 0, bottom: 0 }], "Image cropped from left.")}>Left</button>
+                  <button type="button" onClick={() => void apply([{ type: "crop-image", objectId: selected.id, left: 0, top: 0.05, right: 0, bottom: 0 }], "Image cropped from top.")}>Top</button>
+                  <button type="button" onClick={() => void apply([{ type: "crop-image", objectId: selected.id, left: 0, top: 0, right: 0.05, bottom: 0 }], "Image cropped from right.")}>Right</button>
+                  <button type="button" onClick={() => void apply([{ type: "crop-image", objectId: selected.id, left: 0, top: 0, right: 0, bottom: 0.05 }], "Image cropped from bottom.")}>Bottom</button>
+                </div>
+              </div>
+            </>
           ) : null}
 
           {selected.kind === "path" ? (

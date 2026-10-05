@@ -4,7 +4,6 @@ import { Scroller, useScroll } from "@embedpdf/plugin-scroll/react";
 import { Viewport } from "@embedpdf/plugin-viewport/react";
 import { useZoom, ZoomMode } from "@embedpdf/plugin-zoom/react";
 import {
-  registerViewerBytesProvider,
   registerViewerControls,
 } from "../../lib/viewer-runtime";
 import { NativeEditPageOverlay } from "./NativeEditPageOverlay";
@@ -32,8 +31,6 @@ export function NativeEditDocument({
 }: Props) {
   const { provides: scroll, state: scrollState } = useScroll(documentId);
   const { provides: zoom, state: zoomState } = useZoom(documentId);
-
-  useEffect(() => registerViewerBytesProvider(getDocumentBytes), [getDocumentBytes]);
 
   useEffect(() => registerViewerControls({
     zoomIn: () => zoom?.zoomIn(),

@@ -441,6 +441,11 @@
     min-height: 44px;
   }
 
+  .viewer-shell button[aria-label="Sidebar"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
   .opdf-home__recent-card {
     min-height: 64px;
   }

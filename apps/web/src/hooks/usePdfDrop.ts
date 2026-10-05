@@ -9,7 +9,6 @@ type UsePdfDropArgs = {
   setSourceIdentity: (identity: string) => void;
   setPage: (page: number) => void;
   setViewerError: (error: string | null) => void;
-  setThumbnails: (thumbs: Array<{ page: number; url: string; blob: Blob }>) => void;
   setAnnotations: (annotations: Annotation[]) => void;
 };
 
@@ -20,7 +19,6 @@ export function usePdfDrop({
   setSourceIdentity,
   setPage,
   setViewerError,
-  setThumbnails,
   setAnnotations,
 }: UsePdfDropArgs) {
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -46,7 +44,6 @@ export function usePdfDrop({
     setSourceIdentity(identity);
     setPage(1);
     setViewerError(null);
-    setThumbnails([]);
     setAnnotations(savedAnnotations);
   }, [
     setAnnotations,
@@ -55,7 +52,6 @@ export function usePdfDrop({
     setPage,
     setSourceBlob,
     setSourceIdentity,
-    setThumbnails,
     setViewerError,
   ]);
 

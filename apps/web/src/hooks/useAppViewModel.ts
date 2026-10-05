@@ -6,6 +6,11 @@ type UseAppViewModelArgs = {
 };
 
 export function useAppViewModel({ state, actions, menuItems, callbacks }: UseAppViewModelArgs) {
+  const setActiveTool = (tool: any) => {
+    state.setActiveTool((current: any) =>
+      tool === "signature" && current === "signature" ? "select" : tool,
+    );
+  };
   const headerProps = {
     fileInputRef: state.fileInputRef,
     hasDesktopBridge: state.hasDesktopBridge,
@@ -21,7 +26,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     toggleMenu: callbacks.toggleMenu,
     closeMenu: callbacks.closeMenu,
     activeTool: state.activeTool,
-    setActiveTool: state.setActiveTool,
+    setActiveTool,
     annotationToolDefaults: state.annotationToolDefaults,
     setAnnotationToolDefaults: state.setAnnotationToolDefaults,
     savePdf: actions.savePdf,
@@ -69,7 +74,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     page: state.page,
     scale: state.scale,
     activeTool: state.activeTool,
-    onActiveToolChange: state.setActiveTool,
+    onActiveToolChange: setActiveTool,
     onDocumentLoaded: callbacks.onLoaded,
     onError: state.setViewerError,
     onActivePageChange: actions.onActivePageChange,

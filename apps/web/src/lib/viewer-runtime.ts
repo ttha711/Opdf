@@ -15,17 +15,23 @@ export type ActiveViewerControls = {
 
 type ViewerBytesProvider = () => Promise<Uint8Array | null>;
 let activeProvider: ViewerBytesProvider | null = null;
+let activeProviderSource: unknown = null;
 let activeControls: ActiveViewerControls | null = null;
 
-export function registerViewerBytesProvider(provider: ViewerBytesProvider) {
+export function registerViewerBytesProvider(provider: ViewerBytesProvider, source: unknown = null) {
   activeProvider = provider;
+  activeProviderSource = source;
   return () => {
-    if (activeProvider === provider) activeProvider = null;
+    if (activeProvider !== provider) return;
+    activeProvider = null;
+    activeProviderSource = null;
   };
 }
 
-export async function getViewerDocumentBytes() {
-  return activeProvider ? activeProvider() : null;
+export async function getViewerDocumentBytes(expectedSource?: unknown) {
+  if (!activeProvider) return null;
+  if (arguments.length > 0 && expectedSource !== activeProviderSource) return null;
+  return activeProvider();
 }
 
 export function registerViewerControls(controls: ActiveViewerControls) {

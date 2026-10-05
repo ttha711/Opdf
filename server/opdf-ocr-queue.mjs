@@ -12,7 +12,10 @@ function publicJob(job) {
 export function createOcrJobQueue(dataDir, options = {}) {
   const service = new OcrService();
   const root = resolve(dataDir, "ocr");
-  const concurrency = Math.max(1, Math.min(Number(options.concurrency || 1), 2));
+  const requestedConcurrency = Number(options.concurrency || 1);
+  const concurrency = Number.isFinite(requestedConcurrency)
+    ? Math.max(1, Math.min(Math.trunc(requestedConcurrency), 2))
+    : 1;
   const pending = [];
   const inputs = new Map();
   let active = 0;

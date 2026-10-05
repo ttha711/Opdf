@@ -75,6 +75,7 @@ export type PdfContentObject = {
   dashPhase?: number;
   pathFillMode?: PdfPathFillMode;
   pathStroke?: boolean;
+  pathCommands?: PdfPathCommand[];
   imageInfo?: PdfImageInfo;
   formChildCount?: number;
   hasTransparency?: boolean;

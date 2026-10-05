@@ -111,6 +111,25 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
     }
   }
 
+  async function refreshUsers() {
+    if (!enabled || !objectStore) return;
+    const remoteHead = await objectStore.head(usersKey);
+    if (!remoteHead) {
+      throw new Error("Shared OPDF user database is missing.");
+    }
+    if (remoteHead.etag && remoteHead.etag === usersEtag) return;
+    const remote = await objectStore.get(usersKey);
+    if (!remote) throw new Error("Shared OPDF user database is missing.");
+    const text = remote.toString("utf8");
+    const payload = JSON.parse(text);
+    if (!Array.isArray(payload?.users)) {
+      throw new Error("Shared OPDF user database is corrupt.");
+    }
+    users = payload.users;
+    usersEtag = remoteHead.etag || null;
+    await writeFile(usersPath, text, { encoding: "utf8", mode: 0o600 });
+  }
+
   async function ensure() {
     await mkdir(root, { recursive: true });
     if (!enabled) return;
@@ -198,7 +217,7 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
     return user && !user.disabled ? user : null;
   }
 
-  function getRequestUser(req) {
+  async function getRequestUser(req) {
     if (!enabled) {
       return {
         id: "local-single-user",
@@ -210,6 +229,7 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
         updatedAt: 0,
       };
     }
+    await refreshUsers();
     const bearer = typeof req.headers.authorization === "string" &&
       req.headers.authorization.startsWith("Bearer ")
       ? req.headers.authorization.slice(7).trim()
@@ -240,6 +260,7 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
   }
 
   async function authenticate(emailValue, password) {
+    await refreshUsers();
     let email;
     try {
       email = normalizeEmail(emailValue);
@@ -252,6 +273,7 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
   }
 
   async function createUser(input) {
+    await refreshUsers();
     const email = normalizeEmail(input?.email);
     if (users.some((row) => row.email === email)) throw new Error("User already exists.");
     const role = input?.role === "admin" ? "admin" : "user";
@@ -282,6 +304,7 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
   }
 
   async function updateUser(id, patch) {
+    await refreshUsers();
     const user = users.find((row) => row.id === id);
     if (!user) return null;
     const previous = { ...user };
@@ -316,7 +339,10 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
     clearSessionCookie,
     authenticate,
     sessionHours,
-    listUsers: () => users.map(publicUser),
+    listUsers: async () => {
+      await refreshUsers();
+      return users.map(publicUser);
+    },
     createUser,
     updateUser,
   };

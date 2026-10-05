@@ -178,6 +178,8 @@ export function AppHeader({
     { kind: "section", label: "Convert" },
     { kind: "action", label: "Compress PDF", disabled: !hasDocument, onClick: compressDocument },
     { kind: "action", label: "Convert to Images", disabled: !hasDocument, onClick: convertToImages },
+    { kind: "section", label: "Edit PDF" },
+    { kind: "action", label: "Edit PDF Content", disabled: !hasDocument, onClick: () => setActiveTool("edit-content") },
     { kind: "section", label: "Review & Security" },
     { kind: "action", label: "Measure Drawing", disabled: !hasDocument, onClick: () => setActiveTool("measure") },
     { kind: "action", label: "Compare Revisions...", disabled: !hasDocument, onClick: compareRevisions },
@@ -235,6 +237,7 @@ export function AppHeader({
           {hasDocument ? (
             <>
               <button data-opdf-action="save" className="top-menu-btn" type="button" title="Save (Ctrl+S)" onClick={savePdf}>Save</button>
+              <button data-opdf-action="edit-content" className="top-menu-btn" type="button" title="Edit PDF Content" onClick={() => setActiveTool("edit-content")}>Edit PDF</button>
               <button data-opdf-action="undo" className="top-menu-btn" type="button" title="Undo (Ctrl+Z)" onClick={undoAnnotations}>Undo</button>
               <button data-opdf-action="redo" className="top-menu-btn" type="button" title="Redo (Ctrl+Y)" onClick={redoAnnotations}>Redo</button>
             </>

@@ -18,8 +18,12 @@ async function readJson(path) {
   }
 }
 
-export function createCertificateStore(dataDir, masterSecret) {
+export function createCertificateStore(dataDir, masterSecret, options = {}) {
   const root = resolve(dataDir, "certificates");
+  const objectStore = options.objectStore || null;
+  const remotePrefix = String(options.remotePrefix || "").replace(/\/$/, "");
+  const remoteKey = (id, name) =>
+    `${remotePrefix ? remotePrefix + "/" : ""}certificates/${id}/${name}`;
   const enabled = typeof masterSecret === "string" && masterSecret.length >= 16;
   const key = enabled
     ? scryptSync(masterSecret, "opdf-certificate-store-v1", 32)
@@ -69,6 +73,19 @@ export function createCertificateStore(dataDir, masterSecret) {
   async function list() {
     if (!enabled) return [];
     await mkdir(root, { recursive: true });
+    if (objectStore) {
+      const prefix = `${remotePrefix ? remotePrefix + "/" : ""}certificates/`;
+      const objects = await objectStore.list(prefix);
+      const metaObjects = objects.filter((item) => /\/meta\.json$/.test(item.key));
+      const rows = [];
+      for (const item of metaObjects) {
+        const bytes = await objectStore.get(item.key);
+        if (!bytes) continue;
+        const meta = JSON.parse(bytes.toString("utf8"));
+        if (meta?.id) rows.push(meta);
+      }
+      return rows.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    }
     const names = await readdir(root).catch(() => []);
     const rows = [];
     for (const name of names) {
@@ -97,21 +114,33 @@ export function createCertificateStore(dataDir, masterSecret) {
       createdAt: Date.now(),
     };
     await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, "certificate.json"), JSON.stringify(encrypt(bytes)), {
+    const envelopeText = JSON.stringify(encrypt(bytes));
+    const metaText = JSON.stringify(meta, null, 2);
+    await writeFile(join(dir, "certificate.json"), envelopeText, {
       encoding: "utf8",
       mode: 0o600,
     });
-    await writeFile(join(dir, "meta.json"), JSON.stringify(meta, null, 2), {
+    await writeFile(join(dir, "meta.json"), metaText, {
       encoding: "utf8",
       mode: 0o600,
     });
+    if (objectStore) {
+      await objectStore.put(remoteKey(id, "certificate.json"), Buffer.from(envelopeText, "utf8"), "application/json");
+      await objectStore.put(remoteKey(id, "meta.json"), Buffer.from(metaText, "utf8"), "application/json");
+    }
     return meta;
   }
 
   async function getBytes(id) {
     assertEnabled();
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Invalid certificate id.");
-    const envelope = await readJson(join(root, id, "certificate.json"));
+    let envelope;
+    if (objectStore) {
+      const bytes = await objectStore.get(remoteKey(id, "certificate.json"));
+      envelope = bytes ? JSON.parse(bytes.toString("utf8")) : null;
+    } else {
+      envelope = await readJson(join(root, id, "certificate.json"));
+    }
     if (!envelope) throw new Error("Certificate not found.");
     return decrypt(envelope);
   }
@@ -120,8 +149,16 @@ export function createCertificateStore(dataDir, masterSecret) {
     assertEnabled();
     if (!/^[0-9a-f-]{36}$/i.test(id)) return false;
     const dir = join(root, id);
-    const meta = await readJson(join(dir, "meta.json"));
+    let meta = await readJson(join(dir, "meta.json"));
+    if (objectStore) {
+      const bytes = await objectStore.get(remoteKey(id, "meta.json"));
+      meta = bytes ? JSON.parse(bytes.toString("utf8")) : meta;
+    }
     if (!meta) return false;
+    if (objectStore) {
+      await objectStore.remove(remoteKey(id, "certificate.json"));
+      await objectStore.remove(remoteKey(id, "meta.json"));
+    }
     await rm(dir, { recursive: true, force: true });
     return true;
   }

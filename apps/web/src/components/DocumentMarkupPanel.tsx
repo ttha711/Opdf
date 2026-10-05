@@ -29,6 +29,7 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
   const [pageStart, setPageStart] = useState(1);
   const [pageEnd, setPageEnd] = useState(Math.max(1, totalPages));
   const [isApplying, setIsApplying] = useState(false);
+  const [applySequence, setApplySequence] = useState(0);
 
   useEffect(() => {
     setText(baseName);
@@ -62,13 +63,14 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
         pageStart: Math.min(pageStart, pageEnd),
         pageEnd: Math.max(pageStart, pageEnd),
       });
+      setApplySequence((value) => value + 1);
     } finally {
       setIsApplying(false);
     }
   }
 
   return (
-    <aside data-opdf-panel="markup" data-opdf-tool={tool} className="h-full overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
+    <aside data-opdf-panel="markup" data-opdf-tool={tool} data-opdf-apply-sequence={applySequence} className="h-full overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-4 py-3">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Document Markup</div>

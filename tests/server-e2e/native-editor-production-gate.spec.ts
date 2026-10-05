@@ -100,10 +100,11 @@ test("Unicode replacement preserves rotated native text after save and reload", 
   const reopened = await reopenEditor(page);
 
   const persisted = reopened
-    .locator("[data-opdf-object-kind='text'][data-opdf-rotated-bounds='true']")
+    .locator("[data-opdf-object-kind='text']")
     .filter({ hasText: replacement })
     .first();
   await expect(persisted).toBeVisible({ timeout: 20_000 });
+  await expect(persisted).toHaveAttribute("data-opdf-rotated-bounds", "true");
   await persisted.click();
   await expect(reopened.locator("[data-opdf-rotated-selection='true']")).toBeVisible();
 });

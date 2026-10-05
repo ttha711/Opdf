@@ -466,14 +466,16 @@ export class OpdfDriver {
       if (await input.count()) await input.fill(String(values.start));
     }
 
+    const beforeApply = Number(await panel.getAttribute("data-opdf-apply-sequence") || 0);
     await panel.locator('[data-opdf-action="markup-apply"]').click();
-    const expected = {
-      "page-numbers": /page numbers added/i,
-      header: /header added/i,
-      footer: /footer added/i,
-      bates: /bates numbering added/i,
-    }[tool];
-    if (expected) await this.waitForStatusMessage(expected);
+    await this.page.waitForFunction(
+      (previous) => {
+        const markup = document.querySelector('[data-opdf-panel="markup"]');
+        return Number(markup?.getAttribute("data-opdf-apply-sequence") || 0) > previous;
+      },
+      beforeApply,
+      { timeout: this.options.timeout },
+    );
     await this.waitForPdfSurface();
     return this.inspect();
   }

@@ -28,6 +28,7 @@ import { RevisionCompareModal } from "./components/RevisionCompareModal";
 import { SearchRedactModal } from "./components/SearchRedactModal";
 import { AdvancedPdfModal } from "./components/AdvancedPdfModal";
 import { DigitalSignatureModal } from "./components/DigitalSignatureModal";
+import { NativeContentEditorPanel } from "./components/NativeContentEditorPanel";
 import { resolvePdfSource } from "./lib/documentSource";
 import { hasFullWebAccess } from "./lib/runtimeAccess";
 
@@ -135,6 +136,10 @@ export function App() {
   });
 
   const toast = useToast();
+
+  useEffect(() => {
+    if (state.activeTool === "edit-content") setIsRightCollapsed(false);
+  }, [state.activeTool, setIsRightCollapsed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -670,7 +675,16 @@ export function App() {
             }} 
             className="opdf-side-panel opdf-side-panel--right h-full min-h-0 overflow-hidden"
           >
-            {isAiPanelOpen ? (
+            {state.activeTool === "edit-content" ? (
+              <NativeContentEditorPanel
+                page={state.page}
+                getDocumentBytes={materializeDocumentBytes}
+                onApplyBytes={(bytes) => {
+                  replaceDocumentBytes(bytes, state.page, { preserveAnnotations: true });
+                }}
+                onClose={() => state.setActiveTool("select")}
+              />
+            ) : isAiPanelOpen ? (
               <AiAssistantPanel
                 isOpen
                 docked

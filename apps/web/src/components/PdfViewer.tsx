@@ -123,9 +123,9 @@ export function PdfViewer({
 
     const timer = window.setTimeout(() => {
       sidebarButton = root.querySelector<HTMLButtonElement>('button[aria-label="Sidebar"]');
-      sidebarPanel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
-      if (!sidebarButton || !sidebarPanel) return;
+      if (!sidebarButton) return;
 
+      sidebarPanel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
       const preference = window.localStorage.getItem(SIDEBAR_PREF_KEY);
       const shouldOpen = preference !== "closed";
       if (shouldOpen && !isVisibleElement(sidebarPanel)) {
@@ -134,6 +134,7 @@ export function PdfViewer({
 
       const remember = () => {
         window.setTimeout(() => {
+          sidebarPanel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
           window.localStorage.setItem(
             SIDEBAR_PREF_KEY,
             isVisibleElement(sidebarPanel) ? "open" : "closed",

@@ -183,6 +183,15 @@ try {
   );
   assert(crossProject.status === 404, "Projects must isolate documents for the same user");
 
+  const alphaMe = await fetch(
+    `${base}/api/opdf/auth/me`,
+    withCookie(alphaCookies),
+  ).then((r) => r.json());
+  assert(
+    alphaMe.usageBytes >= pdfBytes.length,
+    "user quota usage must include documents from other projects",
+  );
+
   const forbiddenProject = await fetch(
     `${base}/api/opdf/projects/select`,
     withCookie(bobCookie, {

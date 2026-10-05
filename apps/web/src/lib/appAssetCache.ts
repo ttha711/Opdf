@@ -57,9 +57,9 @@ export function warmAppAssetCache() {
     }
   };
 
-  if ("requestIdleCallback" in window) {
+  if (typeof window.requestIdleCallback === "function") {
     window.requestIdleCallback(() => void start(), { timeout: 4000 });
-  } else {
-    window.setTimeout(() => void start(), 1000);
+    return;
   }
+  globalThis.setTimeout(() => void start(), 1000);
 }

@@ -7,7 +7,6 @@ type SavedSnapshot = {
   docBytes?: Uint8Array | null;
   documentIdentity?: string;
   annotations?: Annotation[];
-  pageRotations?: Record<number, number>;
 };
 
 type Args = {
@@ -21,7 +20,6 @@ type Args = {
   setTotalPages: (value: number) => void;
   setViewerError: (value: string | null) => void;
   setAnnotations: (value: Annotation[]) => void;
-  setPageRotations: (value: Record<number, number>) => void;
   markDocumentSaved: (snapshot?: SavedSnapshot) => void;
   onError: (message: string) => void;
 };
@@ -45,13 +43,11 @@ export function createOpenExistingDocument(args: Args) {
         args.setTotalPages(0);
         args.setViewerError(null);
         args.setAnnotations(annotations);
-        args.setPageRotations({});
         await args.bridge.pushRecent(result.filePath);
         args.markDocumentSaved({
           fileName: result.filePath,
           docBytes: result.bytes,
           annotations,
-          pageRotations: {},
         });
       } catch {
         args.onError("Unable to open the file. Please try again.");
@@ -85,14 +81,12 @@ export function createOpenExistingDocument(args: Args) {
       args.setTotalPages(0);
       args.setViewerError(null);
       args.setAnnotations(annotations);
-      args.setPageRotations({});
       if (isServerDocument) await args.bridge.pushRecent(identity);
       args.markDocumentSaved({
         fileName: displayName,
         docBytes: null,
         documentIdentity: identity,
         annotations,
-        pageRotations: {},
       });
     } catch (error) {
       args.setViewerError(error instanceof Error ? error.message : "Unable to open file");

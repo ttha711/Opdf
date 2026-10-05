@@ -14,3 +14,11 @@ When a local environment provides `codegraph`, it can be used for focused naviga
 - `codegraph sync` to refresh its local index.
 
 Lack of CodeGraph must not block changes. CI and repository tests are the authoritative gates.
+
+## Source file size
+
+- Keep hand-written source files at or below **300 lines** whenever practical.
+- Split large UI/controllers by responsibility instead of extending god files.
+- CI rejects changed source files above 300 lines.
+- A larger file requires an explicit `opdf-file-size-allow: <reason>` marker near the top and a concrete technical reason; do not use the marker to avoid normal refactoring.
+

@@ -48,6 +48,7 @@ export function PdfViewer({
 }: PdfViewerProps) {
   const [readyViewer, setReadyViewer] = useState<{ sourceUrl: string; registry: any } | null>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
+  const localSourceKeyRef = useRef<Uint8Array | Blob | null>(null);
   const suppressExternalPageRef = useRef(false);
   const preserveNativeToolRef = useRef(false);
   const lastPageRef = useRef(page);
@@ -82,11 +83,13 @@ export function PdfViewer({
   useEffect(() => {
     const blob = sourceBlob ?? (data ? new Blob([data as unknown as BlobPart], { type: "application/pdf" }) : null);
     if (!blob) {
+      localSourceKeyRef.current = null;
       setLocalUrl(null);
       return;
     }
 
     const url = URL.createObjectURL(blob);
+    localSourceKeyRef.current = sourceBlob ?? data ?? null;
     setLocalUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [data, sourceBlob]);
@@ -181,10 +184,11 @@ export function PdfViewer({
 
       const exportScope = exportApi?.forDocument?.(DOCUMENT_ID) ?? exportApi;
       if (exportScope?.saveAsCopy) {
+        const viewerSource = localUrl ? localSourceKeyRef.current : sourceIdentity;
         const unregister = registerViewerBytesProvider(async () => {
           const buffer = await exportScope.saveAsCopy().toPromise();
           return buffer ? new Uint8Array(buffer) : null;
-        });
+        }, viewerSource);
         unsubscribers.push(unregister);
       }
 

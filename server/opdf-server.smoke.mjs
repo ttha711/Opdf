@@ -47,6 +47,25 @@ function assert(condition, message) {
 try {
   const health = await waitForHealth();
   assert(health.runtime === "server", "health runtime must be server");
+  assert(health.capabilities?.ocrQueue === true, "health must expose OCR queue support");
+  assert(health.capabilities?.searchablePdfOcr === true, "health must expose searchable PDF OCR support");
+
+  const ocrCreate = await fetch(`${base}/api/opdf/ocr/jobs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filePath: "smoke.pdf", language: "eng" }),
+  });
+  assert(ocrCreate.status === 201, `OCR job create failed: ${ocrCreate.status}`);
+  const ocrJob = await ocrCreate.json();
+  assert(ocrJob.status === "queued" && ocrJob.progress === 0, "new OCR job must be queued");
+
+  const ocrJobs = await fetch(`${base}/api/opdf/ocr/jobs`).then((r) => r.json());
+  assert(ocrJobs.some((item) => item.id === ocrJob.id), "OCR job list is missing the created job");
+
+  const ocrCancel = await fetch(`${base}/api/opdf/ocr/jobs/${ocrJob.id}/cancel`, { method: "POST" });
+  assert(ocrCancel.ok, "OCR cancel failed");
+  const cancelledOcr = await ocrCancel.json();
+  assert(cancelledOcr.status === "cancelled", "OCR cancel did not update job status");
 
   const assetNames = await readdir(join(process.cwd(), "apps", "web", "dist", "assets"));
   const pdfWorkerAsset = assetNames.find((name) => name.startsWith("pdf.worker-") && name.endsWith(".mjs"));

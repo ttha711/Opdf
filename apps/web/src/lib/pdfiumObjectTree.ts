@@ -125,9 +125,9 @@ export function resolveContentObject(
     ) {
       throw new Error(`PDFium cannot traverse nested Form XObject for ${id}.`);
     }
+    formAncestorPtrs.push(objectPtr);
     parentFormPtr = objectPtr;
-    formAncestorPtrs.push(parentFormPtr);
-    objectPtr = module.FPDFFormObj_GetObject(parentFormPtr, childIndex);
+    objectPtr = module.FPDFFormObj_GetObject(objectPtr, childIndex);
     if (!objectPtr) throw new Error(`Nested PDF content object no longer exists: ${id}`);
   }
 

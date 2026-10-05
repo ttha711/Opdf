@@ -147,7 +147,19 @@ $env:OPDF_OFFICE_CONVERTER_SCRIPT="D:\OPDF\workers\pdf_office_convert.py"
 
 The worker receives paths and arguments through `spawn` without a shell. Conversion runs in a temporary directory and the temporary input/output files are removed after each request. Default timeout is 5 minutes; override it with `OPDF_OFFICE_WORKER_TIMEOUT_MS` if very large drawings require more time.
 
-## Upload size
+## Large PDF upload
+
+Server-runtime file opening is **local-first**. After the browser file picker returns a PDF, OPDF passes the browser `File` directly to the PDFium viewer so the first pages can render immediately. Persistence to OPDF Server runs in the background and does not block viewing, scrolling, or zooming.
+
+Background persistence uses resumable chunk uploads:
+
+- default chunk size: **8 MiB**;
+- browser upload concurrency: **4 parallel chunks**;
+- each chunk retries independently;
+- chunks may reach the server out of order;
+- the server assembles the exact byte stream only after every chunk is present;
+- a PDF is added to Recents only after assembly succeeds;
+- cancelling or failing an upload does not remove the local viewer source.
 
 Default maximum PDF upload size:
 
@@ -161,7 +173,13 @@ Override it in bytes:
 $env:OPDF_MAX_UPLOAD_BYTES="1073741824"
 ```
 
-The upload path streams directly to disk rather than buffering the entire request in Node memory.
+The server chunk size can also be adjusted. Keep it well below any reverse-proxy request-size limit:
+
+```powershell
+$env:OPDF_UPLOAD_CHUNK_BYTES="8388608"
+```
+
+For Cloudflare Tunnel and large A0/A1 drawing sets, the default 8 MiB chunks with four browser workers are the recommended starting point. Node only buffers individual chunks, not the full PDF. Temporary chunks are never exposed through Recents; the finalized `document.pdf` is range-readable after assembly.
 
 ## Build and verification
 

@@ -1,7 +1,8 @@
-import { useEffect, useRef, type ChangeEvent, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useRef, type ChangeEvent, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { Annotation } from "@opdf/core";
 import { isOpdfServerRuntime, useOpdfBridge } from "./useOpdfBridge";
-import { uploadPdfToServer } from "./opdf-bridge/serverBridge";
+import { useServerUpload } from "./useServerUpload";
+import { useOpenPathEffect } from "./useOpenPathEffect";
 import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmDialog";
 import { computeBlobHash, computeFileHash, loadAnnotationsByHash } from "../lib/web-storage";
@@ -60,29 +61,33 @@ export function useDocumentLifecycle({
   const toast = useToast();
   const confirm = useConfirm();
 
-  async function loadBrowserFile(file: File) {
-    // Keep the File as the viewer source. PDF.js can consume the Blob directly,
-    // avoiding a second full-file Uint8Array allocation for large drawings.
-    let identity = "";
-    let savedAnnotations: Annotation[] = [];
+  const { openLocalFirst, cancelUpload } = useServerUpload({
+    bridge,
+    setFileName,
+    setDocBytes,
+    setSourceBlob,
+    setSourceIdentity,
+    setPage,
+    setTotalPages,
+    setViewerError,
+    setThumbnails,
+    setAnnotations,
+    setBookmarks,
+    setPageRotations,
+    markDocumentSaved,
+  });
 
+  async function loadBrowserFile(file: File) {
     if (isOpdfServerRuntime()) {
-      setViewerError("Uploading PDF to OPDF Server...");
-      const uploaded = await uploadPdfToServer(
-        file,
-        file.name,
-        window.__OPDF_SERVER_BASE__ || "/api/opdf",
-      );
-      identity = uploaded.filePath;
-      savedAnnotations = await bridge.listAnnotations(identity);
-    } else {
-      identity = await computeBlobHash(file, file.name, file.lastModified);
-      savedAnnotations = (await loadAnnotationsByHash(identity) ?? []) as Annotation[];
+      openLocalFirst(file);
+      return;
     }
 
+    const identity = await computeBlobHash(file, file.name, file.lastModified);
+    const savedAnnotations = (await loadAnnotationsByHash(identity) ?? []) as Annotation[];
     setFileName(file.name);
     setDocBytes(null);
-    setSourceBlob(isOpdfServerRuntime() ? null : file);
+    setSourceBlob(file);
     setSourceIdentity(identity);
     setPage(1);
     setTotalPages(0);
@@ -99,10 +104,6 @@ export function useDocumentLifecycle({
       bookmarks: [],
       pageRotations: {},
     });
-
-    if (isOpdfServerRuntime()) {
-      await bridge.pushRecent(identity);
-    }
   }
 
   async function openFile() {
@@ -292,6 +293,7 @@ export function useDocumentLifecycle({
       });
       if (!ok) return;
     }
+    cancelUpload();
     setDocBytes(null);
     setSourceBlob(null);
     setSourceIdentity("");
@@ -308,61 +310,22 @@ export function useDocumentLifecycle({
     await clearDraft();
   }
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const openPath = params.get("open");
-    if (!openPath || hasDesktopBridge) return;
-    const devOpenPath = openPath;
-
-    let cancelled = false;
-    async function loadDevFile() {
-      try {
-        const isServerDocument = devOpenPath.startsWith("server://");
-        const blob = isServerDocument
-          ? null
-          : await fetch(`/@fs/${devOpenPath.replaceAll("\\", "/")}`).then((response) => {
-              if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              return response.blob();
-            });
-        if (cancelled) return;
-        const encodedName = devOpenPath.split(/[\\/]/).pop() || devOpenPath;
-        const displayName = isServerDocument ? decodeURIComponent(encodedName) : encodedName;
-        const identity = isServerDocument
-          ? devOpenPath
-          : await computeBlobHash(blob as Blob, displayName, 0);
-        const loadedAnnotations = isServerDocument
-          ? await bridge.listAnnotations(identity)
-          : [];
-        setFileName(displayName);
-        setDocBytes(null);
-        setSourceBlob(blob);
-        setSourceIdentity(identity);
-        setPage(1);
-        setTotalPages(0);
-        setViewerError(null);
-        setThumbnails([]);
-        setAnnotations(loadedAnnotations);
-        setBookmarks([]);
-        setPageRotations({});
-        if (isServerDocument) await bridge.pushRecent(identity);
-        markDocumentSaved({
-          fileName: displayName,
-          docBytes: null,
-          documentIdentity: identity,
-          annotations: loadedAnnotations,
-          bookmarks: [],
-          pageRotations: {},
-        });
-      } catch {
-        if (!cancelled) setViewerError("Unable to open file");
-      }
-    }
-
-    void loadDevFile();
-    return () => {
-      cancelled = true;
-    };
-  }, [hasDesktopBridge, setAnnotations, setDocBytes, setSourceBlob, setSourceIdentity, setFileName, setPage, setThumbnails, setViewerError]);
+  useOpenPathEffect({
+    bridge,
+    hasDesktopBridge,
+    setFileName,
+    setDocBytes,
+    setSourceBlob,
+    setSourceIdentity,
+    setPage,
+    setTotalPages,
+    setViewerError,
+    setThumbnails,
+    setAnnotations,
+    setBookmarks,
+    setPageRotations,
+    markDocumentSaved,
+  });
 
   return { openFile, openFileWithPath, onSelectLocalFile, replaceDocumentBytes, closeDocument };
 }

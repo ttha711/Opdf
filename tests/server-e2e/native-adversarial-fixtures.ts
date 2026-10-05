@@ -21,7 +21,7 @@ export async function buildSubsetFontPdf() {
   const fontBytes = await readFile(fontPath);
   const font = await document.embedFont(fontBytes, { subset: true });
   const page = document.addPage([595, 420]);
-  page.drawText("Subset font: Kỹ thuật kết cấu 01", {
+  page.drawText("Subset font source 01", {
     x: 72,
     y: 240,
     size: 26,

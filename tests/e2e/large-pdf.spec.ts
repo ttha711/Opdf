@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { goToEmbedPdfPage, openEmbedPdfSidebar } from "../helpers/embedpdf";
 
 async function createDrawingSet(pageCount = 120) {
   const doc = await PDFDocument.create();
@@ -58,12 +59,8 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   await expect(viewer.getByRole("button", { name: "Shapes", exact: true })).toBeVisible();
   await expect(page.locator(".viewer-quick-tools")).toHaveCount(0);
 
-  // The viewer owns page navigation. OPDF no longer mirrors thumbnails or bookmarks.
-  const sidebarButton = viewer.getByRole("button", { name: /sidebar/i }).first();
-  await expect(sidebarButton).toBeVisible();
-  await sidebarButton.click();
-  await expect(sidebarButton).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
-  await expect(viewer.locator("aside").first()).toBeVisible({ timeout: 15_000 });
+  // The engine-owned sidebar is the single page-navigation sidebar.
+  await openEmbedPdfSidebar(viewer);
 
   // Measurement remains an OPDF-specific tool, launched from the conventional
   // Tools menu instead of a second annotation toolbar.
@@ -74,9 +71,8 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   await page.getByRole("button", { name: "Close measurement tool", exact: true }).click();
   await expect(page.getByLabel("Measurement mode")).toHaveCount(0);
 
-  // Navigate through OPDF's viewer controls, which delegate to EmbedPDF's stage.
-  for (let pageNumber = 2; pageNumber <= 100; pageNumber += 1) {
-    await page.keyboard.press("ArrowRight");
-  }
+  // Jump through EmbedPDF's own page-control input instead of racing repeated
+  // keyboard events against React state updates.
+  await goToEmbedPdfPage(viewer, 100);
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+100\s+of\s+120/i, { timeout: 15_000 });
 });

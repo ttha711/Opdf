@@ -1,3 +1,4 @@
+// opdf-file-size-allow: authentication, session validation, password hashing, and shared-user CAS stay together as one security audit boundary.
 import {
   createHmac,
   randomBytes,

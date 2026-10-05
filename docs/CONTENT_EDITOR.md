@@ -90,7 +90,12 @@ The current branch implements the native editor with direct `@embedpdf/pdfium` p
 - PDFium-native creation of new text, rectangle/path, and image page objects;
 - text render modes (fill/stroke/fill+stroke/invisible) and text stroke controls;
 - path line cap, line join, dash-pattern inspection/editing;
-- Form XObject and shading discovery, including Form child counts;
+- recursive Form XObject discovery and deep editing of supported nested text/image/path objects;
+- stable nested object IDs (for example `p0-o3-f1-f2`) with up to 8 traversal levels;
+- PDFium rotated quadrilateral bounds for text/image selection, including nested Form transforms;
+- blend-mode editing across PDFium-supported page objects (Normal, Multiply, Screen, Overlay, and the remaining PDF blend modes);
+- safe nested-object deletion through `FPDFFormObj_RemoveObject`;
+- explicit capability guards where PDFium has no Form insertion API: nested duplicate, font-object replacement, and path reconstruction are disabled instead of emulated;
 - image pixel dimensions and image filter inspection;
 - transparency and marked-content discovery where exposed by the PDFium WASM build;
 - page-area hit testing from the active PDF viewer;
@@ -101,6 +106,7 @@ The current branch implements the native editor with direct `@embedpdf/pdfium` p
 The remaining production-quality work is deliberately treated as a gate, not a reduced scope:
 
 - direct canvas selection handles and inline text editing should match the object panel behavior;
+- extend rotated-quad selection from Pick-on-page scoring into visible canvas handles;
 - add deterministic image/path persistence fixtures, including crop and Bezier geometry;
 - exercise Unicode/subset-font, rotated-object, scanned-page, encrypted-PDF and malformed-PDF fixtures;
 - run real engineering PDFs and performance budgets before calling M8 complete.
@@ -109,3 +115,10 @@ The remaining production-quality work is deliberately treated as a gate, not a r
 ## PDFium capability policy
 
 OPDF now treats PDFium as the primary source of truth for native page-object capabilities. New capabilities are exposed with runtime feature detection so a missing optional export in a particular WASM build does not break the editor. The editor should prefer a PDFium primitive over reimplementing the same PDF operation in JavaScript whenever that primitive is available and serializes cleanly through `FPDFPage_GenerateContent` + the existing PDFium writer.
+
+
+## Form XObject editing rules
+
+PDFium exposes Form XObject enumeration and removal through `FPDFFormObj_CountObjects`, `FPDFFormObj_GetObject`, and `FPDFFormObj_RemoveObject`. OPDF therefore edits existing nested objects directly when the operation can be performed in place: text replacement, transforms, colors/strokes, blend mode, image bitmap replacement/crop, and deletion.
+
+PDFium does not currently expose an API to insert a newly created page object into an existing Form XObject. OPDF deliberately does not fake that capability. Operations that require replacing an object with a newly created object—nested text font/font-size replacement, nested path geometry rebuild, or nested duplication—are disabled with an explicit explanation.

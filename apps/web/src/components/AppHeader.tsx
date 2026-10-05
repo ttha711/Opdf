@@ -189,12 +189,22 @@ export function AppHeader({
     { kind: "section", label: "Advanced" },
     { kind: "action", label: "Advanced PDF...", disabled: !hasDocument, onClick: advancedPdf },
   ];
+  const effectiveEditMenuItems = activeTool === "edit-content"
+    ? editMenuItems.map((item) =>
+        item.kind === "action" && item.label === "Undo"
+          ? { ...item, disabled: false, onClick: () => { void undoNativeContentEdit(); } }
+          : item.kind === "action" && item.label === "Redo"
+            ? { ...item, disabled: false, onClick: () => { void redoNativeContentEdit(); } }
+            : item,
+      )
+    : editMenuItems;
+
   const mobileMenuItems: MenuItemDef[] = [
     { kind: "section", label: "File" },
     ...fileMenuItems,
     { kind: "separator" },
     { kind: "section", label: "Edit" },
-    ...editMenuItems,
+    ...effectiveEditMenuItems,
     { kind: "separator" },
     { kind: "section", label: "View" },
     ...viewMenuItems,
@@ -230,7 +240,7 @@ export function AppHeader({
         </div>
         <div className="opdf-desktop-menus">
           <MenuDropdown label="File" items={fileMenuItems} isOpen={openMenu === "File"} onToggle={() => toggleMenu("File")} onClose={closeMenu} />
-          <MenuDropdown label="Edit" items={activeTool === "edit-content" ? editMenuItems.map((item) => item.kind === "action" && item.label === "Undo" ? { ...item, disabled: false, onClick: () => { void undoNativeContentEdit(); } } : item.kind === "action" && item.label === "Redo" ? { ...item, disabled: false, onClick: () => { void redoNativeContentEdit(); } } : item) : editMenuItems} isOpen={openMenu === "Edit"} onToggle={() => toggleMenu("Edit")} onClose={closeMenu} />
+          <MenuDropdown label="Edit" items={effectiveEditMenuItems} isOpen={openMenu === "Edit"} onToggle={() => toggleMenu("Edit")} onClose={closeMenu} />
           <MenuDropdown label="View" items={viewMenuItems} isOpen={openMenu === "View"} onToggle={() => toggleMenu("View")} onClose={closeMenu} />
           <MenuDropdown label="Tools" items={compactToolsMenuItems} isOpen={openMenu === "Tools"} onToggle={() => toggleMenu("Tools")} onClose={closeMenu} />
         </div>

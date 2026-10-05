@@ -47,12 +47,6 @@ export function useNativeContentKeyboard({
         copiedObjectIdRef.current = selected.id;
         return;
       }
-      if (command && key === "x") {
-        event.preventDefault();
-        copiedObjectIdRef.current = selected.id;
-        void apply([{ type: "delete", objectId: selected.id }], "Object cut.");
-        return;
-      }
       if (command && key === "v" && copiedObjectIdRef.current) {
         event.preventDefault();
         void apply([{

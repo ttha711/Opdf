@@ -320,9 +320,47 @@ npm run server-auth-smoke
 
 This verifies authentication, admin authorization, cross-user UUID isolation, cross-project isolation, and quota rejection.
 
-## Next server phase
+## S3-compatible shared object storage
 
-The remaining server scaling phase is S3-compatible object storage for multi-node deployments.
+For multi-node document storage, configure an S3-compatible endpoint on every OPDF node:
+
+```powershell
+$env:OPDF_S3_ENDPOINT="https://s3.example.com"
+$env:OPDF_S3_BUCKET="opdf-production"
+$env:OPDF_S3_REGION="us-east-1"
+$env:OPDF_S3_ACCESS_KEY_ID="<access-key>"
+$env:OPDF_S3_SECRET_ACCESS_KEY="<secret-key>"
+$env:OPDF_S3_PREFIX="opdf"
+$env:OPDF_S3_PATH_STYLE="1"
+npm run server-start
+```
+
+When these variables are present, S3-compatible storage becomes authoritative for PDF bytes, document metadata, annotations, recents/session state, encrypted certificate envelopes, and the application user database. Each node keeps only a disposable local cache and working files under `OPDF_DATA_DIR`. PDF cache entries are checked against the remote ETag before reuse.
+
+Resumable PDF uploads use S3 multipart upload directly. Parts can therefore arrive through different OPDF nodes and still be resumed/completed safely. OPDF automatically enforces a minimum multipart chunk size of 5 MiB in S3 mode; the default remains 8 MiB.
+
+Per-user quota is calculated from the shared object namespace plus the expected size of open multipart uploads. Pending resumable uploads reserve their declared size immediately, preventing users from opening several sessions that collectively exceed quota.
+
+Run the object-storage gate with:
+
+```powershell
+npm run server-s3-smoke
+```
+
+The smoke test starts a disposable S3-compatible server, creates two independent OPDF cache roots, verifies cross-node document/annotation/session visibility, resumes a multipart upload on the second node, and reads the completed object back through the first node.
+
+### Multi-node OCR note
+
+Durable document state is shared across nodes, but the OCR execution queue is still process-local. If more than one OPDF application node serves OCR endpoints, route a job's create/run/status/output requests to the same node (sticky ingress), or keep OCR workers behind a single dedicated OPDF worker node. Shared S3 storage does not by itself turn the in-memory OCR scheduler into a distributed queue.
+
+## Production server roadmap status
+
+- M9: server OCR/searchable PDF — implemented.
+- M10: encrypted P12/PFX signing — implemented.
+- M11: multi-user auth, authorization, quotas, per-user/project storage — implemented and CI-gated.
+- M12: S3-compatible shared object storage and cross-node resumable uploads — implemented and CI-gated.
+
+The remaining production work is operational rather than a missing document-storage milestone: deployment secrets, real S3 credentials, HTTPS/Cloudflare configuration, backup/restore policy, representative load testing, and sticky/dedicated routing for process-local OCR jobs.
 
 
 ## Office to PDF conversion

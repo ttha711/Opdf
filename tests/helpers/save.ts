@@ -15,5 +15,7 @@ export async function saveServerDocumentAndWait(page: Page) {
   await page.getByTitle("Save (Ctrl+S)").click();
   const response = await saveResponse;
   expect(response.ok()).toBeTruthy();
-  await expect(page.locator('[data-opdf-save-state="saved"]')).toBeVisible({ timeout: 30_000 });
+  await expect(
+    page.locator('[data-opdf-region="status-bar"][data-opdf-save-state="saved"]'),
+  ).toBeVisible({ timeout: 30_000 });
 }

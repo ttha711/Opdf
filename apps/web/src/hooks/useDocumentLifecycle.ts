@@ -3,6 +3,7 @@ import type { Annotation } from "@opdf/core";
 import { isOpdfServerRuntime, useOpdfBridge } from "./useOpdfBridge";
 import { useServerUpload } from "./useServerUpload";
 import { useOpenPathEffect } from "./useOpenPathEffect";
+import { createOpenExistingDocument } from "./openExistingDocument";
 import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmDialog";
 import { computeBlobHash, computeFileHash, loadAnnotationsByHash } from "../lib/web-storage";
@@ -169,86 +170,23 @@ export function useDocumentLifecycle({
     }
   }
 
-  async function openFileWithPath(filePath: string) {
-    if (hasDesktopBridge) {
-      try {
-        const result = await bridge.openDocument(filePath);
-        if (result) {
-          const bridgeAnnotations = await bridge.listAnnotations(result.filePath);
-          const hash = await computeFileHash(result.bytes);
-          const loadedAnnotations: Annotation[] = bridgeAnnotations.length > 0
-            ? bridgeAnnotations
-            : ((await loadAnnotationsByHash(hash) ?? []) as Annotation[]);
-          setFileName(result.filePath);
-          setDocBytes(result.bytes);
-          setSourceBlob(null);
-          setSourceIdentity("");
-          setPage(1);
-          setTotalPages(0);
-          setViewerError(null);
-          setThumbnails([]);
-          setBookmarks([]);
-          setPageRotations({});
-          await bridge.pushRecent(result.filePath);
-          setAnnotations(loadedAnnotations);
-          markDocumentSaved({
-            fileName: result.filePath,
-            docBytes: result.bytes,
-            annotations: loadedAnnotations,
-            bookmarks: [],
-            pageRotations: {},
-          });
-        }
-      } catch (error) {
-        console.warn("openFileWithPath failed:", error);
-        toast.error("Unable to open the file. Please try again.");
-      }
-      return;
-    }
-
-    try {
-      setViewerError("Loading file...");
-      const isServerDocument = filePath.startsWith("server://");
-      const blob = isServerDocument
-        ? null
-        : await fetch(`/@fs/${filePath.replaceAll("\\", "/")}`).then((response) => {
-            if (!response.ok) throw new Error(`HTTP ${response.status} when trying to load file`);
-            return response.blob();
-          });
-      const encodedName = filePath.split("/").pop() || filePath;
-      const displayName = isServerDocument
-        ? decodeURIComponent(encodedName)
-        : encodedName;
-      const identity = isServerDocument
-        ? filePath
-        : await computeBlobHash(blob as Blob, displayName, 0);
-      const loadedAnnotations = isServerDocument
-        ? await bridge.listAnnotations(identity)
-        : ((await loadAnnotationsByHash(identity) ?? []) as Annotation[]);
-      setFileName(displayName);
-      setDocBytes(null);
-      setSourceBlob(blob);
-      setSourceIdentity(identity);
-      setPage(1);
-      setTotalPages(0);
-      setViewerError(null);
-      setThumbnails([]);
-      setAnnotations(loadedAnnotations);
-      setBookmarks([]);
-      setPageRotations({});
-      if (isServerDocument) await bridge.pushRecent(identity);
-      markDocumentSaved({
-        fileName: displayName,
-        docBytes: null,
-        documentIdentity: identity,
-        annotations: loadedAnnotations,
-        bookmarks: [],
-        pageRotations: {},
-      });
-    } catch (error) {
-      setViewerError(error instanceof Error ? error.message : "Unable to open file");
-    }
-  }
+  const openFileWithPath = createOpenExistingDocument({
+    bridge,
+    hasDesktopBridge,
+    setFileName,
+    setDocBytes,
+    setSourceBlob,
+    setSourceIdentity,
+    setPage,
+    setTotalPages,
+    setViewerError,
+    setThumbnails,
+    setAnnotations,
+    setBookmarks,
+    setPageRotations,
+    markDocumentSaved,
+    onError: (message) => toast.error(message),
+  });
 
   async function onSelectLocalFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];

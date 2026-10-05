@@ -134,33 +134,6 @@ export function resolveContentObject(
   return { ...parsed, objectPtr, parentFormPtr, formAncestorPtrs };
 }
 
-export function markFormAncestorsDirty(
-  module: PdfiumModule,
-  resolved: ResolvedContentObject,
-) {
-  if (!resolved.formAncestorPtrs.length) return;
-  if (
-    typeof module.FPDFPageObj_GetMatrix !== "function" ||
-    typeof module.FPDFPageObj_SetMatrix !== "function"
-  ) {
-    throw new Error("PDFium cannot persist nested Form edits because matrix dirty-marking APIs are unavailable.");
-  }
-
-  const ptr = malloc(module, 6 * 4);
-  try {
-    for (let index = resolved.formAncestorPtrs.length - 1; index >= 0; index -= 1) {
-      const formPtr = resolved.formAncestorPtrs[index];
-      if (!module.FPDFPageObj_GetMatrix(formPtr, ptr)) {
-        throw new Error("Unable to read Form XObject matrix while marking nested edit dirty.");
-      }
-      if (!module.FPDFPageObj_SetMatrix(formPtr, ptr)) {
-        throw new Error("Unable to mark Form XObject dirty for nested edit persistence.");
-      }
-    }
-  } finally {
-    free(module, ptr);
-  }
-}
 
 export function removeResolvedObject(
   module: PdfiumModule,

@@ -413,7 +413,7 @@ export function NativeContentEditorPanel({
               <button
                 type="button"
                 onClick={() => void apply([{ type: "duplicate", objectId: selected.id, offsetX: 12, offsetY: -12 }], "Object duplicated.")}
-                disabled={loading}
+                disabled={loading || (selected.kind !== "text" && selected.kind !== "image" && selected.kind !== "path")}
               >
                 Duplicate
               </button>

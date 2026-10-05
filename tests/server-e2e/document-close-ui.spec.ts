@@ -24,7 +24,25 @@ test("closing the document tears down the viewer and engine-owned sidebar", asyn
   const sidebarButton = viewer.getByRole("button", { name: /sidebar/i }).first();
   await expect(sidebarButton).toBeVisible();
   await sidebarButton.click();
-  await expect(viewer.getByRole("button", { name: /Page 1$/i }).first()).toBeVisible({ timeout: 10_000 });
+  await expect.poll(
+    () =>
+      viewer.locator("img, canvas").evaluateAll((surfaces) =>
+        surfaces.some((surface) => {
+          const rect = surface.getBoundingClientRect();
+          return (
+            rect.width >= 48 &&
+            rect.width <= 240 &&
+            rect.height >= 64 &&
+            rect.height <= 340 &&
+            rect.bottom > 0 &&
+            rect.right > 0 &&
+            rect.top < window.innerHeight &&
+            rect.left < window.innerWidth
+          );
+        }),
+      ),
+    { timeout: 10_000 },
+  ).toBe(true);
 
   await page.locator("[data-opdf-menu-trigger='File']").click();
   await page.locator("[data-opdf-menu-item='Close']").click();

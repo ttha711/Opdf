@@ -238,6 +238,7 @@ async function createDocumentFromRequest(req, res, url) {
   const record = await storage.createDocument(name);
   try {
     const size = await streamBodyToPath(req, record.tempPath);
+    await tenantRuntime.assertCanAdd(size);
     await rename(record.tempPath, record.pdfPath);
     const updated = await storage.finalizeDocument(record.id, size);
     await storage.pushRecent(updated.filePath);

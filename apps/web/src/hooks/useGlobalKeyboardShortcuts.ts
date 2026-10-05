@@ -18,6 +18,8 @@ type Args = {
 };
 
 export function useGlobalKeyboardShortcuts(args: Args) {
+  const { openFile, savePdf, savePdfAs, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage, setActiveTool, setOpenMenu, setTheme } = args;
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const command = event.ctrlKey || event.metaKey;
@@ -29,63 +31,63 @@ export function useGlobalKeyboardShortcuts(args: Args) {
 
       if (command && key === "o") {
         event.preventDefault();
-        args.openFile();
+        openFile();
         return;
       }
       if (command && key === "s" && !event.shiftKey) {
         event.preventDefault();
-        args.savePdf();
+        savePdf();
         return;
       }
       if (command && event.shiftKey && key === "s") {
         event.preventDefault();
-        args.savePdfAs();
+        savePdfAs();
         return;
       }
       if (command && key === "z") {
         if (getViewerControls()) return;
         event.preventDefault();
-        void args.undoAnnotations();
+        void undoAnnotations();
         return;
       }
       if (command && (key === "y" || (event.shiftKey && key === "z"))) {
         if (getViewerControls()) return;
         event.preventDefault();
-        void args.redoAnnotations();
+        void redoAnnotations();
         return;
       }
       if (command && event.shiftKey && key === "l") {
         event.preventDefault();
-        args.setTheme((theme) => theme === "light" ? "dark" : "light");
+        setTheme((theme) => theme === "light" ? "dark" : "light");
         return;
       }
 
       // Never reinterpret modified keys as single-key tool shortcuts.
       if (command || event.altKey || inInput) return;
 
-      if (event.key === "+" || event.key === "=") return args.zoomIn();
-      if (event.key === "-") return args.zoomOut();
+      if (event.key === "+" || event.key === "=") return zoomIn();
+      if (event.key === "-") return zoomOut();
       if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
         event.preventDefault();
-        args.goPrevPage();
+        goPrevPage();
         return;
       }
       if (event.key === "ArrowRight" || event.key === "ArrowDown") {
         event.preventDefault();
-        args.goNextPage();
+        goNextPage();
         return;
       }
-      if (event.key === "Escape") args.setOpenMenu(null);
-      if (key === "v") return args.setActiveTool("select");
-      if (key === "i") return args.setActiveTool("highlight");
-      if (key === "t") return args.setActiveTool("note");
-      if (key === "r") return args.setActiveTool("redact");
-      if (key === "s") return args.setActiveTool("signature");
-      if (key === "q") return args.setActiveTool("shape");
-      if (key === "m") return args.setActiveTool("measure");
+      if (event.key === "Escape") setOpenMenu(null);
+      if (key === "v") return setActiveTool("select");
+      if (key === "i") return setActiveTool("highlight");
+      if (key === "t") return setActiveTool("note");
+      if (key === "r") return setActiveTool("redact");
+      if (key === "s") return setActiveTool("signature");
+      if (key === "q") return setActiveTool("shape");
+      if (key === "m") return setActiveTool("measure");
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [args]);
+  }, [goNextPage, goPrevPage, openFile, redoAnnotations, savePdf, savePdfAs, setActiveTool, setOpenMenu, setTheme, undoAnnotations, zoomIn, zoomOut]);
 }

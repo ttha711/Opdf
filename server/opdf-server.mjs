@@ -10,6 +10,8 @@ import { DocumentService } from "@opdf/core";
 import { createOpdfStorage, assertDocumentId, sanitizeFileName } from "./opdf-storage.mjs";
 import { createChunkUploadApi } from "./opdf-upload.mjs";
 import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
+import { createCertificateStore } from "./opdf-certificate-store.mjs";
+import { createSigningApi } from "./opdf-signing-api.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -25,6 +27,10 @@ const uploadChunkBytes = Number.isFinite(configuredUploadChunkBytes)
   : 8 * 1024 * 1024;
 const storage = createOpdfStorage(dataDir);
 const documentService = new DocumentService();
+const certificateStore = createCertificateStore(
+  dataDir,
+  process.env.OPDF_CERTIFICATE_MASTER_KEY || "",
+);
 const ocrQueue = createOcrJobQueue(dataDir, {
   concurrency: Number(process.env.OPDF_OCR_CONCURRENCY || 1),
 });
@@ -583,6 +589,15 @@ const handleChunkUpload = createChunkUploadApi({
   sendError,
 });
 
+const handleSigningApi = createSigningApi({
+  certificateStore,
+  sendJson,
+  sendError,
+  sendPdf,
+  readPdfBody,
+  parseOperationOptions,
+});
+
 async function handleOcrApi(req, res, url) {
   if (url.pathname === "/api/opdf/ocr/jobs") {
     if (req.method === "GET") return sendJson(res, 200, ocrQueue.list());
@@ -655,6 +670,9 @@ async function handleApi(req, res, url) {
         localFirstUpload: true,
         ocrQueue: true,
         searchablePdfOcr: true,
+        digitalSignature: certificateStore.enabled,
+        certificateStorage: certificateStore.enabled,
+        signatureInspection: true,
       },
     });
   }
@@ -665,6 +683,16 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/opdf/ocr/jobs" || url.pathname.startsWith("/api/opdf/ocr/jobs/")) {
     const handled = await handleOcrApi(req, res, url);
+    if (handled !== false) return;
+  }
+
+  if (
+    url.pathname === "/api/opdf/certificates" ||
+    url.pathname.startsWith("/api/opdf/certificates/") ||
+    url.pathname === "/api/opdf/operations/sign-p12" ||
+    url.pathname === "/api/opdf/operations/inspect-signatures"
+  ) {
+    const handled = await handleSigningApi(req, res, url);
     if (handled !== false) return;
   }
 
@@ -736,6 +764,7 @@ async function handleApi(req, res, url) {
 
 await storage.ensure();
 await ocrQueue.ensure();
+await certificateStore.ensure();
 
 const server = http.createServer(async (req, res) => {
   try {

@@ -58,9 +58,11 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   await expect(viewer.getByRole("button", { name: "Shapes", exact: true })).toBeVisible();
   await expect(page.locator(".viewer-quick-tools")).toHaveCount(0);
 
-  // OPDF's page-management rail must remain available on the PDFium path.
-  await expect(page.getByText("Select pages for batch actions · drag the handle to reorder")).toBeVisible();
-  await expect(page.getByRole("img", { name: "Page 1" }).first()).toBeVisible({ timeout: 15_000 });
+  // The viewer owns page navigation. OPDF no longer mirrors thumbnails or bookmarks.
+  const sidebarButton = viewer.getByRole("button", { name: /sidebar/i }).first();
+  await expect(sidebarButton).toBeVisible();
+  await sidebarButton.click();
+  await expect(viewer.getByRole("button", { name: /Page 1$/i }).first()).toBeVisible({ timeout: 15_000 });
 
   // Measurement remains an OPDF-specific tool, launched from the conventional
   // Tools menu instead of a second annotation toolbar.
@@ -71,8 +73,7 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   await page.getByRole("button", { name: "Close measurement tool", exact: true }).click();
   await expect(page.getByLabel("Measurement mode")).toHaveCount(0);
 
-  // Navigate through the persistent thumbnail rail. This remains stable even
-  // when the compact app header has no page-number input.
-  await page.getByRole("button", { name: "Go to page 100", exact: true }).click();
+  // Navigate through EmbedPDF's authoritative thumbnail sidebar.
+  await viewer.getByRole("button", { name: /Page 100$/i }).first().click();
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+100\s+of\s+120/i, { timeout: 15_000 });
 });

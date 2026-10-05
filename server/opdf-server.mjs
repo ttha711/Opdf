@@ -12,6 +12,8 @@ import { createChunkUploadApi } from "./opdf-upload.mjs";
 import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
 import { createCertificateStore } from "./opdf-certificate-store.mjs";
 import { createSigningApi } from "./opdf-signing-api.mjs";
+import { createAuthService } from "./opdf-auth.mjs";
+import { createTenantRuntime } from "./opdf-tenancy.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -25,15 +27,16 @@ const configuredUploadChunkBytes = Number(process.env.OPDF_UPLOAD_CHUNK_BYTES ||
 const uploadChunkBytes = Number.isFinite(configuredUploadChunkBytes)
   ? Math.min(Math.max(configuredUploadChunkBytes, 1024 * 1024), 32 * 1024 * 1024)
   : 8 * 1024 * 1024;
-const storage = createOpdfStorage(dataDir);
-const documentService = new DocumentService();
-const certificateStore = createCertificateStore(
-  dataDir,
-  process.env.OPDF_CERTIFICATE_MASTER_KEY || "",
-);
-const ocrQueue = createOcrJobQueue(dataDir, {
-  concurrency: Number(process.env.OPDF_OCR_CONCURRENCY || 1),
+const auth = createAuthService(dataDir, process.env);
+const tenantRuntime = createTenantRuntime(dataDir, {
+  authEnabled: auth.enabled,
+  certificateMasterKey: process.env.OPDF_CERTIFICATE_MASTER_KEY || "",
+  ocrConcurrency: Number(process.env.OPDF_OCR_CONCURRENCY || 1),
 });
+const storage = tenantRuntime.storage;
+const certificateStore = tenantRuntime.certificateStore;
+const ocrQueue = tenantRuntime.ocrQueue;
+const documentService = new DocumentService();
 const pythonPath = process.env.OPDF_PYTHON_PATH || (process.platform === "win32" ? "python" : "python3");
 const officeConverterScript = resolve(
   process.env.OPDF_OFFICE_CONVERTER_SCRIPT ||
@@ -227,10 +230,15 @@ async function serveDocument(req, res, record, download) {
 }
 
 async function createDocumentFromRequest(req, res, url) {
+  const declaredLength = Number(req.headers["content-length"] || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > 0) {
+    await tenantRuntime.assertCanAdd(declaredLength);
+  }
   const name = sanitizeFileName(url.searchParams.get("name") || "document.pdf");
   const record = await storage.createDocument(name);
   try {
     const size = await streamBodyToPath(req, record.tempPath);
+    await tenantRuntime.assertCanAdd(size);
     await rename(record.tempPath, record.pdfPath);
     const updated = await storage.finalizeDocument(record.id, size);
     await storage.pushRecent(updated.filePath);
@@ -269,8 +277,14 @@ async function replaceStoredFile(tempPath, targetPath) {
 }
 
 async function replaceDocumentFromRequest(req, res, record) {
-  const tempPath = join(dataDir, "documents", record.id, `save-${Date.now()}.tmp`);
+  const currentSize = await storage.getDocumentSize(record.id) || 0;
+  const declaredLength = Number(req.headers["content-length"] || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > 0) {
+    await tenantRuntime.assertCanAdd(declaredLength, currentSize);
+  }
+  const tempPath = join(tenantRuntime.active().tenantRoot, "documents", record.id, `save-${Date.now()}.tmp`);
   const size = await streamBodyToPath(req, tempPath);
+  await tenantRuntime.assertCanAdd(size, currentSize);
   await replaceStoredFile(tempPath, record.pdfPath);
   const updated = await storage.finalizeDocument(record.id, size);
   sendJson(res, 200, { filePath: updated.filePath, size: updated.size, updatedAt: updated.updatedAt });
@@ -357,7 +371,9 @@ async function mutateStoredDocument(req, res, record) {
     return sendError(res, 400, "Unsupported stored document mutation.");
   }
 
-  const tempPath = join(dataDir, "documents", record.id, `mutate-${Date.now()}.tmp`);
+  const currentSize = await storage.getDocumentSize(record.id) || 0;
+  await tenantRuntime.assertCanAdd(output.byteLength, currentSize);
+  const tempPath = join(tenantRuntime.active().tenantRoot, "documents", record.id, `mutate-${Date.now()}.tmp`);
   await mkdir(resolve(tempPath, ".."), { recursive: true });
   const handle = await open(tempPath, "wx");
   try {
@@ -587,6 +603,7 @@ const handleChunkUpload = createChunkUploadApi({
   chunkBytes: uploadChunkBytes,
   sendJson,
   sendError,
+  assertCanAdd: (bytes) => tenantRuntime.assertCanAdd(bytes),
 });
 
 const handleSigningApi = createSigningApi({
@@ -626,7 +643,7 @@ async function handleOcrApi(req, res, url) {
     const job = ocrQueue.get(jobId);
     if (!job) return sendError(res, 404, "OCR job not found.");
     if (job.status !== "queued") return sendJson(res, 200, job);
-    const inputPath = join(dataDir, "ocr", jobId, `input-${Date.now()}.pdf`);
+    const inputPath = join(tenantRuntime.active().tenantRoot, "ocr", jobId, `input-${Date.now()}.pdf`);
     await streamBodyToPath(req, inputPath);
     const queued = await ocrQueue.submit(jobId, inputPath);
     return sendJson(res, 202, queued);
@@ -647,6 +664,67 @@ async function handleOcrApi(req, res, url) {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname === "/api/opdf/auth/login" && req.method === "POST") {
+    if (!auth.enabled) return sendError(res, 404, "Authentication is disabled.");
+    const body = await readJsonBody(req, 64 * 1024);
+    const user = await auth.authenticate(body.email, body.password);
+    if (!user) return sendError(res, 401, "Invalid email or password.");
+    auth.setSessionCookie(req, res, auth.issueToken(user));
+    return sendJson(res, 200, { user: auth.publicUser(user) });
+  }
+
+  if (url.pathname === "/api/opdf/auth/logout" && req.method === "POST") {
+    auth.clearSessionCookie(req, res);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  const user = auth.getRequestUser(req);
+  if (auth.enabled && !user) return sendError(res, 401, "Authentication required.");
+  const projectId = tenantRuntime.projectFromRequest(req, url);
+
+  return tenantRuntime.run(user, projectId, async () => {
+  if (url.pathname === "/api/opdf/auth/me" && req.method === "GET") {
+    return sendJson(res, 200, {
+      user: auth.publicUser(user),
+      projectId,
+      quota: await tenantRuntime.quotaSnapshot(user),
+    });
+  }
+
+  if (url.pathname === "/api/opdf/projects/select" && req.method === "POST") {
+    const body = await readJsonBody(req, 64 * 1024);
+    const selected = await tenantRuntime.createProject(user, body.id);
+    res.setHeader(
+      "Set-Cookie",
+      `opdf_project=${encodeURIComponent(selected.id)}; Path=/api/opdf; SameSite=Strict; Max-Age=${Math.trunc(auth.sessionHours * 3600)}`,
+    );
+    return sendJson(res, 200, selected);
+  }
+
+  if (url.pathname === "/api/opdf/projects") {
+    if (req.method === "GET") return sendJson(res, 200, await tenantRuntime.listProjects(user));
+    if (req.method === "POST") {
+      const body = await readJsonBody(req, 64 * 1024);
+      return sendJson(res, 201, await tenantRuntime.createProject(user, body.id));
+    }
+    return sendError(res, 405, "Method not allowed.");
+  }
+
+  if (url.pathname === "/api/opdf/admin/users") {
+    if (user.role !== "admin") return sendError(res, 403, "Admin access required.");
+    if (req.method === "GET") return sendJson(res, 200, auth.listUsers());
+    if (req.method === "POST") return sendJson(res, 201, await auth.createUser(await readJsonBody(req, 64 * 1024)));
+    return sendError(res, 405, "Method not allowed.");
+  }
+
+  const adminUserMatch = url.pathname.match(/^\/api\/opdf\/admin\/users\/([0-9a-f-]{36})$/i);
+  if (adminUserMatch) {
+    if (user.role !== "admin") return sendError(res, 403, "Admin access required.");
+    if (req.method !== "PATCH") return sendError(res, 405, "Method not allowed.");
+    const updated = await auth.updateUser(adminUserMatch[1], await readJsonBody(req, 64 * 1024));
+    return updated ? sendJson(res, 200, updated) : sendError(res, 404, "User not found.");
+  }
+
   if (url.pathname === "/api/opdf/health" && req.method === "GET") {
     return sendJson(res, 200, {
       ok: true,
@@ -673,6 +751,9 @@ async function handleApi(req, res, url) {
         digitalSignature: certificateStore.enabled,
         certificateStorage: certificateStore.enabled,
         signatureInspection: true,
+        multiUserAuth: auth.enabled,
+        perUserProjectStorage: auth.enabled,
+        quotas: auth.enabled,
       },
     });
   }
@@ -760,11 +841,11 @@ async function handleApi(req, res, url) {
   }
 
   return sendError(res, 404, "API route not found.");
+  });
 }
 
-await storage.ensure();
-await ocrQueue.ensure();
-await certificateStore.ensure();
+await auth.ensure();
+await tenantRuntime.ensure();
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -776,7 +857,7 @@ const server = http.createServer(async (req, res) => {
     await serveWeb(req, res, url.pathname);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const status = /too large|exceeds/i.test(message) ? 413 : /Invalid document id/.test(message) ? 400 : 500;
+    const status = error?.statusCode || (/too large|exceeds|quota/i.test(message) ? 413 : /Invalid document id|Invalid project id/.test(message) ? 400 : 500);
     sendError(res, status, message);
   }
 });

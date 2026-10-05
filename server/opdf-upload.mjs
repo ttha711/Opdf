@@ -92,6 +92,7 @@ export function createChunkUploadApi({
   chunkBytes,
   sendJson,
   sendError,
+  assertCanAdd,
 }) {
   return async function handleChunkUpload(req, res, url) {
     const route = uploadRoute(url.pathname);
@@ -107,6 +108,7 @@ export function createChunkUploadApi({
         sendError(res, expectedSize > maxBytes ? 413 : 400, "A valid upload size is required.");
         return true;
       }
+      if (assertCanAdd) await assertCanAdd(expectedSize);
       const record = await storage.createDocument(
         url.searchParams.get("name") || "document.pdf",
         expectedSize,

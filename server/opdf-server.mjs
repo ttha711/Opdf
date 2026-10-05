@@ -18,10 +18,10 @@ const dataDir = resolve(process.env.OPDF_DATA_DIR || join(repoRoot, ".opdf-data"
 const webDist = resolve(process.env.OPDF_WEB_DIST || join(repoRoot, "apps", "web", "dist"));
 const maxBytes = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 750 * 1024 * 1024);
 const maxOperationBytes = Number(process.env.OPDF_MAX_OPERATION_BYTES || 250 * 1024 * 1024);
-const uploadChunkBytes = Math.min(
-  Number(process.env.OPDF_UPLOAD_CHUNK_BYTES || 8 * 1024 * 1024),
-  32 * 1024 * 1024,
-);
+const configuredUploadChunkBytes = Number(process.env.OPDF_UPLOAD_CHUNK_BYTES || 8 * 1024 * 1024);
+const uploadChunkBytes = Number.isFinite(configuredUploadChunkBytes)
+  ? Math.min(Math.max(configuredUploadChunkBytes, 1024 * 1024), 32 * 1024 * 1024)
+  : 8 * 1024 * 1024;
 const storage = createOpdfStorage(dataDir);
 const documentService = new DocumentService();
 const pythonPath = process.env.OPDF_PYTHON_PATH || (process.platform === "win32" ? "python" : "python3");

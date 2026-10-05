@@ -100,19 +100,23 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
   let saveMs = null;
   let saveError = null;
   if (testCase.mutateAndSave) {
-    const header = page.locator("header");
+    // Release the live PDFium document before benchmarking the server mutation.
+    // UI routing for Rotate All Pages is covered by deterministic server E2E;
+    // this external corpus measures the mutation engine itself without doubling
+    // peak memory by keeping a complex engineering drawing open in Chromium.
+    await page.goto("about:blank");
     const mutateStartedAt = Date.now();
-    await header.getByRole("button", { name: "View", exact: true }).click();
-    const mutationResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes(`/api/opdf/documents/${stored.id}/mutations`) &&
-        response.request().method() === "POST",
-      { timeout: 90_000 },
-    );
-    await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
     try {
-      const mutationResponse = await mutationResponsePromise;
-      assert(mutationResponse.ok(), `${testCase.name}: mutation HTTP ${mutationResponse.status()}`);
+      const mutationResponse = await fetch(
+        `${baseUrl}/api/opdf/documents/${stored.id}/mutations`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ type: "rotate-pages", degrees: 90 }),
+          signal: AbortSignal.timeout(90_000),
+        },
+      );
+      assert(mutationResponse.ok, `${testCase.name}: mutation HTTP ${mutationResponse.status}`);
       saveMs = Date.now() - mutateStartedAt;
       assert(saveMs < 90_000, `${testCase.name}: server-side rotate exceeded 90 s budget (${saveMs} ms)`);
 

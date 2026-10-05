@@ -13,7 +13,6 @@ import {
   registerViewerBytesProvider,
   registerViewerContentPickStarter,
   registerViewerControls,
-  registerViewerThumbnailProvider,
 } from "../lib/viewer-runtime";
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
 import { AiPatchDialog } from "./AiPatchDialog";
@@ -113,9 +112,6 @@ export function PdfViewer({
         maxDocuments: 1,
       },
       tabBar: "never",
-      // OPDF owns the page thumbnail rail. Keep EmbedPDF focused on the
-      // document canvas + toolbar so users never see two page navigators.
-      disabledCategories: ["panel-sidebar"],
       theme: { preference: "light" },
       annotations: { annotationAuthor: "OPDF" },
       pan: { defaultMode: "mobile" },
@@ -148,7 +144,6 @@ export function PdfViewer({
       const redactionApi = registry.getPlugin?.("redaction")?.provides?.() as any;
       const zoomApi = registry.getPlugin?.("zoom")?.provides?.() as any;
       const rotateApi = registry.getPlugin?.("rotate")?.provides?.() as any;
-      const thumbnailApi = registry.getPlugin?.("thumbnail")?.provides?.() as any;
       const captureApi = registry.getPlugin?.("capture")?.provides?.() as any;
       const historyApi = registry.getPlugin?.("history")?.provides?.() as any;
 
@@ -169,18 +164,6 @@ export function PdfViewer({
         canRedo: () => Boolean(historyScope?.canRedo?.()),
       });
       unsubscribers.push(unregisterControls);
-
-      const thumbnailScope = thumbnailApi?.forDocument?.(DOCUMENT_ID) ?? thumbnailApi;
-      if (thumbnailScope?.renderThumb) {
-        const unregisterThumbs = registerViewerThumbnailProvider(async (pageNumber) => {
-          try {
-            return await thumbnailScope.renderThumb(Math.max(0, pageNumber - 1), 1).toPromise();
-          } catch {
-            return null;
-          }
-        });
-        unsubscribers.push(unregisterThumbs);
-      }
 
       if (zoomScope?.onStateChange) {
         const off = zoomScope.onStateChange((state: any) => {

@@ -23,7 +23,6 @@ export function useDocumentLifecycle({
   setTotalPages,
   setViewerError,
   setAnnotations,
-  setPageRotations,
   setSaveState,
   markDocumentSaved,
   clearDocumentSaveTracking,
@@ -42,14 +41,12 @@ export function useDocumentLifecycle({
   setTotalPages: Dispatch<SetStateAction<number>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
   setAnnotations: Dispatch<SetStateAction<Annotation[]>>;
-  setPageRotations: Dispatch<SetStateAction<Record<number, number>>>;
   setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
   markDocumentSaved: (snapshot?: {
     fileName?: string;
     docBytes?: Uint8Array | null;
     documentIdentity?: string;
     annotations?: Annotation[];
-    pageRotations?: Record<number, number>;
   }) => void;
   clearDocumentSaveTracking: () => void;
 }) {
@@ -69,8 +66,7 @@ export function useDocumentLifecycle({
     setTotalPages,
     setViewerError,
       setAnnotations,
-      setPageRotations,
-    markDocumentSaved,
+        markDocumentSaved,
   });
 
   async function loadBrowserFile(file: File) {
@@ -89,13 +85,11 @@ export function useDocumentLifecycle({
     setTotalPages(0);
     setViewerError(null);
     setAnnotations(savedAnnotations);
-    setPageRotations({});
     markDocumentSaved({
       fileName: file.name,
       docBytes: null,
       documentIdentity: identity,
       annotations: savedAnnotations,
-      pageRotations: {},
     });
   }
 
@@ -140,15 +134,13 @@ export function useDocumentLifecycle({
         setPage(1);
         setTotalPages(0);
         setViewerError(null);
-                setPageRotations({});
-        await bridge.pushRecent(result.filePath);
+                    await bridge.pushRecent(result.filePath);
         setAnnotations(loadedAnnotations);
         markDocumentSaved({
           fileName: result.filePath,
           docBytes: result.bytes,
           annotations: loadedAnnotations,
-              pageRotations: {},
-        });
+                });
       }
     } catch (error) {
       console.warn("openFile failed:", error);
@@ -170,8 +162,7 @@ export function useDocumentLifecycle({
     setTotalPages,
     setViewerError,
       setAnnotations,
-      setPageRotations,
-    markDocumentSaved,
+        markDocumentSaved,
     onError: (message) => toast.error(message),
   });
 
@@ -196,8 +187,7 @@ export function useDocumentLifecycle({
     );
     if (!options.preserveAnnotations) setAnnotations([]);
     if (options.resetDocumentMetadata) {
-        setPageRotations({});
-    }
+        }
     setTotalPages(0);
     setViewerError(null);
     setPage(Math.max(1, nextPage));
@@ -225,7 +215,6 @@ export function useDocumentLifecycle({
     setTotalPages(0);
     setViewerError(null);
     setAnnotations([]);
-    setPageRotations({});
     clearDocumentSaveTracking();
     const { clearDraft } = await import("../lib/web-storage");
     await clearDraft();
@@ -242,8 +231,7 @@ export function useDocumentLifecycle({
     setTotalPages,
     setViewerError,
       setAnnotations,
-      setPageRotations,
-    markDocumentSaved,
+        markDocumentSaved,
   });
 
   return { openFile, openFileWithPath, onSelectLocalFile, replaceDocumentBytes, closeDocument };

@@ -79,6 +79,12 @@ test("canvas selection stays synchronized with the right-side object list", asyn
   expect(id).toBeTruthy();
   await expect(page.locator(`[data-opdf-canvas-selection="${id}"]`)).toBeVisible();
 
+  await page.keyboard.press("Control+c");
+  await page.keyboard.press("Control+v");
+  await expect(editor.getByText("Object pasted.")).toBeVisible({ timeout: 20_000 });
+  await expect(editor).toBeVisible();
+  await expect(editor.locator("[data-opdf-object-kind='text']")).toHaveCount(2, { timeout: 20_000 });
+
   await page.locator("[data-opdf-native-edit-page='1']").click({ position: { x: 8, y: 8 } });
   await expect(page.locator("[data-opdf-canvas-selection]")).toHaveCount(0);
 });

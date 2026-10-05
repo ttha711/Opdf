@@ -15,7 +15,6 @@ export function useAppState() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1);
-  const [pageRotations, setPageRotations] = useState<Record<number, number>>({});
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [ocrJobs, setOcrJobs] = useState<OcrJob[]>([]);
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
@@ -77,7 +76,6 @@ export function useAppState() {
       docBytes,
       documentIdentity: sourceIdentity,
       annotations,
-      pageRotations,
     });
 
     if (!currentFingerprint) {
@@ -109,25 +107,23 @@ export function useAppState() {
     } else if (saveState !== "idle") {
       setSaveState("idle");
     }
-  }, [annotations, docBytes, fileName, pageRotations, saveState, sourceIdentity]);
+  }, [annotations, docBytes, fileName, saveState, sourceIdentity]);
 
   const markDocumentSaved = useCallback((snapshot?: {
     fileName?: string;
     docBytes?: Uint8Array | null;
     documentIdentity?: string;
     annotations?: Annotation[];
-    pageRotations?: Record<number, number>;
   }) => {
     const fingerprint = buildDocumentFingerprint({
       fileName: snapshot?.fileName ?? fileName,
       docBytes: snapshot?.docBytes ?? docBytes,
       documentIdentity: snapshot?.documentIdentity ?? sourceIdentity,
       annotations: snapshot?.annotations ?? annotations,
-      pageRotations: snapshot?.pageRotations ?? pageRotations,
     });
     savedFingerprintRef.current = fingerprint;
     setSaveState(fingerprint ? "saved" : "idle");
-  }, [annotations, docBytes, fileName, pageRotations, sourceIdentity]);
+  }, [annotations, docBytes, fileName, sourceIdentity]);
 
   const clearDocumentSaveTracking = useCallback(() => {
     savedFingerprintRef.current = "";
@@ -189,13 +185,11 @@ export function useAppState() {
     setPage(targetTab.page || 1);
     setTotalPages(targetTab.totalPages || 0);
     setAnnotations(targetTab.annotations || []);
-    setPageRotations(targetTab.pageRotations || {});
     markDocumentSaved({
       fileName: targetTab.fileName,
       docBytes: targetTab.docBytes,
       documentIdentity: targetTab.sourceIdentity ?? "",
       annotations: targetTab.annotations || [],
-      pageRotations: targetTab.pageRotations || {},
     });
     // The switch lock is released deterministically by an effect once the
     // render carrying the new activeTabId has committed (no arbitrary timeout).
@@ -246,7 +240,6 @@ export function useAppState() {
         setPage(1);
         setTotalPages(0);
         setAnnotations([]);
-        setPageRotations({});
         setShowDashboard(false);
         clearDocumentSaveTracking();
       }
@@ -338,8 +331,7 @@ export function useAppState() {
           setPage(1);
           setTotalPages(0);
           setAnnotations([]);
-          setPageRotations({});
-          setShowDashboard(false);
+            setShowDashboard(false);
           clearDocumentSaveTracking();
         }
       }
@@ -383,7 +375,6 @@ export function useAppState() {
               t.page !== page ||
               t.totalPages !== totalPages ||
               t.annotations !== annotations ||
-              t.pageRotations !== pageRotations
             ) {
               return {
                 ...t,
@@ -393,7 +384,6 @@ export function useAppState() {
                 page,
                 totalPages,
                 annotations,
-                pageRotations
               };
             }
           }
@@ -417,13 +407,12 @@ export function useAppState() {
         annotations,
         group: activeGroupFilter,
         groupColor: activeGroupFilter ? randomColor : null,
-        pageRotations: {},
       };
       
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTabId);
     }
-  }, [fileName, docBytes, sourceBlob, sourceIdentity, page, totalPages, annotations, pageRotations, activeTabId, activeGroupFilter]);
+  }, [fileName, docBytes, sourceBlob, sourceIdentity, page, totalPages, annotations, activeTabId, activeGroupFilter]);
 
   // Deterministic release of the tab-switch lock: once the render carrying the
   // switched-to activeTabId has committed (this effect runs after the sync
@@ -438,7 +427,7 @@ export function useAppState() {
   });
 
   return {
-    fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale, pageRotations, setPageRotations,
+    fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale,
     annotations, setAnnotations, ocrJobs, setOcrJobs, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
     saveState, setSaveState,

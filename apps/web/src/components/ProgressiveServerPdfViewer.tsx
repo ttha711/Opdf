@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PdfViewerProps } from "./PdfViewer.types";
 import { PdfRangeViewer } from "./PdfRangeViewer";
 import { PdfViewer } from "./PdfViewer";
@@ -13,6 +13,7 @@ export function ProgressiveServerPdfViewer(props: PdfViewerProps) {
   const [previewReady, setPreviewReady] = useState(false);
   const [nativeStarted, setNativeStarted] = useState(false);
   const [nativeReady, setNativeReady] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +53,35 @@ export function ProgressiveServerPdfViewer(props: PdfViewerProps) {
     return () => window.clearTimeout(timer);
   }, [nativeStarted, previewReady, useFastPreview]);
 
+  useEffect(() => {
+    if (!nativeReady || window.innerWidth < 900) return;
+    const root = rootRef.current;
+    if (!root) return;
+
+    let timer = 0;
+    let attempts = 0;
+    const openSidebar = () => {
+      const panel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
+      if (panel && panel.getBoundingClientRect().width > 0) return;
+
+      const button = Array.from(
+        root.querySelectorAll<HTMLButtonElement>('button[aria-label="Sidebar"]'),
+      ).find((candidate) => {
+        if (candidate.disabled) return false;
+        const rect = candidate.getBoundingClientRect();
+        const style = window.getComputedStyle(candidate);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+      });
+
+      if (button) button.click();
+      attempts += 1;
+      if (attempts < 10) timer = window.setTimeout(openSidebar, 500);
+    };
+
+    timer = window.setTimeout(openSidebar, 100);
+    return () => window.clearTimeout(timer);
+  }, [nativeReady]);
+
   if (useFastPreview === false) {
     return <PdfViewer {...props} />;
   }
@@ -65,7 +95,7 @@ export function ProgressiveServerPdfViewer(props: PdfViewerProps) {
   }
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden" data-opdf-progressive-viewer="true">
+    <div ref={rootRef} className="relative h-full min-h-0 overflow-hidden" data-opdf-progressive-viewer="true">
       {!nativeReady ? (
         <div className="absolute inset-0 z-10">
           <PdfRangeViewer

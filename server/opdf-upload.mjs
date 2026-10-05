@@ -1,4 +1,4 @@
-import { appendFile, readFile, rename, stat } from "node:fs/promises";
+import { appendFile, open, rename, stat } from "node:fs/promises";
 
 async function readChunk(req, limit) {
   const chunks = [];
@@ -157,8 +157,14 @@ export function createChunkUploadApi({
         });
         return true;
       }
-      const signature = (await readFile(record.tempPath)).subarray(0, 5).toString("ascii");
-      if (signature !== "%PDF-") {
+      const handle = await open(record.tempPath, "r");
+      const signature = Buffer.alloc(5);
+      try {
+        await handle.read(signature, 0, 5, 0);
+      } finally {
+        await handle.close();
+      }
+      if (signature.toString("ascii") !== "%PDF-") {
         sendError(res, 400, "Payload is not a PDF.");
         return true;
       }

@@ -12,7 +12,6 @@ import type {
 import {
   childContentObjectId,
   identityMatrix,
-  markFormAncestorsDirty,
   multiplyMatrices,
   parseContentObjectId,
   readRotatedBounds,
@@ -506,6 +505,7 @@ function duplicateTextObject(
   } finally {
     free(module, textPtr);
   }
+  return targetPtr;
 }
 
 function bitmapBytesPerPixel(format: number) {
@@ -545,6 +545,7 @@ function duplicateImageObject(
     free(module, pagesPtr);
     module.FPDFBitmap_Destroy(sourceBitmap);
   }
+  return targetPtr;
 }
 
 
@@ -664,6 +665,74 @@ function duplicatePathObject(
     module.FPDFPageObj_Destroy(targetPtr);
     throw error;
   }
+  return targetPtr;
+}
+
+function parentMatrixForResolved(module: PdfiumModule, resolved: ReturnType<typeof resolveContentObject>): PdfMatrix {
+  let matrix = identityMatrix();
+  for (const formPtr of resolved.formAncestorPtrs) {
+    matrix = multiplyMatrices(matrix, readMatrix(module, formPtr));
+  }
+  return matrix;
+}
+
+function promoteNestedObjectToPage(
+  module: PdfiumModule,
+  docPtr: number,
+  pagePtr: number,
+  resolved: ReturnType<typeof resolveContentObject>,
+) {
+  if (resolved.formChildIndices.length !== 1 || !resolved.parentFormPtr) {
+    throw new Error("Editing Form XObjects nested more than one level is read-only because PDFium cannot persist those child streams safely.");
+  }
+
+  const sourcePtr = resolved.objectPtr;
+  const objectType = module.FPDFPageObj_GetType(sourcePtr);
+  const pageCount = module.FPDFPage_CountObjects(pagePtr);
+  const insertAfter = Math.max(0, pageCount - 1);
+  let targetPtr = 0;
+
+  if (objectType === 1) {
+    targetPtr = duplicateTextObject(module, docPtr, pagePtr, sourcePtr, insertAfter, 0, 0);
+    const renderMode = readTextRenderMode(module, sourcePtr);
+    if (renderMode && typeof module.FPDFTextObj_SetTextRenderMode === "function") {
+      module.FPDFTextObj_SetTextRenderMode(targetPtr, TEXT_RENDER_MODE_NAMES.indexOf(renderMode));
+    }
+  } else if (objectType === 2) {
+    targetPtr = duplicatePathObject(module, pagePtr, sourcePtr, insertAfter, 0, 0);
+  } else if (objectType === 3) {
+    targetPtr = duplicateImageObject(module, docPtr, pagePtr, sourcePtr, insertAfter, 0, 0);
+  } else {
+    throw new Error("Only text, path, and image children can be promoted out of a Form XObject for editing.");
+  }
+
+  const worldMatrix = multiplyMatrices(parentMatrixForResolved(module, resolved), readMatrix(module, sourcePtr));
+  const matrixPtr = writeMatrix(module, worldMatrix);
+  try {
+    if (!module.FPDFPageObj_SetMatrix(targetPtr, matrixPtr)) {
+      throw new Error("Unable to preserve nested Form object transform while promoting it for editing.");
+    }
+  } catch (error) {
+    if (module.FPDFPage_RemoveObject(pagePtr, targetPtr)) module.FPDFPageObj_Destroy(targetPtr);
+    throw error;
+  } finally {
+    free(module, matrixPtr);
+  }
+
+  if (!removeResolvedObject(module, pagePtr, resolved)) {
+    if (module.FPDFPage_RemoveObject(pagePtr, targetPtr)) module.FPDFPageObj_Destroy(targetPtr);
+    throw new Error("Unable to remove the original object from its Form XObject after promotion.");
+  }
+
+  const rootObjectIndex = Math.max(0, module.FPDFPage_CountObjects(pagePtr) - 1);
+  return {
+    ...resolved,
+    objectPtr: targetPtr,
+    parentFormPtr: undefined,
+    formAncestorPtrs: [],
+    formChildIndices: [],
+    rootObjectIndex,
+  };
 }
 
 function cropImageObject(
@@ -1010,7 +1079,14 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               continue;
             }
 
-            const resolved = handles.get(patch.objectId)!;
+            let resolved = handles.get(patch.objectId)!;
+            if (resolved.formChildIndices.length > 1) {
+              throw new Error("Form XObjects nested more than one level are inspect-only; PDFium cannot persist safe deep mutations at that depth.");
+            }
+            if (resolved.formChildIndices.length === 1 && patch.type !== "delete") {
+              resolved = promoteNestedObjectToPage(module, docPtr, pagePtr, resolved);
+              handles.set(patch.objectId, resolved);
+            }
             const objectPtr = resolved.objectPtr;
             if (patch.type === "replace-text") {
               const textPtr = writeUtf16(module, patch.text);
@@ -1032,9 +1108,6 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
             } else if (patch.type === "delete") {
               if (!removeResolvedObject(module, pagePtr, resolved)) throw new Error(`Unable to delete ${patch.objectId}.`);
             } else if (patch.type === "duplicate") {
-              if (resolved.formChildIndices.length) {
-                throw new Error("PDFium does not expose Form XObject insertion, so nested objects cannot be duplicated safely.");
-              }
               const objectIndex = resolved.rootObjectIndex;
               const dx = patch.offsetX ?? 12;
               const dy = patch.offsetY ?? -12;
@@ -1046,9 +1119,6 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
             } else if (patch.type === "style-text") {
               let styledObjectPtr = objectPtr;
               if (patch.fontSize !== undefined || patch.fontFamily) {
-                if (resolved.formChildIndices.length) {
-                  throw new Error("PDFium can edit nested Form text in place, but changing its font or font size requires Form insertion, which PDFium does not expose.");
-                }
                 const objectIndex = resolved.rootObjectIndex;
                 const currentSize = readFontSize(module, objectPtr) ?? 12;
                 styledObjectPtr = await replaceTextObjectFontSize(
@@ -1087,9 +1157,6 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               cropImageObject(module, pagePtr, objectPtr, patch);
             } else if (patch.type === "replace-path") {
               if (module.FPDFPageObj_GetType(objectPtr) !== 2) throw new Error(`${patch.objectId} is not a path object.`);
-              if (resolved.formChildIndices.length) {
-                throw new Error("PDFium does not expose Form XObject insertion, so nested path geometry cannot be rebuilt safely.");
-              }
               const objectIndex = resolved.rootObjectIndex;
               const nextPtr = createPathFromCommands(module, patch.commands);
               try {
@@ -1150,9 +1217,6 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               }
             } else {
               throw new Error(`Content patch ${patch.type} is not implemented by the PDFium engine yet.`);
-            }
-            if (resolved.formChildIndices.length) {
-              markFormAncestorsDirty(module, resolved);
             }
           }
 

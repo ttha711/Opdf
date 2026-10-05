@@ -36,6 +36,12 @@ Offline-first PDF desktop app with a web-first development workflow. OPDF target
 
 Signature inspection is intentionally conservative: it reports structure and certificate metadata but does **not** claim operating-system trust-chain or full cryptographic validation.
 
+### Server accounts and projects
+- Optional OPDF Server authentication: disabled/legacy, application bearer-token sessions, or Cloudflare Access identity.
+- Per-user/project document authorization, Recents, sessions, OCR queues, and encrypted certificate stores.
+- Storage quotas enforced before resumable uploads and before persisted replacements.
+- Server header menu shows identity, active project, quota usage, project switching, and token-mode sign out.
+
 ### OCR and AI/editor components
 - Searchable-PDF OCR via Tesseract.js.
 - Browser runtime keeps the existing local OCR fallback.

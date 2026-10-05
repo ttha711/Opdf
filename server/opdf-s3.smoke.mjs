@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createS3ObjectStore } from "./opdf-s3.mjs";
 import { createS3OpdfStorage } from "./opdf-storage-s3.mjs";
+import { createAuthService } from "./opdf-auth.mjs";
 
 const port = 21787;
 const endpoint = `http://127.0.0.1:${port}`;
@@ -235,6 +236,28 @@ try {
     "text/plain",
     { ifMatch: firstWrite.etag },
   );
+
+  const authEnv = {
+    OPDF_AUTH_MODE: "local",
+    OPDF_AUTH_SECRET: "opdf-s3-auth-secret-that-is-long-enough-2026",
+    OPDF_BOOTSTRAP_EMAIL: "admin@s3.test",
+    OPDF_BOOTSTRAP_PASSWORD: "admin-s3-password-2026",
+    OPDF_DEFAULT_USER_QUOTA_BYTES: String(128 * 1024 * 1024),
+  };
+  const authA = createAuthService(nodeA, authEnv, { objectStore });
+  const authB = createAuthService(nodeB, authEnv, { objectStore });
+  await authA.ensure();
+  await authB.ensure();
+  await authA.createUser({
+    email: "cross-node@s3.test",
+    password: "cross-node-password-2026",
+    quotaBytes: 96 * 1024 * 1024,
+  });
+  const crossNodeUser = await authB.authenticate(
+    "cross-node@s3.test",
+    "cross-node-password-2026",
+  );
+  assert(crossNodeUser?.email === "cross-node@s3.test", "second node did not refresh shared auth state");
 
   const prefix = "users/test-user/projects/default";
   const storageA = createS3OpdfStorage(nodeA, objectStore, prefix);

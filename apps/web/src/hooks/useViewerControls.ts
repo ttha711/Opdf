@@ -25,12 +25,24 @@ export function useViewerControls({
   setPageRotations: Dispatch<SetStateAction<Record<number, number>>>;
   lastWheelFlipAtRef: MutableRefObject<number>;
 }) {
+  function goToPage(nextPage: number) {
+    const target = totalPages > 0
+      ? Math.min(totalPages, Math.max(1, nextPage))
+      : Math.max(1, nextPage);
+    const viewer = getViewerControls();
+    if (viewer?.goToPage) {
+      viewer.goToPage(target);
+      return;
+    }
+    setPage(target);
+  }
+
   function goPrevPage() {
-    setPage((p) => Math.max(1, p - 1));
+    goToPage(page - 1);
   }
 
   function goNextPage() {
-    setPage((p) => (totalPages > 0 ? Math.min(totalPages, p + 1) : p + 1));
+    goToPage(page + 1);
   }
 
   const clampScale = (value: number) => Math.min(5, Math.max(0.05, value));
@@ -150,6 +162,7 @@ export function useViewerControls({
   }, [setPage]);
 
   return {
+    goToPage,
     goPrevPage,
     goNextPage,
     zoomIn,

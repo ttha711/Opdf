@@ -67,36 +67,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     state.markDocumentSaved,
   ]);
 
-  useEffect(() => {
-    const onUploadComplete = (event: Event) => {
-      const detail = (event as CustomEvent<{
-        localIdentity?: string;
-        serverIdentity?: string;
-      }>).detail;
-      if (!detail?.localIdentity || !detail.serverIdentity) return;
-
-      const matchingTab = state.tabs.find((tab) => tab.sourceIdentity === detail.localIdentity);
-      if (matchingTab?.docBytes) {
-        void bridge.saveDocument(detail.serverIdentity, matchingTab.docBytes).catch(() => {});
-      }
-      if (matchingTab?.annotations?.length) {
-        void bridge.replaceAnnotations(detail.serverIdentity, matchingTab.annotations).catch(() => {});
-      }
-
-      state.setTabs((tabs) => tabs.map((tab) => (
-        tab.sourceIdentity === detail.localIdentity
-          ? { ...tab, sourceIdentity: detail.serverIdentity }
-          : tab
-      )));
-      if (state.sourceIdentity === detail.localIdentity) {
-        state.setSourceIdentity(detail.serverIdentity);
-      }
-    };
-    window.addEventListener("opdf:upload-complete", onUploadComplete);
-    return () => window.removeEventListener("opdf:upload-complete", onUploadComplete);
-  }, [bridge, state.annotations, state.sourceIdentity, state.tabs]);
-
-
   const { openFile, openFileWithPath, onSelectLocalFile, replaceDocumentBytes, closeDocument } = useDocumentLifecycle({
     bridge,
     hasDesktopBridge: state.hasDesktopBridge,
@@ -107,9 +77,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setDocBytes: state.setDocBytes,
     setSourceBlob: state.setSourceBlob,
     sourceIdentity: state.sourceIdentity,
-    annotations: state.annotations,
-    bookmarks: state.bookmarks,
-    pageRotations: state.pageRotations,
     setSourceIdentity: state.setSourceIdentity,
     setPage: state.setPage,
     setTotalPages: state.setTotalPages,

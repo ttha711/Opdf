@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { beginViewerContentPick, registerViewerContentAreaListener } from "../lib/viewer-runtime";
@@ -30,6 +30,7 @@ export function NativeContentEditorPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
   const [redoStack, setRedoStack] = useState<Uint8Array[]>([]);
+  const currentBytesRef = useRef<Uint8Array | null>(null);
 
   const selected = useMemo(
     () => objects.find((object) => object.id === selectedId) ?? null,
@@ -64,15 +65,20 @@ export function NativeContentEditorPanel({
     }
   }), [objects, page]);
 
+  const inspectBytes = async (bytes: Uint8Array) => {
+    const next = await pdfiumContentEditingEngine.inspectPage(bytes, Math.max(0, page - 1));
+    setObjects(next);
+    setSelectedId((current) => next.some((item) => item.id === current) ? current : next[0]?.id ?? null);
+  };
+
   const refresh = async () => {
     setLoading(true);
     setMessage(null);
     try {
       const bytes = await getDocumentBytes();
       if (!bytes) throw new Error("Unable to read the current PDF.");
-      const next = await pdfiumContentEditingEngine.inspectPage(bytes, Math.max(0, page - 1));
-      setObjects(next);
-      setSelectedId((current) => next.some((item) => item.id === current) ? current : next[0]?.id ?? null);
+      currentBytesRef.current = bytes;
+      await inspectBytes(bytes);
     } catch (error) {
       setObjects([]);
       setSelectedId(null);
@@ -100,7 +106,7 @@ export function NativeContentEditorPanel({
     setLoading(true);
     setMessage(null);
     try {
-      const bytes = await getDocumentBytes();
+      const bytes = currentBytesRef.current ?? await getDocumentBytes();
       if (!bytes) throw new Error("Unable to read the current PDF.");
       const edited = await pdfiumContentEditingEngine.applyPatches(bytes, patches);
       const maxHistoryBytes = 128 * 1024 * 1024;
@@ -114,9 +120,10 @@ export function NativeContentEditorPanel({
         return candidates;
       });
       setRedoStack([]);
+      currentBytesRef.current = edited;
       onApplyBytes(edited);
+      await inspectBytes(edited);
       setMessage(bytes.byteLength > maxHistoryBytes ? success + " Undo snapshot skipped for this large PDF." : success);
-      window.setTimeout(() => void refresh(), 50);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to edit PDF content.");
     } finally {
@@ -149,25 +156,27 @@ export function NativeContentEditorPanel({
   const undo = async () => {
     const previous = undoStack.at(-1);
     if (!previous) return;
-    const current = await getDocumentBytes();
+    const current = currentBytesRef.current ?? await getDocumentBytes();
     if (!current) return;
     setUndoStack((items) => items.slice(0, -1));
     setRedoStack((items) => [...items.slice(-9), current]);
+    currentBytesRef.current = previous;
     onApplyBytes(previous);
+    await inspectBytes(previous);
     setMessage("Native content edit undone.");
-    window.setTimeout(() => void refresh(), 50);
   };
 
   const redo = async () => {
     const next = redoStack.at(-1);
     if (!next) return;
-    const current = await getDocumentBytes();
+    const current = currentBytesRef.current ?? await getDocumentBytes();
     if (!current) return;
     setRedoStack((items) => items.slice(0, -1));
     setUndoStack((items) => [...items.slice(-9), current]);
+    currentBytesRef.current = next;
     onApplyBytes(next);
+    await inspectBytes(next);
     setMessage("Native content edit redone.");
-    window.setTimeout(() => void refresh(), 50);
   };
 
   useEffect(() => registerNativeContentHistoryControls({

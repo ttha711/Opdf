@@ -233,7 +233,7 @@ export function AnnotationsHistoryGroup({
             <line x1="12" y1="6" x2="18" y2="12" />
           </svg>
         </ToolIconButton>
-        <ToolIconButton label="Add / Edit Text (T)" active={activeTool === "note"} disabled={!hasDocument} onClick={() => pickTool("note")}>
+        <ToolIconButton label="Add Text (T)" active={activeTool === "text"} disabled={!hasDocument} onClick={() => setActiveTool("text")}>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="4 7 4 4 20 4 20 7" />
             <line x1="9" y1="20" x2="15" y2="20" />

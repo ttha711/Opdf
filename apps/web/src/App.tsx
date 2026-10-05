@@ -6,6 +6,7 @@ import { AppHeader } from "./components/AppHeader";
 import { HomeScreen } from "./components/HomeScreen";
 import { LiveHtmlEditor } from "./components/LiveHtmlEditor";
 import { StatusBar } from "./components/StatusBar";
+import { ServerUploadBanner } from "./components/ServerUploadBanner";
 import { AppDocumentDialogs } from "./components/app/AppDocumentDialogs";
 import { AppUpdateBanner } from "./components/app/AppUpdateBanner";
 import { AppWorkspace } from "./components/app/AppWorkspace";
@@ -160,6 +161,7 @@ export function App() {
   return (
     <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}`}>
       <AppUpdateBanner updateInfo={updateInfo} />
+      <ServerUploadBanner />
       <AppHeader
         {...headerProps}
         isPublic={isPublic}

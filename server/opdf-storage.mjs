@@ -32,6 +32,7 @@ export function createOpdfStorage(rootDir) {
   const pdfPath = (id) => join(docDir(id), "document.pdf");
   const metaPath = (id) => join(docDir(id), "meta.json");
   const annotationsPath = (id) => join(docDir(id), "annotations.json");
+  const uploadPath = (id) => join(docDir(id), "upload.tmp");
 
   async function ensure() {
     await mkdir(documentsRoot, { recursive: true });
@@ -72,20 +73,27 @@ export function createOpdfStorage(rootDir) {
     }
   }
 
-  async function createDocument(fileName) {
+  async function createDocument(fileName, uploadExpectedSize = null) {
     await ensure();
     const id = randomUUID();
     const name = sanitizeFileName(fileName);
     const dir = docDir(id);
     await mkdir(dir, { recursive: true });
     const now = Date.now();
-    const meta = { id, fileName: name, size: 0, createdAt: now, updatedAt: now };
+    const meta = {
+      id,
+      fileName: name,
+      size: 0,
+      createdAt: now,
+      updatedAt: now,
+      ...(Number.isInteger(uploadExpectedSize) && uploadExpectedSize > 0 ? { uploadExpectedSize } : {}),
+    };
     await writeJsonAtomic(metaPath(id), meta);
     return {
       ...meta,
       filePath: toServerFilePath(id, name),
       pdfPath: pdfPath(id),
-      tempPath: join(dir, `upload-${randomUUID()}.tmp`),
+      tempPath: uploadPath(id),
     };
   }
 
@@ -97,6 +105,7 @@ export function createOpdfStorage(rootDir) {
       ...meta,
       filePath: toServerFilePath(safeId, meta.fileName),
       pdfPath: pdfPath(safeId),
+      tempPath: uploadPath(safeId),
     };
   }
 
@@ -106,6 +115,8 @@ export function createOpdfStorage(rootDir) {
     const next = { ...current, size, updatedAt: Date.now() };
     delete next.filePath;
     delete next.pdfPath;
+    delete next.tempPath;
+    delete next.uploadExpectedSize;
     await writeJsonAtomic(metaPath(id), next);
     return getDocument(id);
   }
@@ -171,6 +182,14 @@ export function createOpdfStorage(rootDir) {
     }
   }
 
+  async function getUploadSize(id) {
+    try {
+      return (await stat(uploadPath(assertDocumentId(id)))).size;
+    } catch {
+      return null;
+    }
+  }
+
   return {
     root,
     ensure,
@@ -185,5 +204,6 @@ export function createOpdfStorage(rootDir) {
     getAnnotations,
     putAnnotations,
     getDocumentSize,
+    getUploadSize,
   };
 }

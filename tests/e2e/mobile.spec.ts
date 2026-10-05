@@ -42,6 +42,9 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+3/i, { timeout: 30_000 });
 
+  const documentOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(documentOverflow).toBeLessThanOrEqual(1);
+
   const viewer = page.locator(".viewer-shell");
   const sidebar = await openEmbedPdfSidebar(viewer);
   const sidebarBox = await sidebar.boundingBox();

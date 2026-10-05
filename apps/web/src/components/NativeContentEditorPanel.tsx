@@ -61,6 +61,7 @@ export function NativeContentEditorPanel({
     () => objects.find((object) => object.id === selectedId) ?? null,
     [objects, selectedId],
   );
+  const deepFormReadOnly = Boolean(selected && (selected.depth ?? 0) > 1);
 
   useEffect(() => registerViewerContentAreaListener((area) => {
     if (area.pageIndex !== page - 1 || objects.length === 0) return;
@@ -246,9 +247,9 @@ export function NativeContentEditorPanel({
     patches.push({
       type: "style-text",
       objectId: selected.id,
-      fontSize: !selected.depth && Number.isFinite(size) && size > 0 ? size : undefined,
+      fontSize: !deepFormReadOnly && Number.isFinite(size) && size > 0 ? size : undefined,
       fillColor: draftColor,
-      fontFamily: !selected.depth ? draftFont || undefined : undefined,
+      fontFamily: !deepFormReadOnly ? draftFont || undefined : undefined,
       strokeColor: draftStroke,
       strokeWidth: Number.isFinite(Number(draftStrokeWidth)) ? Number(draftStrokeWidth) : undefined,
       renderMode: draftRenderMode,
@@ -371,11 +372,22 @@ export function NativeContentEditorPanel({
       </div>
 
       {selected ? (
-        <div className="native-content-editor__properties">
+        <fieldset className="native-content-editor__properties" disabled={deepFormReadOnly}>
           <div className="native-content-editor__meta">
             <strong>{selected.kind}</strong>
             <span>{selected.id}</span>
           </div>
+          {deepFormReadOnly ? (
+            <div className="native-content-editor__object-info">
+              <strong>Deep Form object is inspect-only</strong>
+              <span>PDFium can enumerate this depth, but cannot safely persist mutations beyond one Form level.</span>
+            </div>
+          ) : selected.depth === 1 ? (
+            <div className="native-content-editor__object-info">
+              <strong>Persistent Form edit</strong>
+              <span>On first edit, OPDF promotes this child to a page-level native object and removes the original from the Form so PDFium can serialize the change safely.</span>
+            </div>
+          ) : null}
 
           {selected.kind === "text" ? (
             <>
@@ -386,7 +398,7 @@ export function NativeContentEditorPanel({
               <div className="native-content-editor__row">
                 <label>
                   Font size
-                  <input value={draftSize} onChange={(event) => setDraftSize(event.target.value)} inputMode="decimal" disabled={Boolean(selected.depth)} />
+                  <input value={draftSize} onChange={(event) => setDraftSize(event.target.value)} inputMode="decimal" disabled={deepFormReadOnly} />
                 </label>
                 <label>
                   Color
@@ -395,7 +407,7 @@ export function NativeContentEditorPanel({
               </div>
               <label>
                 Font
-                <select value={draftFont} onChange={(event) => setDraftFont(event.target.value)} disabled={Boolean(selected.depth)}>
+                <select value={draftFont} onChange={(event) => setDraftFont(event.target.value)} disabled={deepFormReadOnly}>
                   <option value="">Keep existing ({selected.fontFamily || "embedded font"})</option>
                   <option value="__opdf_unicode__">Noto Sans Unicode / Vietnamese</option>
                   <option value="Helvetica">Helvetica</option>
@@ -418,9 +430,9 @@ export function NativeContentEditorPanel({
                   <input type="color" value={draftStroke} onChange={(event) => setDraftStroke(event.target.value)} />
                 </label>
               </div>
-              {selected.depth ? (
+              {selected.depth === 1 ? (
                 <div className="native-content-editor__object-info">
-                  <span>Nested Form text supports text/color/stroke/render edits. Font family/size replacement is disabled because PDFium has no Form insertion API.</span>
+                  <span>Text, font, size, color, stroke and render mode are preserved through Form-to-page promotion.</span>
                 </div>
               ) : null}
               <button type="button" className="primary" onClick={saveText} disabled={loading}>Apply text</button>
@@ -452,7 +464,7 @@ export function NativeContentEditorPanel({
               <button
                 type="button"
                 onClick={() => void apply([{ type: "duplicate", objectId: selected.id, offsetX: 12, offsetY: -12 }], "Object duplicated.")}
-                disabled={loading || Boolean(selected.depth) || (selected.kind !== "text" && selected.kind !== "image" && selected.kind !== "path")}
+                disabled={loading || deepFormReadOnly || (selected.kind !== "text" && selected.kind !== "image" && selected.kind !== "path")}
               >
                 Duplicate
               </button>
@@ -567,9 +579,9 @@ export function NativeContentEditorPanel({
               >
                 Apply path style
               </button>
-              {selected.depth ? (
+              {deepFormReadOnly ? (
                 <div className="native-content-editor__object-info">
-                  <span>Nested path styling and transforms are editable. Geometry rebuild is disabled because PDFium cannot insert a rebuilt object into a Form XObject.</span>
+                  <span>Path geometry is inspect-only at this Form depth.</span>
                 </div>
               ) : (
                 <PathGeometryEditor
@@ -631,7 +643,7 @@ export function NativeContentEditorPanel({
           >
             Delete object
           </button>
-        </div>
+        </fieldset>
       ) : null}
     </aside>
   );

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { openEmbedPdfSidebar } from "../helpers/embedpdf";
+import { embedPdfSidebarPanel, openEmbedPdfSidebar } from "../helpers/embedpdf";
 
 async function clickHeaderMenuItem(page: Page, menu: "File" | "View" | "Tools", item: string) {
   const header = page.locator("header");
@@ -35,6 +35,18 @@ test("OPDF Server serves the full web runtime", async ({ page, request }) => {
   await expect(page.locator("body")).not.toContainText(
     "This feature is only available on Local or Desktop App versions.",
   );
+
+  const manifest = await request.get("/asset-manifest.json");
+  expect(manifest.ok()).toBeTruthy();
+  expect(manifest.headers()["cache-control"]).toContain("no-cache");
+  const manifestJson = await manifest.json() as Record<string, { file?: string }>;
+  const hashedAsset = Object.values(manifestJson)
+    .map((entry) => entry.file)
+    .find((file): file is string => Boolean(file?.includes("/assets/") || file?.startsWith("assets/")));
+  expect(hashedAsset).toBeTruthy();
+  const asset = await request.get("/" + hashedAsset);
+  expect(asset.ok()).toBeTruthy();
+  expect(asset.headers()["cache-control"]).toContain("immutable");
 });
 
 
@@ -132,6 +144,9 @@ test("large persisted PDFs keep the full EmbedPDF toolbar and sidebar", async ({
   });
 
   await page.goto(`/?open=${encodeURIComponent(stored.filePath)}`);
+  await expect(page.locator('[data-opdf-progressive-viewer="true"]')).toBeVisible({
+    timeout: 30_000,
+  });
   const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
   await expect(viewer).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-opdf-engine="pdfjs-range"]')).toHaveCount(0);
@@ -139,6 +154,7 @@ test("large persisted PDFs keep the full EmbedPDF toolbar and sidebar", async ({
   await expect(viewer.getByRole("button", { name: "Annotate", exact: true })).toBeVisible();
   await expect(viewer.getByRole("button", { name: "Shapes", exact: true })).toBeVisible();
 
+  await expect(embedPdfSidebarPanel(viewer)).toBeVisible({ timeout: 15_000 });
   await openEmbedPdfSidebar(viewer);
 });
 

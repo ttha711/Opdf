@@ -22,7 +22,7 @@ export async function openEmbedPdfSidebar(viewer: Locator) {
   const button = embedPdfSidebarButton(viewer);
   const panel = embedPdfSidebarPanel(viewer);
   await expect(button).toBeVisible();
-  await button.click();
+  if (!(await panel.isVisible())) await button.click();
   await expect(panel).toBeVisible({ timeout: 15_000 });
   return panel;
 }

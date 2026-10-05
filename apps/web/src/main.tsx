@@ -4,6 +4,7 @@ import { App } from "./App";
 import { ToastProvider } from "./components/ToastProvider";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import "./styles.css";
+import { warmAppAssetCache } from "./lib/appAssetCache";
 
 declare const __OPDF_BUILD_SHA__: string;
 
@@ -22,3 +23,5 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </ToastProvider>
   </React.StrictMode>
 );
+
+warmAppAssetCache();

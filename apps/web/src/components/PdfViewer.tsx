@@ -30,6 +30,14 @@ import {
 } from "../lib/measurement";
 
 const DOCUMENT_ID = "opdf-active-document";
+const SIDEBAR_PREF_KEY = "opdf-embedpdf-sidebar";
+
+function isVisibleElement(element: HTMLElement | null) {
+  if (!element) return false;
+  const style = window.getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+}
 
 
 export function PdfViewer({
@@ -46,9 +54,13 @@ export function PdfViewer({
   onViewerScaleChange,
   onPatchApplied,
   onActiveToolChange,
+  onViewerReady,
 }: PdfViewerProps) {
   const [readyViewer, setReadyViewer] = useState<{ sourceUrl: string; registry: any } | null>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
+  const viewerRootRef = useRef<HTMLDivElement>(null);
+  const viewerReadySourceRef = useRef<string | null>(null);
+  const [documentReadySource, setDocumentReadySource] = useState<string | null>(null);
   const localSourceKeyRef = useRef<Uint8Array | Blob | null>(null);
   const suppressExternalPageRef = useRef(false);
   const preserveNativeToolRef = useRef(false);
@@ -100,6 +112,46 @@ export function PdfViewer({
   // server document that Save should update.
   const sourceUrl = localUrl ?? serverUrl;
   const activeRegistry = readyViewer?.sourceUrl === sourceUrl ? readyViewer.registry : null;
+
+  useEffect(() => {
+    if (
+      !sourceUrl ||
+      documentReadySource !== sourceUrl ||
+      !activeRegistry ||
+      window.innerWidth < 900
+    ) return;
+
+    const ui = activeRegistry.getPlugin?.("ui")?.provides?.() as any;
+    const scope = ui?.forDocument?.(DOCUMENT_ID) ?? ui;
+    if (!scope?.isSidebarOpen || !scope?.setActiveSidebar) return;
+
+    const placement = "left";
+    const slot = "main";
+    const sidebarId = "sidebar-panel";
+    const shouldOpen = window.localStorage.getItem(SIDEBAR_PREF_KEY) !== "closed";
+
+    if (shouldOpen && !scope.isSidebarOpen(placement, slot, sidebarId)) {
+      scope.setActiveSidebar(placement, slot, sidebarId);
+    }
+
+    const remember = (event: any) => {
+      if (
+        event?.placement && event.placement !== placement ||
+        event?.slot && event.slot !== slot
+      ) return;
+      queueMicrotask(() => {
+        window.localStorage.setItem(
+          SIDEBAR_PREF_KEY,
+          scope.isSidebarOpen(placement, slot, sidebarId) ? "open" : "closed",
+        );
+      });
+    };
+
+    const off = scope.onSidebarChanged?.(remember);
+    return () => {
+      if (typeof off === "function") off();
+    };
+  }, [activeRegistry, documentReadySource, sourceUrl]);
 
   const config = useMemo(() => {
     if (!sourceUrl) return null;
@@ -373,19 +425,27 @@ export function PdfViewer({
         if (typeof off === "function") unsubscribers.push(off);
       }
 
+      const signalViewerReady = () => {
+        if (viewerReadySourceRef.current === sourceUrl) return;
+        viewerReadySourceRef.current = sourceUrl;
+        setDocumentReadySource(sourceUrl);
+        onViewerReady?.();
+      };
+
       if (documentManager?.onDocumentOpened) {
         const off = documentManager.onDocumentOpened((doc: any) => {
           const openedId = doc?.id ?? doc?.document?.id;
           if (openedId && openedId !== DOCUMENT_ID) return;
-          syncPageCount(doc);
+          const count = syncPageCount(doc);
           onError?.(null);
+          if (count) signalViewerReady();
         });
         if (typeof off === "function") unsubscribers.push(off);
       }
 
       // If document-open/layout events happened before this bridge attached,
       // the live plugin state still contains the authoritative page count.
-      syncPageCount();
+      if (syncPageCount()) signalViewerReady();
 
       if (documentManager?.onDocumentError) {
         const off = documentManager.onDocumentError((event: any) => {
@@ -414,6 +474,7 @@ export function PdfViewer({
     onViewerDirty,
     onViewerScaleChange,
     onPatchApplied,
+    onViewerReady,
   ]);
 
   useEffect(() => {
@@ -565,6 +626,7 @@ export function PdfViewer({
 
   return (
     <div
+      ref={viewerRootRef}
       className="viewer-shell relative h-full min-h-0 overflow-hidden"
       data-opdf-engine="pdfium-wasm"
       data-opdf-source={localUrl ? "working-copy" : serverUrl ? "server" : "none"}

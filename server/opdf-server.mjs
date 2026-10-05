@@ -563,7 +563,11 @@ async function serveWeb(req, res, pathname) {
   res.statusCode = 200;
   res.setHeader("Content-Type", contentTypeFor(filePath));
   res.setHeader("Content-Length", String(info.size));
-  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  const isAssetManifest = filePath.endsWith("asset-manifest.json");
+  res.setHeader(
+    "Cache-Control",
+    isAssetManifest ? "no-cache" : "public, max-age=31536000, immutable",
+  );
   createReadStream(filePath).pipe(res);
 }
 

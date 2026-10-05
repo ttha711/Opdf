@@ -19,6 +19,7 @@ export function PdfRangeViewer(props: PdfViewerProps) {
     onError,
     onActivePageChange,
     onViewerScaleChange,
+    onViewerReady,
   } = props;
   const sourceUrl = useMemo(() => getServerDocumentUrl(sourceIdentity), [sourceIdentity]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -81,6 +82,7 @@ export function PdfRangeViewer(props: PdfViewerProps) {
         });
         await renderTask.promise;
         onActivePageChange?.(page);
+        onViewerReady?.();
       } catch (error: any) {
         if (error?.name !== "RenderingCancelledException") {
           onError?.(error instanceof Error ? error.message : String(error));
@@ -88,7 +90,7 @@ export function PdfRangeViewer(props: PdfViewerProps) {
       }
     })();
     return () => renderTask?.cancel();
-  }, [pdf, page, localScale, onActivePageChange, onError]);
+  }, [pdf, page, localScale, onActivePageChange, onError, onViewerReady]);
 
   useEffect(() => {
     if (!pdf) return;

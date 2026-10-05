@@ -33,6 +33,9 @@ export default defineConfig({
   define: {
     __OPDF_BUILD_SHA__: JSON.stringify(buildSha),
   },
+  build: {
+    manifest: "asset-manifest.json",
+  },
   server: {
     port: 5174,
     strictPort: true,

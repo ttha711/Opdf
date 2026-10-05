@@ -76,3 +76,25 @@ Real-world engineering PDFs, generated adversarial fixtures, visual diffing, obj
 ## Definition of done
 
 The project is not considered complete merely because Add Text works. Native Edit mode is complete only when existing editable page objects can be changed and the mutations survive serialization/reload without relying on annotation overlays.
+
+## Implementation status
+
+The current branch implements the native editor with direct `@embedpdf/pdfium` page-object mutation:
+
+- text/image/path object inspection with bounds and transforms;
+- existing text replacement, font size/color, standard fonts and OPDF Unicode/Vietnamese font embedding;
+- move, resize, rotate, duplicate and delete for supported native objects;
+- image replacement and bitmap crop;
+- path fill/stroke/stroke-width editing;
+- path geometry inspection and Move/Line/Bezier point editing;
+- page-area hit testing from the active PDF viewer;
+- bounded byte-snapshot Undo/Redo;
+- native content bytes remain separate from annotation workflows;
+- server Save + reload regression coverage for edited and duplicated native text.
+
+The remaining production-quality work is deliberately treated as a gate, not a reduced scope:
+
+- direct canvas selection handles and inline text editing should match the object panel behavior;
+- add deterministic image/path persistence fixtures, including crop and Bezier geometry;
+- exercise Unicode/subset-font, rotated-object, scanned-page, encrypted-PDF and malformed-PDF fixtures;
+- run real engineering PDFs and performance budgets before calling M8 complete.

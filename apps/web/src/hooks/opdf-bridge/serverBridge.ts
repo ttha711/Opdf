@@ -7,6 +7,7 @@ import type {
 import type { OpdfBridge } from "../../types/opdf";
 import { createMockBridge } from "./mockBridge";
 import { createServerOcrClient } from "./serverOcr";
+import { createServerSigningClient } from "./serverSigning";
 
 type ServerUploadResult = {
   id: string;
@@ -84,6 +85,7 @@ function downloadBytes(bytes: Uint8Array, name: string) {
 export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
   const browser = createMockBridge();
   const serverOcr = createServerOcrClient(baseUrl);
+  const serverSigning = createServerSigningClient(baseUrl);
   const annotationUndo = new Map<string, Annotation[][]>();
   const annotationRedo = new Map<string, Annotation[][]>();
 
@@ -124,7 +126,7 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
       encrypt: true,
       bookmarksPersist: true,
       pdfA: browser.capabilities?.pdfA ?? false,
-      digitalSignature: false,
+      digitalSignature: true,
       storedMutations: true,
       rangePreview: true,
       ocrQueue: true,
@@ -342,6 +344,18 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
 
     async cancelOcr(jobId: string) {
       return serverOcr.cancelOcr(jobId);
+    },
+
+    async inspectP12Certificate(certificateBytes, passphrase) {
+      return serverSigning.inspectP12Certificate(certificateBytes, passphrase);
+    },
+
+    async inspectPdfSignatures(pdfBytes) {
+      return serverSigning.inspectPdfSignatures(pdfBytes);
+    },
+
+    async signPdfP12(pdfBytes, certificateBytes, options) {
+      return serverSigning.signPdfP12(pdfBytes, certificateBytes, options);
     },
 
     async insertPages(bytes: Uint8Array, opts: InsertOptions) {

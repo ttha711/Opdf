@@ -24,7 +24,7 @@ export function getNativeEditSelection() {
 export function registerNativeEditSelectionListener(listener: SelectionListener) {
   selectionListeners.add(listener);
   if (currentSelection) listener(currentSelection);
-  return () => selectionListeners.delete(listener);
+  return () => { selectionListeners.delete(listener); };
 }
 
 export function registerNativeEditPatchApplier(applier: PatchApplier) {

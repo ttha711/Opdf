@@ -49,12 +49,16 @@ export function createOcrJobQueue(dataDir, options = {}) {
         isCancelled: () => service.get(jobId)?.status === "cancelled",
       });
       if (result?.status === "done" && result.outputBytes?.length) {
+        result.status = "running";
+        result.progress = 99;
         const jobDir = join(root, jobId);
         const outputPath = join(jobDir, "output.pdf");
         await mkdir(jobDir, { recursive: true });
         await writeFile(outputPath, result.outputBytes);
         result.outputPath = outputPath;
         result.outputBytes = undefined;
+        result.progress = 100;
+        result.status = "done";
       }
     } catch (error) {
       const current = service.get(jobId);

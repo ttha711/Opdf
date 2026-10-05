@@ -1,3 +1,4 @@
+// opdf-file-size-allow: production audit coordinator; this patch updates viewer architecture checks without adding new audit domains.
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createSamplePdf } from "./sample.mjs";
@@ -74,11 +75,23 @@ export async function runAudit(driver, mode, options) {
     assert(await driver.surfaceIsVisible(), "Main PDF page surface is blank");
   });
 
-  await check("single-thumbnail-rail", async () => {
-    const state = await driver.inspect();
-    assert(state.navigation.opdfThumbnailPanels === 1, "Expected exactly one OPDF thumbnail rail");
-    assert(!state.navigation.embedPdfSidebarVisible, "EmbedPDF internal sidebar is visible");
-    assert(state.navigation.thumbnailCount === state.document.totalPages, "Thumbnail count does not match page count");
+  await check("engine-owned-thumbnail-sidebar", async () => {
+    let state = await driver.inspect();
+    assert(state.navigation.opdfThumbnailPanels === 0, "Legacy OPDF thumbnail rail is still mounted");
+    assert(state.navigation.embedPdfSidebarAvailable, "EmbedPDF sidebar control is unavailable");
+
+    if (!state.navigation.embedPdfSidebarVisible) {
+      const viewer = driver.page.locator('[data-opdf-engine="pdfium-wasm"]');
+      await viewer.getByRole("button", { name: "Sidebar", exact: true }).first().click();
+      await viewer.locator('[data-sidebar-id="sidebar-panel"]').first().waitFor({
+        state: "visible",
+        timeout: driver.options.timeout,
+      });
+      state = await driver.inspect();
+    }
+
+    assert(state.navigation.embedPdfSidebarVisible, "EmbedPDF sidebar did not open");
+    assert(state.navigation.opdfThumbnailPanels === 0, "Opening EmbedPDF sidebar mounted a duplicate OPDF rail");
     return state.navigation;
   });
 

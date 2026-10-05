@@ -48,17 +48,17 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   expect(pagesButtonBox?.height ?? 0).toBeGreaterThanOrEqual(40);
 
   await pagesButton.click();
-  const thumbnailLabel = viewer.getByText("Thumbnails", { exact: true });
-  await expect(thumbnailLabel).toBeVisible({ timeout: 10_000 });
+  await expect(pagesButton).toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
 
-  const sidebar = thumbnailLabel.locator("xpath=ancestor::aside[1]");
+  const sidebar = viewer.locator("aside").first();
+  await expect(sidebar).toBeVisible({ timeout: 10_000 });
   const sidebarBox = await sidebar.boundingBox();
   const viewport = page.viewportSize();
   expect(sidebarBox?.x ?? -1).toBeGreaterThanOrEqual(0);
   expect((sidebarBox?.x ?? 0) + (sidebarBox?.width ?? Infinity)).toBeLessThanOrEqual(viewport?.width ?? 412);
 
   await pagesButton.click();
-  await expect(thumbnailLabel).toBeHidden({ timeout: 10_000 });
+  await expect(pagesButton).not.toHaveAttribute("aria-pressed", "true", { timeout: 10_000 });
 
   await mobileMenu.click();
   await expect(page.locator("header").getByRole("menuitem", { name: "Fit Page", exact: true })).toBeEnabled();

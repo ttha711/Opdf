@@ -396,16 +396,16 @@ function duplicatePathObject(
       const segment = module.FPDFPath_GetPathSegment(sourcePtr, index);
       if (!segment) continue;
       const type = module.FPDFPathSegment_GetType(segment);
-      if (type === 0 || type === 1) {
+      if (type === 0 || type === 2) {
         if (!module.FPDFPathSegment_GetPoint(segment, pointPtr, pointPtr + 4)) continue;
         const x = heap[base];
         const y = heap[base + 1];
-        if (type === 0) module.FPDFPath_MoveTo(targetPtr, x, y);
+        if (type === 2) module.FPDFPath_MoveTo(targetPtr, x, y);
         else module.FPDFPath_LineTo(targetPtr, x, y);
         if (module.FPDFPathSegment_GetClose(segment)) module.FPDFPath_Close(targetPtr);
         continue;
       }
-      if (type !== 2 || index + 2 >= count) continue;
+      if (type !== 1 || index + 2 >= count) continue;
 
       const control1 = segment;
       const control2 = module.FPDFPath_GetPathSegment(sourcePtr, index + 1);
@@ -413,8 +413,8 @@ function duplicatePathObject(
       if (
         !control2 ||
         !end ||
-        module.FPDFPathSegment_GetType(control2) !== 2 ||
-        module.FPDFPathSegment_GetType(end) !== 2
+        module.FPDFPathSegment_GetType(control2) !== 1 ||
+        module.FPDFPathSegment_GetType(end) !== 1
       ) continue;
 
       const pts = malloc(module, 24);

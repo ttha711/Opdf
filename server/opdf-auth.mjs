@@ -104,6 +104,7 @@ export function createAuthService(dataDir, env = process.env) {
 
   async function ensure() {
     await mkdir(root, { recursive: true });
+    if (!enabled) return;
     try {
       const payload = JSON.parse(await readFile(usersPath, "utf8"));
       if (!Array.isArray(payload?.users)) throw new Error("Invalid OPDF user database.");
@@ -214,7 +215,12 @@ export function createAuthService(dataDir, env = process.env) {
   }
 
   async function authenticate(emailValue, password) {
-    const email = normalizeEmail(emailValue);
+    let email;
+    try {
+      email = normalizeEmail(emailValue);
+    } catch {
+      return null;
+    }
     const user = users.find((row) => row.email === email && !row.disabled);
     if (!user || !verifyPassword(password, user.passwordHash)) return null;
     return user;
@@ -269,6 +275,7 @@ export function createAuthService(dataDir, env = process.env) {
     setSessionCookie,
     clearSessionCookie,
     authenticate,
+    sessionHours,
     listUsers: () => users.map(publicUser),
     createUser,
     updateUser,

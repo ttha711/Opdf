@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { useOpdfBridge } from "../useOpdfBridge";
 import { toast } from "../../components/ToastProvider";
 import { getLargePdfCapabilities, runLargePdfJob } from "../../lib/largePdfJobs";
-import { collectViewerThumbnails } from "../../lib/viewer-runtime";
+import { renderViewerPageImages } from "../../lib/viewer-runtime";
 
 export function useCommonActions({
   bridge,
@@ -102,7 +102,7 @@ export function useCommonActions({
       setViewerError("Zipping images...");
       const { zipSync } = await import("fflate");
       const zipData: Record<string, Uint8Array> = {};
-      for (const thumb of thumbnails) {
+      for (const thumb of pageImages) {
         const buf = await thumb.blob.arrayBuffer();
         const extension = thumb.blob.type.includes("png") ? "png" : "jpg";
         zipData[`page-${thumb.page}.${extension}`] = new Uint8Array(buf);

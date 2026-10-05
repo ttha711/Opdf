@@ -63,18 +63,34 @@ function userIdFromEmail(email) {
   return `${local}-${hash}`;
 }
 
-function bearerToken(req) {
+export function bearerToken(req) {
   const header = req.headers.authorization;
   if (typeof header !== "string") return "";
   const match = /^Bearer\s+(.+)$/i.exec(header.trim());
   return match?.[1] || "";
 }
 
+export function cookieValue(req, name) {
+  const raw = typeof req.headers.cookie === "string" ? req.headers.cookie : "";
+  for (const part of raw.split(";")) {
+    const index = part.indexOf("=");
+    if (index < 0) continue;
+    const key = part.slice(0, index).trim();
+    if (key !== name) continue;
+    try {
+      return decodeURIComponent(part.slice(index + 1).trim());
+    } catch {
+      return "";
+    }
+  }
+  return "";
+}
+
 function requestedProject(req, url) {
   const header = req.headers["x-opdf-project"];
   const raw = typeof header === "string"
     ? header
-    : url.searchParams.get("project") || "default";
+    : url.searchParams.get("project") || cookieValue(req, "opdf_project") || "default";
   return normalizeTenantId(raw);
 }
 
@@ -123,8 +139,8 @@ export function createServerAuth(env = process.env) {
     }
 
     if (mode === "token") {
-      const token = bearerToken(req);
-      if (!token) throw new AuthError(401, "Bearer token is required.");
+      const token = bearerToken(req) || cookieValue(req, "opdf_session");
+      if (!token) throw new AuthError(401, "Bearer token or OPDF session cookie is required.");
       const principal = tokenUsers.get(token);
       if (!principal) throw new AuthError(401, "Bearer token is invalid.");
       return authorizeProject({ mode, ...principal, legacy: false }, projectId);

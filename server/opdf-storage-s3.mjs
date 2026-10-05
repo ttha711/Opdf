@@ -149,7 +149,6 @@ export function createS3OpdfStorage(rootDir, objectStore, remotePrefix) {
     const safeId = assertDocumentId(id);
     const meta = await readJsonRemote(metaPath(safeId), metaKey(safeId), null);
     if (!meta) return null;
-    if (!meta.uploadExpectedSize) await syncDocumentCache(safeId);
     return {
       ...meta,
       filePath: toServerFilePath(safeId, meta.fileName),
@@ -300,6 +299,9 @@ export function createS3OpdfStorage(rootDir, objectStore, remotePrefix) {
     ensure,
     createDocument,
     getDocument,
+    async ensureDocumentFile(id) {
+      return syncDocumentCache(assertDocumentId(id));
+    },
     finalizeDocument,
     removeDocument,
     getRecents,

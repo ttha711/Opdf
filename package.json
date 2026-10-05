@@ -27,6 +27,7 @@
     "server-build": "npm run build -w @opdf/core && npm run build -w @opdf/web",
     "server-start": "node server/opdf-server.mjs",
     "server-smoke": "node server/opdf-server.smoke.mjs",
+    "server-auth-smoke": "node server/opdf-server.auth.smoke.mjs",
     "opdf": "node scripts/opdf-cli.mjs",
     "test:cli": "node --test tests/cli/*.test.mjs",
     "audit:prod": "node scripts/opdf-cli.mjs audit smoke",

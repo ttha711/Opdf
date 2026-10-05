@@ -169,9 +169,10 @@ The upload path streams directly to disk rather than buffering the entire reques
 npm ci
 npm run server-build
 npm run server-smoke
+npm run server-reliability
 ```
 
-The normal GitHub CI also runs `server-smoke` after the workspace build.
+The normal GitHub CI runs both `server-smoke` and `server-reliability` after the workspace build. The reliability audit verifies restart persistence, failed-save isolation, failed-upload cleanup, and safe fallback for corrupt session/annotation JSON.
 
 ## Production process
 

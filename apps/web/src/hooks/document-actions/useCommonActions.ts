@@ -98,7 +98,7 @@ export function useCommonActions({
     if (!fileName || totalPages < 1) return;
     try {
       setViewerError("Rendering page images...");
-      const thumbnails = await collectViewerThumbnails(totalPages);
+      const pageImages = await renderViewerPageImages(totalPages);
       setViewerError("Zipping images...");
       const { zipSync } = await import("fflate");
       const zipData: Record<string, Uint8Array> = {};

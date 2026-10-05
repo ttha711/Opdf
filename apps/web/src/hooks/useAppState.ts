@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy centralized app state; this PR removes viewer mirror state and does not add new state responsibilities.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation, OcrJob } from "@opdf/core";
 import type { ActiveTool, AnnotationToolDefaults, ViewMode, ZoomPreset } from "../lib/app-types";

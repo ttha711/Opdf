@@ -272,6 +272,7 @@ try {
 
   const fromOtherNode = await storageB.getDocument(record.id);
   assert(fromOtherNode?.id === record.id, "second node cannot resolve shared document metadata");
+  assert(await storageB.ensureDocumentFile(record.id), "second node could not materialize shared PDF");
   assert(
     Buffer.compare(await readFile(fromOtherNode.pdfPath), pdf) === 0,
     "second node did not materialize shared PDF bytes",
@@ -312,6 +313,7 @@ try {
   assert(completed.size === expectedSize, "cross-node multipart completion has wrong size");
 
   const finalFromA = await storageA.getDocument(upload.id);
+  assert(await storageA.ensureDocumentFile(upload.id), "first node could not materialize completed multipart PDF");
   const finalBytes = await readFile(finalFromA.pdfPath);
   assert(finalBytes.length === expectedSize, "first node cannot read completed multipart object");
   assert(finalBytes.subarray(0, 5).toString("ascii") === "%PDF-", "completed multipart PDF signature is wrong");

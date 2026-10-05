@@ -29,6 +29,7 @@
     "server-smoke": "node server/opdf-server.smoke.mjs",
     "server-auth-smoke": "node server/opdf-server.auth.smoke.mjs",
     "server-s3-smoke": "node server/opdf-s3.smoke.mjs",
+    "server-production-smoke": "node server/opdf-production.smoke.mjs",
     "opdf": "node scripts/opdf-cli.mjs",
     "test:cli": "node --test tests/cli/*.test.mjs",
     "audit:prod": "node scripts/opdf-cli.mjs audit smoke",

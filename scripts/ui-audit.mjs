@@ -243,7 +243,13 @@ try {
   const pagesToggle = mobileViewer.getByRole("button", { name: /sidebar/i }).first();
   await pagesToggle.waitFor({ state: "visible", timeout: 5000 });
   await pagesToggle.click();
-  await mobileViewer.getByText("Thumbnails", { exact: true }).waitFor({ state: "visible", timeout: 10000 });
+  await pagesToggle.waitFor({ state: "visible", timeout: 5000 });
+  await page.waitForFunction(
+    (button) => button?.getAttribute("aria-pressed") === "true",
+    await pagesToggle.elementHandle(),
+    { timeout: 10000 },
+  );
+  await mobileViewer.locator("aside").first().waitFor({ state: "visible", timeout: 10000 });
   await shot("16-mobile-pages-drawer");
 
   await pagesToggle.click();

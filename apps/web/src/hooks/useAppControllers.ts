@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy app composition coordinator; this PR deletes mirrored viewer state and does not add new controller surface.
 import { useCallback, useEffect, useRef } from "react";
 import { useOpdfBridge } from "./useOpdfBridge";
 import { useAppState } from "./useAppState";

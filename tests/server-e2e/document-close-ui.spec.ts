@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { openEmbedPdfSidebar } from "../helpers/embedpdf";
 
 async function buildPdf() {
   const doc = await PDFDocument.create();
@@ -21,10 +22,7 @@ test("closing the document tears down the viewer and engine-owned sidebar", asyn
   const viewer = page.locator("[data-opdf-engine='pdfium-wasm']");
   await expect(viewer).toBeVisible({ timeout: 30_000 });
 
-  const sidebarButton = viewer.getByRole("button", { name: /sidebar/i }).first();
-  await expect(sidebarButton).toBeVisible();
-  await sidebarButton.click();
-  await expect(viewer.getByText("Thumbnails", { exact: true })).toBeVisible({ timeout: 10_000 });
+  await openEmbedPdfSidebar(viewer);
 
   await page.locator("[data-opdf-menu-trigger='File']").click();
   await page.locator("[data-opdf-menu-item='Close']").click();

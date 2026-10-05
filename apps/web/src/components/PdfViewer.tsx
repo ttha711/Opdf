@@ -50,7 +50,6 @@ export function PdfViewer({
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const suppressExternalPageRef = useRef(false);
   const preserveNativeToolRef = useRef(false);
-  const signaturePanelOpenRef = useRef(false);
   const lastPageRef = useRef(page);
   const lastScaleRef = useRef(scale);
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(() => {
@@ -146,10 +145,12 @@ export function PdfViewer({
       const rotateApi = registry.getPlugin?.("rotate")?.provides?.() as any;
       const captureApi = registry.getPlugin?.("capture")?.provides?.() as any;
       const historyApi = registry.getPlugin?.("history")?.provides?.() as any;
+      const commandsApi = registry.getPlugin?.("commands")?.provides?.() as any;
 
       const zoomScope = zoomApi?.forDocument?.(DOCUMENT_ID) ?? zoomApi;
       const rotateScope = rotateApi?.forDocument?.(DOCUMENT_ID) ?? rotateApi;
       const historyScope = historyApi?.forDocument?.(DOCUMENT_ID) ?? historyApi;
+      const commandScope = commandsApi?.forDocument?.(DOCUMENT_ID) ?? commandsApi;
       const unregisterControls = registerViewerControls({
         zoomIn: () => zoomScope?.zoomIn?.(),
         zoomOut: () => zoomScope?.zoomOut?.(),
@@ -162,6 +163,9 @@ export function PdfViewer({
         redo: () => historyScope?.redo?.(),
         canUndo: () => Boolean(historyScope?.canUndo?.()),
         canRedo: () => Boolean(historyScope?.canRedo?.()),
+        executeCommand: async (commandId) => {
+          await commandScope?.execute?.(commandId, "api");
+        },
       });
       unsubscribers.push(unregisterControls);
 
@@ -415,7 +419,6 @@ export function PdfViewer({
 
       const annotation = registry.getPlugin?.("annotation")?.provides?.() as any;
       const redaction = registry.getPlugin?.("redaction")?.provides?.() as any;
-      const commands = registry.getPlugin?.("commands")?.provides?.() as any;
       const capture = registry.getPlugin?.("capture")?.provides?.() as any;
       const redactionScope = redaction?.forDocument?.(DOCUMENT_ID) ?? redaction;
       const annotationScope = annotation?.forDocument?.(DOCUMENT_ID) ?? annotation;
@@ -436,24 +439,6 @@ export function PdfViewer({
       }
 
       if (captureScope?.isMarqueeCaptureActive?.()) captureScope?.disableMarqueeCapture?.();
-
-      const commandScope = commands?.forDocument?.(DOCUMENT_ID) ?? commands;
-      const toggleSignaturePanel = () =>
-        commandScope?.execute?.("insert:add-signature", "api");
-
-      if (activeTool === "signature") {
-        annotationScope?.setActiveTool?.(null);
-        if (!signaturePanelOpenRef.current) {
-          signaturePanelOpenRef.current = true;
-          void toggleSignaturePanel();
-        }
-        return;
-      }
-
-      if (signaturePanelOpenRef.current) {
-        signaturePanelOpenRef.current = false;
-        void toggleSignaturePanel();
-      }
 
       if (activeTool === "measure") {
         const tool = measurementMode === "area" ? "polygon" : measurementMode === "perimeter" ? "polyline" : "line";

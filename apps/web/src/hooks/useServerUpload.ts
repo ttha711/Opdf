@@ -39,16 +39,13 @@ type Args = {
   setPage: (value: number) => void;
   setTotalPages: (value: number) => void;
   setViewerError: (value: string | null) => void;
-  setThumbnails: (value: Array<{ page: number; url: string; blob: Blob }>) => void;
   setAnnotations: (value: Annotation[]) => void;
-  setBookmarks: (value: Array<{ id: string; page: number; title: string; createdAt: number }>) => void;
   setPageRotations: (value: Record<number, number>) => void;
   markDocumentSaved: (snapshot?: {
     fileName?: string;
     docBytes?: Uint8Array | null;
     documentIdentity?: string;
     annotations?: Annotation[];
-    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
     pageRotations?: Record<number, number>;
   }) => void;
 };
@@ -221,16 +218,13 @@ export function useServerUpload(args: Args) {
     argsRef.current.setPage(1);
     argsRef.current.setTotalPages(0);
     argsRef.current.setViewerError(progressText(0, file.size));
-    argsRef.current.setThumbnails([]);
     argsRef.current.setAnnotations([]);
-    argsRef.current.setBookmarks([]);
     argsRef.current.setPageRotations({});
     argsRef.current.markDocumentSaved({
       fileName: file.name,
       docBytes: null,
       documentIdentity: localIdentity,
       annotations: [],
-      bookmarks: [],
       pageRotations: {},
     });
     emitUploadState({

@@ -45,10 +45,20 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
     state: "visible",
     timeout: 120_000,
   });
-  // Capture the page count immediately. With the progressive large-PDF path,
-  // the fast Range preview can hand off to PDFium shortly after first paint,
-  // which intentionally removes the preview DOM.
-  const pageStatus = await firstPageStatus.textContent();
+  // Capture the page count without holding onto the preview locator. The fast
+  // Range preview can hand off to PDFium immediately after first paint, which
+  // intentionally removes that DOM node. Snapshot whichever status is present
+  // across the handoff instead of auto-waiting on a locator that was detached.
+  let pageStatus = null;
+  const pageStatusDeadline = Date.now() + 5_000;
+  while (!pageStatus && Date.now() < pageStatusDeadline) {
+    const candidates = await page
+      .locator("body")
+      .getByText(/Page\s+1\s+of\s+\d+/i)
+      .allTextContents();
+    pageStatus = candidates.find((text) => /Page\s+1\s+of\s+\d+/i.test(text)) ?? null;
+    if (!pageStatus) await page.waitForTimeout(100);
+  }
   const openMs = Date.now() - startedAt;
   assert(
     openMs <= testCase.maxFirstPageMs,

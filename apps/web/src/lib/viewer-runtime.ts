@@ -14,8 +14,10 @@ export type ActiveViewerControls = {
 };
 
 type ViewerBytesProvider = () => Promise<Uint8Array | null>;
+type ViewerPageImageProvider = (pageNumber: number) => Promise<Blob | null>;
 let activeProvider: ViewerBytesProvider | null = null;
 let activeProviderSource: unknown = null;
+let activePageImageProvider: ViewerPageImageProvider | null = null;
 let activeControls: ActiveViewerControls | null = null;
 
 export function registerViewerBytesProvider(provider: ViewerBytesProvider, source: unknown = null) {
@@ -47,6 +49,33 @@ export function getViewerControls() {
 
 export async function executeViewerCommand(commandId: string) {
   await activeControls?.executeCommand?.(commandId);
+}
+
+
+export function registerViewerPageImageProvider(provider: ViewerPageImageProvider) {
+  activePageImageProvider = provider;
+  return () => {
+    if (activePageImageProvider === provider) activePageImageProvider = null;
+  };
+}
+
+export async function renderViewerPageImage(pageNumber: number) {
+  return activePageImageProvider ? activePageImageProvider(pageNumber) : null;
+}
+
+export async function renderViewerPageImages(pageCount: number) {
+  if (!Number.isFinite(pageCount) || pageCount < 1) return [];
+  const pages: Array<{ page: number; blob: Blob }> = [];
+  for (let page = 1; page <= pageCount; page += 1) {
+    let blob: Blob | null = null;
+    for (let attempt = 0; attempt < 20 && !blob; attempt += 1) {
+      blob = await renderViewerPageImage(page);
+      if (!blob && attempt < 19) await new Promise((resolve) => window.setTimeout(resolve, 50));
+    }
+    if (!blob) throw new Error(`Unable to render page ${page} from the active viewer.`);
+    pages.push({ page, blob });
+  }
+  return pages;
 }
 
 

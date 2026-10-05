@@ -7,7 +7,9 @@ import {
 import type { PdfViewerProps } from "./PdfViewer.types";
 import type { ActiveTool } from "../lib/app-types";
 import {
+  emitViewerContentArea,
   registerViewerBytesProvider,
+  registerViewerContentPickStarter,
   registerViewerControls,
   registerViewerThumbnailProvider,
 } from "../lib/viewer-runtime";
@@ -217,9 +219,17 @@ export function PdfViewer({
       }
 
       const captureScope = captureApi?.forDocument?.(DOCUMENT_ID) ?? captureApi;
+      if (captureScope?.enableMarqueeCapture) {
+        const unregisterContentPick = registerViewerContentPickStarter(() => captureScope.enableMarqueeCapture());
+        unsubscribers.push(unregisterContentPick);
+      }
       if (captureScope?.onCaptureArea) {
         const off = captureScope.onCaptureArea((event: any) => {
           if (event?.documentId && event.documentId !== DOCUMENT_ID) return;
+          if (activeTool === "edit-content") {
+            emitViewerContentArea({ pageIndex: event.pageIndex, rect: event.rect });
+            return;
+          }
           if (activeTool !== "ai-patch") return;
 
           setPendingAiPatch({ pageIndex: event.pageIndex, rect: event.rect });

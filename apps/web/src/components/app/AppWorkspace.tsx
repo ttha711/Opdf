@@ -79,7 +79,7 @@ export function AppWorkspace({
   } = sidebars;
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
   const getNativeEditBytes = useNativeEditBytes(state);
-  const showLeft = !state.activeDashboardTool;
+  const showLeft = state.hasDocument && !state.activeDashboardTool;
   const rightAvailable = state.hasDocument || Boolean(state.activeDashboardTool) ||
     Boolean(activeMarkupTool) || isAiPanelOpen;
   const showRight = rightAvailable && !isRightCollapsed;
@@ -136,7 +136,7 @@ export function AppWorkspace({
             title="Drag to resize sidebar, Double click to collapse"
             style={{ gridColumn: 2, display: !showLeft || isLeftCollapsed ? "none" : "block" }}
           />
-          {activeTab ? (
+          {state.hasDocument && activeTab ? (
             <section
               key={activeTab.id}
               ref={viewerAreaRef}

@@ -363,6 +363,65 @@ Durable document state is shared across nodes, but the OCR execution queue is st
 The remaining production work is operational rather than a missing document-storage milestone: deployment secrets, real S3 credentials, HTTPS/Cloudflare configuration, backup/restore policy, representative load testing, and sticky/dedicated routing for process-local OCR jobs.
 
 
+## Production hardening and operations
+
+For an Internet-facing deployment behind Cloudflare Tunnel or another reverse proxy, set the canonical public origin and enable the proxy/security controls explicitly:
+
+```powershell
+$env:OPDF_PUBLIC_ORIGIN="https://pdf.example.com"
+$env:OPDF_TRUST_PROXY="1"
+$env:OPDF_HSTS="1"
+$env:OPDF_LOGIN_RATE_MAX_ATTEMPTS="10"
+$env:OPDF_LOGIN_RATE_WINDOW_MS="900000"
+```
+
+Only set `OPDF_TRUST_PROXY=1` when direct access to the OPDF origin is blocked and the trusted proxy is the component setting `X-Forwarded-For`. Otherwise a client could spoof its source address and weaken login throttling.
+
+OPDF rejects browser mutation requests that declare a cross-site `Sec-Fetch-Site`, and when an `Origin` header is present it must match `OPDF_PUBLIC_ORIGIN` (or the request Host when no public origin is configured). Responses include frame-embedding, content-type, referrer, permissions, and optional HSTS guards.
+
+The server exposes two unauthenticated orchestration endpoints:
+
+- `GET /api/opdf/live` — process is alive.
+- `GET /api/opdf/ready` — process is accepting traffic; it returns 503 while the server is draining.
+
+When S3-compatible storage is configured, startup performs a write/read/delete probe before the server begins listening. Bad credentials or a read-only bucket therefore fail startup instead of appearing healthy and failing on the first user save.
+
+SIGTERM and SIGINT put the server into draining mode, stop new listener acceptance, and allow existing connections to close before the process exits. Configure the service manager with a shutdown grace period longer than OPDF's 10-second drain deadline.
+
+Run the production security gate with:
+
+```powershell
+npm run server-production-smoke
+```
+
+It verifies security headers, request IDs, liveness/readiness, authentication protection, cross-site mutation rejection, login throttling, and `Retry-After`.
+
+### Backup and restore
+
+For local storage deployments, back up the entire `OPDF_DATA_DIR` as one consistency unit. Quiesce or stop the OPDF process before a filesystem-level copy unless the snapshot mechanism provides atomic volume snapshots.
+
+For S3-compatible deployments:
+
+1. Enable bucket versioning and retain previous object versions for a recovery window appropriate to the deployment.
+2. Back up the complete configured `OPDF_S3_PREFIX`, including `auth/users.json`, document metadata/PDFs, annotations, sessions, and encrypted certificate envelopes.
+3. Back up `OPDF_AUTH_SECRET` and `OPDF_CERTIFICATE_MASTER_KEY` in a secrets manager separate from the object bucket. Losing the certificate master key makes the encrypted P12/PFX envelopes unrecoverable.
+4. Record `OPDF_S3_ENDPOINT`, bucket, region, prefix, and the application version/commit with each recovery point.
+5. Test restore into an isolated OPDF instance before relying on the backup policy.
+
+Restore the object prefix first, then restore the matching application secrets, start a single OPDF node, verify `/api/opdf/ready`, sign in, open representative documents, and verify one stored signing certificate before re-enabling multiple application nodes.
+
+### Deployment acceptance gate
+
+Before calling an environment production-ready, require all repository CI gates to be green and then verify the real environment with:
+
+- HTTPS only; direct origin access blocked when a trusted proxy is used.
+- `/api/opdf/live` and `/api/opdf/ready` monitored by the service manager.
+- Real S3 credentials pass the startup write/read/delete probe when S3 mode is enabled.
+- A restore drill has succeeded from the chosen backup mechanism.
+- OCR traffic uses sticky routing or a dedicated worker node, because OCR scheduling remains process-local.
+- Representative PDFs and expected concurrent-user load have been exercised against the deployed environment.
+
+
 ## Office to PDF conversion
 
 Word, Excel, PowerPoint, RTF, and text files can be converted to PDF through the OPDF Server. This path uses LibreOffice in headless mode so the output contains the real source document content rather than a browser-side approximation.

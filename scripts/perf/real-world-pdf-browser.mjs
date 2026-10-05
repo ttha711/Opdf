@@ -40,10 +40,15 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
 
   const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
   await viewer.waitFor({ state: "visible", timeout: 60_000 });
-  await page.locator("body").getByText(/Page\s+1\s+of\s+\d+/i).first().waitFor({
+  const firstPageStatus = page.locator("body").getByText(/Page\s+1\s+of\s+\d+/i).first();
+  await firstPageStatus.waitFor({
     state: "visible",
     timeout: 120_000,
   });
+  // Capture the page count immediately. With the progressive large-PDF path,
+  // the fast Range preview can hand off to PDFium shortly after first paint,
+  // which intentionally removes the preview DOM.
+  const pageStatus = await firstPageStatus.textContent();
   const openMs = Date.now() - startedAt;
   assert(
     openMs <= testCase.maxFirstPageMs,
@@ -52,7 +57,6 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
 
   await page.waitForTimeout(1500);
 
-  const pageStatus = await page.locator("body").getByText(/Page\s+1\s+of\s+\d+/i).first().textContent();
   const pageMatch = pageStatus?.match(/Page\s+1\s+of\s+(\d+)/i);
   const pageCount = pageMatch ? Number(pageMatch[1]) : null;
   assert(pageCount && pageCount > 0, `Unable to determine page count for ${testCase.name}`);

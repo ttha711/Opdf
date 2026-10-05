@@ -31,6 +31,11 @@ test("native Edit PDF changes existing text and survives save/reload", async ({ 
   await editor.getByRole("button", { name: "Apply text" }).click();
   await expect(editor.getByText("Native PDF text updated.")).toBeVisible({ timeout: 20_000 });
 
+  await editor.getByRole("button", { name: "Undo" }).click();
+  await expect(editor.getByText("Original OPDF text", { exact: false })).toBeVisible({ timeout: 20_000 });
+  await editor.getByRole("button", { name: "Redo" }).click();
+  await expect(editor.getByText("Edited OPDF native text", { exact: false })).toBeVisible({ timeout: 20_000 });
+
   await page.getByTitle("Save (Ctrl+S)").click();
   await page.waitForTimeout(500);
   await page.reload();

@@ -125,6 +125,51 @@ function objectKind(type: number): PdfContentObjectKind | null {
   return null;
 }
 
+function replaceTextObjectFontSize(
+  module: PdfiumModule,
+  docPtr: number,
+  pagePtr: number,
+  objectPtr: number,
+  objectIndex: number,
+  fontSize: number,
+): number {
+  const fontPtr = module.FPDFTextObj_GetFont(objectPtr);
+  if (!fontPtr) throw new Error("Unable to read the existing PDF font.");
+  const textPagePtr = module.FPDFText_LoadPage(pagePtr);
+  if (!textPagePtr) throw new Error("Unable to read text before resizing.");
+  let text = "";
+  try {
+    text = readUtf16ObjectText(module, objectPtr, textPagePtr);
+  } finally {
+    module.FPDFText_ClosePage(textPagePtr);
+  }
+
+  const matrix = readMatrix(module, objectPtr);
+  const fill = readFill(module, objectPtr).fillColor ?? "#000000";
+  const nextPtr = module.FPDFPageObj_CreateTextObj(docPtr, fontPtr, fontSize);
+  if (!nextPtr) throw new Error("PDFium could not create the resized text object.");
+  const textPtr = writeUtf16(module, text);
+  const matrixPtr = writeMatrix(module, matrix);
+  try {
+    if (!module.FPDFText_SetText(nextPtr, textPtr)) throw new Error("PDFium could not copy resized text.");
+    if (!module.FPDFPageObj_SetMatrix(nextPtr, matrixPtr)) throw new Error("PDFium could not preserve text transform.");
+    const [r, g, b, a] = parseColor(fill);
+    module.FPDFPageObj_SetFillColor(nextPtr, r, g, b, a);
+    if (!module.FPDFPage_RemoveObject(pagePtr, objectPtr)) throw new Error("PDFium could not replace the old text object.");
+    if (!module.FPDFPage_InsertObjectAtIndex(pagePtr, nextPtr, objectIndex)) {
+      module.FPDFPage_InsertObject(pagePtr, nextPtr);
+    }
+    module.FPDFPageObj_Destroy(objectPtr);
+    return nextPtr;
+  } catch (error) {
+    module.FPDFPageObj_Destroy(nextPtr);
+    throw error;
+  } finally {
+    free(module, textPtr);
+    free(module, matrixPtr);
+  }
+}
+
 function writeUtf16(module: PdfiumModule, value: string): number {
   const ptr = malloc(module, (value.length + 1) * 2);
   const base = ptr >>> 1;
@@ -319,14 +364,24 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
             } else if (patch.type === "delete") {
               if (!module.FPDFPage_RemoveObject(pagePtr, objectPtr)) throw new Error(`Unable to delete ${patch.objectId}.`);
             } else if (patch.type === "style-text") {
-              if (patch.fontSize !== undefined && module.FPDFTextObj_SetFontSize) {
-                if (!module.FPDFTextObj_SetFontSize(objectPtr, patch.fontSize)) throw new Error(`Unable to change font size for ${patch.objectId}.`);
+              let styledObjectPtr = objectPtr;
+              if (patch.fontSize !== undefined) {
+                const { objectIndex } = parseObjectId(patch.objectId);
+                styledObjectPtr = replaceTextObjectFontSize(
+                  module,
+                  docPtr,
+                  pagePtr,
+                  objectPtr,
+                  objectIndex,
+                  patch.fontSize,
+                );
+                handles.set(patch.objectId, styledObjectPtr);
               }
               if (patch.fillColor) {
                 const [r, g, b, a] = parseColor(patch.fillColor);
-                if (!module.FPDFPageObj_SetFillColor(objectPtr, r, g, b, a)) throw new Error(`Unable to change text color for ${patch.objectId}.`);
+                if (!module.FPDFPageObj_SetFillColor(styledObjectPtr, r, g, b, a)) throw new Error(`Unable to change text color for ${patch.objectId}.`);
               }
-              if (patch.fontFamily) throw new Error("Changing font family requires font embedding and is not enabled yet.");
+              if (patch.fontFamily) throw new Error("Changing font family requires an embedded replacement font and is not enabled yet.");
             } else if (patch.type === "replace-image") {
               if (module.FPDFPageObj_GetType(objectPtr) !== 3) throw new Error(`${patch.objectId} is not an image object.`);
               await replaceImageBitmap(module, pagePtr, objectPtr, patch.bytes, patch.mimeType);

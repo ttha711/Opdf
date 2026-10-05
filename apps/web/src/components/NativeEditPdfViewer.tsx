@@ -9,7 +9,7 @@ import {
 import { RenderPluginPackage } from "@embedpdf/plugin-render/react";
 import { ScrollPluginPackage } from "@embedpdf/plugin-scroll/react";
 import { ViewportPluginPackage } from "@embedpdf/plugin-viewport/react";
-import { ZoomPluginPackage } from "@embedpdf/plugin-zoom/react";
+import { ZoomMode, ZoomPluginPackage } from "@embedpdf/plugin-zoom/react";
 import type { PdfViewerProps } from "./PdfViewer.types";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import { NativeEditDocument } from "./native-edit/NativeEditDocument";
@@ -72,7 +72,7 @@ export function NativeEditPdfViewer({
         withAnnotations: true,
       }),
       createPluginRegistration(ZoomPluginPackage, {
-        defaultZoomLevel: 1,
+        // EmbedPDF 2.x keeps the scroller gated when initial zoom is numeric.\n        // Use a resolved zoom mode so editable pages render before external scale sync.\n        defaultZoomLevel: ZoomMode.Automatic,
         minZoom: 0.05,
         maxZoom: 5,
       }),

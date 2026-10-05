@@ -7,11 +7,12 @@ import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import http from "node:http";
 import { DocumentService } from "@opdf/core";
-import { createOpdfStorage, assertDocumentId, sanitizeFileName } from "./opdf-storage.mjs";
+import { assertDocumentId, sanitizeFileName } from "./opdf-storage.mjs";
 import { createChunkUploadApi } from "./opdf-upload.mjs";
-import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
-import { createCertificateStore } from "./opdf-certificate-store.mjs";
 import { createSigningApi } from "./opdf-signing-api.mjs";
+import { createServerAuth } from "./opdf-auth.mjs";
+import { createTenantManager } from "./opdf-tenant-manager.mjs";
+import { createAuthHttp } from "./opdf-auth-http.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -25,14 +26,13 @@ const configuredUploadChunkBytes = Number(process.env.OPDF_UPLOAD_CHUNK_BYTES ||
 const uploadChunkBytes = Number.isFinite(configuredUploadChunkBytes)
   ? Math.min(Math.max(configuredUploadChunkBytes, 1024 * 1024), 32 * 1024 * 1024)
   : 8 * 1024 * 1024;
-const storage = createOpdfStorage(dataDir);
 const documentService = new DocumentService();
-const certificateStore = createCertificateStore(
+const auth = createServerAuth(process.env);
+const tenantManager = createTenantManager({
   dataDir,
-  process.env.OPDF_CERTIFICATE_MASTER_KEY || "",
-);
-const ocrQueue = createOcrJobQueue(dataDir, {
-  concurrency: Number(process.env.OPDF_OCR_CONCURRENCY || 1),
+  auth,
+  certificateMasterKey: process.env.OPDF_CERTIFICATE_MASTER_KEY || "",
+  ocrConcurrency: Number(process.env.OPDF_OCR_CONCURRENCY || 1),
 });
 const pythonPath = process.env.OPDF_PYTHON_PATH || (process.platform === "win32" ? "python" : "python3");
 const officeConverterScript = resolve(
@@ -105,6 +105,14 @@ function parseOperationOptions(req) {
   } catch {
     throw new Error("Invalid X-OPDF-Options header.");
   }
+}
+
+async function requestContext(req, url) {
+  return tenantManager.resolveContext(req, url);
+}
+
+async function requestStorage(req, url) {
+  return tenantManager.storage(await requestContext(req, url));
 }
 
 async function handlePdfOperation(req, res, operation) {
@@ -189,7 +197,7 @@ function parseDocumentRoute(pathname) {
   return { id: assertDocumentId(match[1]), child: match[2] || null };
 }
 
-async function serveDocument(req, res, record, download) {
+async function serveDocument(req, res, storage, record, download) {
   const size = await storage.getDocumentSize(record.id);
   if (size == null) return sendError(res, 404, "Document file not found.");
   const range = req.headers.range;
@@ -226,11 +234,12 @@ async function serveDocument(req, res, record, download) {
   createReadStream(record.pdfPath, { start, end }).pipe(res);
 }
 
-async function createDocumentFromRequest(req, res, url) {
+async function createDocumentFromRequest(req, res, url, storage, context) {
   const name = sanitizeFileName(url.searchParams.get("name") || "document.pdf");
   const record = await storage.createDocument(name);
   try {
     const size = await streamBodyToPath(req, record.tempPath);
+    await tenantManager.assertQuota(context, size, 0);
     await rename(record.tempPath, record.pdfPath);
     const updated = await storage.finalizeDocument(record.id, size);
     await storage.pushRecent(updated.filePath);
@@ -268,15 +277,17 @@ async function replaceStoredFile(tempPath, targetPath) {
   }
 }
 
-async function replaceDocumentFromRequest(req, res, record) {
-  const tempPath = join(dataDir, "documents", record.id, `save-${Date.now()}.tmp`);
+async function replaceDocumentFromRequest(req, res, storage, context, record) {
+  const tempPath = join(resolve(record.pdfPath, ".."), `save-${Date.now()}.tmp`);
+  const previousSize = Number(record.size || 0);
   const size = await streamBodyToPath(req, tempPath);
+  await tenantManager.assertQuota(context, size, previousSize);
   await replaceStoredFile(tempPath, record.pdfPath);
   const updated = await storage.finalizeDocument(record.id, size);
   sendJson(res, 200, { filePath: updated.filePath, size: updated.size, updatedAt: updated.updatedAt });
 }
 
-async function mutateStoredDocument(req, res, record) {
+async function mutateStoredDocument(req, res, storage, context, record) {
   if (req.method !== "POST") return sendError(res, 405, "Method not allowed.");
   const body = await readJsonBody(req, 1024 * 1024);
   const input = new Uint8Array(await readFile(record.pdfPath));
@@ -357,7 +368,8 @@ async function mutateStoredDocument(req, res, record) {
     return sendError(res, 400, "Unsupported stored document mutation.");
   }
 
-  const tempPath = join(dataDir, "documents", record.id, `mutate-${Date.now()}.tmp`);
+  await tenantManager.assertQuota(context, output.byteLength, Number(record.size || input.byteLength));
+  const tempPath = join(resolve(record.pdfPath, ".."), `mutate-${Date.now()}.tmp`);
   await mkdir(resolve(tempPath, ".."), { recursive: true });
   const handle = await open(tempPath, "wx");
   try {
@@ -582,7 +594,13 @@ async function serveWeb(req, res, pathname) {
 }
 
 const handleChunkUpload = createChunkUploadApi({
-  storage,
+  getStorage: requestStorage,
+  checkQuota: async (req, url, incomingBytes, replacingBytes) =>
+    tenantManager.assertQuota(
+      await requestContext(req, url),
+      incomingBytes,
+      replacingBytes,
+    ),
   maxBytes,
   chunkBytes: uploadChunkBytes,
   sendJson,
@@ -590,7 +608,8 @@ const handleChunkUpload = createChunkUploadApi({
 });
 
 const handleSigningApi = createSigningApi({
-  certificateStore,
+  getCertificateStore: async (req, url) =>
+    tenantManager.certificateStore(await requestContext(req, url)),
   sendJson,
   sendError,
   sendPdf,
@@ -598,7 +617,17 @@ const handleSigningApi = createSigningApi({
   parseOperationOptions,
 });
 
+const authHttp = createAuthHttp({
+  auth,
+  tenantManager,
+  sendJson,
+  sendError,
+  readJsonBody,
+});
+
 async function handleOcrApi(req, res, url) {
+  const context = await requestContext(req, url);
+  const ocrQueue = await tenantManager.ocrQueue(context);
   if (url.pathname === "/api/opdf/ocr/jobs") {
     if (req.method === "GET") return sendJson(res, 200, ocrQueue.list());
     if (req.method === "POST") {
@@ -626,7 +655,7 @@ async function handleOcrApi(req, res, url) {
     const job = ocrQueue.get(jobId);
     if (!job) return sendError(res, 404, "OCR job not found.");
     if (job.status !== "queued") return sendJson(res, 200, job);
-    const inputPath = join(dataDir, "ocr", jobId, `input-${Date.now()}.pdf`);
+    const inputPath = join(tenantManager.projectRoot(context), "ocr", jobId, `input-${Date.now()}.pdf`);
     await streamBodyToPath(req, inputPath);
     const queued = await ocrQueue.submit(jobId, inputPath);
     return sendJson(res, 202, queued);
@@ -670,11 +699,31 @@ async function handleApi(req, res, url) {
         localFirstUpload: true,
         ocrQueue: true,
         searchablePdfOcr: true,
-        digitalSignature: certificateStore.enabled,
-        certificateStorage: certificateStore.enabled,
+        digitalSignature: tenantManager.certificateStorageEnabled,
+        certificateStorage: tenantManager.certificateStorageEnabled,
         signatureInspection: true,
+        multiUserAuth: auth.enabled,
+        perUserProjectStorage: auth.enabled,
+        quotas: auth.enabled,
       },
     });
+  }
+
+  if (url.pathname === "/api/opdf/auth/session") {
+    const handled = await authHttp.handlePublic(req, res, url);
+    if (handled !== false) return;
+  }
+
+  const context = await requestContext(req, url);
+  const storage = await tenantManager.storage(context);
+
+  if (
+    url.pathname === "/api/opdf/auth/me" ||
+    url.pathname === "/api/opdf/projects" ||
+    url.pathname === "/api/opdf/projects/select"
+  ) {
+    const handled = await authHttp.handleAuthenticated(req, res, url, context);
+    if (handled !== false) return;
   }
 
   if (url.pathname === "/api/opdf/uploads" || url.pathname.startsWith("/api/opdf/uploads/")) {
@@ -710,7 +759,7 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === "/api/opdf/documents" && req.method === "POST") {
-    return createDocumentFromRequest(req, res, url);
+    return createDocumentFromRequest(req, res, url, storage, context);
   }
 
   if (url.pathname === "/api/opdf/recent") {
@@ -741,7 +790,7 @@ async function handleApi(req, res, url) {
       return sendError(res, 405, "Method not allowed.");
     }
     if (route.child === "mutations") {
-      return mutateStoredDocument(req, res, record);
+      return mutateStoredDocument(req, res, storage, context, record);
     }
 
     if (req.method === "HEAD") {
@@ -754,17 +803,13 @@ async function handleApi(req, res, url) {
       res.setHeader("Content-Length", String(size));
       return res.end();
     }
-    if (req.method === "GET") return serveDocument(req, res, record, url.searchParams.get("download") === "1");
-    if (req.method === "PUT") return replaceDocumentFromRequest(req, res, record);
+    if (req.method === "GET") return serveDocument(req, res, storage, record, url.searchParams.get("download") === "1");
+    if (req.method === "PUT") return replaceDocumentFromRequest(req, res, storage, context, record);
     return sendError(res, 405, "Method not allowed.");
   }
 
   return sendError(res, 404, "API route not found.");
 }
-
-await storage.ensure();
-await ocrQueue.ensure();
-await certificateStore.ensure();
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -773,10 +818,24 @@ const server = http.createServer(async (req, res) => {
       await handleApi(req, res, url);
       return;
     }
+    if (auth.mode === "token" && url.pathname === "/") {
+      try {
+        auth.authenticate(req, url);
+      } catch (error) {
+        if (error?.status === 401) return authHttp.serveLogin(res);
+        throw error;
+      }
+    }
     await serveWeb(req, res, url.pathname);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const status = /too large|exceeds/i.test(message) ? 413 : /Invalid document id/.test(message) ? 400 : 500;
+    const status = Number.isInteger(error?.status)
+      ? error.status
+      : /too large|exceeds|quota/i.test(message)
+        ? 413
+        : /Invalid document id/.test(message)
+          ? 400
+          : 500;
     sendError(res, status, message);
   }
 });

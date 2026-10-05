@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+// opdf-file-size-allow: legacy digital-signature dialog; M10 only updates runtime/security copy while signing transport stays in bridge modules.\nimport { useMemo, useState } from "react";
 import type { P12CertificateInfo, PdfSignatureInspection } from "../types/opdf";
 import { pdfSourceToBytes, type PdfSource } from "../lib/documentSource";
 import { useDialogClose } from "../hooks/useDialogClose";
@@ -141,7 +141,7 @@ export function DigitalSignatureModal({
         <div className="premium-modal-header">
           <div>
             <div className="premium-modal-title">Digital Signature · P12/PFX</div>
-            <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">Certificate and password stay in the local desktop process.</div>
+            <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">Desktop keeps certificate data local. Server mode sends it only to the same-origin OPDF API; the certificate is encrypted at rest and its password is not stored.</div>
           </div>
           <button data-opdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
         </div>
@@ -241,7 +241,7 @@ export function DigitalSignatureModal({
             <>
               {!canSign ? (
                 <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                  Cryptographic P12/PFX signing is available only in OPDF Desktop. The browser build does not upload certificates to a server.
+                  Cryptographic P12/PFX signing requires OPDF Desktop or an OPDF Server configured with secure certificate storage.
                 </div>
               ) : null}
 

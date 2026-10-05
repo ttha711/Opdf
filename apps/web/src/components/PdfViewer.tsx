@@ -60,6 +60,7 @@ export function PdfViewer({
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const viewerRootRef = useRef<HTMLDivElement>(null);
   const viewerReadySourceRef = useRef<string | null>(null);
+  const [documentReadySource, setDocumentReadySource] = useState<string | null>(null);
   const localSourceKeyRef = useRef<Uint8Array | Blob | null>(null);
   const suppressExternalPageRef = useRef(false);
   const preserveNativeToolRef = useRef(false);
@@ -113,43 +114,51 @@ export function PdfViewer({
   const activeRegistry = readyViewer?.sourceUrl === sourceUrl ? readyViewer.registry : null;
 
   useEffect(() => {
-    if (!sourceUrl || !activeRegistry || window.innerWidth < 900) return;
+    if (
+      !sourceUrl ||
+      documentReadySource !== sourceUrl ||
+      window.innerWidth < 900
+    ) return;
     const root = viewerRootRef.current;
     if (!root) return;
 
     let sidebarButton: HTMLButtonElement | null = null;
-    let sidebarPanel: HTMLElement | null = null;
     let detach: (() => void) | null = null;
+    let timer = 0;
+    let attempts = 0;
 
-    const timer = window.setTimeout(() => {
+    const attach = () => {
       sidebarButton = root.querySelector<HTMLButtonElement>('button[aria-label="Sidebar"]');
-      if (!sidebarButton) return;
+      if (!sidebarButton) {
+        attempts += 1;
+        if (attempts < 30) timer = window.setTimeout(attach, 100);
+        return;
+      }
 
-      sidebarPanel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
       const preference = window.localStorage.getItem(SIDEBAR_PREF_KEY);
       const shouldOpen = preference !== "closed";
-      if (shouldOpen && !isVisibleElement(sidebarPanel)) {
-        sidebarButton.click();
-      }
+      const panel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
+      if (shouldOpen && !isVisibleElement(panel)) sidebarButton.click();
 
       const remember = () => {
         window.setTimeout(() => {
-          sidebarPanel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
+          const currentPanel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
           window.localStorage.setItem(
             SIDEBAR_PREF_KEY,
-            isVisibleElement(sidebarPanel) ? "open" : "closed",
+            isVisibleElement(currentPanel) ? "open" : "closed",
           );
         }, 250);
       };
       sidebarButton.addEventListener("click", remember);
       detach = () => sidebarButton?.removeEventListener("click", remember);
-    }, 100);
+    };
 
+    timer = window.setTimeout(attach, 100);
     return () => {
       window.clearTimeout(timer);
       detach?.();
     };
-  }, [activeRegistry, sourceUrl]);
+  }, [documentReadySource, sourceUrl]);
 
   const config = useMemo(() => {
     if (!sourceUrl) return null;
@@ -426,6 +435,7 @@ export function PdfViewer({
       const signalViewerReady = () => {
         if (viewerReadySourceRef.current === sourceUrl) return;
         viewerReadySourceRef.current = sourceUrl;
+        setDocumentReadySource(sourceUrl);
         onViewerReady?.();
       };
 

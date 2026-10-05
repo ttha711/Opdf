@@ -236,6 +236,10 @@ async function serveDocument(req, res, storage, record, download) {
 
 async function createDocumentFromRequest(req, res, url, storage, context) {
   const name = sanitizeFileName(url.searchParams.get("name") || "document.pdf");
+  const declaredSize = Number(req.headers["content-length"] || 0);
+  if (Number.isFinite(declaredSize) && declaredSize > 0) {
+    await tenantManager.assertQuota(context, declaredSize, 0);
+  }
   const record = await storage.createDocument(name);
   try {
     const size = await streamBodyToPath(req, record.tempPath);
@@ -280,6 +284,10 @@ async function replaceStoredFile(tempPath, targetPath) {
 async function replaceDocumentFromRequest(req, res, storage, context, record) {
   const tempPath = join(resolve(record.pdfPath, ".."), `save-${Date.now()}.tmp`);
   const previousSize = Number(record.size || 0);
+  const declaredSize = Number(req.headers["content-length"] || 0);
+  if (Number.isFinite(declaredSize) && declaredSize > 0) {
+    await tenantManager.assertQuota(context, declaredSize, previousSize);
+  }
   const size = await streamBodyToPath(req, tempPath);
   await tenantManager.assertQuota(context, size, previousSize);
   await replaceStoredFile(tempPath, record.pdfPath);

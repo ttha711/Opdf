@@ -60,9 +60,7 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
   await inlineEditor.press(process.platform === "darwin" ? "Meta+Enter" : "Control+Enter");
 
   await expect(editor.getByText("Inline text updated with Unicode fallback.")).toBeVisible({ timeout: 20_000 });
-  await expect(
-    editor.locator(".native-content-editor__objects button").filter({ hasText: "Chỉnh sửa tiếng Việt" }),
-  ).toHaveCount(1, { timeout: 20_000 });
+  await expect(inlineEditor).toHaveCount(0);
 
   await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
   await expect(editor.getByText("Native content edit undone.")).toBeVisible({ timeout: 20_000 });

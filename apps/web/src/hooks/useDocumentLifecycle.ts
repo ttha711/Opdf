@@ -258,7 +258,7 @@ export function useDocumentLifecycle({
   function replaceDocumentBytes(
     bytes: Uint8Array,
     nextPage = page,
-    options: { preserveSourceIdentity?: boolean; resetDocumentMetadata?: boolean } = {},
+    options: { preserveSourceIdentity?: boolean; resetDocumentMetadata?: boolean; preserveAnnotations?: boolean } = {},
   ) {
     const preserveSourceIdentity = options.preserveSourceIdentity ?? true;
     setDocBytes(bytes);
@@ -268,7 +268,7 @@ export function useDocumentLifecycle({
         ? sourceIdentity
         : "",
     );
-    setAnnotations([]);
+    if (!options.preserveAnnotations) setAnnotations([]);
     setThumbnails([]);
     if (options.resetDocumentMetadata) {
       setBookmarks([]);

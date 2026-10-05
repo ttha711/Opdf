@@ -34,6 +34,8 @@ export type BridgeCapabilities = {
   digitalSignature?: boolean;
   storedMutations?: boolean;
   rangePreview?: boolean;
+  ocrQueue?: boolean;
+  searchablePdfOcr?: boolean;
 };
 
 export type StoredDocumentMutation =

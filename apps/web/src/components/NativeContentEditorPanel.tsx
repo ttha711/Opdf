@@ -181,6 +181,28 @@ export function NativeContentEditorPanel({
             </div>
           </div>
 
+          {selected.kind === "image" ? (
+            <label>
+              Replace image
+              <input
+                type="file"
+                accept="image/png,image/jpeg"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
+                  void file.arrayBuffer().then((buffer) =>
+                    apply(
+                      [{ type: "replace-image", objectId: selected.id, bytes: new Uint8Array(buffer), mimeType }],
+                      "Image replaced.",
+                    ),
+                  );
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+          ) : null}
+
           {selected.kind === "path" ? (
             <div className="native-content-editor__row">
               <label>

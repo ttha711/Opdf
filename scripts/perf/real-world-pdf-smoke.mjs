@@ -1,5 +1,5 @@
 import { createReadStream, createWriteStream } from "node:fs";
-import { appendFile, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { appendFile, mkdtemp, rm, stat } from "node:fs/promises";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -22,6 +22,7 @@ const CASES = [
     expectedPages: 22,
     searchText: "BURIED STRUCTURE",
     mutateAndSave: true,
+    maxFirstPageMs: 60_000,
   },
   {
     name: "WSDOT Plans Preparation Manual M22-31",
@@ -31,6 +32,7 @@ const CASES = [
     expectedPages: null,
     searchText: null,
     mutateAndSave: false,
+    maxFirstPageMs: 120_000,
   },
 ];
 
@@ -164,13 +166,17 @@ async function browserTest(browser, testCase, stored, fileBytes) {
     timeout: 60_000,
   });
 
-  const viewer = page.locator('[data-opdf-engine="pdfjs-range"], [data-opdf-engine="pdfium-wasm"]');
+  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
   await viewer.waitFor({ state: "visible", timeout: 60_000 });
   await page.locator("body").getByText(/Page\s+1\s+of\s+\d+/i).first().waitFor({
     state: "visible",
     timeout: 120_000,
   });
   const openMs = Date.now() - startedAt;
+  assert(
+    openMs <= testCase.maxFirstPageMs,
+    `${testCase.name}: first page exceeded ${testCase.maxFirstPageMs} ms budget (${openMs} ms)`,
+  );
 
   await page.waitForTimeout(1500);
 
@@ -189,10 +195,15 @@ async function browserTest(browser, testCase, stored, fileBytes) {
   const bytesObserved = finishedPdfTransfers.reduce((sum, item) => sum + item.responseBodySize, 0);
   const usedRange = rangeResponses.length > 0;
   const viewerEngine = await viewer.getAttribute("data-opdf-engine");
-  if (fileBytes >= 32 * MiB) {
-    assert(viewerEngine === "pdfjs-range", `${testCase.name}: expected pdfjs-range for large server PDF, got ${viewerEngine}`);
-    assert(usedRange, `${testCase.name}: large server PDF did not use HTTP Range`);
-    assert(bytesObserved < fileBytes, `${testCase.name}: range preview transferred the full file before first-page readiness (${bytesObserved} / ${fileBytes})`);
+  assert(
+    viewerEngine === "pdfium-wasm",
+    `${testCase.name}: expected stable EmbedPDF/PDFium viewer, got ${viewerEngine}`,
+  );
+  for (const group of ["View", "Annotate", "Shapes"]) {
+    await viewer.getByRole("button", { name: group, exact: true }).waitFor({
+      state: "visible",
+      timeout: 30_000,
+    });
   }
 
   let searchMatches = null;
@@ -240,7 +251,7 @@ async function browserTest(browser, testCase, stored, fileBytes) {
         waitUntil: "domcontentloaded",
         timeout: 60_000,
       });
-      await page.locator('[data-opdf-engine="pdfjs-range"], [data-opdf-engine="pdfium-wasm"]').waitFor({
+      await page.locator('[data-opdf-engine="pdfium-wasm"]').waitFor({
         state: "visible",
         timeout: 60_000,
       });
@@ -280,12 +291,12 @@ async function writeSummary(results) {
   const lines = [
     "# OPDF real-world PDF benchmark",
     "",
-    "| Document | Size | Download | First page | Pages | Range used | Requests 206/200 | Observed transfer | Search matches | Save/reload | Save time |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    "| Document | Size | Download | First page | Budget | Engine | Pages | Range seen | Requests 206/200 | Observed transfer | Search matches | Save/reload | Save time |",
+    "|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|",
   ];
   for (const result of results) {
     lines.push(
-      `| ${result.name} | ${formatMiB(result.fileBytes)} MB | ${(result.downloadMs / 1000).toFixed(1)}s | ${(result.openMs / 1000).toFixed(1)}s | ${result.pageCount} | ${result.usedRange ? "yes" : "no"} | ${result.rangeRequestCount}/${result.fullRequestCount} | ${formatMiB(result.observedTransferBytes)} MB (${result.observedTransferPercent}%) | ${result.searchMatches ?? "n/a"} | ${result.savedReloadOk ?? "n/a"} | ${result.saveMs == null ? "n/a" : (result.saveMs / 1000).toFixed(1) + "s"} |`,
+      `| ${result.name} | ${formatMiB(result.fileBytes)} MB | ${(result.downloadMs / 1000).toFixed(1)}s | ${(result.openMs / 1000).toFixed(1)}s | ${(result.maxFirstPageMs / 1000).toFixed(0)}s | ${result.viewerEngine} | ${result.pageCount} | ${result.usedRange ? "yes" : "no"} | ${result.rangeRequestCount}/${result.fullRequestCount} | ${formatMiB(result.observedTransferBytes)} MB (${result.observedTransferPercent}%) | ${result.searchMatches ?? "n/a"} | ${result.savedReloadOk ?? "n/a"} | ${result.saveMs == null ? "n/a" : (result.saveMs / 1000).toFixed(1) + "s"} |`,
     );
   }
   lines.push("");
@@ -340,6 +351,7 @@ try {
       fileBytes: downloaded.bytes,
       downloadMs: downloaded.ms,
       uploadMs,
+      maxFirstPageMs: testCase.maxFirstPageMs,
       ...browserResult,
     };
     results.push(result);

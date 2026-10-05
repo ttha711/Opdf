@@ -43,6 +43,8 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
   const [redoStack, setRedoStack] = useState<Uint8Array[]>([]);
   const currentBytesRef = useRef<Uint8Array | null>(null);
+  const getDocumentBytesRef = useRef(getDocumentBytes);
+  useEffect(() => { getDocumentBytesRef.current = getDocumentBytes; }, [getDocumentBytes]);
 
   const selected = useMemo(
     () => objects.find((object) => object.id === selectedId) ?? null,
@@ -63,7 +65,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     setLoading(true);
     setMessage(null);
     try {
-      const bytes = await getDocumentBytes();
+      const bytes = await getDocumentBytesRef.current();
       if (!bytes) throw new Error("Unable to read the current PDF.");
       currentBytesRef.current = bytes;
       await inspectBytes(bytes);
@@ -74,7 +76,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     } finally {
       setLoading(false);
     }
-  }, [getDocumentBytes, inspectBytes]);
+  }, [inspectBytes]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => registerNativeEditSelectionListener((selection) => {

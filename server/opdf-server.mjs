@@ -24,11 +24,12 @@ const dataDir = resolve(process.env.OPDF_DATA_DIR || join(repoRoot, ".opdf-data"
 const webDist = resolve(process.env.OPDF_WEB_DIST || join(repoRoot, "apps", "web", "dist"));
 const maxBytes = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 750 * 1024 * 1024);
 const maxOperationBytes = Number(process.env.OPDF_MAX_OPERATION_BYTES || 250 * 1024 * 1024);
-const configuredUploadChunkBytes = Number(process.env.OPDF_UPLOAD_CHUNK_BYTES || 8 * 1024 * 1024);
-const uploadChunkBytes = Number.isFinite(configuredUploadChunkBytes)
-  ? Math.min(Math.max(configuredUploadChunkBytes, 1024 * 1024), 32 * 1024 * 1024)
-  : 8 * 1024 * 1024;
 const objectStore = createS3ObjectStoreFromEnv(process.env);
+const configuredUploadChunkBytes = Number(process.env.OPDF_UPLOAD_CHUNK_BYTES || 8 * 1024 * 1024);
+const minimumUploadChunkBytes = objectStore ? 5 * 1024 * 1024 : 1024 * 1024;
+const uploadChunkBytes = Number.isFinite(configuredUploadChunkBytes)
+  ? Math.min(Math.max(configuredUploadChunkBytes, minimumUploadChunkBytes), 32 * 1024 * 1024)
+  : 8 * 1024 * 1024;
 const auth = createAuthService(dataDir, process.env, { objectStore });
 const tenantRuntime = createTenantRuntime(dataDir, {
   authEnabled: auth.enabled,

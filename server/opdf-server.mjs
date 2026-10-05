@@ -14,6 +14,7 @@ import { createCertificateStore } from "./opdf-certificate-store.mjs";
 import { createSigningApi } from "./opdf-signing-api.mjs";
 import { createAuthService } from "./opdf-auth.mjs";
 import { createTenantRuntime } from "./opdf-tenancy.mjs";
+import { createS3ObjectStoreFromEnv } from "./opdf-s3.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -27,9 +28,11 @@ const configuredUploadChunkBytes = Number(process.env.OPDF_UPLOAD_CHUNK_BYTES ||
 const uploadChunkBytes = Number.isFinite(configuredUploadChunkBytes)
   ? Math.min(Math.max(configuredUploadChunkBytes, 1024 * 1024), 32 * 1024 * 1024)
   : 8 * 1024 * 1024;
-const auth = createAuthService(dataDir, process.env);
+const objectStore = createS3ObjectStoreFromEnv(process.env);
+const auth = createAuthService(dataDir, process.env, { objectStore });
 const tenantRuntime = createTenantRuntime(dataDir, {
   authEnabled: auth.enabled,
+  objectStore,
   certificateMasterKey: process.env.OPDF_CERTIFICATE_MASTER_KEY || "",
   ocrConcurrency: Number(process.env.OPDF_OCR_CONCURRENCY || 1),
 });
@@ -754,6 +757,8 @@ async function handleApi(req, res, url) {
         multiUserAuth: auth.enabled,
         perUserProjectStorage: auth.enabled,
         quotas: auth.enabled,
+        objectStorage: objectStore ? "s3" : "local",
+        sharedObjectStorage: Boolean(objectStore),
       },
     });
   }

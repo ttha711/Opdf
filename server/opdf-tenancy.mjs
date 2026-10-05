@@ -142,7 +142,17 @@ export function createTenantRuntime(dataDir, options = {}) {
       }
     },
     projectFromRequest(req, url) {
-      return assertProjectId(req.headers["x-opdf-project"] || url.searchParams.get("project") || "default");
+      const cookieHeader = typeof req.headers.cookie === "string" ? req.headers.cookie : "";
+      const cookieProject = cookieHeader
+        .split(";")
+        .map((item) => item.trim())
+        .find((item) => item.startsWith("opdf_project="))
+        ?.slice("opdf_project=".length);
+      return assertProjectId(
+        req.headers["x-opdf-project"] ||
+        url.searchParams.get("project") ||
+        (cookieProject ? decodeURIComponent(cookieProject) : "default"),
+      );
     },
     async run(user, projectId, callback) {
       const context = await ensureContext(user, projectId);

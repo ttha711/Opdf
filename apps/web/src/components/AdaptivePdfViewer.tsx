@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { PdfViewerProps } from "./PdfViewer.types";
 import { PdfViewer } from "./PdfViewer";
 import { PdfRangeViewer } from "./PdfRangeViewer";
+import { NativeEditPdfViewer } from "./NativeEditPdfViewer";
 import { getServerDocumentUrl } from "../lib/documentSource";
 
 const RANGE_PREVIEW_THRESHOLD = 32 * 1024 * 1024;
@@ -29,6 +30,8 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
       cancelled = true;
     };
   }, [serverOnlySource, sourceUrl]);
+
+  if (props.activeTool === "edit-content") return <NativeEditPdfViewer {...props} />;
 
   const requiresFullPdfium = (props.activeTool ?? "select") !== "select";
   if (largeServerPdf && !requiresFullPdfium) {

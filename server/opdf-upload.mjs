@@ -88,6 +88,8 @@ async function assembleChunks(record, expectedSize, chunkBytes) {
 
 export function createChunkUploadApi({
   storage,
+  getStorage,
+  checkQuota,
   maxBytes,
   chunkBytes,
   sendJson,
@@ -96,6 +98,8 @@ export function createChunkUploadApi({
   return async function handleChunkUpload(req, res, url) {
     const route = uploadRoute(url.pathname);
     if (!route) return false;
+    const activeStorage = getStorage ? await getStorage(req, url) : storage;
+    if (!activeStorage) throw new Error("Upload storage is not configured.");
 
     if (route.action === "create") {
       if (req.method !== "POST") {
@@ -107,7 +111,8 @@ export function createChunkUploadApi({
         sendError(res, expectedSize > maxBytes ? 413 : 400, "A valid upload size is required.");
         return true;
       }
-      const record = await storage.createDocument(
+      if (checkQuota) await checkQuota(req, url, expectedSize, 0);
+      const record = await activeStorage.createDocument(
         url.searchParams.get("name") || "document.pdf",
         expectedSize,
       );
@@ -115,13 +120,13 @@ export function createChunkUploadApi({
       return true;
     }
 
-    const record = await storage.getDocument(route.id);
+    const record = await activeStorage.getDocument(route.id);
     if (!record) {
       sendError(res, 404, "Upload session not found.");
       return true;
     }
 
-    const completedSize = await storage.getDocumentSize(record.id);
+    const completedSize = await activeStorage.getDocumentSize(record.id);
     const expectedSize = Number(record.uploadExpectedSize || completedSize || 0);
     if (!Number.isInteger(expectedSize) || expectedSize <= 0 || expectedSize > maxBytes) {
       sendError(res, 409, "Upload session metadata is invalid.");
@@ -147,7 +152,7 @@ export function createChunkUploadApi({
         sendError(res, 409, "Completed documents cannot be cancelled as uploads.");
         return true;
       }
-      await storage.removeDocument(record.id);
+      await activeStorage.removeDocument(record.id);
       sendJson(res, 200, { cancelled: true, id: record.id });
       return true;
     }
@@ -206,8 +211,8 @@ export function createChunkUploadApi({
 
       const updated = completedSize != null
         ? record
-        : await storage.finalizeDocument(record.id, expectedSize);
-      await storage.pushRecent(updated.filePath);
+        : await activeStorage.finalizeDocument(record.id, expectedSize);
+      await activeStorage.pushRecent(updated.filePath);
       sendJson(res, 201, {
         ...uploadPayload(updated, expectedSize, chunkBytes, [], true),
         size: expectedSize,

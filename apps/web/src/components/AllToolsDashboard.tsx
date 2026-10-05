@@ -14,7 +14,6 @@ interface AllToolsDashboardProps {
   onTriggerCompress: () => void;
   onTriggerMerge: () => void;
   onTriggerSplit: () => void;
-  onTriggerOrganizePages: () => void;
   onTriggerFillForm: () => void;
   onTriggerOcr: () => void;
   onTriggerWatermark: () => void;
@@ -49,7 +48,6 @@ export function AllToolsDashboard({
   onTriggerCompress,
   onTriggerMerge,
   onTriggerSplit,
-  onTriggerOrganizePages,
   onTriggerFillForm,
   onTriggerOcr,
   onTriggerWatermark,
@@ -269,7 +267,6 @@ export function AllToolsDashboard({
     { id: "compress-pdf", name: "Compress PDF", icon: "🗜️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerCompress, unavailableReason: canCompress ? undefined : "Compression requires OPDF Server or Desktop." },
     { id: "merge-pdf", name: "Merge PDF", icon: "📚", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerMerge },
     { id: "split-pdf", name: "Split PDF", icon: "✂️", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerSplit },
-    { id: "organize-pages", name: "Organize Pages", icon: "▦", color: "#1971c2", bgColor: "#e7f5ff", borderColor: "#a5d8ff", action: onTriggerOrganizePages, requiresDocument: true },
     { id: "rotate-pdf", name: "Rotate PDF", icon: "↻", color: "#5f3dc4", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => onSelectTool?.("rotate-pdf") },
     { id: "delete-pages", name: "Delete Pages", icon: "🗑️", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: () => onSelectTool?.("delete-pages") },
     { id: "extract-pages", name: "Extract Pages", icon: "📄", color: "#0b7285", bgColor: "#e3fafc", borderColor: "#99e9f2", action: () => onSelectTool?.("extract-pages") },
@@ -297,7 +294,7 @@ export function AllToolsDashboard({
       case "to_pdf":
         return tools.filter(t => t.id.endsWith("-to-pdf"));
       case "merge_split":
-        return tools.filter(t => ["compress-pdf", "merge-pdf", "split-pdf", "organize-pages", "rotate-pdf", "delete-pages", "extract-pages", "crop-pdf"].includes(t.id));
+        return tools.filter(t => ["compress-pdf", "merge-pdf", "split-pdf", "rotate-pdf", "delete-pages", "extract-pages", "crop-pdf"].includes(t.id));
       case "all":
       default:
         return tools;

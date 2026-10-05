@@ -47,18 +47,19 @@ test("native Edit PDF changes existing text and survives save/reload", async ({ 
   await page.getByTitle("Edit PDF Content").click();
   const editor = page.locator("[data-opdf-native-editor=\'true\']");
   await expect(editor).toBeVisible();
-  await expect(editor.getByText("Original OPDF text", { exact: false })).toBeVisible({ timeout: 20_000 });
+  const originalObject = editor.locator(".native-content-editor__objects button").filter({ hasText: "Original OPDF text" }).first();
+  await expect(originalObject).toBeVisible({ timeout: 20_000 });
 
-  await editor.getByText("Original OPDF text", { exact: false }).click();
+  await originalObject.click();
   const textarea = editor.locator("textarea");
   await textarea.fill("Edited OPDF native text");
   await editor.getByRole("button", { name: "Apply text" }).click();
   await expect(editor.getByText("Native PDF text updated.")).toBeVisible({ timeout: 20_000 });
 
   await editor.getByRole("button", { name: "Undo" }).click();
-  await expect(editor.getByText("Original OPDF text", { exact: false })).toBeVisible({ timeout: 20_000 });
+  await expect(editor.locator(".native-content-editor__objects button").filter({ hasText: "Original OPDF text" }).first()).toBeVisible({ timeout: 20_000 });
   await editor.getByRole("button", { name: "Redo" }).click();
-  await expect(editor.getByText("Edited OPDF native text", { exact: false })).toBeVisible({ timeout: 20_000 });
+  await expect(editor.locator(".native-content-editor__objects button").filter({ hasText: "Edited OPDF native text" }).first()).toBeVisible({ timeout: 20_000 });
 
   await editor.getByRole("button", { name: "Duplicate" }).click();
   await expect(

@@ -10,6 +10,7 @@ export type ActiveViewerControls = {
   redo?: () => void;
   canUndo?: () => boolean;
   canRedo?: () => boolean;
+  executeCommand?: (commandId: string) => void | Promise<void>;
 };
 
 type ViewerBytesProvider = () => Promise<Uint8Array | null>;
@@ -36,6 +37,10 @@ export function registerViewerControls(controls: ActiveViewerControls) {
 
 export function getViewerControls() {
   return activeControls;
+}
+
+export async function executeViewerCommand(commandId: string) {
+  await activeControls?.executeCommand?.(commandId);
 }
 
 

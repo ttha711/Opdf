@@ -22,9 +22,7 @@ export function useDocumentLifecycle({
   setPage,
   setTotalPages,
   setViewerError,
-  setThumbnails,
   setAnnotations,
-  setBookmarks,
   setPageRotations,
   setSaveState,
   markDocumentSaved,
@@ -43,9 +41,7 @@ export function useDocumentLifecycle({
   setPage: Dispatch<SetStateAction<number>>;
   setTotalPages: Dispatch<SetStateAction<number>>;
   setViewerError: Dispatch<SetStateAction<string | null>>;
-  setThumbnails: Dispatch<SetStateAction<Array<{ page: number; url: string; blob: Blob }>>>;
   setAnnotations: Dispatch<SetStateAction<Annotation[]>>;
-  setBookmarks: Dispatch<SetStateAction<Array<{ id: string; page: number; title: string; createdAt: number }>>>;
   setPageRotations: Dispatch<SetStateAction<Record<number, number>>>;
   setSaveState: Dispatch<SetStateAction<"idle" | "saving" | "saved">>;
   markDocumentSaved: (snapshot?: {
@@ -53,7 +49,6 @@ export function useDocumentLifecycle({
     docBytes?: Uint8Array | null;
     documentIdentity?: string;
     annotations?: Annotation[];
-    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
     pageRotations?: Record<number, number>;
   }) => void;
   clearDocumentSaveTracking: () => void;
@@ -73,10 +68,8 @@ export function useDocumentLifecycle({
     setPage,
     setTotalPages,
     setViewerError,
-    setThumbnails,
-    setAnnotations,
-    setBookmarks,
-    setPageRotations,
+      setAnnotations,
+      setPageRotations,
     markDocumentSaved,
   });
 
@@ -95,16 +88,13 @@ export function useDocumentLifecycle({
     setPage(1);
     setTotalPages(0);
     setViewerError(null);
-    setThumbnails([]);
     setAnnotations(savedAnnotations);
-    setBookmarks([]);
     setPageRotations({});
     markDocumentSaved({
       fileName: file.name,
       docBytes: null,
       documentIdentity: identity,
       annotations: savedAnnotations,
-      bookmarks: [],
       pageRotations: {},
     });
   }
@@ -150,17 +140,14 @@ export function useDocumentLifecycle({
         setPage(1);
         setTotalPages(0);
         setViewerError(null);
-        setThumbnails([]);
-        setBookmarks([]);
-        setPageRotations({});
+                setPageRotations({});
         await bridge.pushRecent(result.filePath);
         setAnnotations(loadedAnnotations);
         markDocumentSaved({
           fileName: result.filePath,
           docBytes: result.bytes,
           annotations: loadedAnnotations,
-          bookmarks: [],
-          pageRotations: {},
+              pageRotations: {},
         });
       }
     } catch (error) {
@@ -182,10 +169,8 @@ export function useDocumentLifecycle({
     setPage,
     setTotalPages,
     setViewerError,
-    setThumbnails,
-    setAnnotations,
-    setBookmarks,
-    setPageRotations,
+      setAnnotations,
+      setPageRotations,
     markDocumentSaved,
     onError: (message) => toast.error(message),
   });
@@ -210,10 +195,8 @@ export function useDocumentLifecycle({
         : "",
     );
     if (!options.preserveAnnotations) setAnnotations([]);
-    setThumbnails([]);
     if (options.resetDocumentMetadata) {
-      setBookmarks([]);
-      setPageRotations({});
+        setPageRotations({});
     }
     setTotalPages(0);
     setViewerError(null);
@@ -241,9 +224,7 @@ export function useDocumentLifecycle({
     setPage(1);
     setTotalPages(0);
     setViewerError(null);
-    setThumbnails([]);
     setAnnotations([]);
-    setBookmarks([]);
     setPageRotations({});
     clearDocumentSaveTracking();
     const { clearDraft } = await import("../lib/web-storage");
@@ -260,10 +241,8 @@ export function useDocumentLifecycle({
     setPage,
     setTotalPages,
     setViewerError,
-    setThumbnails,
-    setAnnotations,
-    setBookmarks,
-    setPageRotations,
+      setAnnotations,
+      setPageRotations,
     markDocumentSaved,
   });
 

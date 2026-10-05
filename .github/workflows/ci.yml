@@ -21,6 +21,7 @@ jobs:
       - run: npm run test -w @opdf/web
       - run: npm run build
       - run: npm run server-smoke
+      - run: npm run server-reliability
       - run: node apps/desktop/dist/main/pdf-signature.smoke.js
       - uses: actions/upload-artifact@v4
         with:

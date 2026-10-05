@@ -11,7 +11,6 @@ export function useViewerControls({
   setPage,
   setZoomPreset,
   setScale,
-  setPageRotations,
   lastWheelFlipAtRef,
 }: {
   hasDocument: boolean;
@@ -22,7 +21,6 @@ export function useViewerControls({
   setPage: Dispatch<SetStateAction<number>>;
   setZoomPreset: Dispatch<SetStateAction<ZoomPreset>>;
   setScale: Dispatch<SetStateAction<number>>;
-  setPageRotations: Dispatch<SetStateAction<Record<number, number>>>;
   lastWheelFlipAtRef: MutableRefObject<number>;
 }) {
   function goToPage(nextPage: number) {
@@ -122,29 +120,11 @@ export function useViewerControls({
   }
 
   function rotateLeft() {
-    const viewer = getViewerControls();
-    if (viewer?.rotateBackward) {
-      viewer.rotateBackward();
-      return;
-    }
-    setPageRotations((prev) => {
-      const currentRotation = prev[page] || 0;
-      const nextRotation = (currentRotation - 90 + 360) % 360;
-      return { ...prev, [page]: nextRotation };
-    });
+    getViewerControls()?.rotateBackward?.();
   }
 
   function rotateRight() {
-    const viewer = getViewerControls();
-    if (viewer?.rotateForward) {
-      viewer.rotateForward();
-      return;
-    }
-    setPageRotations((prev) => {
-      const currentRotation = prev[page] || 0;
-      const nextRotation = (currentRotation + 90) % 360;
-      return { ...prev, [page]: nextRotation };
-    });
+    getViewerControls()?.rotateForward?.();
   }
 
   function onViewerWheel(event: WheelEvent<HTMLElement>) {

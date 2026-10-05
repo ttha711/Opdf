@@ -1,4 +1,4 @@
-import { createReadStream } from "node:fs";
+// opdf-file-size-allow: legacy central HTTP router; large-upload logic is delegated to opdf-upload.mjs while router extraction is handled separately.\nimport { createReadStream } from "node:fs";
 import { mkdir, mkdtemp, open, readFile, rename, rm, stat } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import http from "node:http";
 import { DocumentService } from "@opdf/core";
 import { createOpdfStorage, assertDocumentId, sanitizeFileName } from "./opdf-storage.mjs";
+import { createChunkUploadApi } from "./opdf-upload.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -16,6 +17,10 @@ const dataDir = resolve(process.env.OPDF_DATA_DIR || join(repoRoot, ".opdf-data"
 const webDist = resolve(process.env.OPDF_WEB_DIST || join(repoRoot, "apps", "web", "dist"));
 const maxBytes = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 750 * 1024 * 1024);
 const maxOperationBytes = Number(process.env.OPDF_MAX_OPERATION_BYTES || 250 * 1024 * 1024);
+const uploadChunkBytes = Math.min(
+  Number(process.env.OPDF_UPLOAD_CHUNK_BYTES || 8 * 1024 * 1024),
+  32 * 1024 * 1024,
+);
 const storage = createOpdfStorage(dataDir);
 const documentService = new DocumentService();
 const pythonPath = process.env.OPDF_PYTHON_PATH || (process.platform === "win32" ? "python" : "python3");
@@ -561,12 +566,21 @@ async function serveWeb(req, res, pathname) {
   createReadStream(filePath).pipe(res);
 }
 
+const handleChunkUpload = createChunkUploadApi({
+  storage,
+  maxBytes,
+  chunkBytes: uploadChunkBytes,
+  sendJson,
+  sendError,
+});
+
 async function handleApi(req, res, url) {
   if (url.pathname === "/api/opdf/health" && req.method === "GET") {
     return sendJson(res, 200, {
       ok: true,
       runtime: "server",
       maxUploadBytes: maxBytes,
+      uploadChunkBytes,
       maxOperationBytes,
       capabilities: {
         persistence: true,
@@ -580,8 +594,14 @@ async function handleApi(req, res, url) {
         officeToPdf: true,
         storedMutations: true,
         rangePreview: true,
+        resumableUpload: true,
+        localFirstUpload: true,
       },
     });
+  }
+
+  if (url.pathname === "/api/opdf/uploads" || url.pathname.startsWith("/api/opdf/uploads/")) {
+    if (await handleChunkUpload(req, res, url)) return;
   }
 
   if (url.pathname === "/api/opdf/operations/convert-office") {

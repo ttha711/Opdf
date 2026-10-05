@@ -18,9 +18,6 @@ export function useDocumentLifecycle({
   setDocBytes,
   setSourceBlob,
   sourceIdentity,
-  annotations,
-  bookmarks,
-  pageRotations,
   setSourceIdentity,
   setPage,
   setTotalPages,
@@ -42,9 +39,6 @@ export function useDocumentLifecycle({
   setDocBytes: Dispatch<SetStateAction<Uint8Array | null>>;
   setSourceBlob: Dispatch<SetStateAction<Blob | null>>;
   sourceIdentity: string;
-  annotations: Annotation[];
-  bookmarks: Array<{ id: string; page: number; title: string; createdAt: number }>;
-  pageRotations: Record<number, number>;
   setSourceIdentity: Dispatch<SetStateAction<string>>;
   setPage: Dispatch<SetStateAction<number>>;
   setTotalPages: Dispatch<SetStateAction<number>>;
@@ -72,9 +66,6 @@ export function useDocumentLifecycle({
     bridge,
     sourceIdentity,
     saveState,
-    annotations,
-    bookmarks,
-    pageRotations,
     setFileName,
     setDocBytes,
     setSourceBlob,

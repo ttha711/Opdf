@@ -2,7 +2,6 @@ import { deflateSync } from "node:zlib";
 import { init } from "@embedpdf/pdfium";
 import { PdfiumNative, PdfEngine } from "@embedpdf/engines/pdfium";
 
-let pdfiumModulePromise;
 
 function crc32(bytes) {
   let crc = 0xffffffff;
@@ -61,13 +60,8 @@ function encodeRgbaPng(image) {
   ]);
 }
 
-async function getPdfiumModule() {
-  pdfiumModulePromise ??= init();
-  return pdfiumModulePromise;
-}
-
 export async function createPdfiumOcrRenderer(pdfBytes) {
-  const pdfiumModule = await getPdfiumModule();
+  const pdfiumModule = await init();
   const native = new PdfiumNative(pdfiumModule);
   const engine = new PdfEngine(native, {
     imageConverter: async (getImageData) => encodeRgbaPng(getImageData()),

@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { mkdir, readdir, stat } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createOpdfStorage } from "./opdf-storage.mjs";
 import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
@@ -43,7 +43,7 @@ async function pendingUploadReservations(root) {
         await walk(full);
       } else if (entry.isFile() && entry.name === "meta.json") {
         try {
-          const payload = JSON.parse(await import("node:fs/promises").then(({ readFile }) => readFile(full, "utf8")));
+          const payload = JSON.parse(await readFile(full, "utf8"));
           const expected = Number(payload?.uploadExpectedSize || 0);
           if (Number.isFinite(expected) && expected > 0) total += expected;
         } catch {

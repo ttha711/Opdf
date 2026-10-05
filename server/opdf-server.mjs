@@ -14,6 +14,7 @@ import { createCertificateStore } from "./opdf-certificate-store.mjs";
 import { createSigningApi } from "./opdf-signing-api.mjs";
 import { createAuthService } from "./opdf-auth.mjs";
 import { createTenantRuntime } from "./opdf-tenancy.mjs";
+import { createS3ObjectStoreFromEnv } from "./opdf-s3.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -23,13 +24,16 @@ const dataDir = resolve(process.env.OPDF_DATA_DIR || join(repoRoot, ".opdf-data"
 const webDist = resolve(process.env.OPDF_WEB_DIST || join(repoRoot, "apps", "web", "dist"));
 const maxBytes = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 750 * 1024 * 1024);
 const maxOperationBytes = Number(process.env.OPDF_MAX_OPERATION_BYTES || 250 * 1024 * 1024);
+const objectStore = createS3ObjectStoreFromEnv(process.env);
 const configuredUploadChunkBytes = Number(process.env.OPDF_UPLOAD_CHUNK_BYTES || 8 * 1024 * 1024);
+const minimumUploadChunkBytes = objectStore ? 5 * 1024 * 1024 : 1024 * 1024;
 const uploadChunkBytes = Number.isFinite(configuredUploadChunkBytes)
-  ? Math.min(Math.max(configuredUploadChunkBytes, 1024 * 1024), 32 * 1024 * 1024)
+  ? Math.min(Math.max(configuredUploadChunkBytes, minimumUploadChunkBytes), 32 * 1024 * 1024)
   : 8 * 1024 * 1024;
-const auth = createAuthService(dataDir, process.env);
+const auth = createAuthService(dataDir, process.env, { objectStore });
 const tenantRuntime = createTenantRuntime(dataDir, {
   authEnabled: auth.enabled,
+  objectStore,
   certificateMasterKey: process.env.OPDF_CERTIFICATE_MASTER_KEY || "",
   ocrConcurrency: Number(process.env.OPDF_OCR_CONCURRENCY || 1),
 });
@@ -678,7 +682,7 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true });
   }
 
-  const user = auth.getRequestUser(req);
+  const user = await auth.getRequestUser(req);
   if (auth.enabled && !user) return sendError(res, 401, "Authentication required.");
   const projectId = tenantRuntime.projectFromRequest(req, url);
 
@@ -712,7 +716,7 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/opdf/admin/users") {
     if (user.role !== "admin") return sendError(res, 403, "Admin access required.");
-    if (req.method === "GET") return sendJson(res, 200, auth.listUsers());
+    if (req.method === "GET") return sendJson(res, 200, await auth.listUsers());
     if (req.method === "POST") return sendJson(res, 201, await auth.createUser(await readJsonBody(req, 64 * 1024)));
     return sendError(res, 405, "Method not allowed.");
   }
@@ -754,6 +758,8 @@ async function handleApi(req, res, url) {
         multiUserAuth: auth.enabled,
         perUserProjectStorage: auth.enabled,
         quotas: auth.enabled,
+        objectStorage: objectStore ? "s3" : "local",
+        sharedObjectStorage: Boolean(objectStore),
       },
     });
   }
@@ -822,6 +828,10 @@ async function handleApi(req, res, url) {
       return sendError(res, 405, "Method not allowed.");
     }
     if (route.child === "mutations") {
+      if (storage.ensureDocumentFile) {
+        const ready = await storage.ensureDocumentFile(record.id);
+        if (!ready) return sendError(res, 404, "Document file not found.");
+      }
       return mutateStoredDocument(req, res, record);
     }
 
@@ -835,7 +845,13 @@ async function handleApi(req, res, url) {
       res.setHeader("Content-Length", String(size));
       return res.end();
     }
-    if (req.method === "GET") return serveDocument(req, res, record, url.searchParams.get("download") === "1");
+    if (req.method === "GET") {
+      if (storage.ensureDocumentFile) {
+        const ready = await storage.ensureDocumentFile(record.id);
+        if (!ready) return sendError(res, 404, "Document file not found.");
+      }
+      return serveDocument(req, res, record, url.searchParams.get("download") === "1");
+    }
     if (req.method === "PUT") return replaceDocumentFromRequest(req, res, record);
     return sendError(res, 405, "Method not allowed.");
   }

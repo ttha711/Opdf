@@ -30,6 +30,11 @@ type PendingUpload = {
 
 type Args = {
   bridge: OpdfBridge;
+  sourceIdentity: string;
+  saveState: "idle" | "saving" | "saved";
+  annotations: Annotation[];
+  bookmarks: Array<{ id: string; page: number; title: string; createdAt: number }>;
+  pageRotations: Record<number, number>;
   setFileName: (value: string) => void;
   setDocBytes: (value: Uint8Array | null) => void;
   setSourceBlob: (value: Blob | null) => void;
@@ -60,6 +65,14 @@ function emitUploadState(state: ServerUploadUiState) {
 function progressText(loaded: number, total: number) {
   const percent = total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
   return `Uploading to OPDF Server… ${percent}%`;
+}
+
+function sessionUploadedBytes(session: ServerUploadSession | null, fileSize: number) {
+  if (!session) return 0;
+  return session.uploadedChunks.reduce((total, index) => {
+    const start = index * session.chunkBytes;
+    return total + Math.max(0, Math.min(session.chunkBytes, fileSize - start));
+  }, 0);
 }
 
 export function useServerUpload(args: Args) {
@@ -102,19 +115,31 @@ export function useServerUpload(args: Args) {
       });
 
       if (pendingRef.current?.token !== pending.token) return;
-      const annotations = await argsRef.current.bridge.listAnnotations(result.filePath).catch(() => [] as Annotation[]);
-      if (pendingRef.current?.token !== pending.token) return;
-
-      argsRef.current.setSourceIdentity(result.filePath);
-      argsRef.current.setAnnotations(annotations);
-      argsRef.current.markDocumentSaved({
-        fileName: pending.file.name,
-        docBytes: null,
-        documentIdentity: result.filePath,
-        annotations,
-        bookmarks: [],
-        pageRotations: {},
-      });
+      const current = argsRef.current;
+      const isStillActive = current.sourceIdentity === pending.localIdentity;
+      if (isStillActive) {
+        if (current.annotations.length > 0) {
+          await current.bridge.replaceAnnotations(result.filePath, current.annotations).catch(() => current.annotations);
+        }
+        current.setSourceIdentity(result.filePath);
+        if (current.saveState === "saved") {
+          current.markDocumentSaved({
+            fileName: pending.file.name,
+            docBytes: null,
+            documentIdentity: result.filePath,
+            annotations: current.annotations,
+            bookmarks: current.bookmarks,
+            pageRotations: current.pageRotations,
+          });
+        }
+      }
+      window.dispatchEvent(new CustomEvent("opdf:upload-complete", {
+        detail: {
+          localIdentity: pending.localIdentity,
+          serverIdentity: result.filePath,
+          fileName: pending.file.name,
+        },
+      }));
       pendingRef.current = null;
       argsRef.current.setViewerError("Stored on OPDF Server.");
       emitUploadState({
@@ -137,10 +162,10 @@ export function useServerUpload(args: Args) {
       emitUploadState({
         status: "failed",
         fileName: pending.file.name,
-        loaded: pending.session?.received ?? 0,
+        loaded: sessionUploadedBytes(pending.session, pending.file.size),
         total: pending.file.size,
         percent: pending.file.size > 0
-          ? Math.round(((pending.session?.received ?? 0) / pending.file.size) * 100)
+          ? Math.round((sessionUploadedBytes(pending.session, pending.file.size) / pending.file.size) * 100)
           : 0,
         error: message,
       });
@@ -165,14 +190,15 @@ export function useServerUpload(args: Args) {
     const pending = pendingRef.current;
     if (!pending) return;
     pending.controller = new AbortController();
-    argsRef.current.setViewerError(progressText(pending.session?.received ?? 0, pending.file.size));
+    const loaded = sessionUploadedBytes(pending.session, pending.file.size);
+    argsRef.current.setViewerError(progressText(loaded, pending.file.size));
     emitUploadState({
       status: "uploading",
       fileName: pending.file.name,
-      loaded: pending.session?.received ?? 0,
+      loaded,
       total: pending.file.size,
       percent: pending.file.size > 0
-        ? Math.round(((pending.session?.received ?? 0) / pending.file.size) * 100)
+        ? Math.round((loaded / pending.file.size) * 100)
         : 0,
     });
     void runUpload(pending);

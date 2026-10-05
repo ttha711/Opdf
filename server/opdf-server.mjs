@@ -691,6 +691,16 @@ async function handleApi(req, res, url) {
     });
   }
 
+  if (url.pathname === "/api/opdf/projects/select" && req.method === "POST") {
+    const body = await readJsonBody(req, 64 * 1024);
+    const selected = await tenantRuntime.createProject(user, body.id);
+    res.setHeader(
+      "Set-Cookie",
+      `opdf_project=${encodeURIComponent(selected.id)}; Path=/api/opdf; SameSite=Strict; Max-Age=${Math.trunc(auth.sessionHours * 3600)}`,
+    );
+    return sendJson(res, 200, selected);
+  }
+
   if (url.pathname === "/api/opdf/projects") {
     if (req.method === "GET") return sendJson(res, 200, await tenantRuntime.listProjects(user));
     if (req.method === "POST") {

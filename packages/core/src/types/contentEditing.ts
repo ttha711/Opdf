@@ -23,10 +23,12 @@ export type PdfContentPatch =
   | { type: "transform"; objectId: string; matrix: PdfMatrix }
   | { type: "resize"; objectId: string; bounds: PdfRect }
   | { type: "delete"; objectId: string }
+  | { type: "duplicate"; objectId: string; offsetX?: number; offsetY?: number }
   | { type: "style-text"; objectId: string; fontFamily?: string; fontSize?: number; fillColor?: string }
   | { type: "style-object"; objectId: string; fillColor?: string; strokeColor?: string; strokeWidth?: number }
   | { type: "relative-transform"; objectId: string; matrix: PdfMatrix }
-  | { type: "replace-image"; objectId: string; bytes: Uint8Array; mimeType: "image/png" | "image/jpeg" };
+  | { type: "replace-image"; objectId: string; bytes: Uint8Array; mimeType: "image/png" | "image/jpeg" }
+  | { type: "crop-image"; objectId: string; left: number; top: number; right: number; bottom: number };
 
 export interface PdfContentEditingEngine {
   inspectPage(pdf: Uint8Array, pageIndex: number): Promise<PdfContentObject[]>;

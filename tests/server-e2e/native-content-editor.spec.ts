@@ -124,3 +124,30 @@ test("native Edit PDF edits vector geometry and crops/duplicates images", async 
   await expect(reopened.locator(".native-content-editor__objects button").filter({ hasText: "PATH" })).toHaveCount(2, { timeout: 20_000 });
   await expect(reopened.locator(".native-content-editor__objects button").filter({ hasText: "IMAGE" })).toHaveCount(2, { timeout: 20_000 });
 });
+
+
+test("native Edit PDF can add a new PDFium text object and persist it", async ({ page, request }) => {
+  const upload = await request.post("/api/opdf/documents?name=native-add-text.pdf", {
+    headers: { "Content-Type": "application/pdf" },
+    data: await buildTextPdf(),
+  });
+  expect(upload.status()).toBe(201);
+  const document = await upload.json();
+
+  await page.goto("/?open=" + encodeURIComponent(document.filePath));
+  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await page.getByTitle("Edit PDF Content").click();
+
+  const editor = page.locator("[data-opdf-native-editor='true']");
+  await editor.getByRole("button", { name: "+ Text" }).click();
+  await expect(editor.getByText("Native text object added.")).toBeVisible({ timeout: 20_000 });
+  await expect(editor.locator(".native-content-editor__objects button").filter({ hasText: "New text" })).toHaveCount(1, { timeout: 20_000 });
+
+  await page.getByTitle("Save (Ctrl+S)").click();
+  await page.reload();
+  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await page.getByTitle("Edit PDF Content").click();
+
+  const reopened = page.locator("[data-opdf-native-editor='true']");
+  await expect(reopened.locator(".native-content-editor__objects button").filter({ hasText: "New text" })).toHaveCount(1, { timeout: 20_000 });
+});

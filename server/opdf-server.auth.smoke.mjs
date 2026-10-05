@@ -144,6 +144,34 @@ try {
   });
   assert(quotaUpdate.ok, "quota update failed");
 
+  const reservation = await fetch(
+    `${base}/api/opdf/uploads?name=reserved.pdf&size=${40 * 1024 * 1024}`,
+    {
+      method: "POST",
+      headers: { Cookie: readerCookie },
+    },
+  );
+  assert(reservation.status === 201, `quota reservation setup failed: ${reservation.status}`);
+  const reservedUpload = await reservation.json();
+
+  const overlapping = await fetch(
+    `${base}/api/opdf/uploads?name=overlap.pdf&size=${30 * 1024 * 1024}`,
+    {
+      method: "POST",
+      headers: { Cookie: readerCookie },
+    },
+  );
+  assert(
+    overlapping.status === 413,
+    `pending upload reservation did not protect quota: ${overlapping.status}`,
+  );
+
+  const cancelReservation = await fetch(
+    `${base}/api/opdf/uploads/${reservedUpload.id}`,
+    { method: "DELETE", headers: { Cookie: readerCookie } },
+  );
+  assert(cancelReservation.ok, "reserved upload cancellation failed");
+
   const oversized = await fetch(
     `${base}/api/opdf/uploads?name=too-large.pdf&size=${65 * 1024 * 1024}`,
     {

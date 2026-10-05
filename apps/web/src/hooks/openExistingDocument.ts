@@ -84,9 +84,7 @@ export function createOpenExistingDocument(args: Args) {
       args.setPage(1);
       args.setTotalPages(0);
       args.setViewerError(null);
-      args.setThumbnails([]);
       args.setAnnotations(annotations);
-      args.setBookmarks([]);
       args.setPageRotations({});
       if (isServerDocument) await args.bridge.pushRecent(identity);
       args.markDocumentSaved({
@@ -94,7 +92,6 @@ export function createOpenExistingDocument(args: Args) {
         docBytes: null,
         documentIdentity: identity,
         annotations,
-        bookmarks: [],
         pageRotations: {},
       });
     } catch (error) {

@@ -828,6 +828,10 @@ async function handleApi(req, res, url) {
       return sendError(res, 405, "Method not allowed.");
     }
     if (route.child === "mutations") {
+      if (storage.ensureDocumentFile) {
+        const ready = await storage.ensureDocumentFile(record.id);
+        if (!ready) return sendError(res, 404, "Document file not found.");
+      }
       return mutateStoredDocument(req, res, record);
     }
 
@@ -841,7 +845,13 @@ async function handleApi(req, res, url) {
       res.setHeader("Content-Length", String(size));
       return res.end();
     }
-    if (req.method === "GET") return serveDocument(req, res, record, url.searchParams.get("download") === "1");
+    if (req.method === "GET") {
+      if (storage.ensureDocumentFile) {
+        const ready = await storage.ensureDocumentFile(record.id);
+        if (!ready) return sendError(res, 404, "Document file not found.");
+      }
+      return serveDocument(req, res, record, url.searchParams.get("download") === "1");
+    }
     if (req.method === "PUT") return replaceDocumentFromRequest(req, res, record);
     return sendError(res, 405, "Method not allowed.");
   }

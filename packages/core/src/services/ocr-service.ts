@@ -137,7 +137,6 @@ export class OcrService {
   ): Promise<Uint8Array> {
     const pdfLib = await import("pdf-lib");
     const fontkitModule = await import("@pdf-lib/fontkit");
-    const Tesseract = await import("tesseract.js");
     const fontkit = (fontkitModule as any).default ?? fontkitModule;
     const doc = await pdfLib.PDFDocument.load(pdfBytes, { updateMetadata: false });
     doc.registerFontkit(fontkit);
@@ -149,29 +148,31 @@ export class OcrService {
     const supportsUnicode = Boolean(unicodeFontBytes);
 
     let worker: any = null;
-    let workerInitError: unknown = null;
     const languageCandidates = Array.from(new Set([language, "eng"].filter(Boolean)));
-    for (const candidate of languageCandidates) {
-      try {
-        worker = await Tesseract.createWorker(candidate);
-        await worker.setParameters({
-          tessedit_pageseg_mode: "6",
-          preserve_interword_spaces: "1",
-        } as any);
-        break;
-      } catch (error) {
-        workerInitError = error;
-        if (worker) {
-          try { await worker.terminate(); } catch {}
+    const ensureWorker = async () => {
+      if (worker) return worker;
+      const Tesseract = await import("tesseract.js");
+      let workerInitError: unknown = null;
+      for (const candidate of languageCandidates) {
+        try {
+          worker = await Tesseract.createWorker(candidate);
+          await worker.setParameters({
+            tessedit_pageseg_mode: "6",
+            preserve_interword_spaces: "1",
+          } as any);
+          return worker;
+        } catch (error) {
+          workerInitError = error;
+          if (worker) {
+            try { await worker.terminate(); } catch {}
+          }
+          worker = null;
         }
-        worker = null;
       }
-    }
-    if (!worker) {
       throw new Error(
         `Unable to initialize OCR worker for languages: ${languageCandidates.join(", ")}. ${workerInitError instanceof Error ? workerInitError.message : ""}`.trim(),
       );
-    }
+    };
 
     const pages = doc.getPages();
     try {
@@ -187,7 +188,8 @@ export class OcrService {
         }
 
         const rendered = await options.renderPage(index);
-        const result = await worker.recognize(rendered.bytes);
+        const ocrWorker = await ensureWorker();
+        const result = await ocrWorker.recognize(rendered.bytes);
         const data = result?.data ?? {};
         const words = collectWords(data);
         const targetPage = pages[index];
@@ -241,7 +243,7 @@ export class OcrService {
         options.onProgress?.(Math.max(2, Math.round(((index + 1) / pages.length) * 96)));
       }
     } finally {
-      await worker.terminate().catch(() => {});
+      await worker?.terminate?.().catch(() => {});
     }
 
     if (options.isCancelled?.()) throw new Error("OCR cancelled.");

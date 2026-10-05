@@ -85,6 +85,8 @@ export function NativeEditSelectionLayer({
           onPointerDown={(event) => onObjectPointerDown(event, object)}
           onDoubleClick={(event) => onObjectDoubleClick(event, object)}
           data-opdf-canvas-object={object.id}
+          data-opdf-object-kind={object.kind}
+          data-opdf-object-depth={object.depth ?? 0}
         />
       ))}
 

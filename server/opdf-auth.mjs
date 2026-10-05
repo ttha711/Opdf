@@ -106,9 +106,11 @@ export function createAuthService(dataDir, env = process.env) {
     await mkdir(root, { recursive: true });
     try {
       const payload = JSON.parse(await readFile(usersPath, "utf8"));
-      users = Array.isArray(payload?.users) ? payload.users : [];
-    } catch {
-      users = [];
+      if (!Array.isArray(payload?.users)) throw new Error("Invalid OPDF user database.");
+      users = payload.users;
+    } catch (error) {
+      if (error?.code === "ENOENT") users = [];
+      else throw new Error("OPDF user database is unreadable or corrupt; refusing to start authentication.");
     }
 
     if (!enabled || users.length > 0) return;

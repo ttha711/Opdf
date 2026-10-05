@@ -80,7 +80,14 @@ try {
   assert(missingAsset.status === 404, "missing static assets must not fall back to index.html");
 
   const sampleDoc = await PDFDocument.create();
-  sampleDoc.addPage([200, 200]);
+  const samplePage = sampleDoc.addPage([200, 200]);
+  const sampleFont = await sampleDoc.embedFont("Helvetica");
+  samplePage.drawText("OPDF OCR native text smoke", {
+    x: 20,
+    y: 100,
+    size: 12,
+    font: sampleFont,
+  });
   const sample = Buffer.from(await sampleDoc.save());
   const upload = await fetch(`${base}/api/opdf/documents?name=smoke.pdf`, {
     method: "POST",
@@ -100,6 +107,35 @@ try {
   });
   assert(range.status === 206, "range request must return 206");
   assert(Buffer.from(await range.arrayBuffer()).toString("ascii") === "%PDF-", "range bytes differ");
+
+  const nativeOcrCreate = await fetch(`${base}/api/opdf/ocr/jobs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filePath: document.filePath, language: "eng+vie" }),
+  });
+  assert(nativeOcrCreate.status === 201, "native-text OCR job create failed");
+  const nativeOcrJob = await nativeOcrCreate.json();
+  const nativeOcrRun = await fetch(`${base}/api/opdf/ocr/jobs/${nativeOcrJob.id}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/pdf" },
+    body: sample,
+  });
+  assert(nativeOcrRun.status === 202, `native-text OCR run failed: ${nativeOcrRun.status}`);
+
+  let completedOcr = null;
+  const ocrDeadline = Date.now() + 20000;
+  while (Date.now() < ocrDeadline) {
+    completedOcr = await fetch(`${base}/api/opdf/ocr/jobs/${nativeOcrJob.id}`).then((r) => r.json());
+    if (completedOcr.status === "done" || completedOcr.status === "failed") break;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  assert(completedOcr?.status === "done", `native-text OCR did not complete: ${completedOcr?.error || completedOcr?.status}`);
+  assert(completedOcr.progress === 100, "completed OCR job must report 100%");
+  const nativeOcrOutput = await fetch(`${base}/api/opdf/ocr/jobs/${nativeOcrJob.id}/output`);
+  assert(nativeOcrOutput.ok, "OCR output download failed");
+  const searchableBytes = new Uint8Array(await nativeOcrOutput.arrayBuffer());
+  const searchableDoc = await PDFDocument.load(searchableBytes);
+  assert(searchableDoc.getPageCount() === 1, "OCR output changed page count");
 
   const updatedDoc = await PDFDocument.create();
   updatedDoc.addPage([300, 300]);

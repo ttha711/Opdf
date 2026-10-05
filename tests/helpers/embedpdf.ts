@@ -33,7 +33,7 @@ export async function closeEmbedPdfSidebar(viewer: Locator) {
   const mobileOverlay = panel.locator("xpath=preceding-sibling::div[1]");
 
   if (await mobileOverlay.isVisible()) {
-    await mobileOverlay.click();
+    await mobileOverlay.click({ position: { x: 8, y: 8 } });
   } else {
     await button.click();
   }

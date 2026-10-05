@@ -126,35 +126,66 @@ export function PdfViewer({
     let detach: (() => void) | null = null;
     let timer = 0;
     let attempts = 0;
+    let openAttempts = 0;
+    let cancelled = false;
 
-    const attach = () => {
-      sidebarButton = root.querySelector<HTMLButtonElement>('button[aria-label="Sidebar"]');
-      if (!sidebarButton) {
-        attempts += 1;
-        if (attempts < 30) timer = window.setTimeout(attach, 100);
+    const retry = (delay = 150) => {
+      if (cancelled || attempts >= 80) return;
+      attempts += 1;
+      timer = window.setTimeout(ensureSidebarState, delay);
+    };
+
+    const ensureSidebarState = () => {
+      if (cancelled) return;
+
+      // ProgressiveServerPdfViewer mounts PDFium invisibly while the Range
+      // preview is still on top. Opening the sidebar during that hidden phase
+      // can be undone when EmbedPDF recalculates its responsive layout.
+      if (root.closest('[aria-hidden="true"]')) {
+        retry();
+        return;
+      }
+
+      sidebarButton ??= root.querySelector<HTMLButtonElement>('button[aria-label="Sidebar"]');
+      if (!sidebarButton || sidebarButton.disabled) {
+        retry();
         return;
       }
 
       const preference = window.localStorage.getItem(SIDEBAR_PREF_KEY);
       const shouldOpen = preference !== "closed";
       const panel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
-      if (shouldOpen && !isVisibleElement(panel)) sidebarButton.click();
 
-      const remember = () => {
-        window.setTimeout(() => {
-          const currentPanel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
-          window.localStorage.setItem(
-            SIDEBAR_PREF_KEY,
-            isVisibleElement(currentPanel) ? "open" : "closed",
-          );
-        }, 250);
-      };
-      sidebarButton.addEventListener("click", remember);
-      detach = () => sidebarButton?.removeEventListener("click", remember);
+      if (shouldOpen && !isVisibleElement(panel)) {
+        // The button can appear before the sidebar controller is fully wired,
+        // especially after the large-PDF progressive handoff. Retry the open
+        // until the panel is actually present instead of relying on one click.
+        if (openAttempts < 8) {
+          openAttempts += 1;
+          sidebarButton.click();
+          retry(600);
+        }
+        return;
+      }
+
+      if (!detach) {
+        const remember = () => {
+          window.setTimeout(() => {
+            const currentPanel = root.querySelector<HTMLElement>('[data-sidebar-id="sidebar-panel"]');
+            window.localStorage.setItem(
+              SIDEBAR_PREF_KEY,
+              isVisibleElement(currentPanel) ? "open" : "closed",
+            );
+          }, 250);
+        };
+        sidebarButton.addEventListener("click", remember);
+        detach = () => sidebarButton?.removeEventListener("click", remember);
+      }
     };
 
-    timer = window.setTimeout(attach, 100);
+    retry(100);
     return () => {
+      cancelled = true;
       window.clearTimeout(timer);
       detach?.();
     };

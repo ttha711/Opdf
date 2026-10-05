@@ -38,6 +38,9 @@ export type BridgeCapabilities = {
   rangePreview?: boolean;
   ocrQueue?: boolean;
   searchablePdfOcr?: boolean;
+  multiUserAuth?: boolean;
+  perUserProjectStorage?: boolean;
+  quotas?: boolean;
 };
 
 export type StoredDocumentMutation =

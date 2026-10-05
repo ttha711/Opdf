@@ -12,19 +12,15 @@ export interface OpdfTab {
   page: number;
   totalPages: number;
   annotations: any[];
-  bookmarks: Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>;
   group: string | null;
   groupColor: string | null;
-  thumbnails?: Array<{ page: number; url: string; blob: Blob }>;
   pageRotations?: Record<number, number>;
 }
 
 export interface WebState {
   fileName: string;
   annotations: any[];
-  thumbnails: Array<{ page: number; blob: Blob }>;
   page: number;
-  bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number; parent?: number }>;
 }
 
 function awaitTransaction(tx: IDBTransaction): Promise<void> {
@@ -50,14 +46,13 @@ async function getDB(): Promise<IDBDatabase> {
 export async function saveTabsList(tabs: OpdfTab[]): Promise<boolean> {
   try {
     // Persist only lightweight workspace metadata. Full PDF byte arrays and
-    // generated thumbnails can be hundreds of MB and must stay out of
+    // viewer-derived state must stay out of
     // IndexedDB autosave. A future File System Access/OPFS source reference can
     // restore local documents without copying their bytes into app state.
     const safeTabs: OpdfTab[] = tabs.map((tab) => ({
       ...tab,
       docBytes: null,
       sourceBlob: null,
-      thumbnails: [],
     }));
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");

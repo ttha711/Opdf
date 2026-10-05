@@ -1,3 +1,4 @@
+import { appendFile } from "node:fs/promises";
 import { PDFDocument } from "pdf-lib";
 
 const MiB = 1024 * 1024;

@@ -97,18 +97,20 @@ export function createChunkUploadApi({
     const route = uploadRoute(url.pathname);
     if (!route) return false;
 
-    const expectedSize = Number(url.searchParams.get("size") || 0);
-    if (!Number.isInteger(expectedSize) || expectedSize <= 0 || expectedSize > maxBytes) {
-      sendError(res, expectedSize > maxBytes ? 413 : 400, "A valid upload size is required.");
-      return true;
-    }
-
     if (route.action === "create") {
       if (req.method !== "POST") {
         sendError(res, 405, "Method not allowed.");
         return true;
       }
-      const record = await storage.createDocument(url.searchParams.get("name") || "document.pdf");
+      const expectedSize = Number(url.searchParams.get("size") || 0);
+      if (!Number.isInteger(expectedSize) || expectedSize <= 0 || expectedSize > maxBytes) {
+        sendError(res, expectedSize > maxBytes ? 413 : 400, "A valid upload size is required.");
+        return true;
+      }
+      const record = await storage.createDocument(
+        url.searchParams.get("name") || "document.pdf",
+        expectedSize,
+      );
       sendJson(res, 201, uploadPayload(record, expectedSize, chunkBytes));
       return true;
     }
@@ -120,6 +122,11 @@ export function createChunkUploadApi({
     }
 
     const completedSize = await storage.getDocumentSize(record.id);
+    const expectedSize = Number(record.uploadExpectedSize || completedSize || 0);
+    if (!Number.isInteger(expectedSize) || expectedSize <= 0 || expectedSize > maxBytes) {
+      sendError(res, 409, "Upload session metadata is invalid.");
+      return true;
+    }
     const totalChunks = Math.ceil(expectedSize / chunkBytes);
 
     if (route.action === "session" && req.method === "GET") {

@@ -165,6 +165,7 @@ export function NativeContentEditorPanel({
                 Font
                 <select value={draftFont} onChange={(event) => setDraftFont(event.target.value)}>
                   <option value="">Keep existing ({selected.fontFamily || "embedded font"})</option>
+                  <option value="__opdf_unicode__">Noto Sans Unicode / Vietnamese</option>
                   <option value="Helvetica">Helvetica</option>
                   <option value="Times-Roman">Times</option>
                   <option value="Courier">Courier</option>

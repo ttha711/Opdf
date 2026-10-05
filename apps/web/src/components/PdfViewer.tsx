@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy EmbedPDF integration coordinator; this patch fixes tool/panel lifecycle without expanding the component surface.
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PDFViewer as EmbedPdfViewer,
@@ -6,7 +7,7 @@ import {
 } from "@embedpdf/react-pdf-viewer";
 import type { PdfViewerProps } from "./PdfViewer.types";
 import type { ActiveTool } from "../lib/app-types";
-import { mapActiveToolToEmbedPdfAnnotation } from "../lib/annotationToolMapping";
+import { isEmbedPdfReplaceTextTool, mapActiveToolToEmbedPdfAnnotation } from "../lib/annotationToolMapping";
 import {
   emitViewerContentArea,
   registerViewerBytesProvider,
@@ -50,6 +51,7 @@ export function PdfViewer({
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const suppressExternalPageRef = useRef(false);
   const preserveNativeToolRef = useRef(false);
+  const signaturePanelOpenRef = useRef(false);
   const lastPageRef = useRef(page);
   const lastScaleRef = useRef(scale);
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(() => {
@@ -266,8 +268,14 @@ export function PdfViewer({
 
       if (annotationApi?.onActiveToolChange && onActiveToolChange) {
         const off = annotationApi.onActiveToolChange((event: any) => {
-          if (activeTool !== "measure") return;
           const rawTool = String(event?.tool?.id ?? event?.tool?.name ?? "").toLowerCase();
+          if (isEmbedPdfReplaceTextTool(rawTool)) {
+            const scope = annotationApi?.forDocument?.(DOCUMENT_ID) ?? annotationApi;
+            scope?.setActiveTool?.(null);
+            onActiveToolChange("edit-content");
+            return;
+          }
+          if (activeTool !== "measure") return;
           const expectedMeasureTool =
             measurementMode === "area" ? "polygon" :
             measurementMode === "perimeter" ? "polyline" :
@@ -446,10 +454,22 @@ export function PdfViewer({
 
       if (captureScope?.isMarqueeCaptureActive?.()) captureScope?.disableMarqueeCapture?.();
 
+      const commandScope = commands?.forDocument?.(DOCUMENT_ID) ?? commands;
+      const toggleSignaturePanel = () =>
+        commandScope?.execute?.("insert:add-signature", "api");
+
       if (activeTool === "signature") {
         annotationScope?.setActiveTool?.(null);
-        commands?.forDocument?.(DOCUMENT_ID)?.execute?.("insert:add-signature", "api");
+        if (!signaturePanelOpenRef.current) {
+          signaturePanelOpenRef.current = true;
+          void toggleSignaturePanel();
+        }
         return;
+      }
+
+      if (signaturePanelOpenRef.current) {
+        signaturePanelOpenRef.current = false;
+        void toggleSignaturePanel();
       }
 
       if (activeTool === "measure") {

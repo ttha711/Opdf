@@ -24,7 +24,7 @@ function free(module: PdfiumModule, ptr: number) {
 }
 
 export function identityMatrix(): PdfMatrix {
-  return [...IDENTITY];
+  return IDENTITY.slice() as PdfMatrix;
 }
 
 export function multiplyMatrices(outer: PdfMatrix, inner: PdfMatrix): PdfMatrix {

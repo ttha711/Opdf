@@ -152,7 +152,12 @@ export function createS3ObjectStore(config = {}) {
     if (allowed.includes(response.status)) return response;
     if (response.status === 404) return null;
     const body = await response.text().catch(() => "");
-    throw new Error(`S3 request failed: HTTP ${response.status}${body ? ` · ${body.slice(0, 300)}` : ""}`);
+    const error = new Error(
+      `S3 request failed: HTTP ${response.status}${body ? ` · ${body.slice(0, 300)}` : ""}`,
+    );
+    error.statusCode = response.status === 409 || response.status === 412 ? 409 : 502;
+    error.s3Status = response.status;
+    throw error;
   }
 
   async function get(key) {

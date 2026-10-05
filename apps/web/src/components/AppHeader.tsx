@@ -9,6 +9,7 @@ import { useOpdfBridge } from "../hooks/useOpdfBridge";
 import { toast } from "./ToastProvider";
 import { AiSparkIcon } from "./AiSparkIcon";
 import { redoNativeContentEdit, undoNativeContentEdit } from "../lib/nativeContentHistory";
+import { ServerTenantMenu } from "./ServerTenantMenu";
 
 export function AppHeader({
   fileInputRef,
@@ -137,7 +138,7 @@ export function AppHeader({
     { kind: "action", label: "Measure Drawing", disabled: !hasDocument, onClick: () => setActiveTool("measure") },
     { kind: "action", label: "Compare Revisions...", disabled: !hasDocument, onClick: compareRevisions },
     { kind: "action", label: "Search & Secure Redact...", disabled: !hasDocument, onClick: searchRedact },
-    { kind: "action", label: "Digital Sign...", disabled: !hasDocument || !hasDesktopBridge || bridgeCapabilities?.digitalSignature === false, title: !hasDesktopBridge ? "Available in the Desktop App only" : undefined, onClick: digitalSign },
+    { kind: "action", label: "Digital Sign...", disabled: !hasDocument || bridgeCapabilities?.digitalSignature === false, title: bridgeCapabilities?.digitalSignature === false ? "Digital signing is not configured in this runtime" : undefined, onClick: digitalSign },
     { kind: "section", label: "Advanced" },
     { kind: "action", label: "Advanced PDF...", disabled: !hasDocument, onClick: advancedPdf },
   ];
@@ -224,6 +225,7 @@ export function AppHeader({
             <span className="inline-flex items-center gap-1.5"><AiSparkIcon size={14} />AI Edit</span>
           </button>
         </div>
+        <ServerTenantMenu />
         <div className="mx-1 h-4 w-px bg-[var(--border-color)]" />
         {!hasDesktopBridge ? (
           <input ref={fileInputRef} className="hidden-file-input" type="file" accept="application/pdf" onClick={(e) => { e.currentTarget.value = ""; }} onChange={onSelectLocalFile} />

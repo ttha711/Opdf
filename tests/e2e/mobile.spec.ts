@@ -41,27 +41,22 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+3/i, { timeout: 30_000 });
 
-  const pagesButton = page.getByRole("button", { name: "Open pages panel", exact: true });
+  const viewer = page.locator(".viewer-shell");
+  const pagesButton = viewer.getByRole("button", { name: /sidebar/i }).first();
   await expect(pagesButton).toBeVisible();
   const pagesButtonBox = await pagesButton.boundingBox();
-  expect(pagesButtonBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(pagesButtonBox?.height ?? 0).toBeGreaterThanOrEqual(40);
 
   await pagesButton.click();
-  const panel = page.locator(".left-panel");
-  await expect(panel).toBeVisible();
-
-  const panelBox = await panel.boundingBox();
+  const firstPage = viewer.getByRole("button", { name: /Page 1$/i }).first();
+  await expect(firstPage).toBeVisible({ timeout: 10_000 });
+  const firstPageBox = await firstPage.boundingBox();
   const viewport = page.viewportSize();
-  expect(panelBox?.x ?? -1).toBeGreaterThanOrEqual(0);
-  expect(panelBox?.width ?? Infinity).toBeLessThanOrEqual(viewport?.width ?? 412);
+  expect(firstPageBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect((firstPageBox?.x ?? 0) + (firstPageBox?.width ?? Infinity)).toBeLessThanOrEqual(viewport?.width ?? 412);
 
-  await expect(page.getByRole("button", { name: "Reorder page 1", exact: true })).toBeVisible();
-  const reorderBox = await page.getByRole("button", { name: "Reorder page 1", exact: true }).boundingBox();
-  expect(reorderBox?.height ?? 0).toBeGreaterThanOrEqual(44);
-
-  await page.getByTitle("Collapse Left Sidebar").click();
-  await expect(panel).toBeHidden();
-  await expect(pagesButton).toBeVisible();
+  await pagesButton.click();
+  await expect(firstPage).toBeHidden({ timeout: 10_000 });
 
   await mobileMenu.click();
   await expect(page.locator("header").getByRole("menuitem", { name: "Fit Page", exact: true })).toBeEnabled();

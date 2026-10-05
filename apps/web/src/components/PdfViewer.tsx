@@ -6,6 +6,7 @@ import {
 } from "@embedpdf/react-pdf-viewer";
 import type { PdfViewerProps } from "./PdfViewer.types";
 import type { ActiveTool } from "../lib/app-types";
+import { mapActiveToolToEmbedPdfAnnotation } from "../lib/annotationToolMapping";
 import {
   registerViewerBytesProvider,
   registerViewerControls,
@@ -27,26 +28,6 @@ import {
 
 const DOCUMENT_ID = "opdf-active-document";
 
-function mapAnnotationTool(activeTool?: string) {
-  switch (activeTool) {
-    case "highlight":
-      return "highlight";
-    case "underline":
-      return "underline";
-    case "strike":
-      return "strikeout";
-    case "shape":
-      return "square";
-    case "note":
-      return "note";
-    case "text":
-      return "freeText";
-    case "draw":
-      return "ink";
-    default:
-      return null;
-  }
-}
 
 export function PdfViewer({
   data,
@@ -467,7 +448,7 @@ export function PdfViewer({
         return;
       }
 
-    annotationScope?.setActiveTool?.(mapAnnotationTool(activeTool));
+    annotationScope?.setActiveTool?.(mapActiveToolToEmbedPdfAnnotation(activeTool));
   }, [activeRegistry, activeTool, measurementMode, sourceUrl]);
 
   useEffect(() => {

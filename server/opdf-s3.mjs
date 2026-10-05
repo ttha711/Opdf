@@ -1,4 +1,4 @@
-import { createHash, createHmac } from "node:crypto";
+// opdf-file-size-allow: S3 SigV4 transport keeps signing and multipart protocol in one audited module.\nimport { createHash, createHmac } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -247,6 +247,28 @@ export function createS3ObjectStore(config = {}) {
     return uploadId;
   }
 
+  async function listParts(key, uploadId) {
+    const response = await checked(await signedFetch(
+      "GET",
+      objectUrl(key, [["uploadId", uploadId]]),
+    ));
+    if (!response) return [];
+    const xml = await response.text();
+    const rows = [];
+    const pattern = /<Part>([\s\S]*?)<\/Part>/g;
+    let match;
+    while ((match = pattern.exec(xml))) {
+      rows.push({
+        partNumber: Number(xmlText(match[1], "PartNumber")),
+        etag: stripQuotes(xmlText(match[1], "ETag")),
+        size: Number(xmlText(match[1], "Size") || 0),
+      });
+    }
+    return rows
+      .filter((part) => Number.isInteger(part.partNumber) && part.partNumber > 0 && part.etag)
+      .sort((a, b) => a.partNumber - b.partNumber);
+  }
+
   async function uploadPart(key, uploadId, partNumber, bytes) {
     const body = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
     const response = await checked(await signedFetch(
@@ -307,6 +329,7 @@ export function createS3ObjectStore(config = {}) {
     remove,
     list,
     createMultipart,
+    listParts,
     uploadPart,
     completeMultipart,
     abortMultipart,

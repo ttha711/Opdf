@@ -83,7 +83,7 @@ test("real embedded subset font can be replaced and survives save/reload", async
   await expect(editor).toBeVisible({ timeout: 20_000 });
   const original = editor
     .locator("[data-opdf-object-kind='text']")
-    .filter({ hasText: "Subset font: Kỹ thuật kết cấu 01" })
+    .filter({ hasText: "Subset font source 01" })
     .first();
   await expect(original).toBeVisible({ timeout: 20_000 });
   await original.click();
@@ -110,7 +110,7 @@ test("real embedded subset font can be replaced and survives save/reload", async
       .first(),
   ).toBeVisible({ timeout: 20_000 });
   await expect(
-    reopened.getByText("Subset font: Kỹ thuật kết cấu 01", { exact: false }),
+    reopened.getByText("Subset font source 01", { exact: false }),
   ).toHaveCount(0);
 });
 

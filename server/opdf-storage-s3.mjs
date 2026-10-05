@@ -54,14 +54,19 @@ export function createS3OpdfStorage(rootDir, objectStore, remotePrefix) {
       const remote = await objectStore.head(remoteKey);
       known = remote?.etag || null;
     }
-    const result = await objectStore.put(
-      remoteKey,
-      Buffer.from(text, "utf8"),
-      "application/json",
-      known ? { ifMatch: known } : { ifNoneMatch: "*" },
-    );
-    remoteEtags.set(remoteKey, result.etag || null);
-    await rename(temp, path);
+    try {
+      const result = await objectStore.put(
+        remoteKey,
+        Buffer.from(text, "utf8"),
+        "application/json",
+        known ? { ifMatch: known } : { ifNoneMatch: "*" },
+      );
+      remoteEtags.set(remoteKey, result.etag || null);
+      await rename(temp, path);
+    } catch (error) {
+      await rm(temp, { force: true }).catch(() => {});
+      throw error;
+    }
   }
 
   async function readJsonRemote(path, remoteKey, fallback) {

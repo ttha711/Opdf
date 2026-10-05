@@ -27,12 +27,21 @@ function asNumber(value, fallback) {
 
 export function createSigningApi({
   certificateStore,
+  getCertificateStore,
   sendJson,
   sendError,
   sendPdf,
   readPdfBody,
   parseOperationOptions,
 }) {
+  async function storeFor(req, url) {
+    const store = getCertificateStore
+      ? await getCertificateStore(req, url)
+      : certificateStore;
+    if (!store) throw new Error("Certificate store is not configured.");
+    return store;
+  }
+
   async function handleCertificates(req, res, url) {
     if (url.pathname === "/api/opdf/certificates/inspect") {
       if (req.method !== "POST") return sendError(res, 405, "Method not allowed.");
@@ -46,17 +55,18 @@ export function createSigningApi({
     }
 
     if (url.pathname === "/api/opdf/certificates") {
+      const store = await storeFor(req, url);
       if (req.method === "GET") {
-        if (!certificateStore.enabled) return sendJson(res, 200, []);
-        return sendJson(res, 200, await certificateStore.list());
+        if (!store.enabled) return sendJson(res, 200, []);
+        return sendJson(res, 200, await store.list());
       }
       if (req.method === "POST") {
-        if (!certificateStore.enabled) {
+        if (!store.enabled) {
           return sendError(res, 503, "Server certificate storage is not configured.");
         }
         const options = parseOperationOptions(req);
         const bytes = await readBinaryBody(req);
-        const record = await certificateStore.store(
+        const record = await store.store(
           bytes,
           asString(options.passphrase),
           asString(options.fileName, "certificate.p12"),
@@ -69,10 +79,11 @@ export function createSigningApi({
     const match = url.pathname.match(/^\/api\/opdf\/certificates\/([0-9a-f-]{36})$/i);
     if (match) {
       if (req.method !== "DELETE") return sendError(res, 405, "Method not allowed.");
-      if (!certificateStore.enabled) {
+      const store = await storeFor(req, url);
+      if (!store.enabled) {
         return sendError(res, 503, "Server certificate storage is not configured.");
       }
-      const removed = await certificateStore.remove(match[1]);
+      const removed = await store.remove(match[1]);
       return removed
         ? sendJson(res, 200, { removed: true })
         : sendError(res, 404, "Certificate not found.");
@@ -90,7 +101,8 @@ export function createSigningApi({
 
     if (url.pathname !== "/api/opdf/operations/sign-p12") return false;
     if (req.method !== "POST") return sendError(res, 405, "Method not allowed.");
-    if (!certificateStore.enabled) {
+    const store = await storeFor(req, url);
+    if (!store.enabled) {
       return sendError(res, 503, "Server certificate storage is not configured.");
     }
 
@@ -101,7 +113,7 @@ export function createSigningApi({
     }
 
     const input = await readPdfBody(req);
-    const certificateBytes = await certificateStore.getBytes(certificateId);
+    const certificateBytes = await store.getBytes(certificateId);
     const result = await signPdfWithP12(input, certificateBytes, {
       passphrase: asString(options.passphrase),
       page: asNumber(options.page, 1),

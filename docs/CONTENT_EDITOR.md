@@ -90,12 +90,12 @@ The current branch implements the native editor with direct `@embedpdf/pdfium` p
 - PDFium-native creation of new text, rectangle/path, and image page objects;
 - text render modes (fill/stroke/fill+stroke/invisible) and text stroke controls;
 - path line cap, line join, dash-pattern inspection/editing;
-- recursive Form XObject discovery and deep editing of supported nested text/image/path objects;
-- stable nested object IDs (for example `p0-o3-f1-f2`) with up to 8 traversal levels;
+- recursive Form XObject discovery with stable nested object IDs (for example `p0-o3-f1-f2`) up to 8 traversal levels;
+- persistent one-level Form child editing by promoting text/image/path children to native page objects, preserving the composed Form/object transform, then removing the original child through `FPDFFormObj_RemoveObject`;
+- full text/image/path editing after promotion, including font replacement, path geometry rebuild, duplicate, crop and transforms;
+- deeper Form nesting remains inspect-only because PDFium has no public Form insertion/dirty-stream API that can safely persist arbitrary multi-level child mutations;
 - PDFium rotated quadrilateral bounds for text/image selection, including nested Form transforms;
 - blend-mode editing across PDFium-supported page objects (Normal, Multiply, Screen, Overlay, and the remaining PDF blend modes);
-- safe nested-object deletion through `FPDFFormObj_RemoveObject`;
-- explicit capability guards where PDFium has no Form insertion API: nested duplicate, font-object replacement, and path reconstruction are disabled instead of emulated;
 - image pixel dimensions and image filter inspection;
 - transparency and marked-content discovery where exposed by the PDFium WASM build;
 - page-area hit testing from the active PDF viewer;
@@ -119,6 +119,8 @@ OPDF now treats PDFium as the primary source of truth for native page-object cap
 
 ## Form XObject editing rules
 
-PDFium exposes Form XObject enumeration and removal through `FPDFFormObj_CountObjects`, `FPDFFormObj_GetObject`, and `FPDFFormObj_RemoveObject`. OPDF therefore edits existing nested objects directly when the operation can be performed in place: text replacement, transforms, colors/strokes, blend mode, image bitmap replacement/crop, and deletion.
+PDFium exposes Form XObject enumeration and removal through `FPDFFormObj_CountObjects`, `FPDFFormObj_GetObject`, and `FPDFFormObj_RemoveObject`. However, arbitrary in-memory mutations to a Form child are not sufficient for persistence: PDFium regenerates a Form stream only when that Form holder has a dirty content stream.
 
-PDFium does not currently expose an API to insert a newly created page object into an existing Form XObject. OPDF deliberately does not fake that capability. Operations that require replacing an object with a newly created object—nested text font/font-size replacement, nested path geometry rebuild, or nested duplication—are disabled with an explicit explanation.
+For a child directly inside a page-level Form, OPDF uses a persistence-safe promotion flow. It clones the supported text/image/path child as a page object, composes the Form matrix with the child's matrix so the visual position is preserved, inserts the clone through the normal PDFium page-object API, then removes the original Form child with `FPDFFormObj_RemoveObject`. The removal marks the Form stream dirty, while the promoted object is a normal dirty page object, so `FPDFPage_GenerateContent` serializes both sides of the structural change. The requested edit is then applied to the promoted object.
+
+This intentionally changes that edited object's internal structure from Form-child to page-level content. Forms nested more than one level are still fully inspectable but are read-only: PDFium does not expose enough public APIs to persist arbitrary deep child mutation safely without rewriting PDF content streams outside PDFium.

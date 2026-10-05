@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { PdfContentEditingEngine, PdfContentPatch } from "./contentEditing";
+import type { PdfContentEditingEngine, PdfContentPatch } from "./contentEditing.js";
 
 describe("native content editing contract", () => {
   it("requires mutations to return serialized PDF bytes", async () => {
     const engine: PdfContentEditingEngine = {
       inspectPage: async () => [],
-      applyPatches: async (pdf, patches: PdfContentPatch[]) => {
+      applyPatches: async (pdf: Uint8Array, patches: PdfContentPatch[]) => {
         expect(patches[0]).toEqual({ type: "replace-text", objectId: "p0-o1", text: "OPDF" });
         return pdf;
       },

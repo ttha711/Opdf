@@ -60,7 +60,6 @@ export function useDocumentActions({
     fileName?: string;
     docBytes?: Uint8Array | null;
     annotations?: any[];
-    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
     pageRotations?: Record<number, number>;
   }) => void;
   setShowSplitModal?: (v: boolean) => void;

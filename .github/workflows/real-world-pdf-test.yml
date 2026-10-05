@@ -2,10 +2,16 @@ name: Real World PDF Test
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
   pull_request:
     branches: [main]
     paths:
+      - "apps/web/src/components/AdaptivePdfViewer.tsx"
+      - "apps/web/src/components/PdfViewer.tsx"
+      - "server/**"
       - "scripts/perf/real-world-pdf-smoke.mjs"
+      - "scripts/perf/real-world-pdf-browser.mjs"
       - ".github/workflows/real-world-pdf-test.yml"
 
 permissions:
@@ -14,7 +20,7 @@ permissions:
 jobs:
   wsdot-real-pdfs:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,4 +41,4 @@ jobs:
         run: npm run server-build
 
       - name: Run real-world WSDOT PDFs
-        run: node scripts/perf/real-world-pdf-smoke.mjs
+        run: npm run perf:real-world

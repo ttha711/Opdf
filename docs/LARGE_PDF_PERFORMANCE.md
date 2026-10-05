@@ -35,3 +35,25 @@ For 250 MB and 500 MB files, record:
 Expected invariant: scrolling through more sheets must not cause raster/text memory to grow without bound. Rendered rasters are limited to a small LRU window and text items are retained only for the active sheet.
 
 CI also generates a 120-sheet vector drawing set in memory and verifies that the browser can open it and navigate directly to sheet 100.
+
+## Real-world engineering PDF gate
+
+Run the public WSDOT engineering corpus against the server runtime:
+
+```bash
+npm run server-build
+npx playwright install chromium
+npm run perf:real-world
+```
+
+The gate currently checks two public engineering documents and records transfer behavior, page count, searchability, and persistence. The browser must remain on the stable EmbedPDF/PDFium viewer shell; large files must not switch back to the legacy range-only viewer.
+
+Current first-page budgets on GitHub-hosted Linux runners:
+
+- WSDOT E-20.20-00 Buried Structure Three-Sided: **60 seconds**
+- WSDOT Plans Preparation Manual M22-31: **120 seconds**
+
+The structural mutation case must also complete and persist within **90 seconds**. The server writes rotated PDFs with PDF object streams enabled to avoid unnecessarily expanding large engineering files during serialization. Results are written into the GitHub Actions job summary.
+
+The deterministic 100/250/500 MB generated stress gate remains separate from this external corpus. The external workflow also runs weekly so upstream document or engine regressions are visible even when application code has not changed.
+

@@ -110,11 +110,15 @@ The canvas editor milestone is now implemented rather than pending:
 - deterministic server E2E already covers image/path persistence, crop/Bezier editing, Form-child promotion, and save/reload;
 - the production gate additionally verifies Unicode replacement on rotated text and image-only scanned-page transforms survive save/reload.
 
-M8 still requires external/adversarial coverage before the editor should be called universally complete:
+M8 production coverage now includes the remaining adversarial and real-world gates:
 
-- subset-font fixtures that cannot be represented by the current generated Helvetica fixtures;
-- encrypted/password-protected and deliberately malformed PDFs with explicit safe-degradation assertions;
-- representative real engineering PDFs and measured performance budgets across Windows, macOS, browser/server runtimes.
+- a real embedded Noto Sans subset-font fixture generated through `@pdf-lib/fontkit`, edited through the native PDFium path, then saved and reopened with object-level text assertions;
+- an AES-256 password-protected PDF and a deliberately truncated/malformed PDF, both required to fail explicitly without crashing the application shell or entering native Edit mode;
+- the existing rotated-Unicode and image-only scan persistence tests;
+- representative public WSDOT engineering PDFs with explicit first-page budgets, stable EmbedPDF/PDFium toolbar assertions, searchable-text checks, and server mutation/save-reload verification;
+- a dedicated Chromium platform matrix for Ubuntu, Windows, and macOS covering the adversarial and native-editor production gates.
+
+The external WSDOT workflow is intentionally separate from the deterministic CI suite because it depends on third-party public downloads. It runs on relevant viewer/server changes, can be dispatched manually, and also runs weekly.
 
 
 ## PDFium capability policy

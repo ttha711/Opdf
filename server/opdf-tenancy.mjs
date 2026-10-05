@@ -27,6 +27,35 @@ async function directorySize(root) {
   return total;
 }
 
+async function pendingUploadReservations(root) {
+  let total = 0;
+  async function walk(path) {
+    let entries;
+    try {
+      entries = await readdir(path, { withFileTypes: true });
+    } catch (error) {
+      if (error?.code === "ENOENT") return;
+      throw error;
+    }
+    for (const entry of entries) {
+      const full = join(path, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+      } else if (entry.isFile() && entry.name === "meta.json") {
+        try {
+          const payload = JSON.parse(await import("node:fs/promises").then(({ readFile }) => readFile(full, "utf8")));
+          const expected = Number(payload?.uploadExpectedSize || 0);
+          if (Number.isFinite(expected) && expected > 0) total += expected;
+        } catch {
+          // Storage reliability handles corrupt metadata separately; do not invent quota credit.
+        }
+      }
+    }
+  }
+  await walk(root);
+  return total;
+}
+
 export function assertProjectId(value) {
   const id = String(value || "default").trim().toLowerCase();
   if (!PROJECT_RE.test(id)) throw new Error("Invalid project id.");
@@ -103,7 +132,9 @@ export function createTenantRuntime(dataDir, options = {}) {
       };
     }
     const userRoot = join(root, "users", user.id);
-    const usedBytes = await directorySize(userRoot);
+    const usedBytes =
+      await directorySize(userRoot) +
+      await pendingUploadReservations(userRoot);
     const quotaBytes = Math.max(0, Number(user.quotaBytes || 0));
     return {
       usedBytes,

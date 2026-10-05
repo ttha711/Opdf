@@ -121,6 +121,7 @@ export interface OpdfBridge {
   enqueueOcr: (filePath: string, language?: string) => Promise<OcrJob>;
   runOcr: (jobId: string, inputBytes?: Uint8Array) => Promise<OcrJob | null>;
   listOcrJobs: () => Promise<OcrJob[]>;
+  cancelOcr?: (jobId: string) => Promise<OcrJob | null>;
 
   /* ----- NEW FEATURES ----- */
   encryptPdf: (bytes: Uint8Array, opts: PasswordOptions) => Promise<Uint8Array>;

@@ -12,6 +12,7 @@ import { InsertPdfModal } from "../InsertPdfModal";
 import { MergeModal } from "../MergeModal";
 import { SplitModal } from "../SplitModal";
 import type { MarkupTool } from "../../hooks/useDocumentActions";
+import { useNativeEditBytes } from "../../hooks/useNativeEditBytes";
 type Controllers = ReturnType<typeof import("../../hooks/useAppControllers").useAppControllers>;
 type Sidebars = ReturnType<typeof import("../../hooks/useResizableSidebars").useResizableSidebars>;
 type PageActions = ReturnType<typeof import("../../hooks/useAppPageManagement").useAppPageManagement>;
@@ -77,6 +78,7 @@ export function AppWorkspace({
     setIsDraggingRight,
   } = sidebars;
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
+  const getNativeEditBytes = useNativeEditBytes(state);
   const showLeft = !state.activeDashboardTool;
   const rightAvailable = state.hasDocument || Boolean(state.activeDashboardTool) ||
     Boolean(activeMarkupTool) || isAiPanelOpen;
@@ -147,7 +149,7 @@ export function AppWorkspace({
               style={{ gridColumn: 3 }}
             >
               <ViewerErrorBoundary>
-                <AdaptivePdfViewer {...viewerProps} />
+                <AdaptivePdfViewer {...viewerProps} getDocumentBytes={getNativeEditBytes} />
               </ViewerErrorBoundary>
             </section>
           ) : null}
@@ -207,7 +209,7 @@ export function AppWorkspace({
         {state.hasDocument && state.activeTool === "edit-content" ? (
           <NativeContentEditorPanel
             page={state.page}
-            getDocumentBytes={materializeDocumentBytes}
+            getDocumentBytes={getNativeEditBytes}
             onApplyBytes={(bytes) => {
               replaceDocumentBytes(bytes, state.page, { preserveAnnotations: true });
             }}

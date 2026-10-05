@@ -1,5 +1,4 @@
 import type { PdfContentPatch } from "@opdf/core";
-import { beginViewerContentPick } from "../../lib/viewer-runtime";
 
 type Props = {
   page: number;
@@ -28,9 +27,7 @@ export function NativeContentToolbar({
     <>
       {message ? <div className="native-content-editor__message">{message}</div> : null}
       <div className="native-content-editor__row">
-        <button type="button" className="native-content-editor__refresh" onClick={beginViewerContentPick} disabled={loading}>
-          Pick on page
-        </button>
+        <span className="native-content-editor__sub">Click objects directly on the PDF canvas.</span>
         <button type="button" className="native-content-editor__refresh" onClick={() => void refresh()} disabled={loading}>
           {loading ? "Working…" : "Refresh"}
         </button>

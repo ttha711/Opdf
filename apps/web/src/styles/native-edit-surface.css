@@ -1,0 +1,94 @@
+.native-edit-surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--viewer-bg, #e8eaed);
+}
+
+.native-edit-page {
+  position: relative;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 18%);
+}
+
+.native-edit-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  touch-action: none;
+  user-select: none;
+}
+
+.native-edit-object {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: all;
+  cursor: move;
+}
+
+.native-edit-object:hover {
+  stroke: rgb(37 99 235 / 45%);
+}
+
+.native-edit-selection {
+  fill: rgb(37 99 235 / 5%);
+  stroke: #2563eb;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: all;
+  cursor: move;
+}
+
+.native-edit-selection.readonly {
+  stroke: #d97706;
+  stroke-dasharray: 5 4;
+  cursor: default;
+}
+
+.native-edit-handle {
+  fill: #fff;
+  stroke: #2563eb;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.native-edit-rotate-line {
+  stroke: #2563eb;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.native-edit-rotate-handle {
+  fill: #2563eb;
+  stroke: #fff;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+}
+
+.native-edit-inline-text {
+  position: absolute;
+  z-index: 8;
+  resize: none;
+  overflow: auto;
+  border: 1px solid #2563eb;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 0 0 2px rgb(37 99 235 / 18%);
+  color: #111827;
+  padding: 2px 4px;
+  outline: none;
+  transform-origin: center;
+  white-space: pre-wrap;
+}
+
+.native-edit-loading,
+.native-edit-error {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  color: var(--text-secondary, #6b7280);
+  font-size: 13px;
+}

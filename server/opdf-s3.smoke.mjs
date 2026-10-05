@@ -133,6 +133,17 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "PUT") {
+      const current = objects.get(key);
+      const ifNoneMatch = req.headers["if-none-match"];
+      const ifMatch = String(req.headers["if-match"] || "").replace(/^"|"$/g, "");
+      if (ifNoneMatch === "*" && current) {
+        res.statusCode = 412;
+        return res.end("PreconditionFailed");
+      }
+      if (ifMatch && (!current || current.etag !== ifMatch)) {
+        res.statusCode = 412;
+        return res.end("PreconditionFailed");
+      }
       const bytes = await bodyBuffer(req);
       const value = { bytes, etag: etag(bytes) };
       objects.set(key, value);
@@ -196,10 +207,33 @@ try {
   });
 
   const direct = Buffer.from("shared-object-storage");
-  await objectStore.put("smoke/direct.txt", direct, "text/plain");
+  const firstWrite = await objectStore.put(
+    "smoke/direct.txt",
+    direct,
+    "text/plain",
+    { ifNoneMatch: "*" },
+  );
   assert(
     Buffer.compare(await objectStore.get("smoke/direct.txt"), direct) === 0,
     "S3 direct put/get failed",
+  );
+  let staleWriteRejected = false;
+  try {
+    await objectStore.put(
+      "smoke/direct.txt",
+      Buffer.from("stale"),
+      "text/plain",
+      { ifMatch: "stale-etag" },
+    );
+  } catch {
+    staleWriteRejected = true;
+  }
+  assert(staleWriteRejected, "S3 conditional write did not reject a stale ETag");
+  await objectStore.put(
+    "smoke/direct.txt",
+    direct,
+    "text/plain",
+    { ifMatch: firstWrite.etag },
   );
 
   const prefix = "users/test-user/projects/default";

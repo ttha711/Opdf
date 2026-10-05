@@ -127,6 +127,8 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
       bookmarksPersist: true,
       pdfA: browser.capabilities?.pdfA ?? false,
       digitalSignature: true,
+      certificateStorage: true,
+      signatureInspection: true,
       storedMutations: true,
       rangePreview: true,
       ocrQueue: true,

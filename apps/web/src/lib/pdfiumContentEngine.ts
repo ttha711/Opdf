@@ -402,26 +402,37 @@ function duplicatePathObject(
         const y = heap[base + 1];
         if (type === 0) module.FPDFPath_MoveTo(targetPtr, x, y);
         else module.FPDFPath_LineTo(targetPtr, x, y);
-      } else if (type === 2 && index >= 2) {
-        const a = module.FPDFPath_GetPathSegment(sourcePtr, index - 2);
-        const b = module.FPDFPath_GetPathSegment(sourcePtr, index - 1);
-        const pts = malloc(module, 24);
-        try {
-          if (
-            a && b &&
-            module.FPDFPathSegment_GetPoint(a, pts, pts + 4) &&
-            module.FPDFPathSegment_GetPoint(b, pts + 8, pts + 12) &&
-            module.FPDFPathSegment_GetPoint(segment, pts + 16, pts + 20)
-          ) {
-            const h = module.pdfium.HEAPF32;
-            const p = pts >>> 2;
-            module.FPDFPath_BezierTo(targetPtr, h[p], h[p + 1], h[p + 2], h[p + 3], h[p + 4], h[p + 5]);
-          }
-        } finally {
-          free(module, pts);
-        }
+        if (module.FPDFPathSegment_GetClose(segment)) module.FPDFPath_Close(targetPtr);
+        continue;
       }
-      if (module.FPDFPathSegment_GetClose(segment)) module.FPDFPath_Close(targetPtr);
+      if (type !== 2 || index + 2 >= count) continue;
+
+      const control1 = segment;
+      const control2 = module.FPDFPath_GetPathSegment(sourcePtr, index + 1);
+      const end = module.FPDFPath_GetPathSegment(sourcePtr, index + 2);
+      if (
+        !control2 ||
+        !end ||
+        module.FPDFPathSegment_GetType(control2) !== 2 ||
+        module.FPDFPathSegment_GetType(end) !== 2
+      ) continue;
+
+      const pts = malloc(module, 24);
+      try {
+        if (
+          module.FPDFPathSegment_GetPoint(control1, pts, pts + 4) &&
+          module.FPDFPathSegment_GetPoint(control2, pts + 8, pts + 12) &&
+          module.FPDFPathSegment_GetPoint(end, pts + 16, pts + 20)
+        ) {
+          const h = module.pdfium.HEAPF32;
+          const p = pts >>> 2;
+          module.FPDFPath_BezierTo(targetPtr, h[p], h[p + 1], h[p + 2], h[p + 3], h[p + 4], h[p + 5]);
+          if (module.FPDFPathSegment_GetClose(end)) module.FPDFPath_Close(targetPtr);
+        }
+      } finally {
+        free(module, pts);
+      }
+      index += 2;
     }
 
     const drawPtr = malloc(module, 8);

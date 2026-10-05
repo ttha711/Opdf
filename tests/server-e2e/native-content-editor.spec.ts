@@ -36,6 +36,11 @@ test("native Edit PDF changes existing text and survives save/reload", async ({ 
   await editor.getByRole("button", { name: "Redo" }).click();
   await expect(editor.getByText("Edited OPDF native text", { exact: false })).toBeVisible({ timeout: 20_000 });
 
+  await editor.getByRole("button", { name: "Duplicate" }).click();
+  await expect(
+    editor.locator(".native-content-editor__objects button").filter({ hasText: "Edited OPDF native text" }),
+  ).toHaveCount(2, { timeout: 20_000 });
+
   await page.getByTitle("Save (Ctrl+S)").click();
   await page.waitForTimeout(500);
   await page.reload();
@@ -43,6 +48,8 @@ test("native Edit PDF changes existing text and survives save/reload", async ({ 
 
   await page.getByTitle("Edit PDF Content").click();
   const reopened = page.locator("[data-opdf-native-editor=\'true\']");
-  await expect(reopened.getByText("Edited OPDF native text", { exact: false })).toBeVisible({ timeout: 20_000 });
+  await expect(
+    reopened.locator(".native-content-editor__objects button").filter({ hasText: "Edited OPDF native text" }),
+  ).toHaveCount(2, { timeout: 20_000 });
   await expect(reopened.getByText("Original OPDF text", { exact: false })).toHaveCount(0);
 });

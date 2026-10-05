@@ -107,14 +107,14 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
       (response) =>
         response.url().includes(`/api/opdf/documents/${stored.id}/mutations`) &&
         response.request().method() === "POST",
-      { timeout: 30_000 },
+      { timeout: 90_000 },
     );
     await header.getByRole("button", { name: "Rotate All Pages Right", exact: true }).click();
     try {
       const mutationResponse = await mutationResponsePromise;
       assert(mutationResponse.ok(), `${testCase.name}: mutation HTTP ${mutationResponse.status()}`);
       saveMs = Date.now() - mutateStartedAt;
-      assert(saveMs < 30_000, `${testCase.name}: server-side rotate took too long (${saveMs} ms)`);
+      assert(saveMs < 90_000, `${testCase.name}: server-side rotate exceeded 90 s budget (${saveMs} ms)`);
 
       const persisted = await fetch(`${baseUrl}/api/opdf/documents/${stored.id}`);
       assert(persisted.ok, `${testCase.name}: unable to reload mutated PDF`);

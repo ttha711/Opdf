@@ -89,6 +89,7 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
     Number(env.OPDF_DEFAULT_USER_QUOTA_BYTES || 10 * 1024 * 1024 * 1024),
   );
   let users = [];
+  let usersEtag = null;
 
   if (enabled && mode !== "local") throw new Error("OPDF_AUTH_MODE must be local or disabled.");
   if (enabled && secret.length < 32) throw new Error("OPDF_AUTH_SECRET must be at least 32 characters.");
@@ -100,7 +101,13 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
     await writeFile(temp, text, { encoding: "utf8", mode: 0o600 });
     await rename(temp, usersPath);
     if (objectStore) {
-      await objectStore.put(usersKey, Buffer.from(text, "utf8"), "application/json");
+      const result = await objectStore.put(
+        usersKey,
+        Buffer.from(text, "utf8"),
+        "application/json",
+        usersEtag ? { ifMatch: usersEtag } : { ifNoneMatch: "*" },
+      );
+      usersEtag = result.etag || usersEtag;
     }
   }
 
@@ -110,7 +117,9 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
     try {
       let text;
       if (objectStore) {
-        const remote = await objectStore.get(usersKey);
+        const remoteHead = await objectStore.head(usersKey);
+        usersEtag = remoteHead?.etag || null;
+        const remote = remoteHead ? await objectStore.get(usersKey) : null;
         text = remote ? remote.toString("utf8") : null;
       } else {
         text = await readFile(usersPath, "utf8");
@@ -261,13 +270,21 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
       updatedAt: now,
     };
     users.push(user);
-    await persist();
+    try {
+      await persist();
+    } catch (error) {
+      users = users.filter((row) => row.id !== user.id);
+      throw new Error(
+        `User database changed on another node; retry the request. ${error instanceof Error ? error.message : ""}`.trim(),
+      );
+    }
     return publicUser(user);
   }
 
   async function updateUser(id, patch) {
     const user = users.find((row) => row.id === id);
     if (!user) return null;
+    const previous = { ...user };
     if (patch?.role === "admin" || patch?.role === "user") user.role = patch.role;
     if (typeof patch?.disabled === "boolean") user.disabled = patch.disabled;
     if (Number.isFinite(Number(patch?.quotaBytes))) {
@@ -277,7 +294,14 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
       user.passwordHash = hashPassword(patch.password);
     }
     user.updatedAt = Date.now();
-    await persist();
+    try {
+      await persist();
+    } catch (error) {
+      Object.assign(user, previous);
+      throw new Error(
+        `User database changed on another node; retry the request. ${error instanceof Error ? error.message : ""}`.trim(),
+      );
+    }
     return publicUser(user);
   }
 

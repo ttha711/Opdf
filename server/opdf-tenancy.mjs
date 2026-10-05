@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { mkdir, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createOpdfStorage } from "./opdf-storage.mjs";
+import { createS3OpdfStorage } from "./opdf-storage-s3.mjs";
 import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
 import { createCertificateStore } from "./opdf-certificate-store.mjs";
 
@@ -40,13 +41,23 @@ export function createTenantRuntime(dataDir, options = {}) {
   const scope = new AsyncLocalStorage();
 
   function makeContext(user, projectId, tenantRoot, userRoot) {
+    const remotePrefix = authEnabled
+      ? `users/${user.id}/projects/${projectId}`
+      : "legacy";
     return {
       user,
       projectId,
       tenantRoot,
       userRoot,
-      storage: createOpdfStorage(tenantRoot),
-      certificateStore: createCertificateStore(tenantRoot, options.certificateMasterKey || ""),
+      remotePrefix,
+      storage: options.objectStore
+        ? createS3OpdfStorage(tenantRoot, options.objectStore, remotePrefix)
+        : createOpdfStorage(tenantRoot),
+      certificateStore: createCertificateStore(
+        tenantRoot,
+        options.certificateMasterKey || "",
+        { objectStore: options.objectStore, remotePrefix },
+      ),
       ocrQueue: createOcrJobQueue(tenantRoot, { concurrency: options.ocrConcurrency || 1 }),
     };
   }
@@ -103,7 +114,10 @@ export function createTenantRuntime(dataDir, options = {}) {
       };
     }
     const userRoot = join(root, "users", user.id);
-    const usedBytes = await directorySize(userRoot);
+    const usedBytes = options.objectStore
+      ? (await options.objectStore.list(`users/${user.id}/`))
+          .reduce((sum, item) => sum + Number(item.size || 0), 0)
+      : await directorySize(userRoot);
     const quotaBytes = Math.max(0, Number(user.quotaBytes || 0));
     return {
       usedBytes,

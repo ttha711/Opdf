@@ -252,6 +252,246 @@ async function replaceImageBitmap(
   }
 }
 
+
+function readStroke(module: PdfiumModule, objectPtr: number): string | undefined {
+  const ptr = malloc(module, 16);
+  try {
+    if (!module.FPDFPageObj_GetStrokeColor(objectPtr, ptr, ptr + 4, ptr + 8, ptr + 12)) return undefined;
+    const heap = module.pdfium.HEAPU32;
+    const base = ptr >>> 2;
+    return "#" + [heap[base], heap[base + 1], heap[base + 2]]
+      .map((value) => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0"))
+      .join("");
+  } finally {
+    free(module, ptr);
+  }
+}
+
+function readStrokeWidth(module: PdfiumModule, objectPtr: number): number | undefined {
+  const value = readFloatTuple(module, 1, (ptr) => module.FPDFPageObj_GetStrokeWidth(objectPtr, ptr));
+  return value?.[0];
+}
+
+function copyCommonStyle(module: PdfiumModule, sourcePtr: number, targetPtr: number) {
+  const fill = readFill(module, sourcePtr).fillColor;
+  if (fill) {
+    const [r, g, b, a] = parseColor(fill);
+    module.FPDFPageObj_SetFillColor(targetPtr, r, g, b, a);
+  }
+  const stroke = readStroke(module, sourcePtr);
+  if (stroke) {
+    const [r, g, b, a] = parseColor(stroke);
+    module.FPDFPageObj_SetStrokeColor(targetPtr, r, g, b, a);
+  }
+  const width = readStrokeWidth(module, sourcePtr);
+  if (width !== undefined) module.FPDFPageObj_SetStrokeWidth(targetPtr, width);
+  const matrixPtr = writeMatrix(module, readMatrix(module, sourcePtr));
+  try {
+    module.FPDFPageObj_SetMatrix(targetPtr, matrixPtr);
+  } finally {
+    free(module, matrixPtr);
+  }
+}
+
+function offsetObject(module: PdfiumModule, objectPtr: number, dx: number, dy: number) {
+  module.FPDFPageObj_Transform(objectPtr, 1, 0, 0, 1, dx, dy);
+}
+
+function duplicateTextObject(
+  module: PdfiumModule,
+  docPtr: number,
+  pagePtr: number,
+  sourcePtr: number,
+  objectIndex: number,
+  dx: number,
+  dy: number,
+) {
+  const fontPtr = module.FPDFTextObj_GetFont(sourcePtr);
+  const fontSize = readFontSize(module, sourcePtr) ?? 12;
+  if (!fontPtr) throw new Error("Unable to duplicate text without a font.");
+  const textPagePtr = module.FPDFText_LoadPage(pagePtr);
+  if (!textPagePtr) throw new Error("Unable to read text for duplication.");
+  let text = "";
+  try {
+    text = readUtf16ObjectText(module, sourcePtr, textPagePtr);
+  } finally {
+    module.FPDFText_ClosePage(textPagePtr);
+  }
+  const targetPtr = module.FPDFPageObj_CreateTextObj(docPtr, fontPtr, fontSize);
+  if (!targetPtr) throw new Error("PDFium could not create duplicated text.");
+  const textPtr = writeUtf16(module, text);
+  try {
+    if (!module.FPDFText_SetText(targetPtr, textPtr)) throw new Error("PDFium could not copy duplicated text.");
+    copyCommonStyle(module, sourcePtr, targetPtr);
+    offsetObject(module, targetPtr, dx, dy);
+    if (!module.FPDFPage_InsertObjectAtIndex(pagePtr, targetPtr, objectIndex + 1)) module.FPDFPage_InsertObject(pagePtr, targetPtr);
+  } catch (error) {
+    module.FPDFPageObj_Destroy(targetPtr);
+    throw error;
+  } finally {
+    free(module, textPtr);
+  }
+}
+
+function bitmapBytesPerPixel(format: number) {
+  if (format === 1) return 1;
+  if (format === 2) return 3;
+  if (format === 3 || format === 4) return 4;
+  throw new Error("Unsupported PDFium bitmap format.");
+}
+
+function duplicateImageObject(
+  module: PdfiumModule,
+  docPtr: number,
+  pagePtr: number,
+  sourcePtr: number,
+  objectIndex: number,
+  dx: number,
+  dy: number,
+) {
+  const sourceBitmap = module.FPDFImageObj_GetBitmap(sourcePtr);
+  if (!sourceBitmap) throw new Error("Unable to read image bitmap for duplication.");
+  const targetPtr = module.FPDFPageObj_NewImageObj(docPtr);
+  if (!targetPtr) {
+    module.FPDFBitmap_Destroy(sourceBitmap);
+    throw new Error("PDFium could not create duplicated image.");
+  }
+  const pagesPtr = malloc(module, 4);
+  try {
+    module.pdfium.HEAPU32[pagesPtr >>> 2] = pagePtr;
+    if (!module.FPDFImageObj_SetBitmap(pagesPtr, 1, targetPtr, sourceBitmap)) throw new Error("PDFium could not copy image bitmap.");
+    copyCommonStyle(module, sourcePtr, targetPtr);
+    offsetObject(module, targetPtr, dx, dy);
+    if (!module.FPDFPage_InsertObjectAtIndex(pagePtr, targetPtr, objectIndex + 1)) module.FPDFPage_InsertObject(pagePtr, targetPtr);
+  } catch (error) {
+    module.FPDFPageObj_Destroy(targetPtr);
+    throw error;
+  } finally {
+    free(module, pagesPtr);
+    module.FPDFBitmap_Destroy(sourceBitmap);
+  }
+}
+
+function duplicatePathObject(
+  module: PdfiumModule,
+  pagePtr: number,
+  sourcePtr: number,
+  objectIndex: number,
+  dx: number,
+  dy: number,
+) {
+  const count = module.FPDFPath_CountSegments(sourcePtr);
+  if (!count) throw new Error("Unable to duplicate an empty path.");
+  const first = module.FPDFPath_GetPathSegment(sourcePtr, 0);
+  const pointPtr = malloc(module, 8);
+  let targetPtr = 0;
+  try {
+    if (!first || !module.FPDFPathSegment_GetPoint(first, pointPtr, pointPtr + 4)) throw new Error("Unable to read path start.");
+    const heap = module.pdfium.HEAPF32;
+    const base = pointPtr >>> 2;
+    targetPtr = module.FPDFPageObj_CreateNewPath(heap[base], heap[base + 1]);
+    if (!targetPtr) throw new Error("PDFium could not create duplicated path.");
+
+    for (let index = 1; index < count; index += 1) {
+      const segment = module.FPDFPath_GetPathSegment(sourcePtr, index);
+      if (!segment) continue;
+      const type = module.FPDFPathSegment_GetType(segment);
+      if (type === 0 || type === 1) {
+        if (!module.FPDFPathSegment_GetPoint(segment, pointPtr, pointPtr + 4)) continue;
+        const x = heap[base];
+        const y = heap[base + 1];
+        if (type === 0) module.FPDFPath_MoveTo(targetPtr, x, y);
+        else module.FPDFPath_LineTo(targetPtr, x, y);
+      } else if (type === 2 && index >= 2) {
+        const a = module.FPDFPath_GetPathSegment(sourcePtr, index - 2);
+        const b = module.FPDFPath_GetPathSegment(sourcePtr, index - 1);
+        const pts = malloc(module, 24);
+        try {
+          if (
+            a && b &&
+            module.FPDFPathSegment_GetPoint(a, pts, pts + 4) &&
+            module.FPDFPathSegment_GetPoint(b, pts + 8, pts + 12) &&
+            module.FPDFPathSegment_GetPoint(segment, pts + 16, pts + 20)
+          ) {
+            const h = module.pdfium.HEAPF32;
+            const p = pts >>> 2;
+            module.FPDFPath_BezierTo(targetPtr, h[p], h[p + 1], h[p + 2], h[p + 3], h[p + 4], h[p + 5]);
+          }
+        } finally {
+          free(module, pts);
+        }
+      }
+      if (module.FPDFPathSegment_GetClose(segment)) module.FPDFPath_Close(targetPtr);
+    }
+
+    const drawPtr = malloc(module, 8);
+    try {
+      if (module.FPDFPath_GetDrawMode(sourcePtr, drawPtr, drawPtr + 4)) {
+        const fillMode = module.pdfium.HEAP32[drawPtr >>> 2];
+        const stroke = Boolean(module.pdfium.HEAP32[(drawPtr >>> 2) + 1]);
+        module.FPDFPath_SetDrawMode(targetPtr, fillMode, stroke);
+      }
+    } finally {
+      free(module, drawPtr);
+    }
+
+    copyCommonStyle(module, sourcePtr, targetPtr);
+    offsetObject(module, targetPtr, dx, dy);
+    if (!module.FPDFPage_InsertObjectAtIndex(pagePtr, targetPtr, objectIndex + 1)) module.FPDFPage_InsertObject(pagePtr, targetPtr);
+  } catch (error) {
+    if (targetPtr) module.FPDFPageObj_Destroy(targetPtr);
+    throw error;
+  } finally {
+    free(module, pointPtr);
+  }
+}
+
+function cropImageObject(
+  module: PdfiumModule,
+  pagePtr: number,
+  objectPtr: number,
+  crop: { left: number; top: number; right: number; bottom: number },
+) {
+  const bitmapPtr = module.FPDFImageObj_GetBitmap(objectPtr);
+  if (!bitmapPtr) throw new Error("Unable to read image bitmap for crop.");
+  try {
+    const width = module.FPDFBitmap_GetWidth(bitmapPtr);
+    const height = module.FPDFBitmap_GetHeight(bitmapPtr);
+    const format = module.FPDFBitmap_GetFormat(bitmapPtr);
+    const stride = module.FPDFBitmap_GetStride(bitmapPtr);
+    const sourcePtr = module.FPDFBitmap_GetBuffer(bitmapPtr);
+    const bpp = bitmapBytesPerPixel(format);
+    const left = Math.max(0, Math.min(width - 1, Math.floor(width * crop.left)));
+    const top = Math.max(0, Math.min(height - 1, Math.floor(height * crop.top)));
+    const right = Math.max(left + 1, Math.min(width, Math.ceil(width * (1 - crop.right))));
+    const bottom = Math.max(top + 1, Math.min(height, Math.ceil(height * (1 - crop.bottom))));
+    const outWidth = right - left;
+    const outHeight = bottom - top;
+    const outStride = outWidth * bpp;
+    const outBitmap = module.FPDFBitmap_CreateEx(outWidth, outHeight, format, 0, outStride);
+    if (!outBitmap) throw new Error("PDFium could not allocate cropped bitmap.");
+    try {
+      const outPtr = module.FPDFBitmap_GetBuffer(outBitmap);
+      for (let y = 0; y < outHeight; y += 1) {
+        const sourceRow = sourcePtr + (top + y) * stride + left * bpp;
+        const targetRow = outPtr + y * outStride;
+        module.pdfium.HEAPU8.copyWithin(targetRow, sourceRow, sourceRow + outStride);
+      }
+      const pagesPtr = malloc(module, 4);
+      try {
+        module.pdfium.HEAPU32[pagesPtr >>> 2] = pagePtr;
+        if (!module.FPDFImageObj_SetBitmap(pagesPtr, 1, objectPtr, outBitmap)) throw new Error("PDFium failed to apply image crop.");
+      } finally {
+        free(module, pagesPtr);
+      }
+    } finally {
+      module.FPDFBitmap_Destroy(outBitmap);
+    }
+  } finally {
+    module.FPDFBitmap_Destroy(bitmapPtr);
+  }
+}
+
 function parseObjectId(id: string): { pageIndex: number; objectIndex: number } {
   const match = /^p(\d+)-o(\d+)$/.exec(id);
   if (!match) throw new Error(`Unsupported content object id: ${id}`);
@@ -389,6 +629,15 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               module.FPDFPageObj_Transform(objectPtr, a, b, c, d, e, f);
             } else if (patch.type === "delete") {
               if (!module.FPDFPage_RemoveObject(pagePtr, objectPtr)) throw new Error(`Unable to delete ${patch.objectId}.`);
+            } else if (patch.type === "duplicate") {
+              const { objectIndex } = parseObjectId(patch.objectId);
+              const dx = patch.offsetX ?? 12;
+              const dy = patch.offsetY ?? -12;
+              const objectType = module.FPDFPageObj_GetType(objectPtr);
+              if (objectType === 1) duplicateTextObject(module, docPtr, pagePtr, objectPtr, objectIndex, dx, dy);
+              else if (objectType === 2) duplicatePathObject(module, pagePtr, objectPtr, objectIndex, dx, dy);
+              else if (objectType === 3) duplicateImageObject(module, docPtr, pagePtr, objectPtr, objectIndex, dx, dy);
+              else throw new Error(`Duplicate is not supported for ${patch.objectId}.`);
             } else if (patch.type === "style-text") {
               let styledObjectPtr = objectPtr;
               if (patch.fontSize !== undefined || patch.fontFamily) {
@@ -412,6 +661,9 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
             } else if (patch.type === "replace-image") {
               if (module.FPDFPageObj_GetType(objectPtr) !== 3) throw new Error(`${patch.objectId} is not an image object.`);
               await replaceImageBitmap(module, pagePtr, objectPtr, patch.bytes, patch.mimeType);
+            } else if (patch.type === "crop-image") {
+              if (module.FPDFPageObj_GetType(objectPtr) !== 3) throw new Error(`${patch.objectId} is not an image object.`);
+              cropImageObject(module, pagePtr, objectPtr, patch);
             } else if (patch.type === "style-object") {
               if (patch.fillColor) {
                 const [r, g, b, a] = parseColor(patch.fillColor);

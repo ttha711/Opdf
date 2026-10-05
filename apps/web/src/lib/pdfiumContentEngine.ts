@@ -132,9 +132,12 @@ function replaceTextObjectFontSize(
   objectPtr: number,
   objectIndex: number,
   fontSize: number,
+  fontFamily?: string,
 ): number {
-  const fontPtr = module.FPDFTextObj_GetFont(objectPtr);
-  if (!fontPtr) throw new Error("Unable to read the existing PDF font.");
+  const fontPtr = fontFamily
+    ? module.FPDFText_LoadStandardFont(docPtr, fontFamily)
+    : module.FPDFTextObj_GetFont(objectPtr);
+  if (!fontPtr) throw new Error("Unable to load the requested PDF font.");
   const textPagePtr = module.FPDFText_LoadPage(pagePtr);
   if (!textPagePtr) throw new Error("Unable to read text before resizing.");
   let text = "";
@@ -365,15 +368,17 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               if (!module.FPDFPage_RemoveObject(pagePtr, objectPtr)) throw new Error(`Unable to delete ${patch.objectId}.`);
             } else if (patch.type === "style-text") {
               let styledObjectPtr = objectPtr;
-              if (patch.fontSize !== undefined) {
+              if (patch.fontSize !== undefined || patch.fontFamily) {
                 const { objectIndex } = parseObjectId(patch.objectId);
+                const currentSize = readFontSize(module, objectPtr) ?? 12;
                 styledObjectPtr = replaceTextObjectFontSize(
                   module,
                   docPtr,
                   pagePtr,
                   objectPtr,
                   objectIndex,
-                  patch.fontSize,
+                  patch.fontSize ?? currentSize,
+                  patch.fontFamily,
                 );
                 handles.set(patch.objectId, styledObjectPtr);
               }
@@ -381,7 +386,6 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
                 const [r, g, b, a] = parseColor(patch.fillColor);
                 if (!module.FPDFPageObj_SetFillColor(styledObjectPtr, r, g, b, a)) throw new Error(`Unable to change text color for ${patch.objectId}.`);
               }
-              if (patch.fontFamily) throw new Error("Changing font family requires an embedded replacement font and is not enabled yet.");
             } else if (patch.type === "replace-image") {
               if (module.FPDFPageObj_GetType(objectPtr) !== 3) throw new Error(`${patch.objectId} is not an image object.`);
               await replaceImageBitmap(module, pagePtr, objectPtr, patch.bytes, patch.mimeType);

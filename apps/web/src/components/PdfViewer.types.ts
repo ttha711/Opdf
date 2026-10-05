@@ -14,5 +14,6 @@ export interface PdfViewerProps {
   onViewerDirty?: () => void;
   onViewerScaleChange?: (scale: number) => void;
   onPatchApplied?: () => void;
+  onViewerReady?: () => void;
   getDocumentBytes?: () => Promise<Uint8Array | null>;
 }

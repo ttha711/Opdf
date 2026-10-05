@@ -20,6 +20,7 @@ export function NativeContentEditorPanel({
   const [draftText, setDraftText] = useState("");
   const [draftSize, setDraftSize] = useState("12");
   const [draftColor, setDraftColor] = useState("#000000");
+  const [draftFont, setDraftFont] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -55,6 +56,7 @@ export function NativeContentEditorPanel({
     setDraftText(selected.text ?? "");
     setDraftSize(String(Math.round((selected.fontSize ?? 12) * 100) / 100));
     setDraftColor(selected.fillColor ?? "#000000");
+    setDraftFont("");
   }, [selected?.id]);
 
   const apply = async (patches: PdfContentPatch[], success: string) => {
@@ -100,6 +102,7 @@ export function NativeContentEditorPanel({
         objectId: selected.id,
         fontSize: size,
         fillColor: draftColor,
+        fontFamily: draftFont || undefined,
       });
     }
     void apply(patches, "Native PDF text updated.");
@@ -158,6 +161,15 @@ export function NativeContentEditorPanel({
                   <input type="color" value={draftColor} onChange={(event) => setDraftColor(event.target.value)} />
                 </label>
               </div>
+              <label>
+                Font
+                <select value={draftFont} onChange={(event) => setDraftFont(event.target.value)}>
+                  <option value="">Keep existing ({selected.fontFamily || "embedded font"})</option>
+                  <option value="Helvetica">Helvetica</option>
+                  <option value="Times-Roman">Times</option>
+                  <option value="Courier">Courier</option>
+                </select>
+              </label>
               <button type="button" className="primary" onClick={saveText} disabled={loading}>Apply text</button>
             </>
           ) : null}

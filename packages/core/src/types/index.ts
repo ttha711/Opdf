@@ -135,6 +135,8 @@ export type {
   PdfLineCap,
   PdfLineJoin,
   PdfMatrix,
+  PdfPoint,
+  PdfQuad,
   PdfPathCommand,
   PdfPathFillMode,
   PdfRect,

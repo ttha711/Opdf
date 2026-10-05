@@ -11,6 +11,7 @@ on:
       - "apps/web/src/components/PdfViewer.tsx"
       - "server/**"
       - "scripts/perf/real-world-pdf-smoke.mjs"
+      - "scripts/perf/real-world-pdf-browser.mjs"
       - ".github/workflows/real-world-pdf-test.yml"
 
 permissions:

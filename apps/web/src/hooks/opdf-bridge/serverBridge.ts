@@ -5,6 +5,7 @@ import type {
 } from "@opdf/core";
 import type { OpdfBridge } from "../../types/opdf";
 import { createMockBridge } from "./mockBridge";
+import { createServerOcrClient } from "./serverOcr";
 
 type ServerUploadResult = {
   id: string;
@@ -81,6 +82,7 @@ function downloadBytes(bytes: Uint8Array, name: string) {
 
 export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
   const browser = createMockBridge();
+  const serverOcr = createServerOcrClient(baseUrl);
   const annotationUndo = new Map<string, Annotation[][]>();
   const annotationRedo = new Map<string, Annotation[][]>();
 
@@ -324,15 +326,15 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
     },
 
     async enqueueOcr(filePath: string, language?: string): Promise<OcrJob> {
-      return browser.enqueueOcr(filePath, language);
+      return serverOcr.enqueueOcr(filePath, language);
     },
 
     async runOcr(jobId: string, inputBytes?: Uint8Array) {
-      return browser.runOcr(jobId, inputBytes);
+      return serverOcr.runOcr(jobId, inputBytes);
     },
 
     async listOcrJobs() {
-      return browser.listOcrJobs();
+      return serverOcr.listOcrJobs();
     },
 
     async insertPages(bytes: Uint8Array, opts: InsertOptions) {

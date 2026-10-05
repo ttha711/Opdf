@@ -39,6 +39,7 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [working, setWorking] = useState(false);
+  const [projects, setProjects] = useState<Array<{ id: string }>>([]);
 
   async function loadSession() {
     if (!isServerRuntime) return;
@@ -50,8 +51,11 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
       return;
     }
     if (!response.ok) throw new Error(`Unable to load OPDF session: HTTP ${response.status}`);
-    setSession(await response.json() as Session);
+    const nextSession = await response.json() as Session;
+    setSession(nextSession);
     setRequiresLogin(false);
+    const projectsResponse = await fetch("/api/opdf/projects", { credentials: "same-origin" });
+    if (projectsResponse.ok) setProjects(await projectsResponse.json() as Array<{ id: string }>);
     setReady(true);
   }
 
@@ -84,6 +88,30 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
     } finally {
       setWorking(false);
     }
+  }
+
+  async function selectProject(projectId: string) {
+    if (!projectId || projectId === session?.projectId) return;
+    setWorking(true);
+    setError("");
+    try {
+      const response = await fetch("/api/opdf/projects/select", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: projectId }),
+      });
+      if (!response.ok) throw new Error("Unable to switch project.");
+      window.location.reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to switch project.");
+      setWorking(false);
+    }
+  }
+
+  async function logout() {
+    await fetch("/api/opdf/auth/logout", { method: "POST", credentials: "same-origin" }).catch(() => {});
+    window.location.reload();
   }
 
   if (!ready) {
@@ -151,10 +179,26 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
       session.quota.quotaBytes < Number.MAX_SAFE_INTEGER ? (
         <div
           data-opdf-server-user
-          className="fixed bottom-7 right-3 z-[200] rounded-md border border-[var(--ui-border)] bg-[var(--panel-bg)] px-2 py-1 text-[10px] text-[var(--text-secondary)] shadow"
+          className="fixed bottom-7 right-3 z-[200] flex items-center gap-2 rounded-md border border-[var(--ui-border)] bg-[var(--panel-bg)] px-2 py-1 text-[10px] text-[var(--text-secondary)] shadow"
           title={`${session.user.email} · project ${session.projectId}`}
         >
-          {session.user.email} · {formatBytes(session.quota.usedBytes)} / {formatBytes(session.quota.quotaBytes)}
+          <span>{session.user.email} · {formatBytes(session.quota.usedBytes)} / {formatBytes(session.quota.quotaBytes)}</span>
+          {projects.length > 1 ? (
+            <select
+              aria-label="Current OPDF project"
+              value={session.projectId}
+              disabled={working}
+              onChange={(event) => void selectProject(event.target.value)}
+              className="rounded border border-[var(--ui-border)] bg-[var(--ui-bg)] px-1 py-0.5"
+            >
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>{project.id}</option>
+              ))}
+            </select>
+          ) : (
+            <span>· {session.projectId}</span>
+          )}
+          <button type="button" onClick={() => void logout()} className="underline">Sign out</button>
         </div>
       ) : null}
       {children}

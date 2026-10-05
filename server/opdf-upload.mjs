@@ -136,9 +136,13 @@ export function createChunkUploadApi({
         sendJson(res, 200, uploadPayload(record, completedSize, chunkBytes, [], true));
         return true;
       }
-      const uploadedChunks = [];
-      for (let index = 0; index < totalChunks; index += 1) {
-        if (await fileSize(chunkPath(record, index)) != null) uploadedChunks.push(index);
+      const uploadedChunks = storage.multipartUploads
+        ? await storage.listUploadedChunks(record.id)
+        : [];
+      if (!storage.multipartUploads) {
+        for (let index = 0; index < totalChunks; index += 1) {
+          if (await fileSize(chunkPath(record, index)) != null) uploadedChunks.push(index);
+        }
       }
       sendJson(res, 200, uploadPayload(record, expectedSize, chunkBytes, uploadedChunks));
       return true;
@@ -178,13 +182,17 @@ export function createChunkUploadApi({
         return true;
       }
 
-      const path = chunkPath(record, index);
-      await rm(path, { force: true }).catch(() => {});
-      const handle = await open(path, "wx");
-      try {
-        await handle.write(part);
-      } finally {
-        await handle.close();
+      if (storage.multipartUploads) {
+        await storage.putUploadChunk(record.id, index, part);
+      } else {
+        const path = chunkPath(record, index);
+        await rm(path, { force: true }).catch(() => {});
+        const handle = await open(path, "wx");
+        try {
+          await handle.write(part);
+        } finally {
+          await handle.close();
+        }
       }
       sendJson(res, 200, { id: record.id, chunkIndex: index, received: part.byteLength });
       return true;
@@ -195,6 +203,14 @@ export function createChunkUploadApi({
         if (completedSize !== expectedSize) {
           sendError(res, 409, "Stored document size does not match upload size.");
           return true;
+        }
+      } else if (storage.multipartUploads) {
+        const uploaded = await storage.listUploadedChunks(record.id);
+        for (let index = 0; index < totalChunks; index += 1) {
+          if (!uploaded.includes(index)) {
+            sendJson(res, 409, { error: "Upload is incomplete.", missingChunk: index });
+            return true;
+          }
         }
       } else {
         for (let index = 0; index < totalChunks; index += 1) {
@@ -208,7 +224,9 @@ export function createChunkUploadApi({
 
       const updated = completedSize != null
         ? record
-        : await storage.finalizeDocument(record.id, expectedSize);
+        : storage.multipartUploads
+          ? await storage.completeUpload(record.id, expectedSize, chunkBytes)
+          : await storage.finalizeDocument(record.id, expectedSize);
       await storage.pushRecent(updated.filePath);
       sendJson(res, 201, {
         ...uploadPayload(updated, expectedSize, chunkBytes, [], true),

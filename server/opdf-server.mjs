@@ -42,6 +42,32 @@ const officeConverterScript = resolve(
 const officeWorkerTimeoutMs = Number(process.env.OPDF_OFFICE_WORKER_TIMEOUT_MS || 5 * 60 * 1000);
 const libreOfficePath = process.env.OPDF_LIBREOFFICE_PATH || (process.platform === "win32" ? "soffice.exe" : "soffice");
 
+function serverCapabilities() {
+  return {
+    persistence: true,
+    rangeReads: true,
+    annotations: true,
+    session: true,
+    compress: true,
+    encrypt: true,
+    decrypt: true,
+    officeConversion: true,
+    officeToPdf: true,
+    storedMutations: true,
+    rangePreview: true,
+    resumableUpload: true,
+    localFirstUpload: true,
+    ocrQueue: true,
+    searchablePdfOcr: true,
+    digitalSignature: tenantManager.certificateStorageEnabled,
+    certificateStorage: tenantManager.certificateStorageEnabled,
+    signatureInspection: true,
+    multiUserAuth: auth.enabled,
+    perUserProjectStorage: auth.enabled,
+    quotas: auth.enabled,
+  };
+}
+
 
 function setBaseHeaders(res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -581,7 +607,7 @@ async function serveWeb(req, res, pathname) {
   setBaseHeaders(res);
   if (filePath.endsWith("index.html")) {
     let html = await readFile(filePath, "utf8");
-    const runtimeScript = '<script>window.__OPDF_RUNTIME__="server";window.__OPDF_SERVER_BASE__="/api/opdf";</script>';
+    const runtimeScript = `<script>window.__OPDF_RUNTIME__="server";window.__OPDF_SERVER_BASE__="/api/opdf";window.__OPDF_SERVER_CAPABILITIES__=${JSON.stringify(serverCapabilities())};</script>`;
     html = html.includes("</head>") ? html.replace("</head>", runtimeScript + "</head>") : runtimeScript + html;
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -691,29 +717,7 @@ async function handleApi(req, res, url) {
       maxUploadBytes: maxBytes,
       uploadChunkBytes,
       maxOperationBytes,
-      capabilities: {
-        persistence: true,
-        rangeReads: true,
-        annotations: true,
-        session: true,
-        compress: true,
-        encrypt: true,
-        decrypt: true,
-        officeConversion: true,
-        officeToPdf: true,
-        storedMutations: true,
-        rangePreview: true,
-        resumableUpload: true,
-        localFirstUpload: true,
-        ocrQueue: true,
-        searchablePdfOcr: true,
-        digitalSignature: tenantManager.certificateStorageEnabled,
-        certificateStorage: tenantManager.certificateStorageEnabled,
-        signatureInspection: true,
-        multiUserAuth: auth.enabled,
-        perUserProjectStorage: auth.enabled,
-        quotas: auth.enabled,
-      },
+      capabilities: serverCapabilities(),
     });
   }
 

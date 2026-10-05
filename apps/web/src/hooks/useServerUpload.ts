@@ -32,9 +32,6 @@ type Args = {
   bridge: OpdfBridge;
   sourceIdentity: string;
   saveState: "idle" | "saving" | "saved";
-  annotations: Annotation[];
-  bookmarks: Array<{ id: string; page: number; title: string; createdAt: number }>;
-  pageRotations: Record<number, number>;
   setFileName: (value: string) => void;
   setDocBytes: (value: Uint8Array | null) => void;
   setSourceBlob: (value: Blob | null) => void;
@@ -46,13 +43,13 @@ type Args = {
   setAnnotations: (value: Annotation[]) => void;
   setBookmarks: (value: Array<{ id: string; page: number; title: string; createdAt: number }>) => void;
   setPageRotations: (value: Record<number, number>) => void;
-  markDocumentSaved: (snapshot: {
-    fileName: string;
-    docBytes: Uint8Array | null;
-    documentIdentity: string;
-    annotations: Annotation[];
-    bookmarks: Array<{ id: string; page: number; title: string; createdAt: number }>;
-    pageRotations: Record<number, number>;
+  markDocumentSaved: (snapshot?: {
+    fileName?: string;
+    docBytes?: Uint8Array | null;
+    documentIdentity?: string;
+    annotations?: Annotation[];
+    bookmarks?: Array<{ id: string; page: number; title: string; createdAt: number }>;
+    pageRotations?: Record<number, number>;
   }) => void;
 };
 
@@ -118,18 +115,12 @@ export function useServerUpload(args: Args) {
       const current = argsRef.current;
       const isStillActive = current.sourceIdentity === pending.localIdentity;
       if (isStillActive) {
-        if (current.annotations.length > 0) {
-          await current.bridge.replaceAnnotations(result.filePath, current.annotations).catch(() => current.annotations);
-        }
         current.setSourceIdentity(result.filePath);
         if (current.saveState === "saved") {
           current.markDocumentSaved({
             fileName: pending.file.name,
             docBytes: null,
             documentIdentity: result.filePath,
-            annotations: current.annotations,
-            bookmarks: current.bookmarks,
-            pageRotations: current.pageRotations,
           });
         }
       }

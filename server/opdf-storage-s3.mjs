@@ -23,6 +23,7 @@ async function readJsonFile(path, fallback = null) {
 export function createS3OpdfStorage(rootDir, objectStore, remotePrefix) {
   const root = resolve(rootDir);
   const documentsRoot = join(root, "documents");
+  const remoteEtags = new Map();
   const recentsPath = join(root, "recents.json");
   const sessionPath = join(root, "session.json");
 
@@ -47,13 +48,34 @@ export function createS3OpdfStorage(rootDir, objectStore, remotePrefix) {
     const text = JSON.stringify(value, null, 2) + "\n";
     const temp = `${path}.${randomUUID()}.tmp`;
     await writeFile(temp, text, "utf8");
+
+    let known = remoteEtags.get(remoteKey);
+    if (known === undefined) {
+      const remote = await objectStore.head(remoteKey);
+      known = remote?.etag || null;
+    }
+    const result = await objectStore.put(
+      remoteKey,
+      Buffer.from(text, "utf8"),
+      "application/json",
+      known ? { ifMatch: known } : { ifNoneMatch: "*" },
+    );
+    remoteEtags.set(remoteKey, result.etag || null);
     await rename(temp, path);
-    await objectStore.put(remoteKey, Buffer.from(text, "utf8"), "application/json");
   }
 
   async function readJsonRemote(path, remoteKey, fallback) {
+    const remote = await objectStore.head(remoteKey);
+    if (!remote) {
+      remoteEtags.set(remoteKey, null);
+      return fallback;
+    }
     const bytes = await objectStore.get(remoteKey);
-    if (!bytes) return fallback;
+    if (!bytes) {
+      remoteEtags.set(remoteKey, null);
+      return fallback;
+    }
+    remoteEtags.set(remoteKey, remote.etag || null);
     await mkdir(resolve(path, ".."), { recursive: true });
     await writeFile(path, bytes);
     try {
@@ -169,7 +191,10 @@ export function createS3OpdfStorage(rootDir, objectStore, remotePrefix) {
       await objectStore.abortMultipart(documentKey(safeId), meta.multipartUploadId).catch(() => {});
     }
     const objects = await objectStore.list(key(`documents/${safeId}/`));
-    for (const item of objects) await objectStore.remove(item.key);
+    for (const item of objects) {
+      await objectStore.remove(item.key);
+      remoteEtags.delete(item.key);
+    }
     await rm(docDir(safeId), { recursive: true, force: true });
   }
 

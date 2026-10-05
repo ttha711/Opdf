@@ -291,7 +291,7 @@ async function mutateStoredDocument(req, res, record) {
       const page = pages[pageNumber - 1];
       page.setRotation(pdfDegrees(page.getRotation().angle + degrees));
     }
-    output = new Uint8Array(await doc.save({ useObjectStreams: false, addDefaultPage: false }));
+    output = new Uint8Array(await doc.save({ useObjectStreams: true, addDefaultPage: false }));
   } else if (body.type === "delete-pages") {
     const pageNumbers = Array.isArray(body.pageNumbers)
       ? body.pageNumbers.filter((value) => Number.isInteger(value) && value > 0)

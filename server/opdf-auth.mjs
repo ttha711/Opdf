@@ -75,9 +75,11 @@ function encodedJson(value) {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 }
 
-export function createAuthService(dataDir, env = process.env) {
+export function createAuthService(dataDir, env = process.env, options = {}) {
   const root = resolve(dataDir, "auth");
   const usersPath = join(root, "users.json");
+  const objectStore = options.objectStore || null;
+  const usersKey = "auth/users.json";
   const mode = String(env.OPDF_AUTH_MODE || (env.OPDF_AUTH_SECRET ? "local" : "disabled")).toLowerCase();
   const enabled = mode !== "disabled";
   const secret = String(env.OPDF_AUTH_SECRET || "");
@@ -87,6 +89,7 @@ export function createAuthService(dataDir, env = process.env) {
     Number(env.OPDF_DEFAULT_USER_QUOTA_BYTES || 10 * 1024 * 1024 * 1024),
   );
   let users = [];
+  let usersEtag = null;
 
   if (enabled && mode !== "local") throw new Error("OPDF_AUTH_MODE must be local or disabled.");
   if (enabled && secret.length < 32) throw new Error("OPDF_AUTH_SECRET must be at least 32 characters.");
@@ -94,23 +97,64 @@ export function createAuthService(dataDir, env = process.env) {
   async function persist() {
     await mkdir(root, { recursive: true });
     const temp = `${usersPath}.${randomUUID()}.tmp`;
-    await writeFile(
-      temp,
-      JSON.stringify({ version: 1, users }, null, 2) + "\n",
-      { encoding: "utf8", mode: 0o600 },
-    );
+    const text = JSON.stringify({ version: 1, users }, null, 2) + "\n";
+    await writeFile(temp, text, { encoding: "utf8", mode: 0o600 });
     await rename(temp, usersPath);
+    if (objectStore) {
+      const result = await objectStore.put(
+        usersKey,
+        Buffer.from(text, "utf8"),
+        "application/json",
+        usersEtag ? { ifMatch: usersEtag } : { ifNoneMatch: "*" },
+      );
+      usersEtag = result.etag || usersEtag;
+    }
+  }
+
+  async function refreshUsers() {
+    if (!enabled || !objectStore) return;
+    const remoteHead = await objectStore.head(usersKey);
+    if (!remoteHead) {
+      throw new Error("Shared OPDF user database is missing.");
+    }
+    if (remoteHead.etag && remoteHead.etag === usersEtag) return;
+    const remote = await objectStore.get(usersKey);
+    if (!remote) throw new Error("Shared OPDF user database is missing.");
+    const text = remote.toString("utf8");
+    const payload = JSON.parse(text);
+    if (!Array.isArray(payload?.users)) {
+      throw new Error("Shared OPDF user database is corrupt.");
+    }
+    users = payload.users;
+    usersEtag = remoteHead.etag || null;
+    await writeFile(usersPath, text, { encoding: "utf8", mode: 0o600 });
   }
 
   async function ensure() {
     await mkdir(root, { recursive: true });
     if (!enabled) return;
     try {
-      const payload = JSON.parse(await readFile(usersPath, "utf8"));
-      if (!Array.isArray(payload?.users)) throw new Error("Invalid OPDF user database.");
-      users = payload.users;
+      let text;
+      if (objectStore) {
+        const remoteHead = await objectStore.head(usersKey);
+        usersEtag = remoteHead?.etag || null;
+        const remote = remoteHead ? await objectStore.get(usersKey) : null;
+        text = remote ? remote.toString("utf8") : null;
+      } else {
+        text = await readFile(usersPath, "utf8");
+      }
+      if (text == null) {
+        users = [];
+      } else {
+        const payload = JSON.parse(text);
+        if (!Array.isArray(payload?.users)) throw new Error("Invalid OPDF user database.");
+        users = payload.users;
+        if (objectStore) {
+          await writeFile(usersPath, text, { encoding: "utf8", mode: 0o600 });
+        }
+      }
     } catch (error) {
-      if (error?.code === "ENOENT") users = [];
+      if (!objectStore && error?.code === "ENOENT") users = [];
       else throw new Error("OPDF user database is unreadable or corrupt; refusing to start authentication.");
     }
 
@@ -173,7 +217,7 @@ export function createAuthService(dataDir, env = process.env) {
     return user && !user.disabled ? user : null;
   }
 
-  function getRequestUser(req) {
+  async function getRequestUser(req) {
     if (!enabled) {
       return {
         id: "local-single-user",
@@ -185,6 +229,7 @@ export function createAuthService(dataDir, env = process.env) {
         updatedAt: 0,
       };
     }
+    await refreshUsers();
     const bearer = typeof req.headers.authorization === "string" &&
       req.headers.authorization.startsWith("Bearer ")
       ? req.headers.authorization.slice(7).trim()
@@ -215,6 +260,7 @@ export function createAuthService(dataDir, env = process.env) {
   }
 
   async function authenticate(emailValue, password) {
+    await refreshUsers();
     let email;
     try {
       email = normalizeEmail(emailValue);
@@ -227,6 +273,7 @@ export function createAuthService(dataDir, env = process.env) {
   }
 
   async function createUser(input) {
+    await refreshUsers();
     const email = normalizeEmail(input?.email);
     if (users.some((row) => row.email === email)) throw new Error("User already exists.");
     const role = input?.role === "admin" ? "admin" : "user";
@@ -245,13 +292,22 @@ export function createAuthService(dataDir, env = process.env) {
       updatedAt: now,
     };
     users.push(user);
-    await persist();
+    try {
+      await persist();
+    } catch (error) {
+      users = users.filter((row) => row.id !== user.id);
+      throw new Error(
+        `User database changed on another node; retry the request. ${error instanceof Error ? error.message : ""}`.trim(),
+      );
+    }
     return publicUser(user);
   }
 
   async function updateUser(id, patch) {
+    await refreshUsers();
     const user = users.find((row) => row.id === id);
     if (!user) return null;
+    const previous = { ...user };
     if (patch?.role === "admin" || patch?.role === "user") user.role = patch.role;
     if (typeof patch?.disabled === "boolean") user.disabled = patch.disabled;
     if (Number.isFinite(Number(patch?.quotaBytes))) {
@@ -261,7 +317,14 @@ export function createAuthService(dataDir, env = process.env) {
       user.passwordHash = hashPassword(patch.password);
     }
     user.updatedAt = Date.now();
-    await persist();
+    try {
+      await persist();
+    } catch (error) {
+      Object.assign(user, previous);
+      throw new Error(
+        `User database changed on another node; retry the request. ${error instanceof Error ? error.message : ""}`.trim(),
+      );
+    }
     return publicUser(user);
   }
 
@@ -276,7 +339,10 @@ export function createAuthService(dataDir, env = process.env) {
     clearSessionCookie,
     authenticate,
     sessionHours,
-    listUsers: () => users.map(publicUser),
+    listUsers: async () => {
+      await refreshUsers();
+      return users.map(publicUser);
+    },
     createUser,
     updateUser,
   };

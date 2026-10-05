@@ -80,7 +80,12 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
 
   let searchMatches = null;
   if (testCase.searchText) {
-    await page.getByRole("button", { name: "Search & Secure Redact", exact: true }).click();
+    const header = page.locator("header");
+    await header.getByRole("button", { name: "Tools", exact: true }).click();
+    await header.getByRole("menuitem", {
+      name: "Search & Secure Redact...",
+      exact: true,
+    }).click();
     const modal = page.locator(".premium-modal").filter({ hasText: "Search & Secure Redact" });
     await modal.getByPlaceholder("Text to redact…").fill(testCase.searchText);
     await modal.getByRole("button", { name: "Search all pages", exact: true }).click();

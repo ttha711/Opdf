@@ -37,7 +37,7 @@ export function usePdfToImages(args: UsePdfToImagesArgs) {
     setIsProcessing(true);
     setViewerError("Preparing page images...");
     try {
-      const thumbnails = await collectViewerThumbnails(totalPages);
+      const pageImages = await renderViewerPageImages(totalPages);
       const isPng = imgFormat === "png";
       const { zipSync } = await import("fflate");
       const zipData: Record<string, Uint8Array> = {};

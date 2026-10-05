@@ -213,26 +213,35 @@ export function createS3ObjectStore(config = {}) {
 
   async function list(keyPrefix = "") {
     const targetPrefix = prefixed(keyPrefix);
-    const response = await checked(await signedFetch(
-      "GET",
-      bucketUrl([["list-type", "2"], ["prefix", targetPrefix]]),
-    ));
-    if (!response) return [];
-    const xml = await response.text();
     const rows = [];
-    const pattern = /<Contents>([\s\S]*?)<\/Contents>/g;
-    let match;
-    while ((match = pattern.exec(xml))) {
-      const fullKey = xmlText(match[1], "Key");
-      const logicalKey = prefix && fullKey.startsWith(`${prefix}/`)
-        ? fullKey.slice(prefix.length + 1)
-        : fullKey;
-      rows.push({
-        key: logicalKey,
-        size: Number(xmlText(match[1], "Size") || 0),
-        etag: stripQuotes(xmlText(match[1], "ETag")),
-      });
-    }
+    let continuationToken = "";
+
+    do {
+      const query = [["list-type", "2"], ["prefix", targetPrefix]];
+      if (continuationToken) query.push(["continuation-token", continuationToken]);
+      const response = await checked(await signedFetch("GET", bucketUrl(query)));
+      if (!response) return rows;
+      const xml = await response.text();
+      const pattern = /<Contents>([\s\S]*?)<\/Contents>/g;
+      let match;
+      while ((match = pattern.exec(xml))) {
+        const fullKey = xmlText(match[1], "Key");
+        const logicalKey = prefix && fullKey.startsWith(`${prefix}/`)
+          ? fullKey.slice(prefix.length + 1)
+          : fullKey;
+        rows.push({
+          key: logicalKey,
+          size: Number(xmlText(match[1], "Size") || 0),
+          etag: stripQuotes(xmlText(match[1], "ETag")),
+        });
+      }
+      const truncated = xmlText(xml, "IsTruncated").toLowerCase() === "true";
+      continuationToken = truncated ? xmlText(xml, "NextContinuationToken") : "";
+      if (truncated && !continuationToken) {
+        throw new Error("S3 listing is truncated but no continuation token was returned.");
+      }
+    } while (continuationToken);
+
     return rows;
   }
 

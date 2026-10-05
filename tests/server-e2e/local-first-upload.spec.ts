@@ -35,6 +35,12 @@ test("server runtime renders local PDF before background upload completes", asyn
   });
 
   const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  await expect(page.getByTestId("status-bar")).toHaveAttribute("data-opdf-page-loading", /true|false/);
+  const loadingStatus = page.getByTestId("page-loading-status");
+  if (await loadingStatus.count()) {
+    await expect(loadingStatus).toHaveText("Loading pages...");
+    await expect(page.getByText(/Page\s+1\s+of\s+0/i)).toHaveCount(0);
+  }
   await expect(viewer).toBeVisible({ timeout: 10_000 });
   await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy");
   await expect(page.getByText(/Page\s+1\s+of\s+2/i)).toBeVisible({ timeout: 10_000 });
@@ -42,6 +48,12 @@ test("server runtime renders local PDF before background upload completes", asyn
   const uploadBanner = page.locator('[data-opdf-upload-state="uploading"]');
   await expect(uploadBanner).toBeVisible();
   await expect(uploadBanner).toContainText("Opening locally");
+  await expect(uploadBanner).toHaveCSS("position", "fixed");
+  const uploadBox = await uploadBanner.boundingBox();
+  const headerBox = await page.locator('[data-opdf-region="app-header"]').boundingBox();
+  expect(uploadBox).not.toBeNull();
+  expect(headerBox).not.toBeNull();
+  expect(uploadBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
   await expect.poll(() => chunkStarted).toBeTruthy();
 
   const beforeComplete = await request.get("/api/opdf/recent");

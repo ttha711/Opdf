@@ -139,6 +139,52 @@ function writeMatrix(module: PdfiumModule, matrix: PdfMatrix): number {
   return ptr;
 }
 
+async function replaceImageBitmap(
+  module: PdfiumModule,
+  pagePtr: number,
+  objectPtr: number,
+  bytes: Uint8Array,
+  mimeType: "image/png" | "image/jpeg",
+) {
+  const bitmapSource = await createImageBitmap(new Blob([bytes as unknown as BlobPart], { type: mimeType }));
+  try {
+    const canvas = new OffscreenCanvas(bitmapSource.width, bitmapSource.height);
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) throw new Error("Unable to decode replacement image.");
+    context.drawImage(bitmapSource, 0, 0);
+    const rgba = context.getImageData(0, 0, bitmapSource.width, bitmapSource.height).data;
+    const bitmapPtr = module.FPDFBitmap_CreateEx(bitmapSource.width, bitmapSource.height, 4, 0, bitmapSource.width * 4);
+    if (!bitmapPtr) throw new Error("PDFium could not allocate a replacement image bitmap.");
+    try {
+      const bufferPtr = module.FPDFBitmap_GetBuffer(bitmapPtr);
+      const stride = module.FPDFBitmap_GetStride(bitmapPtr);
+      for (let y = 0; y < bitmapSource.height; y += 1) {
+        for (let x = 0; x < bitmapSource.width; x += 1) {
+          const source = (y * bitmapSource.width + x) * 4;
+          const target = bufferPtr + y * stride + x * 4;
+          module.pdfium.HEAPU8[target] = rgba[source + 2];
+          module.pdfium.HEAPU8[target + 1] = rgba[source + 1];
+          module.pdfium.HEAPU8[target + 2] = rgba[source];
+          module.pdfium.HEAPU8[target + 3] = rgba[source + 3];
+        }
+      }
+      const pagesPtr = malloc(module, 4);
+      try {
+        module.pdfium.HEAPU32[pagesPtr >>> 2] = pagePtr;
+        if (!module.FPDFImageObj_SetBitmap(pagesPtr, 1, objectPtr, bitmapPtr)) {
+          throw new Error("PDFium failed to replace the image object.");
+        }
+      } finally {
+        free(module, pagesPtr);
+      }
+    } finally {
+      module.FPDFBitmap_Destroy(bitmapPtr);
+    }
+  } finally {
+    bitmapSource.close();
+  }
+}
+
 function parseObjectId(id: string): { pageIndex: number; objectIndex: number } {
   const match = /^p(\d+)-o(\d+)$/.exec(id);
   if (!match) throw new Error(`Unsupported content object id: ${id}`);
@@ -281,6 +327,9 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
                 if (!module.FPDFPageObj_SetFillColor(objectPtr, r, g, b, a)) throw new Error(`Unable to change text color for ${patch.objectId}.`);
               }
               if (patch.fontFamily) throw new Error("Changing font family requires font embedding and is not enabled yet.");
+            } else if (patch.type === "replace-image") {
+              if (module.FPDFPageObj_GetType(objectPtr) !== 3) throw new Error(`${patch.objectId} is not an image object.`);
+              await replaceImageBitmap(module, pagePtr, objectPtr, patch.bytes, patch.mimeType);
             } else if (patch.type === "style-object") {
               if (patch.fillColor) {
                 const [r, g, b, a] = parseColor(patch.fillColor);

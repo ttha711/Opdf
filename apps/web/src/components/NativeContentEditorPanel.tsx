@@ -23,6 +23,8 @@ export function NativeContentEditorPanel({
   const [draftFont, setDraftFont] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
+  const [redoStack, setRedoStack] = useState<Uint8Array[]>([]);
 
   const selected = useMemo(
     () => objects.find((object) => object.id === selectedId) ?? null,
@@ -66,8 +68,19 @@ export function NativeContentEditorPanel({
       const bytes = await getDocumentBytes();
       if (!bytes) throw new Error("Unable to read the current PDF.");
       const edited = await pdfiumContentEditingEngine.applyPatches(bytes, patches);
+      const maxHistoryBytes = 128 * 1024 * 1024;
+      setUndoStack((current) => {
+        const candidates = [...current, bytes];
+        let total = candidates.reduce((sum, item) => sum + item.byteLength, 0);
+        while (candidates.length > 10 || (candidates.length > 0 && total > maxHistoryBytes)) {
+          total -= candidates[0].byteLength;
+          candidates.shift();
+        }
+        return candidates;
+      });
+      setRedoStack([]);
       onApplyBytes(edited);
-      setMessage(success);
+      setMessage(bytes.byteLength > maxHistoryBytes ? success + " Undo snapshot skipped for this large PDF." : success);
       window.setTimeout(() => void refresh(), 50);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to edit PDF content.");
@@ -89,6 +102,41 @@ export function NativeContentEditorPanel({
     const sin = Math.sin(radians);
     transform([cos, sin, -sin, cos, 0, 0], "Object rotated.");
   };
+
+  const undo = async () => {
+    const previous = undoStack.at(-1);
+    if (!previous) return;
+    const current = await getDocumentBytes();
+    if (!current) return;
+    setUndoStack((items) => items.slice(0, -1));
+    setRedoStack((items) => [...items.slice(-9), current]);
+    onApplyBytes(previous);
+    setMessage("Native content edit undone.");
+    window.setTimeout(() => void refresh(), 50);
+  };
+
+  const redo = async () => {
+    const next = redoStack.at(-1);
+    if (!next) return;
+    const current = await getDocumentBytes();
+    if (!current) return;
+    setRedoStack((items) => items.slice(0, -1));
+    setUndoStack((items) => [...items.slice(-9), current]);
+    onApplyBytes(next);
+    setMessage("Native content edit redone.");
+    window.setTimeout(() => void refresh(), 50);
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "z") return;
+      event.preventDefault();
+      if (event.shiftKey) void redo();
+      else void undo();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undoStack, redoStack]);
 
   const saveText = () => {
     if (!selected || selected.kind !== "text") return;
@@ -122,6 +170,14 @@ export function NativeContentEditorPanel({
       <button type="button" className="native-content-editor__refresh" onClick={() => void refresh()} disabled={loading}>
         {loading ? "Working…" : "Refresh objects"}
       </button>
+      <div className="native-content-editor__row">
+        <button type="button" className="native-content-editor__refresh" onClick={() => void undo()} disabled={!undoStack.length || loading}>
+          Undo
+        </button>
+        <button type="button" className="native-content-editor__refresh" onClick={() => void redo()} disabled={!redoStack.length || loading}>
+          Redo
+        </button>
+      </div>
 
       <div className="native-content-editor__objects">
         {objects.map((object) => (

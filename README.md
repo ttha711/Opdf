@@ -36,7 +36,9 @@ Offline-first PDF desktop app with a web-first development workflow. OPDF target
 Signature inspection is intentionally conservative: it reports structure and certificate metadata but does **not** claim operating-system trust-chain or full cryptographic validation.
 
 ### OCR and AI/editor components
-- Local OCR via Tesseract.js.
+- Searchable-PDF OCR via Tesseract.js.
+- Browser runtime keeps the existing local OCR fallback.
+- OPDF Server uses an asynchronous OCR queue, renders scan pages through PDFium, preserves pages that already contain native text, and writes an invisible searchable text layer back into the PDF.
 - Optional AI/provider integrations are configured separately through environment variables.
 - The repository also contains the OPDF editor workspace used by document-editing workflows.
 

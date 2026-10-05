@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy server bridge coordinator; OCR transport stays isolated in serverOcr.ts.
 import type {
   Annotation, AnnotationCreateInput, OcrJob, OpenDocumentResult,
   RecentDocument, SessionSnapshot, PasswordOptions, PageNumbers,
@@ -5,6 +6,7 @@ import type {
 } from "@opdf/core";
 import type { OpdfBridge } from "../../types/opdf";
 import { createMockBridge } from "./mockBridge";
+import { createServerOcrClient } from "./serverOcr";
 
 type ServerUploadResult = {
   id: string;
@@ -81,6 +83,7 @@ function downloadBytes(bytes: Uint8Array, name: string) {
 
 export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
   const browser = createMockBridge();
+  const serverOcr = createServerOcrClient(baseUrl);
   const annotationUndo = new Map<string, Annotation[][]>();
   const annotationRedo = new Map<string, Annotation[][]>();
 
@@ -124,6 +127,8 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
       digitalSignature: false,
       storedMutations: true,
       rangePreview: true,
+      ocrQueue: true,
+      searchablePdfOcr: true,
     },
 
     async compressPdf(bytes: Uint8Array) {
@@ -324,15 +329,19 @@ export function createServerBridge(baseUrl = "/api/opdf"): OpdfBridge {
     },
 
     async enqueueOcr(filePath: string, language?: string): Promise<OcrJob> {
-      return browser.enqueueOcr(filePath, language);
+      return serverOcr.enqueueOcr(filePath, language);
     },
 
     async runOcr(jobId: string, inputBytes?: Uint8Array) {
-      return browser.runOcr(jobId, inputBytes);
+      return serverOcr.runOcr(jobId, inputBytes);
     },
 
     async listOcrJobs() {
-      return browser.listOcrJobs();
+      return serverOcr.listOcrJobs();
+    },
+
+    async cancelOcr(jobId: string) {
+      return serverOcr.cancelOcr(jobId);
     },
 
     async insertPages(bytes: Uint8Array, opts: InsertOptions) {

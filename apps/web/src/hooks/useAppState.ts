@@ -374,7 +374,7 @@ export function useAppState() {
               t.sourceIdentity !== sourceIdentity ||
               t.page !== page ||
               t.totalPages !== totalPages ||
-              t.annotations !== annotations ||
+              t.annotations !== annotations
             ) {
               return {
                 ...t,

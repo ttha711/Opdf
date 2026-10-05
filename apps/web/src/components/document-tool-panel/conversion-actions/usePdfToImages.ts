@@ -1,7 +1,7 @@
 import type React from "react";
 import { convertBlobToImage, downloadFile } from "./helpers";
 import { toast } from "../../ToastProvider";
-import { collectViewerThumbnails } from "../../../lib/viewer-runtime";
+import { renderViewerPageImages } from "../../../lib/viewer-runtime";
 
 interface UsePdfToImagesArgs {
   docBytes: Uint8Array | null;
@@ -44,7 +44,7 @@ export function usePdfToImages(args: UsePdfToImagesArgs) {
 
       if (imgOutputOption === "all-in-one") {
         const imgElements: HTMLImageElement[] = await Promise.all(
-          thumbnails.map((t) => {
+          pageImages.map((t) => {
             return new Promise<HTMLImageElement>((resolve) => {
               const img = new Image();
               img.onload = () => resolve(img);
@@ -81,7 +81,7 @@ export function usePdfToImages(args: UsePdfToImagesArgs) {
           }, isPng ? "image/png" : "image/jpeg");
         }
       } else {
-        for (const thumb of thumbnails) {
+        for (const thumb of pageImages) {
           const processedBlob = await convertBlobToImage(
             thumb.blob,
             isPng,

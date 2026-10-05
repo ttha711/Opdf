@@ -4,7 +4,7 @@ import type { Annotation } from "@opdf/core";
 import { loadFullDraft, saveTabsList, loadTabsList, saveActiveTabId, loadActiveTabId, type OpdfTab } from "../lib/web-storage";
 import type { ActiveTool } from "../lib/app-types";
 import { isOpdfServerRuntime } from "./useOpdfBridge";
-import { getViewerControls } from "../lib/viewer-runtime";
+import { useGlobalKeyboardShortcuts } from "./useGlobalKeyboardShortcuts";
 
 type AppEffectsArgs = {
   bridge: {
@@ -253,48 +253,18 @@ export function useAppEffects(args: AppEffectsArgs) {
     localStorage.setItem("opdf-theme", theme);
   }, [theme]);
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      const ctrl = e.ctrlKey || e.metaKey;
-      const target = e.target as HTMLElement;
-      const inInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
-
-      if (ctrl && e.key === "o") { e.preventDefault(); openFile(); return; }
-      if (ctrl && e.key === "s" && !e.shiftKey) { e.preventDefault(); savePdf(); return; }
-      if (ctrl && e.shiftKey && e.key.toLowerCase() === "s") { e.preventDefault(); savePdfAs(); return; }
-      if (ctrl && e.key === "z") {
-        if (getViewerControls()) return;
-        e.preventDefault();
-        void undoAnnotations();
-        return;
-      }
-      if (ctrl && (e.key === "y" || (e.shiftKey && e.key === "Z"))) {
-        if (getViewerControls()) return;
-        e.preventDefault();
-        void redoAnnotations();
-        return;
-      }
-      if (ctrl && e.shiftKey && e.key.toLowerCase() === "l") {
-        e.preventDefault();
-        setTheme(t => (t === "light" ? "dark" : "light"));
-        return;
-      }
-
-      if (inInput) return;
-      if (e.key === "+" || e.key === "=") { zoomIn(); return; }
-      if (e.key === "-") { zoomOut(); return; }
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); goPrevPage(); return; }
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); goNextPage(); return; }
-      if (e.key === "Escape") { setOpenMenu(null); }
-      if (e.key.toLowerCase() === "v") { setActiveTool("select"); return; }
-      if (e.key.toLowerCase() === "i") { setActiveTool("highlight"); return; }
-      if (e.key.toLowerCase() === "t") { setActiveTool("note"); return; }
-      if (e.key.toLowerCase() === "r") { setActiveTool("redact"); return; }
-      if (e.key.toLowerCase() === "s") { setActiveTool("signature"); return; }
-      if (e.key.toLowerCase() === "q") { setActiveTool("shape"); return; }
-      if (e.key.toLowerCase() === "m") { setActiveTool("measure"); return; }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [openFile, savePdf, savePdfAs, exportPdf, undoAnnotations, redoAnnotations, zoomIn, zoomOut, goPrevPage, goNextPage, setActiveTool, setOpenMenu, setTheme]);
+  useGlobalKeyboardShortcuts({
+    openFile,
+    savePdf,
+    savePdfAs,
+    undoAnnotations,
+    redoAnnotations,
+    zoomIn,
+    zoomOut,
+    goPrevPage,
+    goNextPage,
+    setActiveTool,
+    setOpenMenu,
+    setTheme,
+  });
 }

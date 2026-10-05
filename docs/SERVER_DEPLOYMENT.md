@@ -208,14 +208,43 @@ Internet
 
 Do not expose port 8787 directly to the public Internet.
 
+## Server OCR queue
+
+Server runtime now executes searchable-PDF OCR as a background job instead of blocking the browser thread.
+
+The flow is:
+
+```
+Browser
+  -> create OCR job
+  -> upload current PDF to the OCR job
+  -> server queue (default concurrency: 1)
+  -> PDFium renders only pages that need OCR
+  -> Tesseract.js recognizes text
+  -> pdf-lib writes a nearly invisible searchable text layer
+  -> browser downloads the completed searchable PDF
+```
+
+Pages that already contain native PDF text are skipped. This reduces work on mixed documents where only some pages are scanned.
+
+Default OCR language is English + Vietnamese with an English fallback. Tesseract language data may be downloaded on first use, so the server should have outbound Internet access for the first OCR run unless its Tesseract cache is already populated.
+
+The queue runs one job at a time by default to avoid large scan sets exhausting RAM. For a machine with enough memory, increase it to at most two concurrent jobs:
+
+```powershell
+$env:OPDF_OCR_CONCURRENCY="2"
+npm run server-start
+```
+
+The server exposes OCR job progress and cancellation through the same-origin OPDF API. Completed OCR output is stored under `OPDF_DATA_DIR\ocr` while the server is running.
+
 ## Next server phases
 
-The server bridge is designed so native/server workers can be added without changing the main UI. The next logical migrations are:
+The server bridge is designed so native/server workers can be added without changing the main UI. After server OCR, the next logical migrations are:
 
-1. Server OCR job queue with searchable-PDF output.
-2. Server-side P12/PFX signing policy and certificate storage.
-3. Multi-user authentication, authorization, quotas, and per-user/project storage.
-4. S3-compatible object storage for multi-node deployments.
+1. Server-side P12/PFX signing policy and certificate storage.
+2. Multi-user authentication, authorization, quotas, and per-user/project storage.
+3. S3-compatible object storage for multi-node deployments.
 
 
 ## Office to PDF conversion

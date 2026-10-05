@@ -1,4 +1,5 @@
-// opdf-file-size-allow: legacy central HTTP router; large-upload logic is delegated to opdf-upload.mjs while router extraction is handled separately.\nimport { createReadStream } from "node:fs";
+// opdf-file-size-allow: legacy central HTTP router; large-upload logic is delegated to opdf-upload.mjs while router extraction is handled separately.
+import { createReadStream } from "node:fs";
 import { mkdir, mkdtemp, open, readFile, rename, rm, stat } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

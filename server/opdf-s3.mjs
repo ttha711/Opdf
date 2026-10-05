@@ -170,16 +170,19 @@ export function createS3ObjectStore(config = {}) {
     return true;
   }
 
-  async function put(key, bytes, contentType = "application/octet-stream") {
+  async function put(key, bytes, contentType = "application/octet-stream", condition = {}) {
     const body = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
     const payloadHash = sha256Hex(body);
+    const headers = {
+      "content-length": String(body.length),
+      "content-type": contentType,
+    };
+    if (condition.ifMatch) headers["if-match"] = `"${stripQuotes(condition.ifMatch)}"`;
+    if (condition.ifNoneMatch) headers["if-none-match"] = condition.ifNoneMatch;
     const response = await checked(await signedFetch("PUT", objectUrl(key), {
       body,
       payloadHash,
-      headers: {
-        "content-length": String(body.length),
-        "content-type": contentType,
-      },
+      headers,
     }));
     return { etag: stripQuotes(response.headers.get("etag")) };
   }

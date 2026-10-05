@@ -1,3 +1,4 @@
+// opdf-file-size-allow: S3-backed storage keeps cache coherence, metadata, and multipart lifecycle in one audited adapter.
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";

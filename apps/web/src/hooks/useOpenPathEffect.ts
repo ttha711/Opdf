@@ -14,13 +14,11 @@ type Args = {
   setTotalPages: (value: number) => void;
   setViewerError: (value: string | null) => void;
   setAnnotations: (value: Annotation[]) => void;
-  setPageRotations: (value: Record<number, number>) => void;
   markDocumentSaved: (snapshot: {
     fileName: string;
     docBytes: Uint8Array | null;
     documentIdentity: string;
     annotations: Annotation[];
-    pageRotations: Record<number, number>;
   }) => void;
 };
 
@@ -65,14 +63,12 @@ export function useOpenPathEffect(args: Args) {
         current.setTotalPages(0);
         current.setViewerError(null);
         current.setAnnotations(annotations);
-        current.setPageRotations({});
         if (isServerDocument) await current.bridge.pushRecent(identity);
         current.markDocumentSaved({
           fileName: displayName,
           docBytes: null,
           documentIdentity: identity,
           annotations,
-          pageRotations: {},
         });
       } catch {
         if (!cancelled) argsRef.current.setViewerError("Unable to open file");

@@ -1,0 +1,67 @@
+name: Native Editor Platform Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/web/src/components/NativeEditPdfViewer.tsx"
+      - "apps/web/src/components/native-edit/**"
+      - "apps/web/src/components/native-content-editor/**"
+      - "apps/web/src/lib/pdfiumContentEngine.ts"
+      - "tests/server-e2e/native-editor-adversarial.spec.ts"
+      - "tests/server-e2e/native-adversarial-fixtures.ts"
+      - "tests/server-e2e/native-editor-production-gate.spec.ts"
+      - ".github/workflows/native-editor-platform-gate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  adversarial-editor:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium with Linux dependencies
+        if: runner.os == 'Linux'
+        run: npx playwright install chromium --with-deps
+
+      - name: Install Chromium
+        if: runner.os != 'Linux'
+        run: npx playwright install chromium
+
+      - name: Run adversarial and native production gates
+        run: >-
+          npx playwright test
+          -c playwright.server.config.ts
+          tests/server-e2e/native-editor-adversarial.spec.ts
+          tests/server-e2e/native-editor-production-gate.spec.ts
+          --project=chromium
+        env:
+          CI: true
+
+      - name: Upload Playwright evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-editor-platform-${{ matrix.os }}
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -46,7 +46,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
         docBytes: null,
         documentIdentity: nextIdentity,
         annotations: state.annotations,
-        pageRotations: state.pageRotations,
       });
       state.setViewerError("Saved to OPDF Server.");
       window.setTimeout(() => state.setViewerError(null), 3000);
@@ -57,7 +56,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     state.sourceIdentity,
     state.fileName,
     state.annotations,
-    state.pageRotations,
     state.setDocBytes,
     state.setSourceBlob,
     state.setSourceIdentity,
@@ -80,7 +78,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setTotalPages: state.setTotalPages,
     setViewerError: state.setViewerError,
     setAnnotations: state.setAnnotations,
-    setPageRotations: state.setPageRotations,
     setSaveState: state.setSaveState,
     markDocumentSaved: state.markDocumentSaved,
     clearDocumentSaveTracking: state.clearDocumentSaveTracking,
@@ -153,7 +150,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setPage: state.setPage,
     setZoomPreset: state.setZoomPreset,
     setScale: state.setScale,
-    setPageRotations: state.setPageRotations,
     lastWheelFlipAtRef: state.lastWheelFlipAtRef,
   });
 
@@ -314,7 +310,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setSourceIdentity: state.setSourceIdentity,
     setAnnotations: state.setAnnotations,
     setPage: state.setPage,
-    setPageRotations: state.setPageRotations,
     setOpenMenu: state.setOpenMenu,
     setActiveTool: state.setActiveTool,
     setTheme: state.setTheme,

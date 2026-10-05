@@ -40,13 +40,11 @@ type Args = {
   setTotalPages: (value: number) => void;
   setViewerError: (value: string | null) => void;
   setAnnotations: (value: Annotation[]) => void;
-  setPageRotations: (value: Record<number, number>) => void;
   markDocumentSaved: (snapshot?: {
     fileName?: string;
     docBytes?: Uint8Array | null;
     documentIdentity?: string;
     annotations?: Annotation[];
-    pageRotations?: Record<number, number>;
   }) => void;
 };
 
@@ -219,13 +217,11 @@ export function useServerUpload(args: Args) {
     argsRef.current.setTotalPages(0);
     argsRef.current.setViewerError(progressText(0, file.size));
     argsRef.current.setAnnotations([]);
-    argsRef.current.setPageRotations({});
     argsRef.current.markDocumentSaved({
       fileName: file.name,
       docBytes: null,
       documentIdentity: localIdentity,
       annotations: [],
-      pageRotations: {},
     });
     emitUploadState({
       status: "uploading",

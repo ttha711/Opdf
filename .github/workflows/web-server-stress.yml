@@ -8,6 +8,7 @@ on:
       - "server/**"
       - "scripts/perf/**"
       - "tests/server-e2e/**"
+      - "server/opdf-server.reliability.mjs"
       - ".github/workflows/web-server-stress.yml"
   workflow_dispatch:
 
@@ -33,6 +34,9 @@ jobs:
 
       - name: Build web/server runtime
         run: npm run server-build
+
+      - name: Verify persistence and recovery
+        run: npm run server-reliability
 
       - name: Stress 100, 250 and 500 MB PDFs
         run: node scripts/perf/server-large-pdf-smoke.mjs

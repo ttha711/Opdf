@@ -1,3 +1,5 @@
+import { executeViewerCommand } from "../lib/viewer-runtime";
+
 type UseAppViewModelArgs = {
   state: any;
   actions: any;
@@ -7,9 +9,11 @@ type UseAppViewModelArgs = {
 
 export function useAppViewModel({ state, actions, menuItems, callbacks }: UseAppViewModelArgs) {
   const setActiveTool = (tool: any) => {
-    state.setActiveTool((current: any) =>
-      tool === "signature" && current === "signature" ? "select" : tool,
-    );
+    if (tool === "signature") {
+      void executeViewerCommand("insert:add-signature");
+      return;
+    }
+    state.setActiveTool(tool);
   };
   const headerProps = {
     fileInputRef: state.fileInputRef,

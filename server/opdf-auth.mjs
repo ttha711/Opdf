@@ -75,9 +75,11 @@ function encodedJson(value) {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 }
 
-export function createAuthService(dataDir, env = process.env) {
+export function createAuthService(dataDir, env = process.env, options = {}) {
   const root = resolve(dataDir, "auth");
   const usersPath = join(root, "users.json");
+  const objectStore = options.objectStore || null;
+  const usersKey = "auth/users.json";
   const mode = String(env.OPDF_AUTH_MODE || (env.OPDF_AUTH_SECRET ? "local" : "disabled")).toLowerCase();
   const enabled = mode !== "disabled";
   const secret = String(env.OPDF_AUTH_SECRET || "");
@@ -94,23 +96,37 @@ export function createAuthService(dataDir, env = process.env) {
   async function persist() {
     await mkdir(root, { recursive: true });
     const temp = `${usersPath}.${randomUUID()}.tmp`;
-    await writeFile(
-      temp,
-      JSON.stringify({ version: 1, users }, null, 2) + "\n",
-      { encoding: "utf8", mode: 0o600 },
-    );
+    const text = JSON.stringify({ version: 1, users }, null, 2) + "\n";
+    await writeFile(temp, text, { encoding: "utf8", mode: 0o600 });
     await rename(temp, usersPath);
+    if (objectStore) {
+      await objectStore.put(usersKey, Buffer.from(text, "utf8"), "application/json");
+    }
   }
 
   async function ensure() {
     await mkdir(root, { recursive: true });
     if (!enabled) return;
     try {
-      const payload = JSON.parse(await readFile(usersPath, "utf8"));
-      if (!Array.isArray(payload?.users)) throw new Error("Invalid OPDF user database.");
-      users = payload.users;
+      let text;
+      if (objectStore) {
+        const remote = await objectStore.get(usersKey);
+        text = remote ? remote.toString("utf8") : null;
+      } else {
+        text = await readFile(usersPath, "utf8");
+      }
+      if (text == null) {
+        users = [];
+      } else {
+        const payload = JSON.parse(text);
+        if (!Array.isArray(payload?.users)) throw new Error("Invalid OPDF user database.");
+        users = payload.users;
+        if (objectStore) {
+          await writeFile(usersPath, text, { encoding: "utf8", mode: 0o600 });
+        }
+      }
     } catch (error) {
-      if (error?.code === "ENOENT") users = [];
+      if (!objectStore && error?.code === "ENOENT") users = [];
       else throw new Error("OPDF user database is unreadable or corrupt; refusing to start authentication.");
     }
 

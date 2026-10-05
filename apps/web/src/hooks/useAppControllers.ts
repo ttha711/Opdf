@@ -133,6 +133,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   }, [state.hasDocument, state.setActiveDashboardTool]);
 
   const {
+    goToPage,
     goPrevPage,
     goNextPage,
     zoomIn,
@@ -423,7 +424,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
       runConfiguredDocumentTool,
       runConfiguredMarkupTool,
       runConfiguredWatermark,
-      setPage: state.setPage,
+      setPage: goToPage,
       setViewMode: state.setViewMode,
       setActiveTool: state.setActiveTool,
       setShowDashboard: state.setShowDashboard,
@@ -461,5 +462,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     updateAnnotation,
     openAiEditorWindow,
     openFileWithPath,
+    goToPage,
   };
 }

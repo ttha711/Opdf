@@ -682,7 +682,7 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true });
   }
 
-  const user = auth.getRequestUser(req);
+  const user = await auth.getRequestUser(req);
   if (auth.enabled && !user) return sendError(res, 401, "Authentication required.");
   const projectId = tenantRuntime.projectFromRequest(req, url);
 
@@ -716,7 +716,7 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/opdf/admin/users") {
     if (user.role !== "admin") return sendError(res, 403, "Admin access required.");
-    if (req.method === "GET") return sendJson(res, 200, auth.listUsers());
+    if (req.method === "GET") return sendJson(res, 200, await auth.listUsers());
     if (req.method === "POST") return sendJson(res, 201, await auth.createUser(await readJsonBody(req, 64 * 1024)));
     return sendError(res, 405, "Method not allowed.");
   }

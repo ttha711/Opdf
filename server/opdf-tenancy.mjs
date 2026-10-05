@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { mkdir, readFile, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createOpdfStorage } from "./opdf-storage.mjs";
+import { createS3OpdfStorage } from "./opdf-storage-s3.mjs";
 import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
 import { createCertificateStore } from "./opdf-certificate-store.mjs";
 
@@ -27,7 +28,7 @@ async function directorySize(root) {
   return total;
 }
 
-async function pendingUploadReservations(root) {
+async function pendingUploadReservationsLocal(root) {
   let total = 0;
   async function walk(path) {
     let entries;
@@ -47,12 +48,29 @@ async function pendingUploadReservations(root) {
           const expected = Number(payload?.uploadExpectedSize || 0);
           if (Number.isFinite(expected) && expected > 0) total += expected;
         } catch {
-          // Storage reliability handles corrupt metadata separately; do not invent quota credit.
+          // Corrupt storage metadata must not create quota credit.
         }
       }
     }
   }
   await walk(root);
+  return total;
+}
+
+async function pendingUploadReservationsRemote(objectStore, userId) {
+  const objects = await objectStore.list(`users/${userId}/projects/`);
+  const metaObjects = objects.filter((item) => /\/documents\/[^/]+\/meta\.json$/.test(item.key));
+  let total = 0;
+  for (const item of metaObjects) {
+    try {
+      const bytes = await objectStore.get(item.key);
+      const payload = bytes ? JSON.parse(bytes.toString("utf8")) : null;
+      const expected = Number(payload?.uploadExpectedSize || 0);
+      if (Number.isFinite(expected) && expected > 0) total += expected;
+    } catch {
+      // Fail conservative by not inventing available capacity from bad metadata.
+    }
+  }
   return total;
 }
 
@@ -69,13 +87,23 @@ export function createTenantRuntime(dataDir, options = {}) {
   const scope = new AsyncLocalStorage();
 
   function makeContext(user, projectId, tenantRoot, userRoot) {
+    const remotePrefix = authEnabled
+      ? `users/${user.id}/projects/${projectId}`
+      : "legacy";
     return {
       user,
       projectId,
       tenantRoot,
       userRoot,
-      storage: createOpdfStorage(tenantRoot),
-      certificateStore: createCertificateStore(tenantRoot, options.certificateMasterKey || ""),
+      remotePrefix,
+      storage: options.objectStore
+        ? createS3OpdfStorage(tenantRoot, options.objectStore, remotePrefix)
+        : createOpdfStorage(tenantRoot),
+      certificateStore: createCertificateStore(
+        tenantRoot,
+        options.certificateMasterKey || "",
+        { objectStore: options.objectStore, remotePrefix },
+      ),
       ocrQueue: createOcrJobQueue(tenantRoot, { concurrency: options.ocrConcurrency || 1 }),
     };
   }
@@ -132,9 +160,12 @@ export function createTenantRuntime(dataDir, options = {}) {
       };
     }
     const userRoot = join(root, "users", user.id);
-    const usedBytes =
-      await directorySize(userRoot) +
-      await pendingUploadReservations(userRoot);
+    const usedBytes = options.objectStore
+      ? (await options.objectStore.list(`users/${user.id}/`))
+          .reduce((sum, item) => sum + Number(item.size || 0), 0) +
+        await pendingUploadReservationsRemote(options.objectStore, user.id)
+      : await directorySize(userRoot) +
+        await pendingUploadReservationsLocal(userRoot);
     const quotaBytes = Math.max(0, Number(user.quotaBytes || 0));
     return {
       usedBytes,

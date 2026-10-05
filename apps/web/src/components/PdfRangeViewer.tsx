@@ -5,7 +5,7 @@ import type { PdfViewerProps } from "./PdfViewer.types";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import {
   registerViewerControls,
-  registerViewerThumbnailProvider,
+  registerViewerPageImageProvider,
 } from "../lib/viewer-runtime";
 
 GlobalWorkerOptions.workerSrc = workerSrc;
@@ -115,7 +115,7 @@ export function PdfRangeViewer(props: PdfViewerProps) {
 
   useEffect(() => {
     if (!pdf) return;
-    return registerViewerThumbnailProvider(async (pageNumber) => {
+    return registerViewerPageImageProvider(async (pageNumber: number) => {
       const pdfPage = await pdf.getPage(Math.min(Math.max(1, pageNumber), pdf.numPages));
       const viewport = pdfPage.getViewport({ scale: 0.2 });
       const canvas = document.createElement("canvas");

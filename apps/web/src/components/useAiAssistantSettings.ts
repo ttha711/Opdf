@@ -9,7 +9,7 @@ export function useAiAssistantSettings() {
 
   // VITE_* values are browser-development fallbacks. Desktop secrets live in the main process.
   const [difyUrl, setDifyUrl] = useState(import.meta.env.VITE_DIFY_API_URL || "https://api.dify.ai/v1");
-  const [difyKey, setDifyKey] = useState(isDesktopRuntime ? "" : (import.meta.env.VITE_DIFY_API_KEY || ""));
+  const [difyKey, setDifyKey] = useState(isDesktopRuntime || isServerRuntime ? "" : (import.meta.env.VITE_DIFY_API_KEY || ""));
   const [conversationId, setConversationId] = useState("");
   
   // Iframe Integration Settings (Defaults pointing to http://localhost:3005)
@@ -32,12 +32,12 @@ export function useAiAssistantSettings() {
     const load = async () => {
       let savedMode = localStorage.getItem("opdf_ai_mode");
       let savedUrl = localStorage.getItem("opdf_dify_url") || "";
-      let savedKey = isDesktopRuntime ? "" : (localStorage.getItem("opdf_dify_key") || "");
+      let savedKey = isDesktopRuntime || isServerRuntime ? "" : (localStorage.getItem("opdf_dify_key") || "");
       const savedConvId = localStorage.getItem("opdf_dify_conv_id");
       const savedIframeUrl = localStorage.getItem("opdf_iframe_url");
 
       const defaultUrl = import.meta.env.VITE_DIFY_API_URL || "https://api.dify.ai/v1";
-      const defaultKey = isDesktopRuntime ? "" : (import.meta.env.VITE_DIFY_API_KEY || "");
+      const defaultKey = isDesktopRuntime || isServerRuntime ? "" : (import.meta.env.VITE_DIFY_API_KEY || "");
 
       if (isDesktopRuntime) {
         localStorage.removeItem("opdf_dify_key");
@@ -59,7 +59,7 @@ export function useAiAssistantSettings() {
       }
       if (!savedKey && defaultKey) {
         savedKey = defaultKey;
-        if (!isDesktopRuntime) localStorage.setItem("opdf_dify_key", savedKey);
+        if (!isDesktopRuntime && !isServerRuntime) localStorage.setItem("opdf_dify_key", savedKey);
       }
 
       if (isServerRuntime) {

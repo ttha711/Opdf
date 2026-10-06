@@ -139,8 +139,10 @@ export function buildGlobalMenuItems({
   toolsMenuItems: MenuItemDef[];
   aiEdit: () => void;
 }): MenuItemDef[] {
+  const closeDocument = findAction(fileMenuItems, "Close");
   const save = findAction(fileMenuItems, "Save");
   const saveAs = findAction(fileMenuItems, "Save As...");
+  const exportPdf = findAction(fileMenuItems, "Export PDF...");
   const viewMode = viewMenuItems.find((item): item is Extract<MenuItemDef, { kind: "action" }> =>
     item.kind === "action" && item.label.startsWith("Switch to "),
   );
@@ -163,7 +165,7 @@ export function buildGlobalMenuItems({
       kind: "submenu",
       label: "Document",
       icon: "file-pdf",
-      items: [save, saveAs].filter(Boolean) as MenuItemDef[],
+      items: [closeDocument, save, saveAs, exportPdf].filter(Boolean) as MenuItemDef[],
     },
     {
       kind: "submenu",

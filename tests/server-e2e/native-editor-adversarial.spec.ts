@@ -8,6 +8,15 @@ import {
 
 test.setTimeout(90_000);
 
+async function expandAdvancedEditor(page: Page) {
+  const expand = page.locator('[data-opdf-action="expand-right-panel"]');
+  await expect(expand).toBeVisible({ timeout: 20_000 });
+  await expand.click();
+  const editor = page.locator("[data-opdf-native-editor='true']");
+  await expect(editor).toBeVisible({ timeout: 20_000 });
+  return editor;
+}
+
 async function uploadPdf(
   request: APIRequestContext,
   name: string,
@@ -79,8 +88,7 @@ test("real embedded subset font can be replaced and survives save/reload", async
   });
   await page.getByTitle("Edit PDF Content").click();
 
-  const editor = page.locator("[data-opdf-native-editor='true']");
-  await expect(editor).toBeVisible({ timeout: 20_000 });
+  const editor = await expandAdvancedEditor(page);
   const original = editor
     .locator("[data-opdf-object-kind='text']")
     .filter({ hasText: "Subset font source 01" })
@@ -102,7 +110,7 @@ test("real embedded subset font can be replaced and survives save/reload", async
   });
   await page.getByTitle("Edit PDF Content").click();
 
-  const reopened = page.locator("[data-opdf-native-editor='true']");
+  const reopened = await expandAdvancedEditor(page);
   await expect(
     reopened
       .locator("[data-opdf-object-kind='text']")

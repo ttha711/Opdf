@@ -122,13 +122,15 @@ export function App() {
   const openSidebarTool = useCallback((toolId: string) => {
     setActiveMarkupTool(null);
     state.setActiveDashboardTool(toolId);
+    state.setShowDashboard(false);
     sidebars.setIsRightCollapsed(false);
-  }, [sidebars.setIsRightCollapsed, state.setActiveDashboardTool]);
+  }, [sidebars.setIsRightCollapsed, state.setActiveDashboardTool, state.setShowDashboard]);
   const openMarkupSidebar = useCallback((tool: MarkupTool) => {
     state.setActiveDashboardTool(null);
+    state.setShowDashboard(false);
     setActiveMarkupTool(tool);
     sidebars.setIsRightCollapsed(false);
-  }, [sidebars.setIsRightCollapsed, state.setActiveDashboardTool]);
+  }, [sidebars.setIsRightCollapsed, state.setActiveDashboardTool, state.setShowDashboard]);
   if (isAiEditorWindow) {
     if (isPublic) {
       return <div className="flex h-screen items-center justify-center text-gray-500">This feature is only available on Local or Desktop App versions.</div>;

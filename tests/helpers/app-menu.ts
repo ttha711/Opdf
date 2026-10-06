@@ -2,6 +2,43 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 const UI_ACTION_TIMEOUT = 10_000;
 
+const APPLICATION_MENU_PATHS: Record<string, string[]> = {
+  "Close": ["Document", "Close"],
+  "Save": ["Document", "Save"],
+  "Save As...": ["Document", "Save As..."],
+  "Export PDF...": ["Document", "Export PDF..."],
+  "Undo": ["Edit", "Undo"],
+  "Redo": ["Edit", "Redo"],
+  "Zoom In": ["View", "Zoom", "Zoom In"],
+  "Zoom Out": ["View", "Zoom", "Zoom Out"],
+  "Actual Size (100%)": ["View", "Zoom", "Actual Size (100%)"],
+  "Fit Width": ["View", "Zoom", "Fit Width"],
+  "Fit Page": ["View", "Zoom", "Fit Page"],
+  "Rotate Page Left": ["View", "Rotate", "Rotate Page Left"],
+  "Rotate Page Right": ["View", "Rotate", "Rotate Page Right"],
+  "Rotate All Pages Left": ["View", "Rotate", "Rotate All Pages Left"],
+  "Rotate All Pages Right": ["View", "Rotate", "Rotate All Pages Right"],
+  "All Tools...": ["Tools", "All Tools..."],
+  "Back to Document": ["Tools", "Back to Document"],
+  "Insert PDF...": ["Tools", "Pages", "Insert PDF..."],
+  "Split PDF...": ["Tools", "Pages", "Split PDF..."],
+  "Merge PDFs...": ["Tools", "Pages", "Merge PDFs..."],
+  "Run OCR": ["Tools", "Document", "Run OCR"],
+  "Page Numbers...": ["Tools", "Document", "Page Numbers..."],
+  "Header...": ["Tools", "Document", "Header..."],
+  "Footer...": ["Tools", "Document", "Footer..."],
+  "Bates Numbering...": ["Tools", "Document", "Bates Numbering..."],
+  "Watermark...": ["Tools", "Document", "Watermark..."],
+  "Compress PDF": ["Tools", "Convert & Optimize", "Compress PDF"],
+  "Convert to Images": ["Tools", "Convert & Optimize", "Convert to Images"],
+  "Edit PDF Content": ["Tools", "Edit & Review", "Edit PDF Content"],
+  "Measure Drawing": ["Tools", "Edit & Review", "Measure Drawing"],
+  "Compare Revisions...": ["Tools", "Edit & Review", "Compare Revisions..."],
+  "Search & Secure Redact...": ["Tools", "Security", "Search & Secure Redact..."],
+  "Digital Sign...": ["Tools", "Security", "Digital Sign..."],
+  "Advanced PDF...": ["Tools", "Advanced PDF..."],
+};
+
 function menuItemSelector(label: string) {
   const escaped = label.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   return `[data-opdf-menu-item="${escaped}"]`;
@@ -22,10 +59,7 @@ export async function openApplicationMenu(page: Page) {
 }
 
 export async function getApplicationMenuItem(page: Page, label: string): Promise<Locator> {
-  const menu = await openApplicationMenu(page);
-  const item = menu.locator(`${menuItemSelector(label)}:visible`).first();
-  await expect(item).toBeVisible({ timeout: UI_ACTION_TIMEOUT });
-  return item;
+  return getApplicationMenuPathItem(page, APPLICATION_MENU_PATHS[label] ?? [label]);
 }
 
 export async function getApplicationMenuPathItem(page: Page, path: string[]): Promise<Locator> {

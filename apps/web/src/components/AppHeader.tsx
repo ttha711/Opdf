@@ -154,6 +154,7 @@ export function AppHeader(props: AppHeaderProps) {
   const globalMenuItems = buildGlobalMenuItems({
     fileMenuItems,
     editMenuItems: effectiveEditMenuItems,
+    viewMenuItems,
     toolsMenuItems: compactToolsMenuItems,
     aiEdit,
   });

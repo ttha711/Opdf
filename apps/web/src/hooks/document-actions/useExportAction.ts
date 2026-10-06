@@ -44,7 +44,7 @@ export function useExportAction({
   // ── Save (Ctrl+S) ──────────────────────────────────────────────────────────
   // Desktop: writes docBytes to existing path + saves annotations. No flatten.
   // Web: saves docBytes + annotations to IndexedDB draft. No download, no flatten.
-  async function savePdf() {
+  async function savePdf(options: { silent?: boolean } = {}) {
     if (!hasDocument || !fileName) return;
     try {
       setSaveState("saving");
@@ -84,8 +84,10 @@ export function useExportAction({
           annotations,
         });
         setSaveState("saved");
-        setViewerError(isServerDocument ? "Saved to OPDF Server." : "File saved successfully!");
-        setTimeout(() => setViewerError(null), 3000);
+        if (!options.silent) {
+          setViewerError(isServerDocument ? "Saved to OPDF Server." : "File saved successfully!");
+          setTimeout(() => setViewerError(null), 3000);
+        }
         return;
       }
 
@@ -97,8 +99,10 @@ export function useExportAction({
         annotations,
       });
       setSaveState("saved");
-      setViewerError("Review state saved locally. Reopen the same PDF to restore annotations; use Export PDF to embed them.");
-      setTimeout(() => setViewerError(null), 5000);
+      if (!options.silent) {
+        setViewerError("Review state saved locally. Reopen the same PDF to restore annotations; use Export PDF to embed them.");
+        setTimeout(() => setViewerError(null), 5000);
+      }
     } catch (err) {
       console.error(err);
       setViewerError("Failed to save PDF.");

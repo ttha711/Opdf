@@ -126,6 +126,19 @@ function findAction(items: MenuItemDef[], label: string) {
   );
 }
 
+function replaceActionsByLabel(
+  items: MenuItemDef[],
+  replacements: Map<string, Extract<MenuItemDef, { kind: "action" }>>,
+): MenuItemDef[] {
+  return items.map((item) => {
+    if (item.kind === "action") return replacements.get(item.label) ?? item;
+    if (item.kind === "submenu") {
+      return { ...item, items: replaceActionsByLabel(item.items, replacements) };
+    }
+    return item;
+  });
+}
+
 export function buildGlobalMenuItems({
   fileMenuItems,
   editMenuItems,
@@ -143,6 +156,16 @@ export function buildGlobalMenuItems({
   const save = findAction(fileMenuItems, "Save");
   const saveAs = findAction(fileMenuItems, "Save As...");
   const exportPdf = findAction(fileMenuItems, "Export PDF...");
+  const directCompressPdf = findAction(fileMenuItems, "Compress PDF");
+  const directConvertToImages = findAction(fileMenuItems, "Convert to Images");
+  const toolsItems = replaceActionsByLabel(
+    toolsMenuItems,
+    new Map(
+      [directCompressPdf, directConvertToImages]
+        .filter((item): item is Extract<MenuItemDef, { kind: "action" }> => Boolean(item))
+        .map((item) => [item.label, item]),
+    ),
+  );
   const viewMode = viewMenuItems.find((item): item is Extract<MenuItemDef, { kind: "action" }> =>
     item.kind === "action" && item.label.startsWith("Switch to "),
   );
@@ -197,7 +220,7 @@ export function buildGlobalMenuItems({
       kind: "submenu",
       label: "Tools",
       icon: "tools",
-      items: toolsMenuItems,
+      items: toolsItems,
     },
     {
       kind: "action",

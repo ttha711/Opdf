@@ -110,7 +110,7 @@ export interface AgentActionContext {
     openFileBytes?: (bytes: Uint8Array, fileName?: string) => void | Promise<void>;
     closeDocument?: () => void | Promise<void>;
     exportPdf?: () => void | Promise<void>;
-    savePdf?: () => void | Promise<void>;
+    savePdf?: () => void | boolean | Promise<void | boolean>;
     compressDocument?: () => void | Promise<void>;
     runOcr?: () => void | Promise<void>;
     convertToImages?: () => void | Promise<void>;

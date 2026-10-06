@@ -104,7 +104,10 @@ async function runAgentAction(
     }
     case "close-document": return actions.closeDocument?.();
     case "export-pdf": return actions.exportPdf?.();
-    case "save-pdf": return actions.savePdf?.();
+    case "save-pdf": {
+      await actions.savePdf?.();
+      return;
+    }
     case "compress-pdf": return actions.compressDocument?.();
     case "run-ocr": return actions.runOcr?.();
     case "convert-to-images": return actions.convertToImages?.();

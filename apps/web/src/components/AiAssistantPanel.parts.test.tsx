@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { SettingsPanel } from "./AiAssistantPanel.parts";
+import { SettingsPanel } from "./AiAssistantSettingsPanel";
 
 describe("AI production settings", () => {
   it("shows machine pairing and hides public Dify credentials", () => {

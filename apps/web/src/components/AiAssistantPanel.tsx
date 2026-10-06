@@ -1,6 +1,7 @@
 import type { AiAssistantPanelProps } from "./AiAssistantPanel.types";
 import { useAiAssistant } from "./AiAssistantPanel.hooks";
-import { SettingsPanel, ChatMessageBubble, SuggestionChips, ChatInputForm } from "./AiAssistantPanel.parts";
+import { ChatMessageBubble, SuggestionChips, ChatInputForm } from "./AiAssistantPanel.parts";
+import { SettingsPanel } from "./AiAssistantSettingsPanel";
 import { AiSparkIcon } from "./AiSparkIcon";
 
 function isHttpUrl(value: string): boolean {

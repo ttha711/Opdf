@@ -122,59 +122,72 @@ test("All Tools dashboard exposes the complete 28-tool contract", async ({ page 
   }
 });
 
-test("every browser-capable dashboard tool reaches its real working surface or output", async ({ page }) => {
-  test.setTimeout(120_000);
-  await loadFixture(page);
+const PANEL_TOOL_IDS = [
+  "pdf-to-png",
+  "pdf-to-jpeg",
+  "merge-pdf",
+  "split-pdf",
+  "rotate-pdf",
+  "delete-pages",
+  "extract-pages",
+  "crop-pdf",
+  "watermark-pdf",
+] as const;
 
-  const panelTools = [
-    "pdf-to-png",
-    "pdf-to-jpeg",
-    "merge-pdf",
-    "split-pdf",
-    "rotate-pdf",
-    "delete-pages",
-    "extract-pages",
-    "crop-pdf",
-    "watermark-pdf",
-  ];
-
-  for (const id of panelTools) {
+for (const id of PANEL_TOOL_IDS) {
+  test(`All Tools: ${id} opens its working panel`, async ({ page }) => {
+    await loadFixture(page);
     await openDashboard(page);
     await page.locator(`[data-opdf-tool-card="${id}"]`).click();
-    await expect(page.locator(`[data-opdf-panel="tool"][data-opdf-tool="${id}"]`)).toBeVisible();
-    await closeWorkingSurface(page);
-  }
+    await expect(
+      page.locator(`[data-opdf-panel="tool"][data-opdf-tool="${id}"]`),
+    ).toBeVisible({ timeout: 10_000 });
+  });
+}
 
+test("All Tools: page-numbers opens the markup panel", async ({ page }) => {
+  await loadFixture(page);
   await openDashboard(page);
   await page.locator('[data-opdf-tool-card="page-numbers"]').click();
-  await expect(page.locator('[data-opdf-panel="markup"][data-opdf-tool="page-numbers"]')).toBeVisible();
-  await closeWorkingSurface(page);
+  await expect(
+    page.locator('[data-opdf-panel="markup"][data-opdf-tool="page-numbers"]'),
+  ).toBeVisible({ timeout: 10_000 });
+});
 
-  for (const [id, dialog] of [
-    ["fill-form", "advanced-pdf"],
-    ["redact-pdf", "search-redact"],
-    ["compare-pdf", "compare-revisions"],
-  ] as const) {
+for (const [id, dialog] of [
+  ["fill-form", "advanced-pdf"],
+  ["redact-pdf", "search-redact"],
+  ["compare-pdf", "compare-revisions"],
+] as const) {
+  test(`All Tools: ${id} opens ${dialog}`, async ({ page }) => {
+    await loadFixture(page);
     await openDashboard(page);
     await page.locator(`[data-opdf-tool-card="${id}"]`).click();
-    await expect(page.locator(`[data-opdf-dialog="${dialog}"]`)).toBeVisible();
-    await closeWorkingSurface(page);
-  }
+    await expect(page.locator(`[data-opdf-dialog="${dialog}"]`)).toBeVisible({
+      timeout: 10_000,
+    });
+  });
+}
 
-  for (const id of ["pdf-to-txt", "pdf-to-xml"] as const) {
+for (const id of ["pdf-to-txt", "pdf-to-xml"] as const) {
+  test(`All Tools: ${id} produces a download`, async ({ page }) => {
+    await loadFixture(page);
     await openDashboard(page);
-    const downloadPromise = page.waitForEvent("download");
+    const downloadPromise = page.waitForEvent("download", { timeout: 20_000 });
     await page.locator(`[data-opdf-tool-card="${id}"]`).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename().length).toBeGreaterThan(4);
     expect(await download.failure()).toBeNull();
-  }
+  });
+}
 
+test("All Tools: image-to-pdf converts a real PNG into a PDF", async ({ page }) => {
+  await loadFixture(page);
   await openDashboard(page);
-  const imageChooserPromise = page.waitForEvent("filechooser");
+  const chooserPromise = page.waitForEvent("filechooser", { timeout: 10_000 });
   await page.locator('[data-opdf-tool-card="image-to-pdf"]').click();
-  const imageChooser = await imageChooserPromise;
-  await imageChooser.setFiles({
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
     name: "pixel.png",
     mimeType: "image/png",
     buffer: Buffer.from(
@@ -182,26 +195,33 @@ test("every browser-capable dashboard tool reaches its real working surface or o
       "base64",
     ),
   });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "1", {
-    timeout: 20_000,
-  });
+  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
+    "data-opdf-total-pages",
+    "1",
+    { timeout: 20_000 },
+  );
+});
 
+test("All Tools: txt-to-pdf converts a real text file into a PDF", async ({ page }) => {
+  await loadFixture(page);
   await openDashboard(page);
-  const textChooserPromise = page.waitForEvent("filechooser");
+  const chooserPromise = page.waitForEvent("filechooser", { timeout: 10_000 });
   await page.locator('[data-opdf-tool-card="txt-to-pdf"]').click();
-  const textChooser = await textChooserPromise;
-  await textChooser.setFiles({
+  const chooser = await chooserPromise;
+  await chooser.setFiles({
     name: "tool-input.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("OPDF TXT TO PDF TOOL CHECK\nSecond line"),
   });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "1", {
-    timeout: 20_000,
-  });
+  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
+    "data-opdf-total-pages",
+    "1",
+    { timeout: 20_000 },
+  );
+});
 
-  // OCR is already output-validated by the production E2E audit. Here we make
-  // the dashboard contract fail if the browser-capable OCR entry disappears or
-  // becomes disabled.
+test("All Tools: OCR entry is available in browser runtime", async ({ page }) => {
+  await loadFixture(page);
   await openDashboard(page);
   await expect(page.locator('[data-opdf-tool-card="ocr-pdf"]')).toBeEnabled();
 });

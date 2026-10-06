@@ -22,6 +22,9 @@ async function openCanvasEditor(page: import("@playwright/test").Page, request: 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
   await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
+  const expand = page.locator("[data-opdf-action='expand-right-panel']");
+  await expect(expand).toBeVisible({ timeout: 20_000 });
+  await expand.click();
   await expect(page.locator("[data-opdf-native-editor='true']")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator("[data-opdf-native-edit-page='1']")).toBeVisible({ timeout: 30_000 });
   return document;
@@ -34,16 +37,9 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
   const textObject = page.locator("[data-opdf-canvas-object][data-opdf-object-kind='text']").first();
   await expect(textObject).toBeVisible({ timeout: 20_000 });
 
-  await textObject.click();
-  await expect(page.locator("[data-opdf-canvas-selection]")).toHaveCount(1);
-  await expect(page.locator("[data-opdf-resize-handle]")).toHaveCount(8);
-  await expect(page.locator("[data-opdf-rotate-handle='true']")).toHaveCount(1);
-  await expect(editor.locator(".native-content-editor__objects button.active")).toContainText("Canvas native text");
-
-  const selection = page.locator("[data-opdf-canvas-selection]");
-  const before = await selection.boundingBox();
+  const before = await textObject.boundingBox();
   expect(before).not.toBeNull();
-  if (!before) throw new Error("Selection bounding box is unavailable.");
+  if (!before) throw new Error("Text object bounding box is unavailable.");
 
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
   await page.mouse.down();
@@ -53,7 +49,10 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
 
   const refreshedSelection = page.locator("[data-opdf-canvas-selection]");
   await expect(refreshedSelection).toHaveCount(1);
-  await refreshedSelection.dblclick();
+  await expect(page.locator("[data-opdf-resize-handle]")).toHaveCount(8);
+  await expect(page.locator("[data-opdf-rotate-handle='true']")).toHaveCount(1);
+  await expect(editor.locator(".native-content-editor__objects button.active")).toContainText("Canvas native text");
+  await refreshedSelection.click();
   const inlineEditor = page.locator("[data-opdf-inline-text-editor='true']");
   await expect(inlineEditor).toBeVisible({ timeout: 10_000 });
   await inlineEditor.fill("Chỉnh sửa tiếng Việt");
@@ -61,6 +60,14 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
 
   await expect(editor.getByText("Inline text updated with Unicode fallback.")).toBeVisible({ timeout: 20_000 });
   await expect(inlineEditor).toHaveCount(0);
+
+  const beforeKeyboard = await page.locator("[data-opdf-canvas-selection]").boundingBox();
+  expect(beforeKeyboard).not.toBeNull();
+  await page.keyboard.press("ArrowRight");
+  await expect(editor.getByText("Object moved with keyboard.")).toBeVisible({ timeout: 20_000 });
+  const afterKeyboard = await page.locator("[data-opdf-canvas-selection]").boundingBox();
+  expect(afterKeyboard).not.toBeNull();
+  expect((afterKeyboard?.x ?? 0)).toBeGreaterThan(beforeKeyboard?.x ?? 0);
 
   await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
   await expect(editor.getByText("Native content edit undone.")).toBeVisible({ timeout: 20_000 });

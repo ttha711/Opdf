@@ -63,7 +63,7 @@ export function App() {
     });
   }, []);
   useEffect(() => {
-    if (state.activeTool === "edit-content") sidebars.setIsRightCollapsed(false);
+    if (state.activeTool === "edit-content") sidebars.setIsRightCollapsed(true);
   }, [state.activeTool, sidebars.setIsRightCollapsed]);
   useEffect(() => {
     let cancelled = false;

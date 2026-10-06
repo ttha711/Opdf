@@ -212,7 +212,6 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     loading,
     readOnly: deepFormReadOnly,
     apply,
-    move,
     undo,
     redo,
   });

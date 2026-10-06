@@ -6,7 +6,6 @@ type Props = {
   loading: boolean;
   readOnly: boolean;
   apply: (patches: PdfContentPatch[], message: string) => Promise<void>;
-  move: (dx: number, dy: number) => void;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
 };
@@ -16,7 +15,6 @@ export function useNativeContentKeyboard({
   loading,
   readOnly,
   apply,
-  move,
   undo,
   redo,
 }: Props) {
@@ -65,18 +63,6 @@ export function useNativeContentKeyboard({
         return;
       }
 
-      const step = event.shiftKey ? 10 : 1;
-      const arrow = {
-        ArrowLeft: [-step, 0],
-        ArrowRight: [step, 0],
-        ArrowUp: [0, step],
-        ArrowDown: [0, -step],
-      }[event.key] as [number, number] | undefined;
-      if (arrow) {
-        event.preventDefault();
-        move(...arrow);
-        return;
-      }
       if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
         void apply([{ type: "delete", objectId: selected.id }], "Object deleted.");
@@ -85,5 +71,5 @@ export function useNativeContentKeyboard({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [apply, loading, move, readOnly, redo, selected, undo]);
+  }, [apply, loading, readOnly, redo, selected, undo]);
 }

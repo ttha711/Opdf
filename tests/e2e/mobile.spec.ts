@@ -54,6 +54,20 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+3/i, { timeout: 30_000 });
 
+  const pagePreviewButton = page.locator('[data-opdf-action="toggle-page-filmstrip"]');
+  await expect(pagePreviewButton).toBeVisible();
+  const pagePreviewButtonBox = await pagePreviewButton.boundingBox();
+  expect(pagePreviewButtonBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await pagePreviewButton.click();
+  const filmstrip = page.locator('[data-opdf-mobile-filmstrip="true"]');
+  await expect(filmstrip).toBeVisible();
+  await expect(filmstrip.getByRole("button", { name: "Go to page 1" })).toBeVisible();
+  await expect(filmstrip.getByRole("button", { name: "Go to page 2" })).toBeVisible();
+  await expect(filmstrip.getByRole("button", { name: "Go to page 3" })).toBeVisible();
+  await filmstrip.getByRole("button", { name: "Go to page 2" }).click();
+  await expect(filmstrip).toHaveCount(0);
+  await expect(page.getByTestId("page-status")).toContainText(/Page\s+2\s+of\s+3/i, { timeout: 10_000 });
+
   await expect(page.locator(".opdf-topbar .tab-bar-container")).toBeVisible();
   await page.locator('[data-opdf-action="home"]').click();
   await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toBeVisible();
@@ -72,6 +86,15 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   expect(aiFabBox).not.toBeNull();
   expect(mobileViewport).not.toBeNull();
   expect((mobileViewport?.height ?? 0) - ((aiFabBox?.y ?? 0) + (aiFabBox?.height ?? 0))).toBeGreaterThanOrEqual(80);
+
+  await aiFab.click();
+  await expect(page.locator('[data-opdf-right-sidebar="open"]')).toBeVisible();
+  await expect(page.locator('[data-opdf-action="collapse-right-panel"]')).toBeVisible();
+  const drawerBackdrop = page.locator('[data-opdf-action="right-panel-backdrop"]');
+  await expect(drawerBackdrop).toBeVisible();
+  await drawerBackdrop.click({ position: { x: 12, y: 120 } });
+  await expect(page.locator('[data-opdf-right-sidebar="closed"]')).toHaveCount(1);
+  await expect(page.locator('[data-opdf-action="expand-right-panel"]')).toBeVisible();
 
   const viewer = page.locator(".viewer-shell");
   const sidebar = await openEmbedPdfSidebar(viewer);

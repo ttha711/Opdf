@@ -32,6 +32,11 @@
   stroke: rgb(37 99 235 / 45%);
 }
 
+.native-edit-object[data-opdf-object-kind="text"],
+.native-edit-selection[data-opdf-object-kind="text"] {
+  cursor: text;
+}
+
 .native-edit-selection {
   fill: rgb(37 99 235 / 5%);
   stroke: #2563eb;
@@ -82,6 +87,7 @@
   outline: none;
   transform-origin: center;
   white-space: pre-wrap;
+  caret-color: #2563eb;
 }
 
 .native-edit-loading,

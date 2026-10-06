@@ -11,6 +11,7 @@ type PatchApplier = (patches: PdfContentPatch[], successMessage: string) => Prom
 const selectionListeners = new Set<SelectionListener>();
 let currentSelection: NativeEditSelection | null = null;
 let patchApplier: PatchApplier | null = null;
+let pendingInlineText: { pageIndex: number; text: string } | null = null;
 
 export function emitNativeEditSelection(selection: NativeEditSelection) {
   currentSelection = selection;
@@ -25,6 +26,17 @@ export function registerNativeEditSelectionListener(listener: SelectionListener)
   selectionListeners.add(listener);
   if (currentSelection) listener(currentSelection);
   return () => { selectionListeners.delete(listener); };
+}
+
+export function requestNativeInlineTextEdit(pageIndex: number, text: string) {
+  pendingInlineText = { pageIndex, text: text.trim() };
+}
+
+export function consumeNativeInlineTextEdit(pageIndex: number) {
+  if (!pendingInlineText || pendingInlineText.pageIndex !== pageIndex) return null;
+  const pending = pendingInlineText;
+  pendingInlineText = null;
+  return pending;
 }
 
 export function registerNativeEditPatchApplier(applier: PatchApplier) {
@@ -45,4 +57,5 @@ export async function applyNativeEditPatches(
 export function clearNativeEditRuntime() {
   currentSelection = null;
   patchApplier = null;
+  pendingInlineText = null;
 }

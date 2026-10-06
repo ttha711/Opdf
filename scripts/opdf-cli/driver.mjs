@@ -552,8 +552,13 @@ export class OpdfDriver {
     const toolbar = viewer;
     const annotate = toolbar.getByRole("button", { name: "Annotate", exact: true });
     await annotate.click();
+    await this.page.waitForTimeout(150);
 
-    const candidates = toolbar.getByRole("button");
+    // EmbedPDF may render annotation flyouts through a document-level portal,
+    // so search the full page after opening Annotate instead of only the viewer root.
+    const candidates = this.page.locator(
+      'button, [role="menuitem"], [role="menuitemradio"], [role="option"]',
+    );
     const count = await candidates.count();
     let chosen = null;
     const preferred = [/ink/i, /draw/i, /pencil/i, /highlight/i];
@@ -573,21 +578,30 @@ export class OpdfDriver {
       }
       if (chosen) break;
     }
-    if (!chosen) {
-      const labels = [];
-      for (let index = 0; index < count; index += 1) {
-        const button = candidates.nth(index);
-        if (!(await button.isVisible().catch(() => false))) continue;
-        labels.push([
-          await button.getAttribute("aria-label"),
-          await button.getAttribute("title"),
-          await button.textContent(),
-        ].filter(Boolean).join(" "));
+    let toolLabel = chosen?.label ?? "";
+    if (chosen) {
+      await chosen.button.click();
+    } else {
+      const result = await this.page.evaluate(async () => {
+        const api = window.opdfAgent;
+        if (!api) return null;
+        return api.execute({ tool: "highlight-tool" });
+      });
+      if (!result || result.status !== "completed") {
+        const labels = [];
+        for (let index = 0; index < count; index += 1) {
+          const item = candidates.nth(index);
+          if (!(await item.isVisible().catch(() => false))) continue;
+          labels.push([
+            await item.getAttribute("aria-label"),
+            await item.getAttribute("title"),
+            await item.textContent(),
+          ].filter(Boolean).join(" "));
+        }
+        throw new Error(`No drawable annotation tool was found. Visible controls: ${labels.join(" | ")}`);
       }
-      throw new Error(`No drawable annotation tool was found. Visible buttons: ${labels.join(" | ")}`);
+      toolLabel = "Highlight Tool";
     }
-
-    await chosen.button.click();
     const surface = viewer.locator("canvas, img").filter({ visible: true }).last();
     const box = await surface.boundingBox();
     if (!box || box.width < 200 || box.height < 200) throw new Error("No usable PDF surface for annotation gesture");
@@ -600,7 +614,7 @@ export class OpdfDriver {
     await this.page.mouse.up();
     await this.page.waitForTimeout(700);
 
-    return { ok: true, tool: chosen.label, state: await this.inspect() };
+    return { ok: true, tool: toolLabel, state: await this.inspect() };
   }
 
   async openAi() {

@@ -98,6 +98,7 @@ export function NativeEditSelectionLayer({
             onPointerDown={(event) => onObjectPointerDown(event, selected)}
             onDoubleClick={(event) => onObjectDoubleClick(event, selected)}
             data-opdf-canvas-selection={selected.id}
+            data-opdf-object-kind={selected.kind}
           />
           {nativeEditObjectIsEditable(selected) ? HANDLES.map((handle) => {
             const dom = pdfPointToDom(

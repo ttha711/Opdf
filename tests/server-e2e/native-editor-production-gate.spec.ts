@@ -4,6 +4,15 @@ import { saveServerDocumentAndWait } from "../helpers/save";
 
 test.setTimeout(90_000);
 
+async function expandAdvancedEditor(page: import("@playwright/test").Page) {
+  const expand = page.locator('[data-opdf-action="expand-right-panel"]');
+  await expect(expand).toBeVisible({ timeout: 20_000 });
+  await expand.click();
+  const editor = page.locator("[data-opdf-native-editor='true']");
+  await expect(editor).toBeVisible({ timeout: 20_000 });
+  return editor;
+}
+
 async function uploadAndOpenEditor(
   page: import("@playwright/test").Page,
   request: import("@playwright/test").APIRequestContext,
@@ -22,8 +31,7 @@ async function uploadAndOpenEditor(
     timeout: 30_000,
   });
   await page.getByTitle("Edit PDF Content").click();
-  const editor = page.locator("[data-opdf-native-editor='true']");
-  await expect(editor).toBeVisible({ timeout: 20_000 });
+  const editor = await expandAdvancedEditor(page);
   return { document, editor };
 }
 
@@ -35,9 +43,7 @@ async function reopenEditor(
     timeout: 30_000,
   });
   await page.getByTitle("Edit PDF Content").click();
-  const editor = page.locator("[data-opdf-native-editor='true']");
-  await expect(editor).toBeVisible({ timeout: 20_000 });
-  return editor;
+  return expandAdvancedEditor(page);
 }
 
 async function buildRotatedTextPdf() {

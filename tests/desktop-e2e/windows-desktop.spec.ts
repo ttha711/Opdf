@@ -2,14 +2,18 @@ import { expect, test } from "@playwright/test";
 import { _electron as electron } from "playwright";
 import { PDFDocument } from "pdf-lib";
 import { unzipSync } from "fflate";
+import { resolve } from "node:path";
 import { buildOfficeFixtures, buildTestP12 } from "../helpers/server-tool-fixtures";
 
 test("Windows Electron boots and its real IPC PDF/Office/signing engines work", async () => {
   test.skip(process.platform !== "win32", "Desktop gate is intended for the Windows runner.");
   test.setTimeout(180_000);
 
+  const desktopDir = resolve(process.cwd(), "apps/desktop");
+  const electronExecutable = resolve(desktopDir, "node_modules/electron/dist/electron.exe");
   const app = await electron.launch({
-    args: ["apps/desktop"],
+    executablePath: electronExecutable,
+    args: [desktopDir],
     cwd: process.cwd(),
     env: {
       ...process.env,

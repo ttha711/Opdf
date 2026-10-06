@@ -23,6 +23,17 @@ describe("StatusBar page indicator", () => {
     expect(html).not.toContain("Page <strong>1</strong> of <strong>0</strong>");
   });
 
+
+  it("offers the mobile page preview trigger once pages are known", () => {
+    const html = renderToStaticMarkup(
+      <StatusBar {...baseProps} totalPages={3} />,
+    );
+
+    expect(html).toContain('data-opdf-action="toggle-page-filmstrip"');
+    expect(html).toContain("▣ Pages");
+    expect(html).toContain('aria-expanded="false"');
+  });
+
   it("shows the normal page indicator once the page count is known", () => {
     const html = renderToStaticMarkup(
       <StatusBar {...baseProps} totalPages={12} />,

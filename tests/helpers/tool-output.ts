@@ -86,6 +86,16 @@ export async function downloadBuffer(download: Download) {
   return Buffer.concat(chunks);
 }
 
+export async function saveCurrentRawPdf(page: Page) {
+  const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
+  await clickApplicationMenuItem(page, "Save As...");
+  const download = await downloadPromise;
+  expect(await download.failure()).toBeNull();
+  const bytes = await downloadBuffer(download);
+  expect(bytes.subarray(0, 5).toString("ascii")).toBe("%PDF-");
+  return bytes;
+}
+
 export async function exportCurrentPdf(page: Page) {
   const downloadPromise = page.waitForEvent("download", { timeout: 20_000 });
   await clickApplicationMenuItem(page, "Export PDF...");

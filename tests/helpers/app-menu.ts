@@ -65,12 +65,12 @@ export async function getApplicationMenuItem(page: Page, label: string): Promise
 export async function getApplicationMenuPathItem(page: Page, path: string[]): Promise<Locator> {
   if (path.length === 0) throw new Error("Application menu path must contain at least one label.");
 
-  const menu = await openApplicationMenu(page);
+  let surface = await openApplicationMenu(page);
   let item: Locator | null = null;
 
   for (let index = 0; index < path.length; index += 1) {
     const label = path[index];
-    item = menu.locator(`${menuItemSelector(label)}:visible`).first();
+    item = surface.locator(`${menuItemSelector(label)}:visible`).first();
     await expect(item).toBeVisible({ timeout: UI_ACTION_TIMEOUT });
 
     if (index < path.length - 1) {
@@ -78,6 +78,10 @@ export async function getApplicationMenuPathItem(page: Page, path: string[]): Pr
         await item.click({ timeout: UI_ACTION_TIMEOUT });
       }
       await expect(item).toHaveAttribute("aria-expanded", "true", { timeout: UI_ACTION_TIMEOUT });
+
+      const nestedSurface = item.locator("xpath=..").locator('[role="menu"]').first();
+      await expect(nestedSurface).toBeVisible({ timeout: UI_ACTION_TIMEOUT });
+      surface = nestedSurface;
     }
   }
 

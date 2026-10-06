@@ -44,7 +44,11 @@ export function NativeEditDocument({
     redo: () => {},
     canUndo: () => false,
     canRedo: () => false,
-  }), [zoom]);
+    goToPage: (pageNumber) => scroll?.scrollToPage({
+      pageNumber: Math.max(1, pageNumber),
+      behavior: "instant",
+    }),
+  }), [scroll, zoom]);
 
   useEffect(() => {
     if (scrollState.totalPages > 0) onDocumentLoaded?.(scrollState.totalPages);

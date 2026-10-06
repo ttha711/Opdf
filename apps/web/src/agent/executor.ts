@@ -144,6 +144,12 @@ async function runAgentAction(
     case "redact-tool": return actions.setActiveTool?.("redact");
     case "signature-tool": return actions.setActiveTool?.("signature");
     case "ai-content-editor": return actions.setActiveTool?.("edit-content");
+    case "replace-text": {
+      if (!actions.replaceText) {
+        return { status: "input_required", message: "Native PDF text editing is unavailable in this runtime." };
+      }
+      return actions.replaceText(args);
+    }
     case "open-tools-dashboard":
       actions.setActiveDashboardTool?.(null);
       return actions.setShowDashboard?.(true);

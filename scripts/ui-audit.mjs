@@ -234,10 +234,18 @@ try {
 
   await page.setViewportSize({ width: 412, height: 915 });
   await page.goto(baseURL, { waitUntil: "networkidle" });
+  // Session restore may reopen the last server-backed tab after navigation.
+  // Enter Home explicitly; Home must not discard the restored/open tab set.
+  const homeButton = page.locator('[data-opdf-action="home"]').first();
+  await homeButton.waitFor({ state: "visible", timeout: 10000 });
+  await homeButton.click();
   await page.getByRole("heading", { name: "Your documents, ready when you are." }).waitFor({ state: "visible", timeout: 10000 });
   await shot("14-mobile-home");
 
-  await page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles(samplePath);
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Open PDF", exact: true }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles(samplePath);
   await page.locator('[data-opdf-engine="pdfium-wasm"]').waitFor({ state: "visible", timeout: 30000 });
   await page.waitForTimeout(800);
   await shot("15-mobile-viewer");

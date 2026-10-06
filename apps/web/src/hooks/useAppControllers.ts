@@ -14,6 +14,7 @@ import { useAgentBridge, createAgentStateSnapshot } from "./useAgentBridge";
 import type { MarkupTool } from "./useDocumentActions";
 import { toast } from "../components/ToastProvider";
 import { buildPdfTextExport } from "../lib/pdfTextExport";
+import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { useDocumentAutosave } from "./useDocumentAutosave";
 
 type UseAppControllersArgs = {
@@ -456,6 +457,59 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     return undefined;
   }, [bridge, state.fileName, state.materializeDocumentBytes]);
 
+  const replaceText = useCallback(async (args: Record<string, unknown>) => {
+    const bytes = await state.materializeDocumentBytes();
+    if (!bytes) throw new Error("Unable to retrieve the current PDF bytes.");
+
+    const newText = typeof args.newText === "string" ? args.newText : "";
+    const objectId = typeof args.objectId === "string" ? args.objectId.trim() : "";
+    const targetText = typeof args.targetText === "string" ? args.targetText : "";
+    const replaceAll = args.replaceAll === true;
+
+    if (objectId) {
+      const edited = await pdfiumContentEditingEngine.applyPatches(bytes, [
+        { type: "replace-text", objectId, text: newText },
+      ]);
+      replaceDocumentBytes(edited, state.page);
+      return { message: "Replaced native PDF text object " + objectId + "." };
+    }
+
+    if (!targetText) {
+      throw new Error("replace-text requires objectId or targetText.");
+    }
+
+    const requestedPage = Number(args.page);
+    const pageNumber = Number.isFinite(requestedPage)
+      ? Math.max(1, Math.min(Math.trunc(requestedPage), Math.max(1, state.totalPages)))
+      : state.page;
+    const objects = await pdfiumContentEditingEngine.inspectPage(bytes, pageNumber - 1);
+    const matches = objects.filter((object) =>
+      object.kind === "text" && typeof object.text === "string" && object.text.includes(targetText)
+    );
+    if (!matches.length) {
+      throw new Error("Text not found on page " + pageNumber + ": " + targetText);
+    }
+
+    const selected = replaceAll ? matches : matches.slice(0, 1);
+    const patches = selected.map((object) => ({
+      type: "replace-text" as const,
+      objectId: object.id,
+      text: replaceAll
+        ? (object.text || "").split(targetText).join(newText)
+        : (object.text || "").replace(targetText, newText),
+    }));
+    const edited = await pdfiumContentEditingEngine.applyPatches(bytes, patches);
+    replaceDocumentBytes(edited, state.page);
+    return {
+      message: "Replaced text in " + patches.length + " native PDF object(s) on page " + pageNumber + ".",
+    };
+  }, [
+    replaceDocumentBytes,
+    state.materializeDocumentBytes,
+    state.page,
+    state.totalPages,
+  ]);
+
   useAgentBridge({
     state: createAgentStateSnapshot({
       hasDocument: state.hasDocument,
@@ -496,6 +550,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
       setActiveDashboardTool: state.setActiveDashboardTool,
       setViewerError: state.setViewerError,
       runHeadlessConversion,
+      replaceText,
     },
   });
 

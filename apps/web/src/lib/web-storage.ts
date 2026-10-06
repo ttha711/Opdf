@@ -73,9 +73,12 @@ export async function loadTabsList(): Promise<OpdfTab[] | null> {
     return new Promise((resolve) => {
       req.onsuccess = () => {
       const value = req.result as OpdfTab[] | undefined;
-      // New sessions intentionally do not persist PDF bytes. Ignore lightweight
-      // metadata-only tabs on reload instead of restoring broken empty tabs.
-      const restorable = value?.filter((tab) => tab.docBytes && tab.docBytes.byteLength > 0) ?? [];
+      // Server-backed tabs are restorable from their durable sourceIdentity,
+      // even though autosave intentionally omits the potentially huge PDF bytes.
+      const restorable = value?.filter((tab) =>
+        Boolean(tab.docBytes?.byteLength) ||
+        Boolean(tab.sourceIdentity?.startsWith("server://"))
+      ) ?? [];
       resolve(restorable.length > 0 ? restorable : null);
     };
       tx.onerror = () => resolve(null);

@@ -11,6 +11,7 @@ export type AgentToolId =
   | "export-pdf"
   | "save-pdf"
   | "ai-content-editor"
+  | "replace-text"
   | "compress-pdf"
   | "run-ocr"
   | "convert-to-images"
@@ -133,6 +134,7 @@ export interface AgentActionContext {
     setShowDashboard?: (show: boolean) => void;
     setActiveDashboardTool?: (toolId: string | null) => void;
     setViewerError?: (message: string | null) => void;
+    replaceText?: (args: Record<string, unknown>) => Promise<{ message?: string } | void>;
     runHeadlessConversion?: (
       toolId: AgentToolId,
       args: Record<string, unknown>,

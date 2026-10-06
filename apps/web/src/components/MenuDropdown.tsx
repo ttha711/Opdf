@@ -118,7 +118,7 @@ function SubmenuItem({
           "opdf-menu-item opdf-menu-item--submenu " +
           (mobileSheet ? "opdf-menu-item--mobile" : "opdf-menu-item--desktop")
         }
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setOpen((value) => mobileSheet ? !value : true)}
       >
         <span className="opdf-menu-item__lead">
           {item.icon ? <OpdfIcon name={item.icon} size={18} /> : <span className="opdf-menu-item__icon-spacer" />}

@@ -15,6 +15,12 @@ import { createSigningApi } from "./opdf-signing-api.mjs";
 import { createAuthService } from "./opdf-auth.mjs";
 import { createAgentPairingBroker } from "./opdf-agent-pairing.mjs";
 import { createTenantRuntime } from "./opdf-tenancy.mjs";
+import {
+  DEFAULT_OCR_TTL_MS,
+  DEFAULT_UPLOAD_TTL_MS,
+  pruneLocalDataTree,
+  pruneRemoteDataTree,
+} from "./opdf-maintenance.mjs";
 import { createS3ObjectStoreFromEnv } from "./opdf-s3.mjs";
 import {
   applyProductionSecurityHeaders,
@@ -32,6 +38,12 @@ const webDist = resolve(process.env.OPDF_WEB_DIST || join(repoRoot, "apps", "web
 const maxBytes = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 750 * 1024 * 1024);
 const maxOperationBytes = Number(process.env.OPDF_MAX_OPERATION_BYTES || 250 * 1024 * 1024);
 const objectStore = createS3ObjectStoreFromEnv(process.env);
+const uploadTtlMs = Number(process.env.OPDF_UPLOAD_TTL_MS || DEFAULT_UPLOAD_TTL_MS);
+const ocrArtifactTtlMs = Number(process.env.OPDF_OCR_ARTIFACT_TTL_MS || DEFAULT_OCR_TTL_MS);
+const maintenanceIntervalMs = Math.max(
+  60_000,
+  Number(process.env.OPDF_STORAGE_MAINTENANCE_INTERVAL_MS || 60 * 60 * 1000),
+);
 const configuredUploadChunkBytes = Number(process.env.OPDF_UPLOAD_CHUNK_BYTES || 8 * 1024 * 1024);
 const minimumUploadChunkBytes = objectStore ? 5 * 1024 * 1024 : 1024 * 1024;
 const uploadChunkBytes = Number.isFinite(configuredUploadChunkBytes)
@@ -43,6 +55,7 @@ const tenantRuntime = createTenantRuntime(dataDir, {
   objectStore,
   certificateMasterKey: process.env.OPDF_CERTIFICATE_MASTER_KEY || "",
   ocrConcurrency: Number(process.env.OPDF_OCR_CONCURRENCY || 1),
+  uploadReservationTtlMs: uploadTtlMs,
 });
 const storage = tenantRuntime.storage;
 const certificateStore = tenantRuntime.certificateStore;
@@ -960,6 +973,33 @@ if (objectStore) await objectStore.probe();
 await auth.ensure();
 await tenantRuntime.ensure();
 
+async function runStorageMaintenance() {
+  const local = await pruneLocalDataTree(dataDir, {
+    uploadMaxAgeMs: uploadTtlMs,
+    ocrMaxAgeMs: ocrArtifactTtlMs,
+  });
+  const remote = objectStore
+    ? await pruneRemoteDataTree(objectStore, { uploadMaxAgeMs: uploadTtlMs })
+    : { uploadsRemoved: 0, reservedBytesReleased: 0 };
+  const removed = local.uploadsRemoved + local.ocrArtifactsRemoved + remote.uploadsRemoved;
+  if (removed > 0) {
+    console.log("OPDF storage maintenance:", {
+      local,
+      remote,
+    });
+  }
+}
+
+await runStorageMaintenance().catch((error) => {
+  console.error("OPDF storage maintenance failed:", error);
+});
+const maintenanceTimer = setInterval(() => {
+  void runStorageMaintenance().catch((error) => {
+    console.error("OPDF storage maintenance failed:", error);
+  });
+}, maintenanceIntervalMs);
+maintenanceTimer.unref();
+
 const server = http.createServer(async (req, res) => {
   const id = requestId(req);
   res.setHeader("X-Request-Id", id);
@@ -988,6 +1028,7 @@ server.listen(port, host, () => {
 function beginShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
+  clearInterval(maintenanceTimer);
   console.log(`OPDF Server received ${signal}; draining connections.`);
   server.close((error) => {
     if (error) {

@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useRef } from "react";
+// opdf-file-size-allow: legacy AI panel render primitives stay together while production pairing replaces the credential form without duplicating chat UI.
+import React, { useEffect, useRef } from "react";
 import type { Message, EngineMode } from "./AiAssistantPanel.types";
 import type { AgentCommand } from "../agent/agentCommands";
 import { AiSparkIcon } from "./AiSparkIcon";

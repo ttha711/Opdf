@@ -361,6 +361,8 @@ export function AllToolsDashboard({
         {getFilteredTools().map((tool) => (
           <button
             key={tool.id}
+            data-opdf-tool-card={tool.id}
+            data-opdf-tool-available={tool.unavailableReason ? "false" : "true"}
             disabled={Boolean(tool.unavailableReason)}
             title={tool.unavailableReason}
             onClick={() => {

@@ -37,16 +37,9 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
   const textObject = page.locator("[data-opdf-canvas-object][data-opdf-object-kind='text']").first();
   await expect(textObject).toBeVisible({ timeout: 20_000 });
 
-  await textObject.click();
-  await expect(page.locator("[data-opdf-canvas-selection]")).toHaveCount(1);
-  await expect(page.locator("[data-opdf-resize-handle]")).toHaveCount(8);
-  await expect(page.locator("[data-opdf-rotate-handle='true']")).toHaveCount(1);
-  await expect(editor.locator(".native-content-editor__objects button.active")).toContainText("Canvas native text");
-
-  const selection = page.locator("[data-opdf-canvas-selection]");
-  const before = await selection.boundingBox();
+  const before = await textObject.boundingBox();
   expect(before).not.toBeNull();
-  if (!before) throw new Error("Selection bounding box is unavailable.");
+  if (!before) throw new Error("Text object bounding box is unavailable.");
 
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
   await page.mouse.down();
@@ -56,6 +49,9 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
 
   const refreshedSelection = page.locator("[data-opdf-canvas-selection]");
   await expect(refreshedSelection).toHaveCount(1);
+  await expect(page.locator("[data-opdf-resize-handle]")).toHaveCount(8);
+  await expect(page.locator("[data-opdf-rotate-handle='true']")).toHaveCount(1);
+  await expect(editor.locator(".native-content-editor__objects button.active")).toContainText("Canvas native text");
   await refreshedSelection.click();
   const inlineEditor = page.locator("[data-opdf-inline-text-editor='true']");
   await expect(inlineEditor).toBeVisible({ timeout: 10_000 });

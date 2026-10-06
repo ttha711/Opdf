@@ -33,7 +33,17 @@ export class DocumentService {
       .normalize("NFKD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/đ/g, "d")
-      .replace(/Đ/g, "D");
+      .replace(/Đ/g, "D")
+      .replace(/[^\x20-\x7E]/g, "?");
+  }
+
+  private async embedUnicodeFont(doc: any): Promise<any | null> {
+    const fontBytes = await this.loadUnicodeFontBytes();
+    if (!fontBytes) return null;
+    const fontkitModule = await import("@pdf-lib/fontkit");
+    const fontkit = (fontkitModule as any).default ?? fontkitModule;
+    doc.registerFontkit(fontkit);
+    return doc.embedFont(fontBytes);
   }
 
   async open(filePath: string): Promise<OpenDocumentResult> {
@@ -280,13 +290,16 @@ export class DocumentService {
     const module = await import("pdf-lib");
     const doc = await module.PDFDocument.load(pdfBytes);
     const pages = doc.getPages();
+    const font = await this.embedUnicodeFont(doc);
+    const drawText = font ? text : this.toWinAnsiSafeText(text);
 
     for (const page of pages) {
       const { width, height } = page.getSize();
-      page.drawText(text, {
+      page.drawText(drawText, {
         x: width / 4,
         y: height / 2,
         size: 48,
+        ...(font ? { font } : {}),
         color: module.rgb(0.5, 0.5, 0.5),
         opacity: 0.3,
         rotate: module.degrees(45),
@@ -386,6 +399,7 @@ export class DocumentService {
     const module = await import("pdf-lib");
     const doc = await module.PDFDocument.load(pdfBytes);
     const pages = doc.getPages();
+    const font = await this.embedUnicodeFont(doc);
     const fontSize = opts.fontSize || 12;
     const color = this._parseColor(opts.fontColor || "#000000", module);
     
@@ -396,9 +410,10 @@ export class DocumentService {
     for (let i = pageStart - 1; i < pageEnd; i++) {
       const page = pages[i];
       const { width, height } = page.getSize();
-      const text = `${opts.prefix || ""}${counter}${opts.suffix || ""}`;
+      const rawText = `${opts.prefix || ""}${counter}${opts.suffix || ""}`;
+      const text = font ? rawText : this.toWinAnsiSafeText(rawText);
       
-      const textWidth = fontSize * text.length * 0.45;
+      const textWidth = font ? font.widthOfTextAtSize(text, fontSize) : fontSize * text.length * 0.45;
       let x = width / 2 - textWidth / 2;
       if (opts.position.includes("left")) x = 40;
       else if (opts.position.includes("right")) x = width - 40 - textWidth;
@@ -408,6 +423,7 @@ export class DocumentService {
       page.drawText(text, {
         x, y,
         size: fontSize,
+        ...(font ? { font } : {}),
         color,
       });
       counter++;
@@ -420,6 +436,7 @@ export class DocumentService {
     const module = await import("pdf-lib");
     const doc = await module.PDFDocument.load(pdfBytes);
     const pages = doc.getPages();
+    const font = await this.embedUnicodeFont(doc);
 
     for (const page of pages) {
       const { width, height } = page.getSize();
@@ -429,7 +446,9 @@ export class DocumentService {
         const fontSize = line.fontSize || 10;
         const color = this._parseColor(line.fontColor || "#555555", module);
         
-        const textWidth = fontSize * line.text.length * 0.45;
+        const rawText = line.text;
+        const text = font ? rawText : this.toWinAnsiSafeText(rawText);
+        const textWidth = font ? font.widthOfTextAtSize(text, fontSize) : fontSize * text.length * 0.45;
         let x = width / 2 - textWidth / 2;
         if (line.align === "left") x = 40;
         else if (line.align === "right") x = width - 40 - textWidth;
@@ -438,7 +457,7 @@ export class DocumentService {
           ? height - 24 - index * (fontSize + 3) 
           : 18 + index * (fontSize + 3);
 
-        page.drawText(line.text, { x, y, size: fontSize, color });
+        page.drawText(text, { x, y, size: fontSize, ...(font ? { font } : {}), color });
       }
     }
     return doc.save();
@@ -539,19 +558,22 @@ export class DocumentService {
     const module = await import("pdf-lib");
     const doc = await module.PDFDocument.load(pdfBytes);
     const pages = doc.getPages();
+    const font = await this.embedUnicodeFont(doc);
     const color = module.rgb(0, 0, 0);
 
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
       const { width, height } = page.getSize();
       const num = startNumber + i;
-      const text = `${prefix}${num.toString().padStart(6, "0")}${suffix}`;
+      const rawText = `${prefix}${num.toString().padStart(6, "0")}${suffix}`;
+      const text = font ? rawText : this.toWinAnsiSafeText(rawText);
       
       // Bates numbers go at bottom-right corner
       page.drawText(text, {
         x: width - 120,
         y: 20,
         size: 8,
+        ...(font ? { font } : {}),
         color,
       });
     }

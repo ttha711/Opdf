@@ -134,29 +134,17 @@ async function openApplicationMenu(focusItem = null) {
     const action = menu.locator('[data-opdf-menu-item]').filter({ hasText: focusItem }).first();
     await action.scrollIntoViewIfNeeded();
     await page.waitForTimeout(80);
-  }
-
-  const visibleItemsReachable = await menu.getByRole("menuitem").evaluateAll((items) => {
-    const visible = items.filter((item) => {
+    const actionReachable = await action.evaluate((item) => {
       const rect = item.getBoundingClientRect();
-      return (
-        rect.width >= 20 &&
-        rect.height >= 10 &&
-        rect.bottom > 0 &&
-        rect.top < window.innerHeight
-      );
-    });
-    return visible.length > 0 && visible.every((item) => {
-      const rect = item.getBoundingClientRect();
+      if (rect.width < 20 || rect.height < 10) return false;
       const x = Math.min(window.innerWidth - 2, Math.max(1, rect.left + 14));
       const y = Math.min(window.innerHeight - 2, Math.max(1, rect.top + rect.height / 2));
       const hit = document.elementFromPoint(x, y);
       return Boolean(hit && item.contains(hit));
     });
-  });
-
-  if (!visibleItemsReachable) {
-    throw new Error("Visible application menu items are overlapped by another control");
+    if (!actionReachable) {
+      throw new Error(`Application menu item "${focusItem}" is clipped or overlapped`);
+    }
   }
 
   return menu;

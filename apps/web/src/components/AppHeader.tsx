@@ -184,7 +184,7 @@ export function AppHeader(props: AppHeaderProps) {
 
         <div className="opdf-mobile-menu">
           <MenuDropdown
-            label="Application"
+            label="⋯"
             triggerIcon="more-horizontal"
             items={globalMenuItems}
             isOpen={openMenu === "ApplicationMobile"}
@@ -196,7 +196,7 @@ export function AppHeader(props: AppHeaderProps) {
         </div>
         <div className="opdf-desktop-menus">
           <MenuDropdown
-            label="Application"
+            label="⋯"
             triggerIcon="more-horizontal"
             items={globalMenuItems}
             isOpen={openMenu === "ApplicationDesktop"}

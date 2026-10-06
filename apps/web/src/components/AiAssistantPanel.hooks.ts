@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy AI orchestration coordinator keeps command routing, provider fallback, and machine-agent result handling together as one behavior boundary.
 import { useState, FormEvent } from "react";
 import type { Message, EngineMode } from "./AiAssistantPanel.types";
 import type { AgentCommand, AgentCommandResult } from "../agent/agentCommands";

@@ -1,16 +1,9 @@
 name: Web Server Stress
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "apps/web/**"
-      - "server/**"
-      - "scripts/perf/**"
-      - "tests/server-e2e/**"
-      - "server/opdf-server.reliability.mjs"
-      - ".github/workflows/web-server-stress.yml"
   workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * 0"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

@@ -28,6 +28,18 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   const primaryBox = await primary.boundingBox();
   expect(primaryBox?.height ?? 0).toBeGreaterThanOrEqual(44);
 
+  await mobileMenu.click();
+  const mobileSheet = page.locator('[data-opdf-mobile-sheet="true"]');
+  await expect(mobileSheet).toBeVisible();
+  await expect(mobileSheet).not.toContainText("Ctrl+O");
+  await expect(mobileSheet).not.toContainText("Ctrl+S");
+  await expect(mobileSheet).not.toContainText("Ctrl+Z");
+  const firstTouchItem = mobileSheet.getByRole("menuitem").first();
+  const firstTouchBox = await firstTouchItem.boundingBox();
+  expect(firstTouchBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await mobileMenu.click();
+  await expect(mobileSheet).toHaveCount(0);
+
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 
@@ -44,6 +56,14 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
 
   const documentOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(documentOverflow).toBeLessThanOrEqual(1);
+
+  const aiFab = page.locator('[data-opdf-action="open-ai"]');
+  await expect(aiFab).toBeVisible();
+  const aiFabBox = await aiFab.boundingBox();
+  const mobileViewport = page.viewportSize();
+  expect(aiFabBox).not.toBeNull();
+  expect(mobileViewport).not.toBeNull();
+  expect((mobileViewport?.height ?? 0) - ((aiFabBox?.y ?? 0) + (aiFabBox?.height ?? 0))).toBeGreaterThanOrEqual(80);
 
   const viewer = page.locator(".viewer-shell");
   const sidebar = await openEmbedPdfSidebar(viewer);

@@ -129,16 +129,34 @@ function findAction(items: MenuItemDef[], label: string) {
 export function buildGlobalMenuItems({
   fileMenuItems,
   editMenuItems,
+  viewMenuItems,
   toolsMenuItems,
   aiEdit,
 }: {
   fileMenuItems: MenuItemDef[];
   editMenuItems: MenuItemDef[];
+  viewMenuItems: MenuItemDef[];
   toolsMenuItems: MenuItemDef[];
   aiEdit: () => void;
 }): MenuItemDef[] {
   const save = findAction(fileMenuItems, "Save");
   const saveAs = findAction(fileMenuItems, "Save As...");
+  const viewMode = viewMenuItems.find((item): item is Extract<MenuItemDef, { kind: "action" }> =>
+    item.kind === "action" && item.label.startsWith("Switch to "),
+  );
+  const zoomItems = [
+    findAction(viewMenuItems, "Zoom In"),
+    findAction(viewMenuItems, "Zoom Out"),
+    findAction(viewMenuItems, "Actual Size (100%)"),
+    findAction(viewMenuItems, "Fit Width"),
+    findAction(viewMenuItems, "Fit Page"),
+  ].filter(Boolean) as MenuItemDef[];
+  const rotateItems = [
+    findAction(viewMenuItems, "Rotate Page Left"),
+    findAction(viewMenuItems, "Rotate Page Right"),
+    findAction(viewMenuItems, "Rotate All Pages Left"),
+    findAction(viewMenuItems, "Rotate All Pages Right"),
+  ].filter(Boolean) as MenuItemDef[];
 
   return [
     {
@@ -152,6 +170,26 @@ export function buildGlobalMenuItems({
       label: "Edit",
       icon: "edit",
       items: editMenuItems.filter((item) => item.kind !== "separator" && item.kind !== "section"),
+    },
+    {
+      kind: "submenu",
+      label: "View",
+      icon: "view",
+      items: [
+        ...(viewMode ? [viewMode] : []),
+        {
+          kind: "submenu",
+          label: "Zoom",
+          icon: "zoom-in",
+          items: zoomItems,
+        },
+        {
+          kind: "submenu",
+          label: "Rotate",
+          icon: "rotate-right",
+          items: rotateItems,
+        },
+      ],
     },
     {
       kind: "submenu",

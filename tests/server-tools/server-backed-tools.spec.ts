@@ -8,6 +8,8 @@ import {
   loadToolFixture,
   openAllTools,
   openDashboardTool,
+  saveCurrentRawPdf,
+  waitForStatusText,
 } from "../helpers/tool-output";
 import { buildOfficeFixtures, buildTestP12 } from "../helpers/server-tool-fixtures";
 
@@ -78,8 +80,9 @@ test.describe("full OPDF Server tool UI", () => {
         buffer: fixture.bytes,
       });
 
+      await waitForStatusText(page, "Office document converted to PDF.");
       await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 90_000 });
-      const output = await exportCurrentPdf(page);
+      const output = await saveCurrentRawPdf(page);
       const pdf = await PDFDocument.load(output);
       expect(pdf.getPageCount()).toBeGreaterThan(0);
       const text = (await extractPdfTextPages(output)).join(" ");
@@ -116,7 +119,7 @@ test.describe("full OPDF Server tool UI", () => {
       timeout: 30_000,
     });
 
-    const protectedBytes = await exportCurrentPdf(page);
+    const protectedBytes = await saveCurrentRawPdf(page);
     await expect(PDFDocument.load(protectedBytes)).rejects.toThrow();
 
     await panel.locator('[data-opdf-action="close-tool"]').click();
@@ -128,7 +131,7 @@ test.describe("full OPDF Server tool UI", () => {
       timeout: 30_000,
     });
 
-    const unlockedBytes = await exportCurrentPdf(page);
+    const unlockedBytes = await saveCurrentRawPdf(page);
     const unlocked = await PDFDocument.load(unlockedBytes);
     expect(unlocked.getPageCount()).toBe(3);
   });
@@ -167,7 +170,7 @@ test.describe("full OPDF Server tool UI", () => {
     await dialog.getByRole("button", { name: "Digitally sign PDF", exact: true }).click();
     await expect(dialog).toHaveCount(0, { timeout: 60_000 });
 
-    const signedBytes = await exportCurrentPdf(page);
+    const signedBytes = await saveCurrentRawPdf(page);
     const raw = Buffer.from(signedBytes);
     expect(raw.includes(Buffer.from("/ByteRange"))).toBeTruthy();
     expect(raw.includes(Buffer.from("/SubFilter /adbe.pkcs7.detached"))).toBeTruthy();

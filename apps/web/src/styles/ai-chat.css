@@ -740,6 +740,13 @@
   cursor: grabbing !important;
 }
 
+@media (max-width: 900px) {
+  .ai-float-toggle-btn {
+    right: 14px;
+    bottom: max(96px, calc(env(safe-area-inset-bottom) + 80px));
+  }
+}
+
 .ai-float-toggle-btn:hover {
   transform: scale(1.08) translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 97, 213, 0.45);

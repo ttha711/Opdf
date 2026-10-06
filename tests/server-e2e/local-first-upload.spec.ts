@@ -51,9 +51,13 @@ test("server runtime renders local PDF before background upload completes", asyn
   await expect(uploadBanner).toHaveCSS("position", "fixed");
   const uploadBox = await uploadBanner.boundingBox();
   const headerBox = await page.locator('[data-opdf-region="app-header"]').boundingBox();
+  const aiButton = await page.locator('[data-opdf-action="open-ai"]').boundingBox();
   expect(uploadBox).not.toBeNull();
   expect(headerBox).not.toBeNull();
+  expect(aiButton).not.toBeNull();
   expect(uploadBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
+  expect(uploadBox!.x + uploadBox!.width).toBeLessThanOrEqual(aiButton!.x);
+  await expect(uploadBanner).toHaveCSS("background-color", /rgb/);
   await expect.poll(() => chunkStarted).toBeTruthy();
 
   const beforeComplete = await request.get("/api/opdf/recent");

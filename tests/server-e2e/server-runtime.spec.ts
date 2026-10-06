@@ -50,6 +50,28 @@ test("OPDF Server serves the full web runtime", async ({ page, request }) => {
 });
 
 
+test("production open URLs use the OPDF document API and never Vite /@fs", async ({ page, request }) => {
+  const pdf = await PDFDocument.create();
+  pdf.addPage([612, 792]);
+  const upload = await request.post("/api/opdf/documents?name=api-open.pdf", {
+    headers: { "content-type": "application/pdf" },
+    data: Buffer.from(await pdf.save()),
+  });
+  expect(upload.ok()).toBeTruthy();
+  const stored = await upload.json() as { id: string };
+
+  const viteFsRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/@fs/")) viteFsRequests.push(request.url());
+  });
+
+  await page.goto(`/?open=${encodeURIComponent(`/api/opdf/documents/${stored.id}`)}`);
+  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/Page\s+1\s+of\s+1/i)).toBeVisible({ timeout: 30_000 });
+  expect(viteFsRequests).toEqual([]);
+});
+
+
 test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", async ({ page, request }) => {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);

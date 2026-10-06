@@ -20,6 +20,7 @@ import { AiPatchDialog } from "./AiPatchDialog";
 import { MeasurementCalibrationDialog } from "./MeasurementCalibrationDialog";
 import { resolvePdfiumPageCount } from "../lib/pdfiumDocumentState";
 import { getServerDocumentUrl } from "../lib/documentSource";
+import { installAnnotationThumbnailSync } from "../lib/embedPdfAnnotationThumbnails";
 import {
   calibrateMmPerPdfPoint,
   formatMillimeters,
@@ -112,6 +113,11 @@ export function PdfViewer({
   // server document that Save should update.
   const sourceUrl = localUrl ?? serverUrl;
   const activeRegistry = readyViewer?.sourceUrl === sourceUrl ? readyViewer.registry : null;
+
+  useEffect(() => {
+    if (!sourceUrl || !activeRegistry) return;
+    return installAnnotationThumbnailSync(activeRegistry, DOCUMENT_ID);
+  }, [activeRegistry, sourceUrl]);
 
   useEffect(() => {
     if (

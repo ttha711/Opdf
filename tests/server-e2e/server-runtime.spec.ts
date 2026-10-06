@@ -1,12 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { embedPdfSidebarPanel, openEmbedPdfSidebar } from "../helpers/embedpdf";
-
-async function clickHeaderMenuItem(page: Page, menu: "File" | "View" | "Tools", item: string) {
-  const header = page.locator("header");
-  await header.getByRole("button", { name: menu, exact: true }).click();
-  await header.getByRole("menuitem", { name: item, exact: true }).click();
-}
+import { clickApplicationMenuItem } from "../helpers/app-menu";
 
 
 test("OPDF Server serves the full web runtime", async ({ page, request }) => {
@@ -101,7 +96,7 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
 
   // Read-only tools should consume the persisted server URL directly instead
   // of forcing a full working-copy materialization.
-  await clickHeaderMenuItem(page, "Tools", "Search & Secure Redact...");
+  await clickApplicationMenuItem(page, "Search & Secure Redact...");
   const redactModal = page.locator(".premium-modal").filter({ hasText: "Search & Secure Redact" });
   await redactModal.getByPlaceholder("Text to redact…").fill("SERVER DRAWING SHEET 24");
   await redactModal.getByRole("button", { name: "Search all pages", exact: true }).click();
@@ -111,13 +106,13 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
 
   // Opening Split/Merge should stay metadata-only. Large server PDFs are
   // materialized only when the user actually starts the operation.
-  await clickHeaderMenuItem(page, "Tools", "Split PDF...");
+  await clickApplicationMenuItem(page, "Split PDF...");
   const splitPanel = page.locator("aside.acrobat-tool-panel").filter({ hasText: "Advanced Split Document" });
   await expect(splitPanel).toBeVisible();
   await expect(viewer).toHaveAttribute("data-opdf-source", "server");
   await splitPanel.getByTitle("Close tool").click();
 
-  await clickHeaderMenuItem(page, "Tools", "Merge PDFs...");
+  await clickApplicationMenuItem(page, "Merge PDFs...");
   const mergePanel = page.locator("aside.acrobat-tool-panel").filter({ hasText: "Advanced Merge Documents" });
   await expect(mergePanel).toBeVisible();
   await expect(viewer).toHaveAttribute("data-opdf-source", "server");
@@ -128,7 +123,7 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   const mutationResponsePromise = page.waitForResponse(
     (response) => response.url().includes("/mutations") && response.request().method() === "POST",
   );
-  await clickHeaderMenuItem(page, "View", "Rotate All Pages Right");
+  await clickApplicationMenuItem(page, "Rotate All Pages Right");
   const mutationResponse = await mutationResponsePromise;
   expect(mutationResponse.ok()).toBeTruthy();
   await expect(viewer).toHaveAttribute("data-opdf-source", "server", { timeout: 30_000 });

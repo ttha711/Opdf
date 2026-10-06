@@ -153,11 +153,30 @@ export function AppWorkspace({
         title="Drag to resize sidebar, Double click to collapse"
         style={{ gridColumn: 2, display: showRight ? "block" : "none" }}
       />
+      {showRight ? (
+        <button
+          type="button"
+          className="opdf-right-panel-backdrop"
+          data-opdf-action="right-panel-backdrop"
+          aria-label="Close right panel"
+          onClick={() => setIsRightCollapsed(true)}
+        />
+      ) : null}
       <div
         style={{ gridColumn: 3, display: showRight ? "block" : "none" }}
-        className="opdf-side-panel opdf-side-panel--right h-full min-h-0 overflow-hidden"
+        className="opdf-side-panel opdf-side-panel--right relative h-full min-h-0 overflow-hidden"
         data-opdf-right-sidebar={showRight ? "open" : "closed"}
       >
+        <button
+          type="button"
+          className="opdf-panel-collapse"
+          data-opdf-action="collapse-right-panel"
+          onClick={() => setIsRightCollapsed(true)}
+          title="Collapse right panel"
+        >
+          <span aria-hidden="true">›</span>
+          <span>Collapse</span>
+        </button>
         {state.hasDocument && state.activeTool === "edit-content" ? (
           <NativeContentEditorPanel
             page={state.page}
@@ -220,8 +239,6 @@ export function AppWorkspace({
             onRemoveAnnotation={removeAnnotation}
             onUpdateAnnotation={updateAnnotation}
             onGoToPage={goToPage}
-            isCollapsed={isRightCollapsed}
-            setIsCollapsed={setIsRightCollapsed}
             onQuickTool={(tool) => {
               if (tool === "ocr") return void headerProps.runOcr();
               if (tool === "page-numbers") return openMarkupSidebar("page-numbers");
@@ -235,8 +252,9 @@ export function AppWorkspace({
         <button
           type="button"
           className="absolute right-0 top-1/2 z-30 flex h-16 w-5 -translate-y-1/2 items-center justify-center rounded-l bg-[var(--acrobat-blue)] text-white"
+          data-opdf-action="expand-right-panel"
           onClick={() => setIsRightCollapsed(false)}
-          title="Expand right sidebar"
+          title={state.activeTool === "edit-content" ? "Open advanced edit settings" : "Expand right sidebar"}
         >
           ‹
         </button>

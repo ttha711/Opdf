@@ -1,0 +1,56 @@
+name: Cleanup stale branches
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete all non-main branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -u
+          failures=0
+
+          mapfile -t branches < <(
+            gh api --paginate "repos/$REPO/branches?per_page=100" --jq '.[].name'
+          )
+
+          echo "Found ${#branches[@]} branches."
+
+          for branch in "${branches[@]}"; do
+            if [[ "$branch" == "main" ]]; then
+              continue
+            fi
+
+            echo "Deleting stale branch: $branch"
+            if ! gh api -X DELETE "repos/$REPO/git/refs/heads/$branch" >/dev/null; then
+              echo "::error::Failed to delete $branch"
+              failures=$((failures + 1))
+            fi
+          done
+
+          if (( failures > 0 )); then
+            echo "::error::Failed to delete $failures stale branch(es)."
+            exit 1
+          fi
+
+      - name: Remove temporary cleanup workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          path=".github/workflows/cleanup-stale-branches.yml"
+          sha="$(gh api "repos/$REPO/contents/$path?ref=main" --jq '.sha')"
+          gh api -X DELETE "repos/$REPO/contents/$path"             -f message="chore: remove temporary stale-branch cleanup workflow"             -f sha="$sha"             -f branch="main" >/dev/null

@@ -13,6 +13,7 @@ import { useAppViewModel } from "./useAppViewModel";
 import { useAgentBridge, createAgentStateSnapshot } from "./useAgentBridge";
 import type { MarkupTool } from "./useDocumentActions";
 import { toast } from "../components/ToastProvider";
+import { useDocumentAutosave } from "./useDocumentAutosave";
 
 type UseAppControllersArgs = {
   isPublic: boolean;
@@ -118,6 +119,15 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     setShowSplitModal: state.setShowSplitModal,
     setShowMergeModal: state.setShowMergeModal,
     setShowInsertModal: state.setShowInsertModal,
+  });
+
+  const autosave = useDocumentAutosave({
+    hasDocument: state.hasDocument,
+    saveState: state.saveState,
+    docBytes: state.docBytes,
+    annotations: state.annotations,
+    sourceIdentity: state.sourceIdentity,
+    savePdf,
   });
 
   const onLoaded = useCallback((pages: number) => {
@@ -335,7 +345,10 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   });
 
   const toggleTheme = useCallback(() => state.setTheme(t => (t === "light" ? "dark" : "light")), [state.setTheme]);
-  const onViewerDirty = useCallback(() => state.setSaveState("idle"), [state.setSaveState]);
+  const onViewerDirty = useCallback(() => {
+    state.setSaveState("idle");
+    autosave.scheduleAutosave();
+  }, [autosave.scheduleAutosave, state.setSaveState]);
   const onPatchApplied = useCallback(() => state.setActiveTool("select"), [state.setActiveTool]);
   const { onDragOver, onDrop } = usePdfDrop({
     setFileName: state.setFileName,

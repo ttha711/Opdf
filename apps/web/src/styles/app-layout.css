@@ -71,6 +71,119 @@
     stroke: none;
   }
 
+
+  .opdf-icon {
+    display: block;
+    flex: 0 0 auto;
+  }
+
+  .opdf-menu-surface {
+    border: 1px solid var(--border-color);
+    background: var(--bg-toolbar);
+    color: var(--text-primary);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .16);
+  }
+
+  .opdf-menu-surface--desktop {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+    min-width: 220px;
+    overflow: visible;
+    border-radius: 10px;
+    padding: 5px;
+  }
+
+  .opdf-menu-surface--mobile {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-height: 72vh;
+    overflow-y: auto;
+    border-radius: 16px;
+    padding: 8px;
+  }
+
+  .opdf-menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+  }
+
+  .opdf-menu-item--desktop {
+    min-height: 36px;
+    padding: 7px 9px;
+    font-size: 13px;
+  }
+
+  .opdf-menu-item--mobile {
+    min-height: 48px;
+    padding: 11px 12px;
+    font-size: 15px;
+  }
+
+  .opdf-menu-item:hover,
+  .opdf-submenu-row.is-open > .opdf-menu-item {
+    background: var(--ui-accent-bg);
+    color: var(--acrobat-blue);
+  }
+
+  .opdf-menu-item:disabled {
+    cursor: default;
+    opacity: .4;
+  }
+
+  .opdf-menu-item__lead {
+    display: inline-flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .opdf-menu-item__lead > .opdf-icon,
+  .opdf-menu-item__icon-spacer {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+  }
+
+  .opdf-menu-item__chevron {
+    color: var(--text-secondary);
+  }
+
+  .opdf-submenu-row {
+    position: relative;
+  }
+
+  .opdf-submenu-surface--desktop {
+    position: absolute;
+    left: calc(100% + 4px);
+    top: -5px;
+    min-width: 230px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 5px;
+    background: var(--bg-toolbar);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .16);
+  }
+
+  .opdf-submenu-surface--mobile {
+    margin: 2px 0 6px 28px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border-color);
+  }
+
   .opdf-menu-trigger {
     min-width: 32px;
     height: 32px;

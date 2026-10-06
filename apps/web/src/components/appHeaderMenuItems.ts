@@ -49,39 +49,94 @@ export function buildCompactToolsMenuItems(args: CompactToolsArgs): MenuItemDef[
     {
       kind: "action",
       label: showDashboard ? "Back to Document" : "All Tools...",
+      icon: "tools",
       onClick: () => setShowDashboard(!showDashboard),
     },
-    { kind: "separator" },
-    { kind: "section", label: "Pages" },
-    { kind: "action", label: "Insert PDF...", disabled: !hasDocument, onClick: () => runDocumentTool("insert-pdf") },
-    { kind: "action", label: "Split PDF...", disabled: !hasDocument, onClick: splitDocument },
-    { kind: "action", label: "Merge PDFs...", onClick: mergeDocuments },
-    { kind: "section", label: "Document" },
-    { kind: "action", label: "Run OCR", disabled: !hasDocument, onClick: runOcr },
-    { kind: "action", label: "Page Numbers...", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("page-numbers") },
-    { kind: "action", label: "Header...", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("header") },
-    { kind: "action", label: "Footer...", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("footer") },
-    { kind: "action", label: "Bates Numbering...", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("bates") },
-    { kind: "action", label: "Watermark...", disabled: !hasDocument, onClick: addWatermark },
-    { kind: "section", label: "Convert" },
-    { kind: "action", label: "Compress PDF", disabled: !hasDocument, onClick: compressDocument },
-    { kind: "action", label: "Convert to Images", disabled: !hasDocument, onClick: convertToImages },
-    { kind: "section", label: "Edit PDF" },
-    { kind: "action", label: "Edit PDF Content", disabled: !hasDocument, onClick: () => setActiveTool("edit-content") },
-    { kind: "section", label: "Review & Security" },
-    { kind: "action", label: "Measure Drawing", disabled: !hasDocument, onClick: () => setActiveTool("measure") },
-    { kind: "action", label: "Compare Revisions...", disabled: !hasDocument, onClick: compareRevisions },
-    { kind: "action", label: "Search & Secure Redact...", disabled: !hasDocument, onClick: searchRedact },
+    {
+      kind: "submenu",
+      label: "Pages",
+      icon: "page",
+      items: [
+        { kind: "action", label: "Insert PDF...", icon: "insert", disabled: !hasDocument, onClick: () => runDocumentTool("insert-pdf") },
+        { kind: "action", label: "Split PDF...", icon: "split", disabled: !hasDocument, onClick: splitDocument },
+        { kind: "action", label: "Merge PDFs...", icon: "merge", onClick: mergeDocuments },
+      ],
+    },
+    {
+      kind: "submenu",
+      label: "Document",
+      icon: "file-pdf",
+      items: [
+        { kind: "action", label: "Run OCR", icon: "ocr", disabled: !hasDocument, onClick: runOcr },
+        { kind: "action", label: "Page Numbers...", icon: "hash", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("page-numbers") },
+        { kind: "action", label: "Header...", icon: "header", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("header") },
+        { kind: "action", label: "Footer...", icon: "file-text", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("footer") },
+        { kind: "action", label: "Bates Numbering...", icon: "bates", disabled: !hasDocument, onClick: () => openDocumentMarkupTool("bates") },
+        { kind: "action", label: "Watermark...", icon: "watermark", disabled: !hasDocument, onClick: addWatermark },
+      ],
+    },
+    {
+      kind: "submenu",
+      label: "Convert & Optimize",
+      icon: "export",
+      items: [
+        { kind: "action", label: "Compress PDF", icon: "compress", disabled: !hasDocument, onClick: compressDocument },
+        { kind: "action", label: "Convert to Images", icon: "image", disabled: !hasDocument, onClick: convertToImages },
+      ],
+    },
+    {
+      kind: "submenu",
+      label: "Edit & Review",
+      icon: "edit",
+      items: [
+        { kind: "action", label: "Edit PDF Content", icon: "edit", disabled: !hasDocument, onClick: () => setActiveTool("edit-content") },
+        { kind: "action", label: "Measure Drawing", icon: "measure", disabled: !hasDocument, onClick: () => setActiveTool("measure") },
+        { kind: "action", label: "Compare Revisions...", icon: "compare", disabled: !hasDocument, onClick: compareRevisions },
+      ],
+    },
+    {
+      kind: "submenu",
+      label: "Security",
+      icon: "lock",
+      items: [
+        { kind: "action", label: "Search & Secure Redact...", icon: "redact", disabled: !hasDocument, onClick: searchRedact },
+        {
+          kind: "action",
+          label: "Digital Sign...",
+          icon: "signature",
+          disabled: !hasDocument || !hasDesktopBridge || capabilities?.digitalSignature === false,
+          title: !hasDesktopBridge ? "Available in the Desktop App only" : undefined,
+          onClick: digitalSign,
+        },
+      ],
+    },
     {
       kind: "action",
-      label: "Digital Sign...",
-      disabled: !hasDocument || !hasDesktopBridge || capabilities?.digitalSignature === false,
-      title: !hasDesktopBridge ? "Available in the Desktop App only" : undefined,
-      onClick: digitalSign,
+      label: "Advanced PDF...",
+      icon: "advanced",
+      disabled: !hasDocument,
+      onClick: advancedPdf,
     },
-    { kind: "section", label: "Advanced" },
-    { kind: "action", label: "Advanced PDF...", disabled: !hasDocument, onClick: advancedPdf },
   ];
+}
+
+function findAction(items: MenuItemDef[], label: string) {
+  return items.find((item): item is Extract<MenuItemDef, { kind: "action" }> =>
+    item.kind === "action" && item.label === label,
+  );
+}
+
+function replaceActionsByLabel(
+  items: MenuItemDef[],
+  replacements: Map<string, Extract<MenuItemDef, { kind: "action" }>>,
+): MenuItemDef[] {
+  return items.map((item) => {
+    if (item.kind === "action") return replacements.get(item.label) ?? item;
+    if (item.kind === "submenu") {
+      return { ...item, items: replaceActionsByLabel(item.items, replacements) };
+    }
+    return item;
+  });
 }
 
 export function buildGlobalMenuItems({
@@ -97,20 +152,81 @@ export function buildGlobalMenuItems({
   toolsMenuItems: MenuItemDef[];
   aiEdit: () => void;
 }): MenuItemDef[] {
+  const closeDocument = findAction(fileMenuItems, "Close");
+  const save = findAction(fileMenuItems, "Save");
+  const saveAs = findAction(fileMenuItems, "Save As...");
+  const exportPdf = findAction(fileMenuItems, "Export PDF...");
+  const directCompressPdf = findAction(fileMenuItems, "Compress PDF");
+  const directConvertToImages = findAction(fileMenuItems, "Convert to Images");
+  const toolsItems = replaceActionsByLabel(
+    toolsMenuItems,
+    new Map(
+      [directCompressPdf, directConvertToImages]
+        .filter((item): item is Extract<MenuItemDef, { kind: "action" }> => Boolean(item))
+        .map((item) => [item.label, item]),
+    ),
+  );
+  const viewMode = viewMenuItems.find((item): item is Extract<MenuItemDef, { kind: "action" }> =>
+    item.kind === "action" && item.label.startsWith("Switch to "),
+  );
+  const zoomItems = [
+    findAction(viewMenuItems, "Zoom In"),
+    findAction(viewMenuItems, "Zoom Out"),
+    findAction(viewMenuItems, "Actual Size (100%)"),
+    findAction(viewMenuItems, "Fit Width"),
+    findAction(viewMenuItems, "Fit Page"),
+  ].filter(Boolean) as MenuItemDef[];
+  const rotateItems = [
+    findAction(viewMenuItems, "Rotate Page Left"),
+    findAction(viewMenuItems, "Rotate Page Right"),
+    findAction(viewMenuItems, "Rotate All Pages Left"),
+    findAction(viewMenuItems, "Rotate All Pages Right"),
+  ].filter(Boolean) as MenuItemDef[];
+
   return [
-    { kind: "section", label: "File" },
-    ...fileMenuItems,
-    { kind: "separator" },
-    { kind: "section", label: "Edit" },
-    ...editMenuItems,
-    { kind: "separator" },
-    { kind: "section", label: "View" },
-    ...viewMenuItems,
-    { kind: "separator" },
-    { kind: "section", label: "Tools" },
-    ...toolsMenuItems,
-    { kind: "separator" },
-    { kind: "section", label: "AI" },
-    { kind: "action", label: "AI Edit", onClick: aiEdit },
+    {
+      kind: "submenu",
+      label: "Document",
+      icon: "file-pdf",
+      items: [closeDocument, save, saveAs, exportPdf].filter(Boolean) as MenuItemDef[],
+    },
+    {
+      kind: "submenu",
+      label: "Edit",
+      icon: "edit",
+      items: editMenuItems.filter((item) => item.kind !== "separator" && item.kind !== "section"),
+    },
+    {
+      kind: "submenu",
+      label: "View",
+      icon: "view",
+      items: [
+        ...(viewMode ? [viewMode] : []),
+        {
+          kind: "submenu",
+          label: "Zoom",
+          icon: "zoom-in",
+          items: zoomItems,
+        },
+        {
+          kind: "submenu",
+          label: "Rotate",
+          icon: "rotate-right",
+          items: rotateItems,
+        },
+      ],
+    },
+    {
+      kind: "submenu",
+      label: "Tools",
+      icon: "tools",
+      items: toolsItems,
+    },
+    {
+      kind: "action",
+      label: "AI Edit",
+      icon: "sparkles",
+      onClick: aiEdit,
+    },
   ];
 }

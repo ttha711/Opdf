@@ -64,44 +64,44 @@ export function useAppMenus({
   // Absent capabilities (desktop bridge) means everything is supported
   const canCompress = capabilities?.compress !== false;
   const fileMenuItems: MenuItemDef[] = [
-    { kind: "action", label: "Open...", shortcut: "Ctrl+O", onClick: openFile },
-    { kind: "action", label: "Close", disabled: !hasDocument, onClick: closeDocument },
+    { kind: "action", label: "Open...", icon: "folder-open", shortcut: "Ctrl+O", onClick: openFile },
+    { kind: "action", label: "Close", icon: "close", disabled: !hasDocument, onClick: closeDocument },
     { kind: "separator" },
-    { kind: "action", label: "Save", shortcut: "Ctrl+S", disabled: !hasDocument, onClick: savePdf },
-    { kind: "action", label: "Save As...", shortcut: "Ctrl+Shift+S", disabled: !hasDocument, onClick: savePdfAs },
-    { kind: "action", label: "Export PDF...", disabled: !hasDocument, onClick: exportPdf },
+    { kind: "action", label: "Save", icon: "save", shortcut: "Ctrl+S", disabled: !hasDocument, onClick: savePdf },
+    { kind: "action", label: "Save As...", icon: "save", shortcut: "Ctrl+Shift+S", disabled: !hasDocument, onClick: savePdfAs },
+    { kind: "action", label: "Export PDF...", icon: "export", disabled: !hasDocument, onClick: exportPdf },
     { kind: "separator" },
-    { kind: "action", label: "Compress PDF", disabled: !hasDocument || !canCompress, title: !canCompress ? DESKTOP_ONLY_TITLE : undefined, onClick: compressDocument },
-    { kind: "action", label: "Add Watermark", disabled: !hasDocument, onClick: addWatermark },
-    { kind: "action", label: "Merge PDFs", onClick: mergeDocuments },
-    { kind: "action", label: "Split PDF", disabled: !hasDocument, onClick: splitDocument },
-    { kind: "action", label: "Convert to Images", disabled: !hasDocument, onClick: convertToImages },
+    { kind: "action", label: "Compress PDF", icon: "compress", disabled: !hasDocument || !canCompress, title: !canCompress ? DESKTOP_ONLY_TITLE : undefined, onClick: compressDocument },
+    { kind: "action", label: "Add Watermark", icon: "watermark", disabled: !hasDocument, onClick: addWatermark },
+    { kind: "action", label: "Merge PDFs", icon: "merge", onClick: mergeDocuments },
+    { kind: "action", label: "Split PDF", icon: "split", disabled: !hasDocument, onClick: splitDocument },
+    { kind: "action", label: "Convert to Images", icon: "image", disabled: !hasDocument, onClick: convertToImages },
   ];
 
   const editMenuItems: MenuItemDef[] = [
-    { kind: "action", label: "Undo", shortcut: "Ctrl+Z", disabled: !hasDocument, onClick: undoAnnotations },
-    { kind: "action", label: "Redo", shortcut: "Ctrl+Y", disabled: !hasDocument, onClick: redoAnnotations },
+    { kind: "action", label: "Undo", icon: "undo", shortcut: "Ctrl+Z", disabled: !hasDocument, onClick: undoAnnotations },
+    { kind: "action", label: "Redo", icon: "redo", shortcut: "Ctrl+Y", disabled: !hasDocument, onClick: redoAnnotations },
   ];
 
   const viewMenuItems: MenuItemDef[] = [
     { kind: "action", label: viewMode === "continuous" ? "Switch to Single Page" : "Switch to Continuous Scroll", disabled: !hasDocument, onClick: () => setViewMode((m) => (m === "continuous" ? "page" : "continuous")) },
     { kind: "separator" },
-    { kind: "action", label: "Zoom In", shortcut: "Ctrl++", disabled: !hasDocument, onClick: zoomIn },
-    { kind: "action", label: "Zoom Out", shortcut: "Ctrl+-", disabled: !hasDocument, onClick: zoomOut },
-    { kind: "action", label: "Actual Size (100%)", disabled: !hasDocument, onClick: resetZoom },
-    { kind: "action", label: "Fit Width", disabled: !hasDocument, onClick: () => applyZoomPreset("fit-width") },
-    { kind: "action", label: "Fit Page", disabled: !hasDocument, onClick: () => applyZoomPreset("fit-page") },
+    { kind: "action", label: "Zoom In", icon: "zoom-in", shortcut: "Ctrl++", disabled: !hasDocument, onClick: zoomIn },
+    { kind: "action", label: "Zoom Out", icon: "zoom-out", shortcut: "Ctrl+-", disabled: !hasDocument, onClick: zoomOut },
+    { kind: "action", label: "Actual Size (100%)", icon: "view", disabled: !hasDocument, onClick: resetZoom },
+    { kind: "action", label: "Fit Width", icon: "fit-width", disabled: !hasDocument, onClick: () => applyZoomPreset("fit-width") },
+    { kind: "action", label: "Fit Page", icon: "fit-page", disabled: !hasDocument, onClick: () => applyZoomPreset("fit-page") },
     { kind: "separator" },
-    { kind: "action", label: "Rotate Page Left", disabled: !hasDocument, onClick: rotateLeft },
-    { kind: "action", label: "Rotate Page Right", disabled: !hasDocument, onClick: rotateRight },
-    { kind: "action", label: "Rotate All Pages Left", disabled: !hasDocument, onClick: () => runDocumentTool("rotate-all-left") },
-    { kind: "action", label: "Rotate All Pages Right", disabled: !hasDocument, onClick: () => runDocumentTool("rotate-all-right") },
+    { kind: "action", label: "Rotate Page Left", icon: "rotate-left", disabled: !hasDocument, onClick: rotateLeft },
+    { kind: "action", label: "Rotate Page Right", icon: "rotate-right", disabled: !hasDocument, onClick: rotateRight },
+    { kind: "action", label: "Rotate All Pages Left", icon: "rotate-left", disabled: !hasDocument, onClick: () => runDocumentTool("rotate-all-left") },
+    { kind: "action", label: "Rotate All Pages Right", icon: "rotate-right", disabled: !hasDocument, onClick: () => runDocumentTool("rotate-all-right") },
   ];
 
   const toolsMenuItems: MenuItemDef[] = [
-    { kind: "action", label: "Run OCR", disabled: !hasDocument, onClick: runOcr },
+    { kind: "action", label: "Run OCR", icon: "ocr", disabled: !hasDocument, onClick: runOcr },
     { kind: "separator" },
-    { kind: "action", label: "Insert PDF...", disabled: !hasDocument, onClick: () => { runDocumentTool("insert-pdf"); } },
+    { kind: "action", label: "Insert PDF...", icon: "insert", disabled: !hasDocument, onClick: () => { runDocumentTool("insert-pdf"); } },
     { kind: "action", label: "Rotate All Pages Left", disabled: !hasDocument, onClick: () => runDocumentTool("rotate-all-left") },
     { kind: "action", label: "Rotate All Pages Right", disabled: !hasDocument, onClick: () => runDocumentTool("rotate-all-right") },
   ];

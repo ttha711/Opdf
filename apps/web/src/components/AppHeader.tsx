@@ -190,8 +190,8 @@ export function AppHeader(props: AppHeaderProps) {
           <MenuDropdown
             label="⋯"
             items={globalMenuItems}
-            isOpen={openMenu === "Application"}
-            onToggle={() => toggleMenu("Application")}
+            isOpen={openMenu === "ApplicationMobile"}
+            onToggle={() => toggleMenu("ApplicationMobile")}
             onClose={closeMenu}
             mobileSheet
             triggerTitle="Application menu"
@@ -201,8 +201,8 @@ export function AppHeader(props: AppHeaderProps) {
           <MenuDropdown
             label="⋯"
             items={globalMenuItems}
-            isOpen={openMenu === "Application"}
-            onToggle={() => toggleMenu("Application")}
+            isOpen={openMenu === "ApplicationDesktop"}
+            onToggle={() => toggleMenu("ApplicationDesktop")}
             onClose={closeMenu}
             triggerTitle="Application menu"
           />

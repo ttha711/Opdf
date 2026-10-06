@@ -271,10 +271,7 @@ export async function runAudit(driver, mode, options) {
     });
 
     await check("e2e-compress", async () => {
-      await driver.openTool("compress");
-      await driver.page.locator('[data-opdf-action="compress-run"]').click();
-      await driver.waitForStatusMessage(/optimized successfully/i);
-      await driver.waitForPdfSurface();
+      await driver.runCompress();
       const download = await driver.exportPdf(downloadDir, "compressed");
       const output = await inspectPdfFile(download.path);
       assert(output.pageCount === 5, "Compression changed document page count");

@@ -332,28 +332,44 @@ export class OpdfDriver {
 
   async openTool(name) {
     const tool = resolveTool(name);
+    const timeout = Math.min(this.options.timeout, 10_000);
+
+    // Tool/markup panels share the right rail. Close the previous one first so
+    // a stale panel cannot mask the state transition requested by the next tool.
+    await this.closeDialog();
+    await this.closeTool();
+    await this.page.keyboard.press("Escape").catch(() => {});
+
     if (tool.quick) {
-      const quick = this.page.locator(`button[data-opdf-tool="${tool.quick}"]`);
+      const quick = this.page.locator(`button[data-opdf-tool="${tool.quick}"]:visible`).first();
       if (await quick.isVisible().catch(() => false)) {
-        await quick.click();
-        await this.page.waitForTimeout(200);
+        await quick.click({ timeout });
+        if (tool.quick !== "ocr") {
+          const panel = this.page.locator(
+            `[data-opdf-panel][data-opdf-tool="${tool.quick}"]:visible`,
+          ).first();
+          await panel.waitFor({ state: "visible", timeout });
+        }
         return { ok: true, tool: tool.key, via: "quick-tool", state: await this.inspect() };
       }
     }
 
     await this.openMenu("Tools");
-    const item = this.page.locator(`[data-opdf-menu-item="${tool.menu}"]`).first();
-    const timeout = Math.min(this.options.timeout, 10_000);
+    const menu = this.page.locator('[role="menu"]:visible').first();
+    const item = menu.locator(`[data-opdf-menu-item="${tool.menu}"]`).first();
     await item.waitFor({ state: "visible", timeout });
     if (await item.isDisabled()) throw new Error(`Tool "${name}" is disabled in the current runtime`);
     await item.click({ timeout });
-    await this.page.waitForTimeout(200);
-    return { ok: true, tool: tool.key, via: "tools-menu", state: await this.inspect() };
+    await this.page.waitForTimeout(100);
+    return { ok: true, tool: tool.key, via: "application-menu", state: await this.inspect() };
   }
 
   async closeTool() {
-    const close = this.page.locator('[data-opdf-action="close-tool"]').first();
-    if (await close.isVisible().catch(() => false)) await close.click();
+    const close = this.page.locator('[data-opdf-action="close-tool"]:visible').first();
+    if (await close.isVisible().catch(() => false)) {
+      await close.click({ timeout: Math.min(this.options.timeout, 10_000) });
+      await close.waitFor({ state: "hidden", timeout: Math.min(this.options.timeout, 10_000) }).catch(() => {});
+    }
   }
 
   async closeDialog() {
@@ -513,6 +529,22 @@ export class OpdfDriver {
     await item.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
     if (await item.isDisabled()) throw new Error("OCR is disabled");
     return this.downloadByClick(item, targetDir, "ocr");
+  }
+
+  async runCompress() {
+    await this.openTool("compress");
+    const panel = this.page.locator(
+      '[data-opdf-panel="tool"][data-opdf-tool="compress-pdf"]:visible',
+    ).first();
+    await panel.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
+    const run = panel.locator('[data-opdf-action="compress-run"]');
+    await run.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
+    if (await run.isDisabled()) throw new Error("Compress Document is disabled");
+    await run.click({ timeout: Math.min(this.options.timeout, 10_000) });
+    await this.waitForStatusMessage(/optimized successfully/i);
+    await this.waitForPdfSurface();
+    await this.closeTool();
+    return this.inspect();
   }
 
   async createAnnotation() {

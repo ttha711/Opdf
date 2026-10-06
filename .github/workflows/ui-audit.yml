@@ -48,6 +48,7 @@ jobs:
       - name: Capture UI
         run: node scripts/ui-audit.mjs
       - name: Exercise OPDF production E2E locally
+        timeout-minutes: 12
         run: |
           set -o pipefail
           mkdir -p opdf-cli-artifacts

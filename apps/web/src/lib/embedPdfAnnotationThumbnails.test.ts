@@ -3,7 +3,7 @@ import { installAnnotationThumbnailSync } from "./embedPdfAnnotationThumbnails";
 
 describe("annotation-aware EmbedPDF thumbnails", () => {
   it("renders thumbnail rasters with annotations and refreshes committed pages", () => {
-    let annotationListener: ((event: any) => void) | null = null;
+    const annotationListener = { current: null as ((event: any) => void) | null };
     const renderedTask = { wait: vi.fn(), abort: vi.fn() };
     const renderPageRect = vi.fn(() => renderedTask);
     const originalRenderThumb = vi.fn(() => ({ original: true }));
@@ -14,7 +14,7 @@ describe("annotation-aware EmbedPDF thumbnails", () => {
     };
     const annotationScope = {
       onAnnotationEvent: vi.fn((listener: (event: any) => void) => {
-        annotationListener = listener;
+        annotationListener.current = listener;
         return vi.fn();
       }),
     };
@@ -84,7 +84,7 @@ describe("annotation-aware EmbedPDF thumbnails", () => {
     });
 
     dispatch.mockClear();
-    annotationListener?.({
+    annotationListener.current?.({
       type: "update",
       documentId: "opdf-active-document",
       pageIndex: 1,
@@ -92,7 +92,7 @@ describe("annotation-aware EmbedPDF thumbnails", () => {
     });
     expect(dispatch).not.toHaveBeenCalled();
 
-    annotationListener?.({
+    annotationListener.current?.({
       type: "update",
       documentId: "opdf-active-document",
       pageIndex: 1,

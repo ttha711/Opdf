@@ -22,6 +22,9 @@ async function openCanvasEditor(page: import("@playwright/test").Page, request: 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
   await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
+  const expand = page.locator("[data-opdf-action='expand-right-panel']");
+  await expect(expand).toBeVisible({ timeout: 20_000 });
+  await expand.click();
   await expect(page.locator("[data-opdf-native-editor='true']")).toBeVisible({ timeout: 20_000 });
   await expect(page.locator("[data-opdf-native-edit-page='1']")).toBeVisible({ timeout: 30_000 });
   return document;

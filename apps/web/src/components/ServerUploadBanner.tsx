@@ -33,7 +33,7 @@ export function ServerUploadBanner() {
     <div
       data-opdf-upload-state={state.status}
       data-opdf-upload-progress={percent}
-      className="fixed left-1/2 top-[54px] z-[90] w-[min(560px,calc(100vw-24px))] -translate-x-1/2 rounded-lg border border-[var(--border-color)] bg-[var(--ui-bg)] px-3 py-2 shadow-lg"
+      className="fixed bottom-[38px] right-3 z-[90] w-[min(440px,calc(100vw-24px))] rounded-lg border border-[var(--border-color)] bg-[var(--ui-bg)] px-3 py-2 shadow-lg"
       role={failed ? "alert" : "status"}
       aria-live="polite"
     >

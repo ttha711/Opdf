@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { Annotation } from "@opdf/core";
 import type { OpdfBridge } from "../types/opdf";
-import { computeBlobHash } from "../lib/web-storage";
+import { resolveBrowserDocumentReference } from "../lib/openDocumentReference";
 
 type Args = {
   bridge: OpdfBridge;
@@ -36,38 +36,27 @@ export function useOpenPathEffect(args: Args) {
     async function loadPath() {
       const current = argsRef.current;
       try {
-        const isServerDocument = requestedPath.startsWith("server://");
-        const blob = isServerDocument
-          ? null
-          : await fetch(`/@fs/${requestedPath.replaceAll("\\", "/")}`).then((response) => {
-              if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              return response.blob();
-            });
+        const resolved = await resolveBrowserDocumentReference(requestedPath);
         if (cancelled) return;
 
-        const encodedName = requestedPath.split(/[\\/]/).pop() || requestedPath;
-        const displayName = isServerDocument ? decodeURIComponent(encodedName) : encodedName;
-        const identity = isServerDocument
-          ? requestedPath
-          : await computeBlobHash(blob as Blob, displayName, 0);
-        const annotations = isServerDocument
-          ? await current.bridge.listAnnotations(identity)
+        const annotations = resolved.isServerDocument
+          ? await current.bridge.listAnnotations(resolved.identity)
           : [];
         if (cancelled) return;
 
-        current.setFileName(displayName);
+        current.setFileName(resolved.displayName);
         current.setDocBytes(null);
-        current.setSourceBlob(blob);
-        current.setSourceIdentity(identity);
+        current.setSourceBlob(resolved.blob);
+        current.setSourceIdentity(resolved.identity);
         current.setPage(1);
         current.setTotalPages(0);
         current.setViewerError(null);
         current.setAnnotations(annotations);
-        if (isServerDocument) await current.bridge.pushRecent(identity);
+        if (resolved.isServerDocument) await current.bridge.pushRecent(resolved.identity);
         current.markDocumentSaved({
-          fileName: displayName,
+          fileName: resolved.displayName,
           docBytes: null,
-          documentIdentity: identity,
+          documentIdentity: resolved.identity,
           annotations,
         });
       } catch {

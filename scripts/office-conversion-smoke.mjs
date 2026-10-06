@@ -25,6 +25,26 @@ async function waitForServer() {
   throw lastError || new Error("OPDF Server did not become ready.");
 }
 
+async function convertPdfToOffice(format, bytes) {
+  const response = await fetch(
+    `${origin}/api/opdf/operations/convert-office?format=${encodeURIComponent(format)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/pdf" },
+      body: bytes,
+    },
+  );
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`PDF -> ${format} conversion failed: HTTP ${response.status} ${body}`);
+  }
+  const output = Buffer.from(await response.arrayBuffer());
+  if (output.byteLength < 500 || output[0] !== 0x50 || output[1] !== 0x4b) {
+    throw new Error(`PDF -> ${format} did not return a valid Office ZIP package.`);
+  }
+  console.log(`PASS PDF -> ${format.toUpperCase()} (${output.byteLength} bytes)`);
+}
+
 async function convert(name, bytes) {
   const response = await fetch(
     `${origin}/api/opdf/operations/office-to-pdf?name=${encodeURIComponent(name)}`,
@@ -90,7 +110,17 @@ try {
   if (!(pptBuffer instanceof ArrayBuffer)) throw new Error("Unable to generate PowerPoint smoke input.");
   await convert("smoke.pptx", new Uint8Array(pptBuffer));
 
-  console.log("Office to PDF smoke passed for DOCX, XLSX, and PPTX.");
+  const sourcePdf = await PDFDocument.create();
+  const sourcePage = sourcePdf.addPage([612, 792]);
+  sourcePage.drawText("OPDF PDF to Office smoke test", { x: 72, y: 700, size: 18 });
+  sourcePage.drawText("Structural beam 300 | MEP load 125", { x: 72, y: 660, size: 12 });
+  const sourcePdfBytes = new Uint8Array(await sourcePdf.save());
+
+  await convertPdfToOffice("docx", sourcePdfBytes);
+  await convertPdfToOffice("xlsx", sourcePdfBytes);
+  await convertPdfToOffice("pptx", sourcePdfBytes);
+
+  console.log("Office conversion smoke passed in both directions for DOCX, XLSX, and PPTX.");
 } finally {
   child.kill();
   await rm(dataDir, { recursive: true, force: true }).catch(() => {});

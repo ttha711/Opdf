@@ -98,10 +98,9 @@ export function NativeEditPageOverlay({
 
   const selected = useMemo(() => objects.find((object) => object.id === selectedId) ?? null, [objects, selectedId]);
   const baseGeometry = useMemo(() => selected ? geometryForObject(selected) : null, [selected]);
-  const displayGeometry = useMemo(
-    () => baseGeometry && previewMatrix ? transformGeometry(baseGeometry, previewMatrix) : baseGeometry,
-    [baseGeometry, previewMatrix],
-  );
+  const displayGeometry = useMemo(() =>
+    baseGeometry && previewMatrix ? transformGeometry(baseGeometry, previewMatrix) : baseGeometry,
+  [baseGeometry, previewMatrix]);
 
   const clientToPdf = (state: DragState | PdfContentObject, clientX: number, clientY: number) => {
     if (!overlayRef.current) return null;

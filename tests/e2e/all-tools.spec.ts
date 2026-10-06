@@ -205,3 +205,64 @@ test("every browser-capable dashboard tool reaches its real working surface or o
   await openDashboard(page);
   await expect(page.locator('[data-opdf-tool-card="ocr-pdf"]')).toBeEnabled();
 });
+
+
+async function openAppMenu(page: Page) {
+  const button = page.locator('button[aria-label="Application menu"]:visible').first();
+  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+  return page.locator('[role="menu"]:visible').first();
+}
+
+test("menu-only tools are all reachable from the real application menu", async ({ page }) => {
+  test.setTimeout(90_000);
+  await loadFixture(page);
+
+  const uniqueMenuTools = [
+    "Insert PDF...",
+    "Header...",
+    "Footer...",
+    "Bates Numbering...",
+    "Edit PDF Content",
+    "Measure Drawing",
+    "Advanced PDF...",
+    "AI Edit",
+  ];
+
+  let menu = await openAppMenu(page);
+  for (const label of uniqueMenuTools) {
+    const item = menu.locator(`[data-opdf-menu-item="${label}"]`);
+    await expect(item, `missing menu-only tool: ${label}`).toHaveCount(1);
+    await expect(item, `disabled menu-only tool: ${label}`).toBeEnabled();
+  }
+  await page.keyboard.press("Escape");
+
+  menu = await openAppMenu(page);
+  await menu.locator('[data-opdf-menu-item="Insert PDF..."]').click();
+  await expect(page.locator('[data-opdf-dialog="insert-pdf"]')).toBeVisible();
+  await closeWorkingSurface(page);
+
+  for (const label of ["Header...", "Footer...", "Bates Numbering..."] as const) {
+    menu = await openAppMenu(page);
+    await menu.locator(`[data-opdf-menu-item="${label}"]`).click();
+    await expect(page.locator('[data-opdf-panel="markup"]')).toBeVisible();
+    await closeWorkingSurface(page);
+  }
+
+  menu = await openAppMenu(page);
+  await menu.locator('[data-opdf-menu-item="Measure Drawing"]').click();
+  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-active-tool", "measure");
+  const closeMeasure = page.getByRole("button", { name: "Close measurement tool", exact: true });
+  if (await closeMeasure.isVisible().catch(() => false)) await closeMeasure.click();
+
+  menu = await openAppMenu(page);
+  await menu.locator('[data-opdf-menu-item="Advanced PDF..."]').click();
+  await expect(page.locator('[data-opdf-dialog="advanced-pdf"]')).toBeVisible();
+  await closeWorkingSurface(page);
+
+  // Edit PDF Content already has dedicated output/persistence E2E coverage and
+  // AI Edit is covered by the AI workflow/audit. This contract assertion makes
+  // their removal or accidental disabling fail the all-tools gate.
+  menu = await openAppMenu(page);
+  await expect(menu.locator('[data-opdf-menu-item="Edit PDF Content"]')).toBeEnabled();
+  await expect(menu.locator('[data-opdf-menu-item="AI Edit"]')).toBeEnabled();
+});

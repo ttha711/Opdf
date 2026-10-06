@@ -112,11 +112,16 @@ export async function runAudit(driver, mode, options) {
     await driver.setZoom(100);
   });
 
-  await check("menus", async () => {
-    for (const menu of ["File", "Edit", "View", "Tools"]) {
-      await driver.openMenu(menu);
-      await driver.page.keyboard.press("Escape");
+  await check("application-menu", async () => {
+    await driver.openMenu("application");
+    const menu = driver.page.locator('[role="menu"]:visible').first();
+    for (const label of ["Open...", "Undo", "Fit Page", "All Tools..."]) {
+      assert(
+        (await menu.locator(`[data-opdf-menu-item="${label}"]`).count()) === 1,
+        `Application menu is missing "${label}"`,
+      );
     }
+    await driver.page.keyboard.press("Escape");
   });
 
   if (mode === "full" || e2e) {

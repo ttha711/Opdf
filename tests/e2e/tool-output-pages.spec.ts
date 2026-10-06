@@ -18,7 +18,7 @@ test("Rotate PDF changes only the requested page in the exported PDF", async ({ 
   await loadToolFixture(page);
   await openDashboardTool(page, "rotate-pdf");
   const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="rotate-pdf"]');
-  await panel.locator('input[type="text"]').fill("2");
+  await panel.getByLabel("Pages").fill("2");
   await panel.getByRole("button", { name: /Rotate right/i }).click();
   await waitForStatusText(page, "Pages rotated.");
 
@@ -33,7 +33,7 @@ test("Delete Pages removes the selected page and preserves the remaining order",
   await loadToolFixture(page);
   await openDashboardTool(page, "delete-pages");
   const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="delete-pages"]');
-  await panel.locator('input[type="text"]').fill("2");
+  await panel.getByLabel("Pages").fill("2");
   await panel.getByRole("button", { name: "Delete pages", exact: true }).click();
 
   await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
@@ -51,7 +51,7 @@ test("Extract Pages creates a new PDF containing exactly the requested pages", a
   await loadToolFixture(page);
   await openDashboardTool(page, "extract-pages");
   const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="extract-pages"]');
-  await panel.locator('input[type="text"]').fill("1, 3");
+  await panel.getByLabel("Pages").fill("1, 3");
   await panel.getByRole("button", { name: "Extract pages", exact: true }).click();
 
   await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
@@ -69,7 +69,7 @@ test("Crop PDF changes the selected page media box and leaves other pages unchan
   await loadToolFixture(page);
   await openDashboardTool(page, "crop-pdf");
   const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="crop-pdf"]');
-  await panel.locator('input[type="text"]').fill("1");
+  await panel.getByLabel("Pages").fill("1");
   await panel.getByRole("button", { name: "Apply crop", exact: true }).click();
   await waitForStatusText(page, "Crop applied.");
 

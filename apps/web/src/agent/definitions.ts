@@ -28,6 +28,7 @@ export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
   { id: "export-pdf", title: "Export PDF", description: "Export the current edited PDF.", risk: "safe", requiresDocument: true },
   { id: "save-pdf", title: "Save PDF", description: "Save the current document back to its backing source when possible.", risk: "safe", requiresDocument: true },
   { id: "ai-content-editor", title: "AI Content Editor", description: "Open the content editing workspace for deeper text and layout edits.", risk: "needs-input", requiresDocument: true },
+  { id: "replace-text", title: "Replace PDF Text", description: "Replace native PDF text by objectId or by searching text on a page.", risk: "destructive", requiresDocument: true, requiredArgs: ["newText"], optionalArgs: ["objectId", "page", "targetText", "replaceAll"] },
   { id: "compress-pdf", title: "Compress PDF", description: "Compress the current PDF.", risk: "safe", requiresDocument: true },
   { id: "run-ocr", title: "Run OCR", description: "Run OCR on the current PDF.", risk: "safe", requiresDocument: true },
   { id: "convert-to-images", title: "Convert to Images", description: "Export rendered pages as image files.", risk: "safe", requiresDocument: true },

@@ -148,3 +148,45 @@ export async function pruneLocalDataTree(dataDir, options = {}) {
   await walk(root);
   return totals;
 }
+
+
+export async function pruneRemoteDataTree(objectStore, options = {}) {
+  if (!objectStore) return { uploadsRemoved: 0, reservedBytesReleased: 0 };
+  const now = Number(options.now || Date.now());
+  const maxAgeMs = positiveMs(options.uploadMaxAgeMs, DEFAULT_UPLOAD_TTL_MS);
+  const cutoff = now - maxAgeMs;
+  let uploadsRemoved = 0;
+  let reservedBytesReleased = 0;
+
+  const objects = await objectStore.list("users/");
+  const metaObjects = objects.filter((item) => /\/documents\/[^/]+\/meta\.json$/.test(item.key));
+  for (const item of metaObjects) {
+    let meta;
+    try {
+      const bytes = await objectStore.get(item.key);
+      meta = bytes ? JSON.parse(bytes.toString("utf8")) : null;
+    } catch {
+      continue;
+    }
+
+    const expected = Number(meta?.uploadExpectedSize || 0);
+    const activity = Math.max(Number(meta?.updatedAt || 0), Number(meta?.createdAt || 0));
+    if (!Number.isFinite(expected) || expected <= 0 || activity >= cutoff) continue;
+
+    const prefix = item.key.slice(0, -"meta.json".length);
+    const documentKey = `${prefix}document.pdf`;
+    if (await objectStore.head(documentKey)) continue;
+
+    if (meta?.multipartUploadId) {
+      await objectStore.abortMultipart(documentKey, meta.multipartUploadId).catch(() => {});
+    }
+    const related = await objectStore.list(prefix);
+    for (const object of related) {
+      await objectStore.remove(object.key).catch(() => {});
+    }
+    uploadsRemoved += 1;
+    reservedBytesReleased += expected;
+  }
+
+  return { uploadsRemoved, reservedBytesReleased };
+}

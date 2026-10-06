@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { clickApplicationMenuItem, getApplicationMenuItem } from "../helpers/app-menu";
 
 const ALL_TOOL_IDS = [
   "pdf-to-word",
@@ -78,10 +79,7 @@ async function openDashboard(page: Page) {
   const anyCard = page.locator("[data-opdf-tool-card]").first();
   if (await anyCard.isVisible().catch(() => false)) return;
 
-  const menuButton = page.locator('button[aria-label="Application menu"]:visible').first();
-  await menuButton.click();
-  const menu = page.locator('[role="menu"]:visible').first();
-  await menu.locator('[data-opdf-menu-item="All Tools..."]').click();
+  await clickApplicationMenuItem(page, "All Tools...");
   await expect(page.locator("[data-opdf-tool-card]").first()).toBeVisible();
 }
 
@@ -227,12 +225,6 @@ test("All Tools: OCR entry is available in browser runtime", async ({ page }) =>
 });
 
 
-async function openAppMenu(page: Page) {
-  const button = page.locator('button[aria-label="Application menu"]:visible').first();
-  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
-  return page.locator('[role="menu"]:visible').first();
-}
-
 test("menu-only tools are all reachable from the real application menu", async ({ page }) => {
   test.setTimeout(90_000);
   await loadFixture(page);
@@ -248,41 +240,39 @@ test("menu-only tools are all reachable from the real application menu", async (
     "AI Edit",
   ];
 
-  let menu = await openAppMenu(page);
   for (const label of uniqueMenuTools) {
-    const item = menu.locator(`[data-opdf-menu-item="${label}"]`);
-    await expect(item, `missing menu-only tool: ${label}`).toHaveCount(1);
+    const item = await getApplicationMenuItem(page, label);
+    await expect(item, `missing menu-only tool: ${label}`).toBeVisible();
     await expect(item, `disabled menu-only tool: ${label}`).toBeEnabled();
+    await page.keyboard.press("Escape");
   }
-  await page.keyboard.press("Escape");
 
-  menu = await openAppMenu(page);
-  await menu.locator('[data-opdf-menu-item="Insert PDF..."]').click();
+  await clickApplicationMenuItem(page, "Insert PDF...");
   await expect(page.locator('[data-opdf-dialog="insert-pdf"]')).toBeVisible();
   await closeWorkingSurface(page);
 
-  for (const label of ["Header...", "Footer...", "Bates Numbering..."] as const) {
-    menu = await openAppMenu(page);
-    await menu.locator(`[data-opdf-menu-item="${label}"]`).click();
-    await expect(page.locator('[data-opdf-panel="markup"]')).toBeVisible();
+  for (const [label, tool] of [
+    ["Header...", "header"],
+    ["Footer...", "footer"],
+    ["Bates Numbering...", "bates"],
+  ] as const) {
+    await clickApplicationMenuItem(page, label);
+    await expect(page.locator(`[data-opdf-panel="markup"][data-opdf-tool="${tool}"]`)).toBeVisible();
     await closeWorkingSurface(page);
   }
 
-  menu = await openAppMenu(page);
-  await menu.locator('[data-opdf-menu-item="Measure Drawing"]').click();
+  await clickApplicationMenuItem(page, "Measure Drawing");
   await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-active-tool", "measure");
   const closeMeasure = page.getByRole("button", { name: "Close measurement tool", exact: true });
   if (await closeMeasure.isVisible().catch(() => false)) await closeMeasure.click();
 
-  menu = await openAppMenu(page);
-  await menu.locator('[data-opdf-menu-item="Advanced PDF..."]').click();
+  await clickApplicationMenuItem(page, "Advanced PDF...");
   await expect(page.locator('[data-opdf-dialog="advanced-pdf"]')).toBeVisible();
   await closeWorkingSurface(page);
 
-  // Edit PDF Content already has dedicated output/persistence E2E coverage and
-  // AI Edit is covered by the AI workflow/audit. This contract assertion makes
-  // their removal or accidental disabling fail the all-tools gate.
-  menu = await openAppMenu(page);
-  await expect(menu.locator('[data-opdf-menu-item="Edit PDF Content"]')).toBeEnabled();
-  await expect(menu.locator('[data-opdf-menu-item="AI Edit"]')).toBeEnabled();
+  for (const label of ["Edit PDF Content", "AI Edit"] as const) {
+    const item = await getApplicationMenuItem(page, label);
+    await expect(item).toBeEnabled();
+    await page.keyboard.press("Escape");
+  }
 });

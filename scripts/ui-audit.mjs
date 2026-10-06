@@ -110,9 +110,9 @@ async function assertMainPdfSurface() {
 }
 
 async function openApplicationMenu(focusItem = null) {
-  const trigger = page.getByRole("button", { name: "Application menu", exact: true });
+  const trigger = page.locator('button[aria-label="Application menu"]:visible').first();
   await trigger.click();
-  const menu = page.getByRole("menu");
+  const menu = page.locator('[role="menu"]:visible').first();
   await menu.waitFor({ state: "visible", timeout: 5000 });
   await page.waitForTimeout(120);
 

@@ -552,8 +552,11 @@ export class OpdfDriver {
     const toolbar = viewer;
     const annotate = toolbar.getByRole("button", { name: "Annotate", exact: true });
     await annotate.click();
+    await this.page.waitForTimeout(150);
 
-    const candidates = toolbar.getByRole("button");
+    // EmbedPDF may render annotation flyouts through a document-level portal,
+    // so search the full page after opening Annotate instead of only the viewer root.
+    const candidates = this.page.getByRole("button");
     const count = await candidates.count();
     let chosen = null;
     const preferred = [/ink/i, /draw/i, /pencil/i, /highlight/i];

@@ -5,6 +5,7 @@ import { checkAndParseCommand, extractBalancedJson } from "./AiAssistantPanel.ut
 import { useAiAssistantSettings } from "./useAiAssistantSettings";
 import { useAiAssistantMessages } from "./useAiAssistantMessages";
 import { useAiAssistantIframeBridge } from "./useAiAssistantIframeBridge";
+import { useMachineAgentBridge } from "../hooks/useMachineAgentBridge";
 
 export function useAiAssistant() {
   const [inputValue, setInputValue] = useState("");
@@ -23,7 +24,10 @@ export function useAiAssistant() {
     iframeUrl,
     setIframeUrl,
     syncAiConfigToDesktop,
+    isServerRuntime,
   } = useAiAssistantSettings();
+
+  const machineBridge = useMachineAgentBridge();
 
   const {
     messages,
@@ -37,21 +41,21 @@ export function useAiAssistant() {
 
   // Save settings helper
   const handleSaveSettings = () => {
-    localStorage.setItem("opdf_ai_mode", engineMode);
-    localStorage.setItem("opdf_dify_url", difyUrl);
-    if (window.opdf?.setAiConfig) {
+    localStorage.setItem("opdf_ai_mode", isServerRuntime ? "agent" : engineMode);
+    if (!isServerRuntime) localStorage.setItem("opdf_dify_url", difyUrl);
+    if (isServerRuntime || window.opdf?.setAiConfig) {
       localStorage.removeItem("opdf_dify_key");
     } else {
       localStorage.setItem("opdf_dify_key", difyKey);
     }
     localStorage.setItem("opdf_iframe_url", iframeUrl);
     setShowSettings(false);
-    void syncAiConfigToDesktop("dify", difyUrl, difyKey);
+    if (!isServerRuntime) void syncAiConfigToDesktop(engineMode, difyUrl, difyKey);
     
     // Add assistant feedback message
-    let modeText = "Local Assistant (Offline NLP)";
-    if (engineMode === "dify") modeText = "Dify Chatbot API";
-    if (engineMode === "iframe") modeText = `Embedded AI-WEB-CHAT (${iframeUrl})`;
+    let modeText = isServerRuntime ? "Authenticated Machine Agent Bridge" : "Local Assistant (Offline NLP)";
+    if (!isServerRuntime && engineMode === "dify") modeText = "Dify Chatbot API";
+    if (!isServerRuntime && engineMode === "iframe") modeText = `Embedded AI-WEB-CHAT (${iframeUrl})`;
 
     setMessages((prev) => [
       ...prev,
@@ -300,6 +304,61 @@ User: ${queryText}`;
     }
   };
 
+  const processMachineAgentQuery = async (queryText: string) => {
+    const tempId = addMessage("assistant", "Waiting for your paired machine agent...", { isPending: true });
+    try {
+      const context = window.opdfAgent?.getState?.() ?? {};
+      const raw = await machineBridge.sendQuery(queryText, context as Record<string, unknown>);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+
+      let textResponse = "";
+      if (typeof raw === "string") textResponse = raw;
+      else if (raw && typeof raw === "object") {
+        const value = raw as Record<string, unknown>;
+        textResponse =
+          (typeof value.answer === "string" && value.answer) ||
+          (typeof value.message === "string" && value.message) ||
+          (typeof value.output === "string" && value.output) ||
+          JSON.stringify(raw);
+      }
+
+      textResponse = textResponse.trim();
+      if (!textResponse) {
+        addMessage("assistant", "Machine Agent completed without a text response.");
+        return;
+      }
+
+      const jsonMatch = extractBalancedJson(textResponse);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch);
+          if (parsed.tool || parsed.execute) {
+            const command: AgentCommand = {
+              tool: parsed.tool || parsed.execute,
+              args: parsed.args,
+              confirmed: parsed.confirmed,
+            };
+            const result = await executeCommand(command);
+            if (result) handleAgentResult(result, command);
+            const clean = textResponse.replace(jsonMatch, "").replace(/```json|```/g, "").trim();
+            if (clean) addMessage("assistant", clean);
+            return;
+          }
+        } catch (error) {
+          console.warn("Unable to parse Machine Agent tool call:", error);
+        }
+      }
+
+      addMessage("assistant", textResponse);
+    } catch (error) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      addMessage(
+        "assistant",
+        `Machine Agent Bridge error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  };
+
   // Universal handler for window.opdfAgent execution results
   const handleAgentResult = (result: AgentCommandResult, command: AgentCommand) => {
     let text = "";
@@ -377,7 +436,9 @@ User: ${queryText}`;
       processLocalQuery(queryText);
     } else {
       // General question: route to selected engine
-      if (engineMode === "local") {
+      if (engineMode === "agent") {
+        processMachineAgentQuery(queryText);
+      } else if (engineMode === "local") {
         processLocalQuery(queryText);
       } else {
         processDifyQuery(queryText);
@@ -426,5 +487,13 @@ User: ${queryText}`;
     handleConfirmInline,
     handleSubmit,
     handleSuggestionClick,
+    isProductionWeb: isServerRuntime,
+    machineAgentConnected: machineBridge.connected,
+    machineAgentCount: machineBridge.agents.length,
+    pairingCode: machineBridge.pairing?.code,
+    pairingExpiresAt: machineBridge.pairing?.expiresAt,
+    pairingLoading: machineBridge.loading,
+    pairingError: machineBridge.error,
+    startMachineAgentPairing: machineBridge.startPairing,
   };
 }

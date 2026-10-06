@@ -117,7 +117,7 @@ test.describe("full OPDF Server tool UI", () => {
     });
 
     const protectedBytes = await exportCurrentPdf(page);
-    await expect(async () => PDFDocument.load(protectedBytes)).rejects.toThrow();
+    await expect(PDFDocument.load(protectedBytes)).rejects.toThrow();
 
     await panel.locator('[data-opdf-action="close-tool"]').click();
     await openDashboardTool(page, "unlock-pdf");

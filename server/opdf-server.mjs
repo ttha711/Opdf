@@ -13,6 +13,7 @@ import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
 import { createCertificateStore } from "./opdf-certificate-store.mjs";
 import { createSigningApi } from "./opdf-signing-api.mjs";
 import { createAuthService } from "./opdf-auth.mjs";
+import { createAgentPairingBroker } from "./opdf-agent-pairing.mjs";
 import { createTenantRuntime } from "./opdf-tenancy.mjs";
 import { createS3ObjectStoreFromEnv } from "./opdf-s3.mjs";
 import {
@@ -55,6 +56,9 @@ const officeConverterScript = resolve(
 const officeWorkerTimeoutMs = Number(process.env.OPDF_OFFICE_WORKER_TIMEOUT_MS || 5 * 60 * 1000);
 const libreOfficePath = process.env.OPDF_LIBREOFFICE_PATH || (process.platform === "win32" ? "soffice.exe" : "soffice");
 const loginRateLimiter = createLoginRateLimiter(process.env);
+const agentPairing = createAgentPairingBroker(
+  process.env.OPDF_AGENT_PAIRING_SECRET || process.env.OPDF_AUTH_SECRET || "opdf-local-agent-pairing-development-secret-2026",
+);
 let shuttingDown = false;
 
 
@@ -689,6 +693,43 @@ async function handleApi(req, res, url) {
     });
   }
 
+  if (url.pathname === "/api/opdf/agent/pairing/claim" && req.method === "POST") {
+    const body = await readJsonBody(req, 64 * 1024);
+    const claimed = agentPairing.claimPairing(body.code, body.machine);
+    return claimed
+      ? sendJson(res, 200, claimed)
+      : sendError(res, 400, "Pairing code is invalid or expired.");
+  }
+
+  if (url.pathname === "/api/opdf/agent/tasks/next" && req.method === "GET") {
+    const bearer = typeof req.headers.authorization === "string" &&
+      req.headers.authorization.startsWith("Bearer ")
+      ? req.headers.authorization.slice(7).trim()
+      : "";
+    const agent = agentPairing.verifyAgentToken(bearer);
+    if (!agent) return sendError(res, 401, "Machine agent token is invalid or expired.");
+    const task = agentPairing.nextTask(agent);
+    return sendJson(res, 200, { task });
+  }
+
+  const agentResultMatch = url.pathname.match(/^\/api\/opdf\/agent\/tasks\/([0-9a-f-]{36})\/result$/i);
+  if (agentResultMatch && req.method === "POST") {
+    const bearer = typeof req.headers.authorization === "string" &&
+      req.headers.authorization.startsWith("Bearer ")
+      ? req.headers.authorization.slice(7).trim()
+      : "";
+    const agent = agentPairing.verifyAgentToken(bearer);
+    if (!agent) return sendError(res, 401, "Machine agent token is invalid or expired.");
+    const completed = agentPairing.completeTask(
+      agent,
+      agentResultMatch[1],
+      await readJsonBody(req, 2 * 1024 * 1024),
+    );
+    return completed
+      ? sendJson(res, 200, completed)
+      : sendError(res, 404, "Agent task not found.");
+  }
+
   assertSafeMutationRequest(req, process.env);
 
   if (url.pathname === "/api/opdf/auth/login" && req.method === "POST") {
@@ -721,6 +762,33 @@ async function handleApi(req, res, url) {
       projectId,
       quota: await tenantRuntime.quotaSnapshot(user),
     });
+  }
+
+  if (url.pathname === "/api/opdf/agent/pairing/start" && req.method === "POST") {
+    return sendJson(res, 201, agentPairing.startPairing(user, projectId));
+  }
+
+  if (url.pathname === "/api/opdf/agent/status" && req.method === "GET") {
+    return sendJson(res, 200, {
+      agents: agentPairing.listAgents(user, projectId),
+    });
+  }
+
+  if (url.pathname === "/api/opdf/agent/chat" && req.method === "POST") {
+    const body = await readJsonBody(req, 256 * 1024);
+    if (typeof body.query !== "string" || !body.query.trim()) {
+      return sendError(res, 400, "query is required.");
+    }
+    const task = agentPairing.createTask(user, projectId, body);
+    return task
+      ? sendJson(res, 202, task)
+      : sendError(res, 409, "No paired machine agent is available.");
+  }
+
+  const agentTaskMatch = url.pathname.match(/^\/api\/opdf\/agent\/tasks\/([0-9a-f-]{36})$/i);
+  if (agentTaskMatch && req.method === "GET") {
+    const task = agentPairing.getTask(user, projectId, agentTaskMatch[1]);
+    return task ? sendJson(res, 200, task) : sendError(res, 404, "Agent task not found.");
   }
 
   if (url.pathname === "/api/opdf/projects/select" && req.method === "POST") {

@@ -1,6 +1,7 @@
 import type { AiAssistantPanelProps } from "./AiAssistantPanel.types";
 import { useAiAssistant } from "./AiAssistantPanel.hooks";
-import { SettingsPanel, ChatMessageBubble, SuggestionChips, ChatInputForm } from "./AiAssistantPanel.parts";
+import { ChatMessageBubble, SuggestionChips, ChatInputForm } from "./AiAssistantPanel.parts";
+import { SettingsPanel } from "./AiAssistantSettingsPanel";
 import { AiSparkIcon } from "./AiSparkIcon";
 
 function isHttpUrl(value: string): boolean {
@@ -32,6 +33,14 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = fa
     handleConfirmInline,
     handleSubmit,
     handleSuggestionClick,
+    isProductionWeb,
+    machineAgentConnected,
+    machineAgentCount,
+    pairingCode,
+    pairingExpiresAt,
+    pairingLoading,
+    pairingError,
+    startMachineAgentPairing,
   } = useAiAssistant();
 
   if (!isOpen) return null;
@@ -43,9 +52,23 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = fa
         <div className="ai-header-title">
           <AiSparkIcon size={18} />
           <span>OPDF AI Copilot</span>
-          <span className="ai-status-badge pulse" title="OPDF Agent Bridge Connected">Sync</span>
+          <span
+            className={`ai-status-badge${machineAgentConnected ? " pulse" : ""}`}
+            title={isProductionWeb ? (machineAgentConnected ? "Machine Agent paired" : "Machine Agent pairing required") : "OPDF Agent Bridge"}
+          >
+            {isProductionWeb ? (machineAgentConnected ? "Paired" : "Pair") : "Sync"}
+          </span>
         </div>
         <div className="ai-header-actions">
+          <button
+            data-opdf-action="ai-settings"
+            className={`ai-header-btn${showSettings ? " active" : ""}`}
+            onClick={() => setShowSettings(!showSettings)}
+            title={isProductionWeb ? "Machine Agent pairing" : "AI settings"}
+            type="button"
+          >
+            <span aria-hidden="true">⚙</span>
+          </button>
           {onOpenLiveEditor ? (
             <button className="ai-header-live-editor" onClick={onOpenLiveEditor} title="Open Live HTML Editor" type="button">
               Live Editor
@@ -70,6 +93,14 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = fa
           setDifyKey={setDifyKey}
           iframeUrl={iframeUrl}
           setIframeUrl={setIframeUrl}
+          isProductionWeb={isProductionWeb}
+          machineAgentConnected={machineAgentConnected}
+          machineAgentCount={machineAgentCount}
+          pairingCode={pairingCode}
+          pairingExpiresAt={pairingExpiresAt}
+          pairingLoading={pairingLoading}
+          pairingError={pairingError}
+          onStartPairing={() => { void startMachineAgentPairing(); }}
           onCancel={() => setShowSettings(false)}
           onSave={handleSaveSettings}
         />

@@ -258,6 +258,37 @@
   border-top: 1px solid var(--border-color);
 }
 
+.ai-pairing-code {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px dashed var(--acrobat-blue);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-accent-bg);
+  text-align: center;
+}
+
+.ai-pairing-code span,
+.ai-pairing-code small {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.ai-pairing-code strong {
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 22px;
+  letter-spacing: .12em;
+}
+
+.ai-pairing-error {
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-error-bg);
+  color: var(--ui-error-text);
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
 
 /* ==========================================================================
    AI Chat Panel - Messages Container & Bubbles
@@ -707,6 +738,13 @@
 .ai-float-toggle-btn.dragging {
   transition: none !important;
   cursor: grabbing !important;
+}
+
+@media (max-width: 900px) {
+  .ai-float-toggle-btn {
+    right: 14px;
+    bottom: max(96px, calc(env(safe-area-inset-bottom) + 80px));
+  }
 }
 
 .ai-float-toggle-btn:hover {

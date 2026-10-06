@@ -65,6 +65,81 @@ try {
   const anonymousProtected = await fetch(`${base}/api/opdf/auth/me`);
   assert(anonymousProtected.status === 401, "authenticated API is not protected");
 
+  const login = await fetch(`${base}/api/opdf/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: "admin@production.test",
+      password: "admin-production-2026",
+    }),
+  });
+  assert(login.status === 200, `valid login failed: ${login.status}`);
+  const cookie = login.headers.get("set-cookie")?.split(";", 1)[0];
+  assert(cookie, "valid login did not return a session cookie");
+
+  const pairingStart = await fetch(`${base}/api/opdf/agent/pairing/start`, {
+    method: "POST",
+    headers: { Cookie: cookie, "Content-Type": "application/json" },
+    body: "{}",
+  });
+  assert(pairingStart.status === 201, `agent pairing start failed: ${pairingStart.status}`);
+  const pairing = await pairingStart.json();
+  assert(typeof pairing.code === "string" && pairing.code.length >= 8, "pairing code missing");
+
+  const pairingClaim = await fetch(`${base}/api/opdf/agent/pairing/claim`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code: pairing.code,
+      machine: { machineId: "production-smoke-machine", name: "Smoke Machine Agent", version: "1" },
+    }),
+  });
+  assert(pairingClaim.status === 200, `agent pairing claim failed: ${pairingClaim.status}`);
+  const claimed = await pairingClaim.json();
+  assert(typeof claimed.token === "string" && claimed.token.length > 32, "machine agent token missing");
+
+  const agentStatus = await fetch(`${base}/api/opdf/agent/status`, {
+    headers: { Cookie: cookie },
+  });
+  assert(agentStatus.status === 200, `agent status failed: ${agentStatus.status}`);
+  const statusPayload = await agentStatus.json();
+  assert(statusPayload.agents?.length === 1, "paired machine agent is not visible to web session");
+
+  const chat = await fetch(`${base}/api/opdf/agent/chat`, {
+    method: "POST",
+    headers: { Cookie: cookie, "Content-Type": "application/json" },
+    body: JSON.stringify({ query: "Summarize page one", context: { currentPage: 1 } }),
+  });
+  assert(chat.status === 202, `agent task creation failed: ${chat.status}`);
+  const chatTask = await chat.json();
+
+  const nextTask = await fetch(`${base}/api/opdf/agent/tasks/next`, {
+    headers: { Authorization: `Bearer ${claimed.token}` },
+  });
+  assert(nextTask.status === 200, `agent task poll failed: ${nextTask.status}`);
+  const polled = await nextTask.json();
+  assert(polled.task?.id === chatTask.id, "machine agent received the wrong task");
+
+  const resultPost = await fetch(`${base}/api/opdf/agent/tasks/${chatTask.id}/result`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${claimed.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ result: "Machine agent response" }),
+  });
+  assert(resultPost.status === 200, `agent result submission failed: ${resultPost.status}`);
+
+  const taskResult = await fetch(`${base}/api/opdf/agent/tasks/${chatTask.id}`, {
+    headers: { Cookie: cookie },
+  });
+  assert(taskResult.status === 200, `web task result lookup failed: ${taskResult.status}`);
+  const completed = await taskResult.json();
+  assert(
+    completed.status === "completed" && completed.result === "Machine agent response",
+    "machine agent result did not round-trip to the authenticated web session",
+  );
+
   const crossSite = await fetch(`${base}/api/opdf/auth/login`, {
     method: "POST",
     headers: {

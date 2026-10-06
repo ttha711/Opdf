@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { clickApplicationMenuPath, openApplicationMenu } from "../helpers/app-menu";
 
 test("web viewer boots to the document Home screen", async ({ page }) => {
   await page.goto("/");
@@ -43,6 +44,14 @@ test("desktop top bar keeps tabs and save status stable", async ({ page }) => {
   await expect(header.getByRole("button", { name: /Save now|Saving/ })).toBeVisible();
   await expect(header.getByRole("button", { name: "Undo (Ctrl+Z)" })).toBeVisible();
   await expect(header.getByRole("button", { name: "Redo (Ctrl+Y)" })).toBeVisible();
+
+  const appMenu = await openApplicationMenu(page);
+  for (const label of ["Document", "Edit", "View", "Tools", "AI Edit"]) {
+    await expect(appMenu.locator(`[data-opdf-menu-item="${label}"]:visible`).first()).toBeVisible();
+  }
+  for (const duplicate of ["Open...", "Close", "Export PDF..."]) {
+    await expect(appMenu.locator(`[data-opdf-menu-item="${duplicate}"]:visible`)).toHaveCount(0);
+  }
 });
 
 
@@ -62,9 +71,7 @@ test("native PDF text editing is inline and advanced settings are opt-in", async
   });
 
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
-  const appMenu = page.locator("header").getByRole("button", { name: "Application menu", exact: true });
-  await appMenu.click();
-  await page.locator("header").getByRole("menuitem", { name: "Edit PDF Content", exact: true }).click();
+  await clickApplicationMenuPath(page, ["Tools", "Edit & Review", "Edit PDF Content"]);
 
   await expect(page.locator('[data-opdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-opdf-right-sidebar="closed"]')).toHaveCount(1);

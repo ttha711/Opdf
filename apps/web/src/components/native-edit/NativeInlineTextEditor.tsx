@@ -34,6 +34,8 @@ export function NativeInlineTextEditor({
   return (
     <textarea
       autoFocus
+      spellCheck={false}
+      aria-label="Edit PDF text"
       className="native-edit-inline-text"
       value={value}
       onChange={(event) => onChange(event.target.value)}
@@ -50,8 +52,9 @@ export function NativeInlineTextEditor({
           onCancel();
           return;
         }
-        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
+          event.stopPropagation();
           event.currentTarget.blur();
         }
       }}
@@ -61,7 +64,10 @@ export function NativeInlineTextEditor({
         width: boxWidth,
         minHeight: boxHeight,
         transform: `rotate(${angle}deg)`,
+        fontFamily: object.fontFamily || undefined,
         fontSize: Math.max(11, (object.fontSize ?? 12) * width / object.pageWidth),
+        lineHeight: 1.15,
+        color: object.fillColor || "#111827",
       }}
       data-opdf-inline-text-editor="true"
     />

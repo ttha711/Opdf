@@ -30,8 +30,20 @@ export async function executeAgentCommand(command: AgentCommand, context: AgentA
   }
 
   try {
-    await runAgentAction(definition, args, context);
-    return { status: "completed", tool: command.tool, message: `${definition.title} completed.` };
+    const outcome = await runAgentAction(definition, args, context);
+    if (outcome?.status === "input_required") {
+      return {
+        status: "input_required",
+        tool: command.tool,
+        message: outcome.message,
+        missingArgs: outcome.missingArgs,
+      };
+    }
+    return {
+      status: "completed",
+      tool: command.tool,
+      message: outcome?.message || `${definition.title} completed.`,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     context.actions.setViewerError?.(message);
@@ -48,7 +60,15 @@ function buildConfirmationPrompt(definition: AgentToolDefinition, args: Record<s
   return `Run ${definition.title}?`;
 }
 
-async function runAgentAction(definition: AgentToolDefinition, args: Record<string, unknown>, context: AgentActionContext) {
+type AgentActionOutcome =
+  | { status?: "completed"; message?: string }
+  | { status: "input_required"; message: string; missingArgs?: string[] };
+
+async function runAgentAction(
+  definition: AgentToolDefinition,
+  args: Record<string, unknown>,
+  context: AgentActionContext,
+): Promise<AgentActionOutcome | void> {
   const { actions, state } = context;
   switch (definition.id) {
     case "open-file": {
@@ -56,11 +76,35 @@ async function runAgentAction(definition: AgentToolDefinition, args: Record<stri
       if (filePath && actions.openFileWithPath) {
         return actions.openFileWithPath(filePath);
       }
-      return actions.openFile?.();
+      if (typeof args.fileUrl === "string" && actions.openFileBytes) {
+        const response = await fetch(args.fileUrl);
+        if (!response.ok) throw new Error(`Unable to fetch PDF: HTTP ${response.status}`);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        return actions.openFileBytes(bytes, typeof args.fileName === "string" ? args.fileName : "document.pdf");
+      }
+      if (typeof args.base64 === "string" && actions.openFileBytes) {
+        const raw = args.base64.includes(",") ? args.base64.slice(args.base64.indexOf(",") + 1) : args.base64;
+        const decoded = atob(raw);
+        const bytes = Uint8Array.from(decoded, (char) => char.charCodeAt(0));
+        return actions.openFileBytes(bytes, typeof args.fileName === "string" ? args.fileName : "document.pdf");
+      }
+      if (actions.openFile) {
+        actions.openFile();
+        return {
+          status: "input_required",
+          message: "Choose a local file, or provide filePath, fileUrl, or base64 for headless opening.",
+          missingArgs: ["filePath|fileUrl|base64"],
+        };
+      }
+      return {
+        status: "input_required",
+        message: "Provide filePath, fileUrl, or base64.",
+        missingArgs: ["filePath|fileUrl|base64"],
+      };
     }
     case "close-document": return actions.closeDocument?.();
-    case "export-pdf":
-    case "save-pdf": return actions.exportPdf?.();
+    case "export-pdf": return actions.exportPdf?.();
+    case "save-pdf": return actions.savePdf?.();
     case "compress-pdf": return actions.compressDocument?.();
     case "run-ocr": return actions.runOcr?.();
     case "convert-to-images": return actions.convertToImages?.();
@@ -96,6 +140,7 @@ async function runAgentAction(definition: AgentToolDefinition, args: Record<stri
     case "shape-tool": return actions.setActiveTool?.("shape");
     case "redact-tool": return actions.setActiveTool?.("redact");
     case "signature-tool": return actions.setActiveTool?.("signature");
+    case "ai-content-editor": return actions.setActiveTool?.("edit-content");
     case "open-tools-dashboard":
       actions.setActiveDashboardTool?.(null);
       return actions.setShowDashboard?.(true);
@@ -114,7 +159,15 @@ async function runAgentAction(definition: AgentToolDefinition, args: Record<stri
         return actions.runConfiguredWatermark?.(normalizeWatermarkOptions(args));
       }
       if (definition.panelTool) {
-        return openPanel(definition.panelTool, actions);
+        if (actions.runHeadlessConversion) {
+          const result = await actions.runHeadlessConversion(definition.id, args);
+          if (result) return result;
+        }
+        openPanel(definition.panelTool, actions);
+        return {
+          status: "input_required",
+          message: `${definition.title} needs additional input in its tool panel.`,
+        };
       }
   }
 }

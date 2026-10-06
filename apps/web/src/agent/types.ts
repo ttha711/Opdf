@@ -10,6 +10,7 @@ export type AgentToolId =
   | "close-document"
   | "export-pdf"
   | "save-pdf"
+  | "ai-content-editor"
   | "compress-pdf"
   | "run-ocr"
   | "convert-to-images"
@@ -106,8 +107,10 @@ export interface AgentActionContext {
   actions: {
     openFile?: () => void | Promise<void>;
     openFileWithPath?: (filePath: string) => void | Promise<void>;
+    openFileBytes?: (bytes: Uint8Array, fileName?: string) => void | Promise<void>;
     closeDocument?: () => void | Promise<void>;
     exportPdf?: () => void | Promise<void>;
+    savePdf?: () => void | Promise<void>;
     compressDocument?: () => void | Promise<void>;
     runOcr?: () => void | Promise<void>;
     convertToImages?: () => void | Promise<void>;
@@ -130,5 +133,9 @@ export interface AgentActionContext {
     setShowDashboard?: (show: boolean) => void;
     setActiveDashboardTool?: (toolId: string | null) => void;
     setViewerError?: (message: string | null) => void;
+    runHeadlessConversion?: (
+      toolId: AgentToolId,
+      args: Record<string, unknown>,
+    ) => Promise<{ message?: string } | void>;
   };
 }

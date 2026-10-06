@@ -7,7 +7,7 @@ const conversionPanelTools: AgentToolDefinition[] = [
   { id: "pdf-to-png", title: "PDF to PNG", description: "Open the PDF image export tool with PNG output.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-png" },
   { id: "pdf-to-jpeg", title: "PDF to JPEG", description: "Open the PDF image export tool with JPEG output.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-jpeg" },
   { id: "pdf-to-txt", title: "PDF to TXT", description: "Open the PDF text export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-txt" },
-  { id: "pdf-to-html", title: "Edit Content with AI", description: "Open the AI document editor for deeper content edits.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-html" },
+  { id: "pdf-to-html", title: "PDF to HTML", description: "Convert the current PDF to an HTML file.", risk: "safe", requiresDocument: true, panelTool: "pdf-to-html" },
   { id: "pdf-to-xml", title: "PDF to XML", description: "Open the PDF to XML export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-xml" },
   { id: "pdf-to-rtf", title: "PDF to RTF", description: "Open the PDF to RTF export tool.", risk: "needs-input", requiresDocument: true, panelTool: "pdf-to-rtf" },
   { id: "word-to-pdf", title: "Word to PDF", description: "Open the Word to PDF converter and ask for a source file.", risk: "needs-input", panelTool: "word-to-pdf" },
@@ -23,10 +23,11 @@ const conversionPanelTools: AgentToolDefinition[] = [
 ];
 
 export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
-  { id: "open-file", title: "Open File", description: "Open a PDF or supported local file.", risk: "needs-input", optionalArgs: ["filePath"] },
+  { id: "open-file", title: "Open File", description: "Open a document from a path, URL, base64 payload, or local file picker.", risk: "needs-input", optionalArgs: ["filePath", "fileUrl", "base64", "fileName"] },
   { id: "close-document", title: "Close Document", description: "Close the current document.", risk: "destructive", requiresDocument: true },
   { id: "export-pdf", title: "Export PDF", description: "Export the current edited PDF.", risk: "safe", requiresDocument: true },
-  { id: "save-pdf", title: "Save PDF", description: "Alias for exporting the current edited PDF.", risk: "safe", requiresDocument: true },
+  { id: "save-pdf", title: "Save PDF", description: "Save the current document back to its backing source when possible.", risk: "safe", requiresDocument: true },
+  { id: "ai-content-editor", title: "AI Content Editor", description: "Open the content editing workspace for deeper text and layout edits.", risk: "needs-input", requiresDocument: true },
   { id: "compress-pdf", title: "Compress PDF", description: "Compress the current PDF.", risk: "safe", requiresDocument: true },
   { id: "run-ocr", title: "Run OCR", description: "Run OCR on the current PDF.", risk: "safe", requiresDocument: true },
   { id: "convert-to-images", title: "Convert to Images", description: "Export rendered pages as image files.", risk: "safe", requiresDocument: true },
@@ -46,7 +47,7 @@ export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
   { id: "note-tool", title: "Note Tool", description: "Switch to note annotation mode.", risk: "safe", requiresDocument: true },
   { id: "shape-tool", title: "Shape Tool", description: "Switch to shape annotation mode.", risk: "safe", requiresDocument: true },
   { id: "redact-tool", title: "Redact Tool", description: "Switch to redaction annotation mode.", risk: "safe", requiresDocument: true },
-  { id: "signature-tool", title: "Signature Tool", description: "Switch to signature annotation mode.", risk: "safe", requiresDocument: true },
+  { id: "signature-tool", title: "Draw Signature Annotation", description: "Switch to handwritten signature annotation mode. This does not create a cryptographic digital signature.", risk: "safe", requiresDocument: true },
   { id: "rotate-all-left", title: "Rotate All Pages Left", description: "Persistently rotate every PDF page left.", risk: "safe", requiresDocument: true, documentTool: "rotate-all-left" },
   { id: "rotate-all-right", title: "Rotate All Pages Right", description: "Persistently rotate every PDF page right.", risk: "safe", requiresDocument: true, documentTool: "rotate-all-right" },
   { id: "delete-pages", title: "Delete Pages", description: "Delete one or more pages from the PDF.", risk: "destructive", requiresDocument: true, requiredArgs: ["pages"], documentTool: "delete-pages" },

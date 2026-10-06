@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 type SaveState = "idle" | "saving" | "saved";
 
 function IconButton({
@@ -10,7 +12,7 @@ function IconButton({
   label: string;
   onClick: () => void;
   disabled?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
   action: string;
 }) {
   return (

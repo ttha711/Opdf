@@ -49,9 +49,11 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
   if (!before) throw new Error("Selection bounding box is unavailable.");
 
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+  await page.keyboard.down("Alt");
   await page.mouse.down();
   await page.mouse.move(before.x + before.width / 2 + 24, before.y + before.height / 2 - 12, { steps: 4 });
   await page.mouse.up();
+  await page.keyboard.up("Alt");
   await expect(editor.getByText("Object moved on page.")).toBeVisible({ timeout: 20_000 });
 
   const refreshedSelection = page.locator("[data-opdf-canvas-selection]");

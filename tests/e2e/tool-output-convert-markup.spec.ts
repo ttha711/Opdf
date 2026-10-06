@@ -7,6 +7,7 @@ import {
   exportCurrentPdf,
   extractPdfTextPages,
   loadToolFixture,
+  openAllTools,
   openDashboardTool,
   waitForStatusText,
 } from "../helpers/tool-output";
@@ -111,11 +112,11 @@ for (const [toolId, expectedExtension] of [
 ] as const) {
   test(`${toolId} downloads extracted text from the real PDF`, async ({ page }) => {
     await loadToolFixture(page);
-    await openDashboardTool(page, toolId);
+    await openAllTools(page);
     const downloadPromise = page.waitForEvent("download", { timeout: 20_000 });
-    await page.locator(`[data-opdf-tool-card="${toolId}"]`).click().catch(() => {});
+    await page.locator(`[data-opdf-tool-card="${toolId}"]`).click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(new RegExp(`\\${expectedExtension}$`, "i"));
+    expect(download.suggestedFilename().toLowerCase().endsWith(expectedExtension)).toBeTruthy();
     const text = (await downloadBuffer(download)).toString("utf8");
     expect(text).toContain("OPDF TOOL PAGE ONE KEEP");
     expect(text).toContain("OPDF TOOL PAGE TWO DELETE");
@@ -125,9 +126,9 @@ for (const [toolId, expectedExtension] of [
 
 test("Image to PDF creates a valid PDF with the source image dimensions", async ({ page }) => {
   await loadToolFixture(page);
-  await openDashboardTool(page, "image-to-pdf");
+  await openAllTools(page);
   const chooserPromise = page.waitForEvent("filechooser", { timeout: 10_000 });
-  await page.locator('[data-opdf-tool-card="image-to-pdf"]').click().catch(() => {});
+  await page.locator('[data-opdf-tool-card="image-to-pdf"]').click();
   const chooser = await chooserPromise;
   await chooser.setFiles({
     name: "pixel.png",
@@ -149,9 +150,9 @@ test("Image to PDF creates a valid PDF with the source image dimensions", async 
 
 test("TXT to PDF creates a valid PDF containing the source text", async ({ page }) => {
   await loadToolFixture(page);
-  await openDashboardTool(page, "txt-to-pdf");
+  await openAllTools(page);
   const chooserPromise = page.waitForEvent("filechooser", { timeout: 10_000 });
-  await page.locator('[data-opdf-tool-card="txt-to-pdf"]').click().catch(() => {});
+  await page.locator('[data-opdf-tool-card="txt-to-pdf"]').click();
   const chooser = await chooserPromise;
   await chooser.setFiles({
     name: "tool-input.txt",

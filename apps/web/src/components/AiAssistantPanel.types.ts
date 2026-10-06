@@ -18,4 +18,4 @@ export interface AiAssistantPanelProps {
   onOpenLiveEditor?: () => void;
 }
 
-export type EngineMode = "local" | "dify" | "iframe";
+export type EngineMode = "agent" | "local" | "dify" | "iframe";

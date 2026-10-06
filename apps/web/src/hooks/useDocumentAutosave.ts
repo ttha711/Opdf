@@ -49,7 +49,7 @@ export function useDocumentAutosave({
       blockedAfterFailureRef.current ||
       savingRef.current ||
       !stateRef.current.hasDocument ||
-      stateRef.current.saveState !== "idle"
+      (!fromMutation && stateRef.current.saveState !== "idle")
     ) return;
 
     timerRef.current = window.setTimeout(() => {
@@ -82,9 +82,9 @@ export function useDocumentAutosave({
   }, [cancel, hasDocument, saveState, schedule]);
 
   useEffect(() => {
-    if (!hasDocument || saveState !== "idle") return;
+    if (!hasDocument) return;
     schedule(true);
-  }, [annotations, docBytes, hasDocument, saveState, schedule, sourceIdentity]);
+  }, [annotations, docBytes, hasDocument, schedule, sourceIdentity]);
 
   useEffect(() => cancel, [cancel]);
 

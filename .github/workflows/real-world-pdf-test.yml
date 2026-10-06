@@ -14,6 +14,10 @@ on:
       - "scripts/perf/real-world-pdf-browser.mjs"
       - ".github/workflows/real-world-pdf-test.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

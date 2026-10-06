@@ -21,6 +21,10 @@ on:
       - "scripts/opdf-cli/**"
       - ".github/workflows/ui-audit.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   capture:
     runs-on: ubuntu-latest

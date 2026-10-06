@@ -25,7 +25,7 @@ test("Windows Electron boots and its real IPC PDF/Office/signing engines work", 
   try {
     const window = await app.firstWindow();
     await expect(window.locator("body")).toBeVisible();
-    await expect(window.locator('button[aria-label="Application menu"]')).toBeVisible();
+    await expect(window.locator('button[aria-label="Application menu"]:visible').first()).toBeVisible();
 
     const bridgeShape = await window.evaluate(() => {
       const bridge = (window as any).opdf;

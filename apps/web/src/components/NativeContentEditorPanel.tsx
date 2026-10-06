@@ -142,6 +142,10 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   ) => {
     if (selected) void apply([{ type: "relative-transform", objectId: selected.id, matrix }], success);
   }, [apply, selected]);
+  const move = useCallback(
+    (dx: number, dy: number) => transform([1, 0, 0, 1, dx, dy], "Object moved."),
+    [transform],
+  );
   const centeredTransform = useCallback((
     a: number,
     b: number,

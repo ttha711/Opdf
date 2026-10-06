@@ -75,7 +75,7 @@ export function useAiCommandRuntime({ addMessage, setMessages }: Params) {
     if (parsed === "help") {
       addMessage(
         "assistant",
-        "📚 **SUPPORTED COMMANDS:**\n\n• **Compress document:** *'nén file'*, *'nén tài liệu'*, *'compress'*\n• **Rotate pages:** *'xoay trái'*, *'xoay phải'*, *'xoay tất cả trang qua phải'*\n• **Delete pages:** *'xóa trang 2'*, *'xóa trang 1-3'*, *'delete page 5'*\n• **Run OCR:** *'chạy ocr'*, *'trích xuất chữ'*, *'ocr'*\n• **Page numbers & watermark:** *'thêm số trang'*, *'đóng dấu: BẢN QUYỀN'*\n• **View:** *'phóng to'*, *'thu nhỏ'*, *'tới trang 3'*\n• **Open/Close/Save:** *'mở file'*, *'đóng file'*, *'lưu file'*",
+        "📚 **SUPPORTED COMMANDS:**\n\n• **Compress document:** *'compress document'*\n• **Rotate pages:** *'rotate left'*, *'rotate all pages right'*\n• **Delete pages:** *'delete page 5'*, *'delete pages 1-3'*\n• **Run OCR:** *'run OCR'*, *'extract text'*\n• **Page numbers & watermark:** *'add page numbers'*, *'watermark: DRAFT'*\n• **View:** *'zoom in'*, *'zoom out'*, *'go to page 3'*\n• **Open/Close/Save:** *'open file'*, *'close file'*, *'save file'*",
       );
       return;
     }

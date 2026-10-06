@@ -8,7 +8,7 @@ type AutosaveArgs = {
   docBytes: Uint8Array | null;
   annotations: unknown[];
   sourceIdentity: string;
-  savePdf: (options?: { silent?: boolean }) => void | Promise<void>;
+  savePdf: (options?: { silent?: boolean }) => boolean | void | Promise<boolean | void>;
   delayMs?: number;
 };
 
@@ -24,6 +24,8 @@ export function useDocumentAutosave({
   const timerRef = useRef<number | null>(null);
   const savePdfRef = useRef(savePdf);
   const stateRef = useRef({ hasDocument, saveState });
+  const savingRef = useRef(false);
+  const blockedAfterFailureRef = useRef(false);
 
   useEffect(() => {
     savePdfRef.current = savePdf;
@@ -40,14 +42,33 @@ export function useDocumentAutosave({
     }
   }, []);
 
-  const schedule = useCallback(() => {
+  const schedule = useCallback((fromMutation = false) => {
     cancel();
-    if (!stateRef.current.hasDocument || stateRef.current.saveState !== "idle") return;
+    if (fromMutation) blockedAfterFailureRef.current = false;
+    if (
+      blockedAfterFailureRef.current ||
+      savingRef.current ||
+      !stateRef.current.hasDocument ||
+      stateRef.current.saveState !== "idle"
+    ) return;
 
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
-      if (!stateRef.current.hasDocument || stateRef.current.saveState !== "idle") return;
-      void savePdfRef.current({ silent: true });
+      if (
+        blockedAfterFailureRef.current ||
+        savingRef.current ||
+        !stateRef.current.hasDocument ||
+        stateRef.current.saveState !== "idle"
+      ) return;
+
+      savingRef.current = true;
+      void Promise.resolve(savePdfRef.current({ silent: true }))
+        .then((result) => {
+          if (result === false) blockedAfterFailureRef.current = true;
+        })
+        .finally(() => {
+          savingRef.current = false;
+        });
     }, delayMs);
   }, [cancel, delayMs]);
 
@@ -56,7 +77,7 @@ export function useDocumentAutosave({
       cancel();
       return;
     }
-    schedule();
+    schedule(true);
     return cancel;
   }, [annotations, cancel, docBytes, hasDocument, saveState, schedule, sourceIdentity]);
 

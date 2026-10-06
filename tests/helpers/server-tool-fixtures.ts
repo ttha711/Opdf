@@ -19,6 +19,10 @@ export async function buildOfficeFixtures() {
     ["Beam", 300],
     ["MEP", 125],
   ]);
+  // Keep the marker fully visible in LibreOffice's PDF export. Calc clips
+  // overflowing cell text when the adjacent cell is populated, which made the
+  // E2E assertion validate a truncated rendering rather than the converter.
+  worksheet["!cols"] = [{ wch: 34 }, { wch: 12 }];
   XLSX.utils.book_append_sheet(workbook, worksheet, "Server UI");
   const xlsx = Buffer.from(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }));
 

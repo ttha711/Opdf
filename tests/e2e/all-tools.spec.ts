@@ -136,7 +136,6 @@ test("every browser-capable dashboard tool reaches its real working surface or o
     "extract-pages",
     "crop-pdf",
     "watermark-pdf",
-    "fill-form",
   ];
 
   for (const id of panelTools) {
@@ -152,6 +151,7 @@ test("every browser-capable dashboard tool reaches its real working surface or o
   await closeWorkingSurface(page);
 
   for (const [id, dialog] of [
+    ["fill-form", "advanced-pdf"],
     ["redact-pdf", "search-redact"],
     ["compare-pdf", "compare-revisions"],
   ] as const) {

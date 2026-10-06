@@ -56,7 +56,8 @@ test("mixed page sizes, rotations, many pages and Unicode filename survive open/
   const firstPass = await PDFDocument.load(exported);
   expect(firstPass.getPageCount()).toBe(48);
   expect(firstPass.getPage(0).getRotation().angle).toBe(90);
-  expect(firstPass.getPage(1).getSize()).toEqual({ width: 841.89, height: 595.28 });
+  expect(firstPass.getPage(1).getWidth()).toBeCloseTo(841.89, 3);
+  expect(firstPass.getPage(1).getHeight()).toBeCloseTo(595.28, 3);
 
   await page.goto("/");
   await page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles({

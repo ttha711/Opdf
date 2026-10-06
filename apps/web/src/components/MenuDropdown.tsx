@@ -11,9 +11,10 @@ type MenuDropdownProps = {
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
+  mobileSheet?: boolean;
 };
 
-export function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDropdownProps) {
+export function MenuDropdown({ label, items, isOpen, onToggle, onClose, mobileSheet = false }: MenuDropdownProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,7 +39,15 @@ export function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDr
         {label}
       </button>
       {isOpen && (
-        <div role="menu" data-opdf-menu-surface={label} className="absolute left-0 top-[calc(100%+2px)] max-h-[calc(100vh-56px)] min-w-[220px] overflow-y-auto rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] py-1 shadow-xl" style={{ zIndex: "var(--z-dropdown)" }}>
+        <div
+          role="menu"
+          data-opdf-menu-surface={label}
+          data-opdf-mobile-sheet={mobileSheet ? "true" : "false"}
+          className={mobileSheet
+            ? "fixed inset-x-3 bottom-3 top-auto max-h-[72vh] min-w-0 overflow-y-auto rounded-2xl border border-[var(--border-color)] bg-[var(--bg-toolbar)] py-2 shadow-2xl"
+            : "absolute left-0 top-[calc(100%+2px)] max-h-[calc(100vh-56px)] min-w-[220px] overflow-y-auto rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] py-1 shadow-xl"}
+          style={{ zIndex: "var(--z-dropdown)" }}
+        >
           {items.map((item, i) =>
             item.kind === "separator" ? (
               <div key={i} className="my-1 h-px bg-[var(--ui-divider)]" />
@@ -50,7 +59,9 @@ export function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDr
               <button
                 key={i}
                 data-opdf-menu-item={item.label}
-                className="flex w-full items-center justify-between gap-6 border-none bg-transparent px-4 py-[7px] text-left text-[13px] text-[var(--text-primary)] transition-colors hover:bg-[var(--ui-accent-bg)] hover:text-[var(--acrobat-blue)] disabled:cursor-default disabled:opacity-40"
+                className={mobileSheet
+                  ? "flex min-h-12 w-full items-center justify-between gap-3 border-none bg-transparent px-4 py-3 text-left text-[15px] text-[var(--text-primary)] transition-colors active:bg-[var(--ui-accent-bg)] disabled:cursor-default disabled:opacity-40"
+                  : "flex w-full items-center justify-between gap-6 border-none bg-transparent px-4 py-[7px] text-left text-[13px] text-[var(--text-primary)] transition-colors hover:bg-[var(--ui-accent-bg)] hover:text-[var(--acrobat-blue)] disabled:cursor-default disabled:opacity-40"}
                 disabled={item.disabled}
                 title={item.title}
                 onClick={() => {
@@ -61,7 +72,7 @@ export function MenuDropdown({ label, items, isOpen, onToggle, onClose }: MenuDr
                 role="menuitem"
               >
                 <span className="flex-1 whitespace-nowrap">{item.label}</span>
-                {item.shortcut && <span className="whitespace-nowrap text-[11px] text-[var(--text-secondary)]">{item.shortcut}</span>}
+                {!mobileSheet && item.shortcut ? <span className="whitespace-nowrap text-[11px] text-[var(--text-secondary)]">{item.shortcut}</span> : null}
               </button>
             ),
           )}

@@ -19,6 +19,7 @@ import {
 } from "../../lib/nativeEditRuntime";
 import { NativeEditSelectionLayer, nativeEditObjectIsEditable } from "./NativeEditSelectionLayer";
 import { NativeInlineTextEditor } from "./NativeInlineTextEditor";
+import { useNativeEditKeyboardMove } from "./useNativeEditKeyboardMove";
 
 type Props = {
   pageIndex: number;
@@ -44,6 +45,9 @@ type DragState = {
   start?: PdfPoint;
   handle?: NativeResizeHandle;
   startAngle?: number;
+  startClientX?: number;
+  startClientY?: number;
+  clickText?: string;
 };
 
 export function NativeEditPageOverlay({
@@ -143,6 +147,13 @@ export function NativeEditPageOverlay({
       const objectId = drag.objectId;
       setDrag(null);
       setPreviewMatrix(null);
+      const clickDistance = drag.startClientX === undefined || drag.startClientY === undefined
+        ? Number.POSITIVE_INFINITY
+        : Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
+      if (mode === "move" && clickDistance < 4) {
+        if (drag.clickText !== undefined) setEditingText(drag.clickText);
+        return;
+      }
       if (!matrix || matrixIsIdentity(matrix)) return;
       const message = mode === "move" ? "Object moved on page." :
         mode === "resize" ? "Object resized on page." :
@@ -171,13 +182,6 @@ export function NativeEditPageOverlay({
     event.preventDefault();
     event.stopPropagation();
 
-    if (object.kind === "text" && !event.altKey) {
-      setDrag(null);
-      setPreviewMatrix(null);
-      setEditingText(object.text ?? "");
-      return;
-    }
-
     const point = clientToPdf(object, event.clientX, event.clientY);
     if (!point) return;
     setEditingText(null);
@@ -188,6 +192,9 @@ export function NativeEditPageOverlay({
       pageHeight: object.pageHeight,
       start: point,
       geometry: geometryForObject(object),
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      clickText: object.kind === "text" ? object.text ?? "" : undefined,
     });
     setPreviewMatrix(null);
   };
@@ -223,6 +230,13 @@ export function NativeEditPageOverlay({
     });
     setPreviewMatrix(null);
   };
+
+  useNativeEditKeyboardMove({
+    objectId: selected?.id ?? null,
+    enabled: Boolean(selected && nativeEditObjectIsEditable(selected) && editingText === null && !drag),
+    setPreviewMatrix,
+    setError,
+  });
 
   const commitInlineText = async () => {
     if (!selected || selected.kind !== "text" || editingText === null) return;

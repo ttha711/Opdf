@@ -347,7 +347,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   const toggleTheme = useCallback(() => state.setTheme(t => (t === "light" ? "dark" : "light")), [state.setTheme]);
   const onViewerDirty = useCallback(() => {
     state.setSaveState("idle");
-    autosave.scheduleAutosave();
+    autosave.scheduleAutosave(true);
   }, [autosave.scheduleAutosave, state.setSaveState]);
   const onPatchApplied = useCallback(() => state.setActiveTool("select"), [state.setActiveTool]);
   const { onDragOver, onDrop } = usePdfDrop({

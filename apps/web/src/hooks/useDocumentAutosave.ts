@@ -77,9 +77,14 @@ export function useDocumentAutosave({
       cancel();
       return;
     }
-    schedule(true);
+    schedule(false);
     return cancel;
-  }, [annotations, cancel, docBytes, hasDocument, saveState, schedule, sourceIdentity]);
+  }, [cancel, hasDocument, saveState, schedule]);
+
+  useEffect(() => {
+    if (!hasDocument || saveState !== "idle") return;
+    schedule(true);
+  }, [annotations, docBytes, hasDocument, saveState, schedule, sourceIdentity]);
 
   useEffect(() => cancel, [cancel]);
 

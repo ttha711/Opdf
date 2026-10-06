@@ -13,6 +13,7 @@ import { useAppViewModel } from "./useAppViewModel";
 import { useAgentBridge, createAgentStateSnapshot } from "./useAgentBridge";
 import type { MarkupTool } from "./useDocumentActions";
 import { toast } from "../components/ToastProvider";
+import { buildPdfTextExport } from "../lib/pdfTextExport";
 import { useDocumentAutosave } from "./useDocumentAutosave";
 
 type UseAppControllersArgs = {
@@ -402,6 +403,59 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     },
   });
 
+  const openFileBytes = useCallback((bytes: Uint8Array, name = "document.pdf") => {
+    state.setFileName(name);
+    replaceDocumentBytes(bytes, 1, {
+      preserveSourceIdentity: false,
+      resetDocumentMetadata: true,
+    });
+  }, [replaceDocumentBytes, state.setFileName]);
+
+  const runHeadlessConversion = useCallback(async (
+    toolId: import("../agent/types").AgentToolId,
+    _args: Record<string, unknown>,
+  ) => {
+    const bytes = await state.materializeDocumentBytes();
+    if (!bytes) throw new Error("Unable to retrieve the current PDF bytes.");
+    const fileBase = state.fileName.replace(/\.[^/.]+$/, "") || "document";
+
+    const download = (output: Uint8Array, mimeType: string, name: string) => {
+      const blob = new Blob([output as unknown as BlobPart], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = name;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    };
+
+    if (toolId === "pdf-to-word" || toolId === "pdf-to-excel" || toolId === "pdf-to-ppt") {
+      if (!bridge.convertPdfOffice) {
+        throw new Error("PDF to Office conversion is unavailable in this runtime.");
+      }
+      const format = toolId === "pdf-to-word" ? "docx" : toolId === "pdf-to-excel" ? "xlsx" : "pptx";
+      const output = await bridge.convertPdfOffice(bytes, format);
+      const mimeType = format === "docx"
+        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        : format === "xlsx"
+          ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          : "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+      download(output, mimeType, `${fileBase}.${format}`);
+      return { message: `Converted ${state.fileName} to ${format.toUpperCase()} and started the download.` };
+    }
+
+    if (toolId === "pdf-to-txt" || toolId === "pdf-to-xml") {
+      const format = toolId === "pdf-to-txt" ? "txt" : "xml";
+      const result = await buildPdfTextExport(bytes, state.fileName, format);
+      download(result.bytes, result.mimeType, result.fileName);
+      return { message: `Converted ${state.fileName} to ${format.toUpperCase()} and started the download.` };
+    }
+
+    return undefined;
+  }, [bridge, state.fileName, state.materializeDocumentBytes]);
+
   useAgentBridge({
     state: createAgentStateSnapshot({
       hasDocument: state.hasDocument,
@@ -415,8 +469,10 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     actions: {
       openFile,
       openFileWithPath,
+      openFileBytes,
       closeDocument,
       exportPdf,
+      savePdf,
       compressDocument,
       runOcr,
       convertToImages,
@@ -439,6 +495,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
       setShowDashboard: state.setShowDashboard,
       setActiveDashboardTool: state.setActiveDashboardTool,
       setViewerError: state.setViewerError,
+      runHeadlessConversion,
     },
   });
 

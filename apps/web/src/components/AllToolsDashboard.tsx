@@ -303,7 +303,7 @@ export function AllToolsDashboard({
   };
 
   return (
-    <div className="all-tools-dashboard flex flex-col h-full bg-[var(--bg-toolbar)] text-[var(--text-primary)] transition-colors select-none p-6 overflow-y-auto">
+    <div className="all-tools-dashboard flex flex-col h-full bg-[var(--bg-toolbar)] text-[var(--text-primary)] transition-colors p-6 overflow-y-auto">
       {/* Hidden file input */}
       <input
         type="file"
@@ -326,12 +326,17 @@ export function AllToolsDashboard({
       </div>
 
       {/* Tabs Menu */}
-      <div className="flex border-b border-[var(--border-color)] mb-8 overflow-x-auto whitespace-nowrap scrollbar-none">
+      <div className="relative z-10 flex shrink-0 border-b border-[var(--border-color)] mb-8 overflow-x-auto whitespace-nowrap scrollbar-none overscroll-x-contain touch-pan-x">
         {(["hot", "from_pdf", "to_pdf", "merge_split", "all"] as TabType[]).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer capitalize ${
+            type="button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              setActiveTab(tab);
+            }}
+            className={`shrink-0 px-5 py-2.5 text-sm font-semibold border-b-2 transition-all cursor-pointer capitalize touch-manipulation ${
               activeTab === tab
                 ? "border-red-500 text-red-500 bg-red-500/5"
                 : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"

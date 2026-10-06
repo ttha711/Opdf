@@ -61,7 +61,7 @@ test("Windows Electron boots and its real IPC PDF/Office/signing engines work", 
       });
       return Array.from(bytes);
     }, Array.from(source)));
-    await expect(async () => PDFDocument.load(encrypted)).rejects.toThrow();
+    await expect(PDFDocument.load(encrypted)).rejects.toThrow();
 
     const decrypted = Buffer.from(await window.evaluate(async ({ input, password }) => {
       const bytes = await (window as any).opdf.decryptPdf(new Uint8Array(input), password);

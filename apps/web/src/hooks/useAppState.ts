@@ -134,10 +134,18 @@ export function useAppState() {
   const materializeDocumentBytes = useCallback(async (): Promise<Uint8Array | null> => {
     const { getViewerDocumentBytes } = await import("../lib/viewer-runtime");
     const currentSource = docBytes ?? sourceBlob ?? sourceIdentity;
-    const viewerBytes = await getViewerDocumentBytes(currentSource);
-    if (viewerBytes) {
-      setDocBytes(viewerBytes);
-      return viewerBytes;
+    try {
+      const viewerBytes = await getViewerDocumentBytes(currentSource);
+      if (viewerBytes) {
+        setDocBytes(viewerBytes);
+        return viewerBytes;
+      }
+    } catch (error) {
+      // Some valid outputs (notably password-protected PDFs) cannot be
+      // materialized by the active viewer. The current docBytes are still the
+      // authoritative bytes produced by the document operation and must remain
+      // saveable/unlockable even when the viewer cannot reopen them.
+      if (!docBytes) throw error;
     }
 
     if (docBytes) return docBytes;

@@ -1,6 +1,7 @@
 import type { Annotation } from "@opdf/core";
 import type { OpdfBridge } from "../types/opdf";
-import { computeBlobHash, computeFileHash, loadAnnotationsByHash } from "../lib/web-storage";
+import { computeFileHash, loadAnnotationsByHash } from "../lib/web-storage";
+import { resolveBrowserDocumentReference } from "../lib/openDocumentReference";
 
 type SavedSnapshot = {
   fileName?: string;
@@ -57,35 +58,24 @@ export function createOpenExistingDocument(args: Args) {
 
     try {
       args.setViewerError("Loading file...");
-      const isServerDocument = filePath.startsWith("server://");
-      const blob = isServerDocument
-        ? null
-        : await fetch(`/@fs/${filePath.replaceAll("\\", "/")}`).then((response) => {
-            if (!response.ok) throw new Error(`HTTP ${response.status} when trying to load file`);
-            return response.blob();
-          });
-      const encodedName = filePath.split("/").pop() || filePath;
-      const displayName = isServerDocument ? decodeURIComponent(encodedName) : encodedName;
-      const identity = isServerDocument
-        ? filePath
-        : await computeBlobHash(blob as Blob, displayName, 0);
-      const annotations = isServerDocument
-        ? await args.bridge.listAnnotations(identity)
-        : ((await loadAnnotationsByHash(identity) ?? []) as Annotation[]);
+      const resolved = await resolveBrowserDocumentReference(filePath);
+      const annotations = resolved.isServerDocument
+        ? await args.bridge.listAnnotations(resolved.identity)
+        : ((await loadAnnotationsByHash(resolved.identity) ?? []) as Annotation[]);
 
-      args.setFileName(displayName);
+      args.setFileName(resolved.displayName);
       args.setDocBytes(null);
-      args.setSourceBlob(blob);
-      args.setSourceIdentity(identity);
+      args.setSourceBlob(resolved.blob);
+      args.setSourceIdentity(resolved.identity);
       args.setPage(1);
       args.setTotalPages(0);
       args.setViewerError(null);
       args.setAnnotations(annotations);
-      if (isServerDocument) await args.bridge.pushRecent(identity);
+      if (resolved.isServerDocument) await args.bridge.pushRecent(resolved.identity);
       args.markDocumentSaved({
-        fileName: displayName,
+        fileName: resolved.displayName,
         docBytes: null,
-        documentIdentity: identity,
+        documentIdentity: resolved.identity,
         annotations,
       });
     } catch (error) {

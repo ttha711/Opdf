@@ -49,16 +49,14 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
   if (!before) throw new Error("Selection bounding box is unavailable.");
 
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
-  await page.keyboard.down("Alt");
   await page.mouse.down();
   await page.mouse.move(before.x + before.width / 2 + 24, before.y + before.height / 2 - 12, { steps: 4 });
   await page.mouse.up();
-  await page.keyboard.up("Alt");
   await expect(editor.getByText("Object moved on page.")).toBeVisible({ timeout: 20_000 });
 
   const refreshedSelection = page.locator("[data-opdf-canvas-selection]");
   await expect(refreshedSelection).toHaveCount(1);
-  await refreshedSelection.dblclick();
+  await refreshedSelection.click();
   const inlineEditor = page.locator("[data-opdf-inline-text-editor='true']");
   await expect(inlineEditor).toBeVisible({ timeout: 10_000 });
   await inlineEditor.fill("Chỉnh sửa tiếng Việt");
@@ -66,6 +64,14 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
 
   await expect(editor.getByText("Inline text updated with Unicode fallback.")).toBeVisible({ timeout: 20_000 });
   await expect(inlineEditor).toHaveCount(0);
+
+  const beforeKeyboard = await page.locator("[data-opdf-canvas-selection]").boundingBox();
+  expect(beforeKeyboard).not.toBeNull();
+  await page.keyboard.press("ArrowRight");
+  await expect(editor.getByText("Object moved with keyboard.")).toBeVisible({ timeout: 20_000 });
+  const afterKeyboard = await page.locator("[data-opdf-canvas-selection]").boundingBox();
+  expect(afterKeyboard).not.toBeNull();
+  expect((afterKeyboard?.x ?? 0)).toBeGreaterThan(beforeKeyboard?.x ?? 0);
 
   await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
   await expect(editor.getByText("Native content edit undone.")).toBeVisible({ timeout: 20_000 });

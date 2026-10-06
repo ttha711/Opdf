@@ -173,6 +173,8 @@ export function PdfViewer({
         maxDocuments: 1,
       },
       tabBar: "never",
+      chrome: (base: any, helpers: any) =>
+        helpers?.removeItems ? helpers.removeItems(base, ["document:menu"]) : base,
       theme: { preference: "light" },
       annotations: { annotationAuthor: "OPDF" },
       pan: { defaultMode: "mobile" },

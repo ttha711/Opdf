@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 
 test("web viewer boots to the document Home screen", async ({ page }) => {
   await page.goto("/");
@@ -43,4 +43,46 @@ test("desktop top bar keeps tabs and save status stable", async ({ page }) => {
   await expect(header.getByRole("button", { name: /Save now|Saving/ })).toBeVisible();
   await expect(header.getByRole("button", { name: "Undo (Ctrl+Z)" })).toBeVisible();
   await expect(header.getByRole("button", { name: "Redo (Ctrl+Y)" })).toBeVisible();
+});
+
+
+test("native PDF text editing is inline and advanced settings are opt-in", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/");
+
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const pdfPage = pdf.addPage([612, 792]);
+  pdfPage.drawText("EDIT THIS TEXT", { x: 72, y: 700, size: 24, font });
+
+  await page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles({
+    name: "inline-edit.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from(await pdf.save()),
+  });
+
+  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  const appMenu = page.locator("header").getByRole("button", { name: "Application menu", exact: true });
+  await appMenu.click();
+  await page.locator("header").getByRole("menuitem", { name: "Edit PDF Content", exact: true }).click();
+
+  await expect(page.locator('[data-opdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-opdf-right-sidebar="closed"]')).toHaveCount(1);
+  await expect(page.locator('[data-opdf-action="expand-right-panel"]')).toBeVisible();
+
+  const textObject = page.locator('[data-opdf-canvas-object][data-opdf-object-kind="text"]').first();
+  await expect(textObject).toBeVisible({ timeout: 20_000 });
+  await textObject.click();
+
+  const inlineEditor = page.locator('[data-opdf-inline-text-editor="true"]');
+  await expect(inlineEditor).toBeVisible();
+  await expect(inlineEditor).toHaveAttribute("aria-label", "Edit PDF text");
+  await inlineEditor.fill("UPDATED INLINE TEXT");
+  await inlineEditor.press("Enter");
+  await expect(inlineEditor).toHaveCount(0, { timeout: 20_000 });
+
+  await page.locator('[data-opdf-action="expand-right-panel"]').click();
+  await expect(page.locator('[data-opdf-right-sidebar="open"]')).toBeVisible();
+  await expect(page.locator('[data-opdf-native-editor="true"]')).toBeVisible();
+  await expect(page.locator('[data-opdf-action="collapse-right-panel"]')).toBeVisible();
 });

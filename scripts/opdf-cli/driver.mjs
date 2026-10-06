@@ -556,7 +556,9 @@ export class OpdfDriver {
 
     // EmbedPDF may render annotation flyouts through a document-level portal,
     // so search the full page after opening Annotate instead of only the viewer root.
-    const candidates = this.page.getByRole("button");
+    const candidates = this.page.locator(
+      'button, [role="menuitem"], [role="menuitemradio"], [role="option"]',
+    );
     const count = await candidates.count();
     let chosen = null;
     const preferred = [/ink/i, /draw/i, /pencil/i, /highlight/i];

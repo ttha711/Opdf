@@ -381,10 +381,6 @@
     grid-template-columns: 1fr;
   }
 
-  .ai-float-toggle-btn {
-    right: 14px;
-    bottom: max(96px, calc(env(safe-area-inset-bottom) + 76px));
-  }
 }
 
 @media (max-width: 520px) {

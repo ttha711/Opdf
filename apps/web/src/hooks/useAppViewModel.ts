@@ -30,6 +30,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     setActiveTool,
     savePdf: actions.savePdf,
     saveState: state.saveState,
+    autosaveEnabled: true,
     undoAnnotations: actions.undoAnnotations,
     redoAnnotations: actions.redoAnnotations,
     runOcr: actions.runOcr,

@@ -57,8 +57,9 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(page.locator(".opdf-topbar .tab-bar-container")).toBeVisible();
   await page.locator('[data-opdf-action="home"]').click();
   await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toBeVisible();
-  await expect(page.getByText("mobile-three-pages.pdf", { exact: true })).toBeVisible();
-  await page.getByText("mobile-three-pages.pdf", { exact: true }).click();
+  const preservedTab = page.locator(".opdf-header-tabs").getByText("mobile-three-pages.pdf", { exact: true });
+  await expect(preservedTab).toBeVisible();
+  await preservedTab.click();
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
 
   const documentOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

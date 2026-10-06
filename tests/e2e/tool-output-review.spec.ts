@@ -59,7 +59,10 @@ test("Fill Form writes an AcroForm value into the exported PDF", async ({ page }
   const fieldLabel = dialog.locator("label").filter({ hasText: "customer_name" }).first();
   await expect(fieldLabel).toBeVisible({ timeout: 15_000 });
   await fieldLabel.locator("input").fill("Alice Output Check");
-  await dialog.getByRole("button", { name: "Apply form values", exact: true }).click();
+  const apply = dialog.getByRole("button", { name: "Apply form values", exact: true });
+  await apply.click();
+  await expect(apply).toBeEnabled({ timeout: 10_000 });
+  await dialog.locator('[data-opdf-action="close-dialog"]').first().click();
 
   const output = await PDFDocument.load(await exportCurrentPdf(page));
   expect(output.getForm().getTextField("customer_name").getText()).toBe("Alice Output Check");
@@ -117,7 +120,10 @@ test("Advanced PDF embeds a real outline bookmark into the PDF catalog", async (
   await dialog.getByRole("button", { name: "bookmarks", exact: true }).click();
   await dialog.getByRole("button", { name: "+ Add bookmark", exact: true }).click();
   await dialog.locator('input[placeholder="Bookmark title"]').fill("OPDF BOOKMARK CHECK");
-  await dialog.getByRole("button", { name: "Embed bookmarks", exact: true }).click();
+  const embed = dialog.getByRole("button", { name: "Embed bookmarks", exact: true });
+  await embed.click();
+  await expect(embed).toBeEnabled({ timeout: 10_000 });
+  await dialog.locator('[data-opdf-action="close-dialog"]').first().click();
 
   const output = await PDFDocument.load(await exportCurrentPdf(page));
   expect(output.catalog.get(PDFName.of("Outlines"))).toBeTruthy();

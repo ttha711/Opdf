@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { OpdfIcon } from "./OpdfIcon";
 
 type SaveState = "idle" | "saving" | "saved";
 
@@ -33,9 +34,7 @@ function IconButton({
 export function UndoButton({ onClick }: { onClick: () => void }) {
   return (
     <IconButton label="Undo (Ctrl+Z)" action="undo" onClick={onClick}>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M9 7H5v-4M5 7l4-4M5.5 7.5A8 8 0 1 1 8 18.7" />
-      </svg>
+      <OpdfIcon name="undo" />
     </IconButton>
   );
 }
@@ -43,9 +42,7 @@ export function UndoButton({ onClick }: { onClick: () => void }) {
 export function RedoButton({ onClick }: { onClick: () => void }) {
   return (
     <IconButton label="Redo (Ctrl+Y)" action="redo" onClick={onClick}>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M15 7h4v-4m0 4-4-4m3.5 4.5A8 8 0 1 0 16 18.7" />
-      </svg>
+      <OpdfIcon name="redo" />
     </IconButton>
   );
 }
@@ -76,10 +73,7 @@ export function SaveControl({
         onClick={onSave}
         disabled={saveState === "saving"}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M5 4h12l2 2v14H5z" />
-          <path d="M8 4v6h8V4M8 20v-6h8v6" />
-        </svg>
+        <OpdfIcon name="save" />
       </IconButton>
       <span
         className="opdf-save-status-slot"

@@ -112,7 +112,8 @@ async function assertMainPdfSurface() {
 async function openApplicationMenu(focusItem = null) {
   const trigger = page.locator('button[aria-label="Application menu"]:visible').first();
   await trigger.click();
-  const menu = page.locator('[role="menu"]:visible').first();
+  const menuHost = trigger.locator("xpath=..");
+  const menu = menuHost.locator('[role="menu"]').first();
   await menu.waitFor({ state: "visible", timeout: 5000 });
   await page.waitForTimeout(120);
 
@@ -265,7 +266,8 @@ try {
   if (await sidebarOverlay.isVisible()) await sidebarOverlay.click();
   else await pagesToggle.click();
   await sidebarPanel.waitFor({ state: "hidden", timeout: 15000 });
-  await page.locator("header").getByRole("button", { name: "☰", exact: true }).click();
+  await page.locator("header").getByRole("button", { name: "Application menu", exact: true }).click();
+  await page.locator('[data-opdf-mobile-sheet="true"]').waitFor({ state: "visible", timeout: 5000 });
   await shot("17-mobile-menu");
 
   console.log("UI audit screenshots written to", outDir);

@@ -12,9 +12,10 @@ type MenuDropdownProps = {
   onToggle: () => void;
   onClose: () => void;
   mobileSheet?: boolean;
+  triggerTitle?: string;
 };
 
-export function MenuDropdown({ label, items, isOpen, onToggle, onClose, mobileSheet = false }: MenuDropdownProps) {
+export function MenuDropdown({ label, items, isOpen, onToggle, onClose, mobileSheet = false, triggerTitle }: MenuDropdownProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,7 +36,16 @@ export function MenuDropdown({ label, items, isOpen, onToggle, onClose, mobileSh
 
   return (
     <div className="relative" ref={ref} data-opdf-menu={label}>
-      <button data-opdf-menu-trigger={label} className={`top-menu-btn${isOpen ? " menu-open" : ""}`} onClick={onToggle} type="button" aria-haspopup="menu" aria-expanded={isOpen}>
+      <button
+        data-opdf-menu-trigger={label}
+        className={`top-menu-btn opdf-menu-trigger${isOpen ? " menu-open" : ""}`}
+        onClick={onToggle}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-label={triggerTitle || label}
+        title={triggerTitle}
+      >
         {label}
       </button>
       {isOpen && (
@@ -45,7 +55,7 @@ export function MenuDropdown({ label, items, isOpen, onToggle, onClose, mobileSh
           data-opdf-mobile-sheet={mobileSheet ? "true" : "false"}
           className={mobileSheet
             ? "fixed inset-x-3 bottom-3 top-auto max-h-[72vh] min-w-0 overflow-y-auto rounded-2xl border border-[var(--border-color)] bg-[var(--bg-toolbar)] py-2 shadow-2xl"
-            : "absolute left-0 top-[calc(100%+2px)] max-h-[calc(100vh-56px)] min-w-[220px] overflow-y-auto rounded border border-[var(--border-color)] bg-[var(--bg-toolbar)] py-1 shadow-xl"}
+            : "absolute left-0 top-[calc(100%+6px)] max-h-[calc(100vh-64px)] min-w-[260px] overflow-y-auto rounded-lg border border-[var(--border-color)] bg-[var(--bg-toolbar)] py-1 shadow-xl"}
           style={{ zIndex: "var(--z-dropdown)" }}
         >
           {items.map((item, i) =>

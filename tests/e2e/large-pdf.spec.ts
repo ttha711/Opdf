@@ -62,10 +62,14 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   // The engine-owned sidebar is the single page-navigation sidebar.
   await openEmbedPdfSidebar(viewer);
 
-  // Measurement remains an OPDF-specific tool, launched from the conventional
-  // Tools menu instead of a second annotation toolbar.
-  await page.getByRole("button", { name: "Tools", exact: true }).click();
-  await page.getByRole("menuitem", { name: "Measure Drawing", exact: true }).click();
+  // Measurement remains an OPDF-specific tool, launched from the unified
+  // application menu instead of a second annotation toolbar.
+  const applicationMenu = page.locator('[data-opdf-region="app-header"]')
+    .getByRole("button", { name: "Application menu", exact: true });
+  await applicationMenu.click();
+  const menuSurface = page.locator('[data-opdf-menu-surface="⋯"]:visible').first();
+  await expect(menuSurface).toBeVisible();
+  await menuSurface.getByRole("menuitem", { name: "Measure Drawing", exact: true }).click();
   await expect(page.getByText("Measure", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Measurement mode")).toHaveValue("distance");
   await page.getByRole("button", { name: "Close measurement tool", exact: true }).click();

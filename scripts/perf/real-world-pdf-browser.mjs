@@ -95,11 +95,14 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
   let searchMatches = null;
   if (testCase.searchText) {
     const header = page.locator("header");
-    await header.getByRole("button", { name: "Tools", exact: true }).click();
-    await header.getByRole("menuitem", {
+    await header.locator('button[aria-label="Application menu"]:visible').first().click();
+    const applicationMenu = page.locator('[role="menu"]:visible').first();
+    const redactAction = applicationMenu.getByRole("menuitem", {
       name: "Search & Secure Redact...",
       exact: true,
-    }).click();
+    });
+    await redactAction.scrollIntoViewIfNeeded();
+    await redactAction.click();
     const modal = page.locator(".premium-modal").filter({ hasText: "Search & Secure Redact" });
     await modal.getByPlaceholder("Text to redact…").fill(testCase.searchText);
     await modal.getByRole("button", { name: "Search all pages", exact: true }).click();

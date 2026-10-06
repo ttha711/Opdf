@@ -2,9 +2,174 @@
   .app { @apply h-screen overflow-hidden grid; grid-template-rows: auto minmax(0, 1fr) 26px; background: var(--bg-app); }
   .app.has-update-banner { grid-template-rows: auto auto minmax(0, 1fr) 26px; }
   .top-menu-btn { @apply inline-flex cursor-pointer items-center gap-1.5 rounded px-2.5 py-1.5 text-[13px] font-medium transition-colors; color: var(--text-primary); }
-   .top-menu-btn:hover { background: var(--ui-hover-bg); }
+  .top-menu-btn:hover { background: var(--ui-hover-bg); }
+  .top-menu-btn.menu-open { background: var(--ui-hover-bg); color: var(--acrobat-blue); }
 
-    .top-menu-btn.menu-open { background: var(--ui-hover-bg); color: var(--acrobat-blue); }
+  .opdf-app-header { min-width: 0; }
+  .opdf-topbar {
+    display: flex;
+    min-width: 0;
+    height: 46px;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: var(--ui-muted-bg);
+  }
+
+  .opdf-brand-home {
+    display: inline-flex;
+    height: 34px;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 7px;
+    border: 0;
+    border-radius: 7px;
+    padding: 0 8px;
+    background: transparent;
+    color: #e03e2d;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: -.3px;
+  }
+
+  .opdf-brand-home:hover,
+  .opdf-theme-btn:hover,
+  .opdf-header-icon-btn:hover,
+  .opdf-open-btn:hover {
+    background: var(--ui-hover-bg);
+  }
+
+  .opdf-theme-btn,
+  .opdf-header-icon-btn {
+    display: inline-grid;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    place-items: center;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--icon-color);
+    cursor: pointer;
+  }
+
+  .opdf-theme-btn svg,
+  .opdf-header-icon-btn svg,
+  .opdf-open-btn svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .opdf-theme-btn svg:last-child {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  .opdf-menu-trigger {
+    min-width: 32px;
+    height: 32px;
+    justify-content: center;
+    padding: 0 8px;
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .opdf-header-tabs {
+    min-width: 80px;
+    flex: 1 1 auto;
+    overflow: hidden;
+    margin: 0 4px;
+  }
+
+  .opdf-header-tabs-empty { min-height: 32px; }
+
+  .opdf-header-tabs .tab-bar-container {
+    min-height: 34px;
+    border-bottom: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .opdf-header-tabs .tab-bar-container > div:first-child {
+    flex-wrap: nowrap;
+    margin-right: 0;
+  }
+
+  .opdf-header-tabs .tab-item {
+    min-height: 31px;
+    border-radius: 7px;
+    border-bottom-width: 2px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .opdf-header-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .opdf-save-cluster {
+    display: grid;
+    width: 112px;
+    flex: 0 0 112px;
+    grid-template-columns: 32px 76px;
+    align-items: center;
+    column-gap: 4px;
+  }
+
+  .opdf-save-status-slot {
+    display: inline-flex;
+    width: 76px;
+    min-width: 76px;
+    align-items: center;
+    gap: 5px;
+    overflow: hidden;
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .opdf-save-status-dot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: 999px;
+    background: #e11d48;
+  }
+
+  .opdf-save-cluster[data-opdf-save-state="saving"] .opdf-save-status-dot {
+    background: #d97706;
+    animation: opdf-save-pulse 1s ease-in-out infinite;
+  }
+
+  .opdf-save-cluster[data-opdf-save-state="saved"] .opdf-save-status-dot {
+    background: #059669;
+  }
+
+  .opdf-open-btn {
+    display: inline-flex;
+    height: 32px;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 7px;
+    border: 0;
+    border-radius: 7px;
+    padding: 0 9px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 650;
+  }
 
   .workspace.acrobat-body { @apply grid min-h-0 overflow-hidden; grid-template-columns: 240px 1fr 240px; }
   .left-panel { @apply z-[2] overflow-hidden border-r p-0 shadow-[1px_0_3px_rgba(0,0,0,.02)]; background: var(--bg-panel); border-color: var(--border-color); }
@@ -294,16 +459,10 @@
   }
 
   .opdf-topbar {
-    min-height: 48px;
-    height: auto;
-    overflow-x: auto;
-    overflow-y: visible;
-    padding: 6px 8px;
-    scrollbar-width: none;
-  }
-
-  .opdf-topbar::-webkit-scrollbar {
-    display: none;
+    min-height: 46px;
+    height: 46px;
+    overflow: visible;
+    padding: 4px 6px;
   }
 
   .top-menu-btn {
@@ -429,7 +588,21 @@
     overflow: visible;
   }
 
-  .opdf-header-actions {
+  .opdf-header-actions .top-menu-btn,
+  .opdf-header-actions .opdf-save-cluster,
+  .opdf-header-actions .opdf-header-icon-btn {
+    display: none;
+  }
+
+  .opdf-brand-home span {
+    display: none;
+  }
+
+  .opdf-header-tabs {
+    margin-inline: 2px;
+  }
+
+  .opdf-header-tabs .tab-bar-container > div:last-of-type {
     display: none;
   }
 }
@@ -448,4 +621,10 @@
   .opdf-home__recent-card {
     min-height: 64px;
   }
+}
+
+
+@keyframes opdf-save-pulse {
+  0%, 100% { opacity: .45; transform: scale(.9); }
+  50% { opacity: 1; transform: scale(1); }
 }

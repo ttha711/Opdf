@@ -12,7 +12,10 @@ export async function saveServerDocumentAndWait(page: Page) {
     { timeout: 30_000 },
   );
 
-  await page.getByTitle("Save (Ctrl+S)").click();
+  const saveButton = page.locator('[data-opdf-action="save"]').first();
+  await expect(saveButton).toBeVisible({ timeout: 10_000 });
+  await expect(saveButton).toBeEnabled({ timeout: 30_000 });
+  await saveButton.click({ timeout: 10_000 });
   const response = await saveResponse;
   expect(response.ok()).toBeTruthy();
   await expect(

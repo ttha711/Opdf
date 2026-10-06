@@ -1,12 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-
-async function clickHeaderMenuItem(page: Page, menu: "File" | "View" | "Tools", item: string) {
-  const header = page.locator("header");
-  await header.getByRole("button", { name: menu, exact: true }).click();
-  await header.getByRole("menuitem", { name: item, exact: true }).click();
-}
+import { clickApplicationMenuItem, getApplicationMenuItem } from "../helpers/app-menu";
+import { saveServerDocumentAndWait } from "../helpers/save";
 
 
 async function createPdf(pageCount: number, prefix: string, revision = false) {
@@ -71,7 +67,7 @@ test("server structural edits and secure redaction survive Save + reload", async
   const mutationResponsePromise = page.waitForResponse(
     (response) => response.url().includes(`/api/opdf/documents/${stored.id}/mutations`) && response.request().method() === "POST",
   );
-  await clickHeaderMenuItem(page, "View", "Rotate All Pages Right");
+  await clickApplicationMenuItem(page, "Rotate All Pages Right");
   const mutationResponse = await mutationResponsePromise;
   expect(mutationResponse.ok()).toBeTruthy();
   await expect(viewer).toHaveAttribute("data-opdf-source", "server", { timeout: 30_000 });
@@ -83,7 +79,7 @@ test("server structural edits and secure redaction survive Save + reload", async
 
   await openStored(page, stored.filePath, 6);
 
-  await clickHeaderMenuItem(page, "Tools", "Search & Secure Redact...");
+  await clickApplicationMenuItem(page, "Search & Secure Redact...");
   let redactModal = page.locator(".premium-modal").filter({ hasText: "Search & Secure Redact" });
   await redactModal.getByPlaceholder("Text to redact…").fill("PERSIST SHEET 6");
   await redactModal.getByRole("button", { name: "Search all pages", exact: true }).click();
@@ -91,20 +87,19 @@ test("server structural edits and secure redaction survive Save + reload", async
   await redactModal.getByRole("button", { name: /Apply 1 secure redaction/i }).click();
   await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy", { timeout: 30_000 });
 
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await saveServerDocumentAndWait(page);
   await expect(page.getByText("Saved to OPDF Server.", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
 
   await openStored(page, stored.filePath, 6);
-  await clickHeaderMenuItem(page, "Tools", "Search & Secure Redact...");
+  await clickApplicationMenuItem(page, "Search & Secure Redact...");
   redactModal = page.locator(".premium-modal").filter({ hasText: "Search & Secure Redact" });
   await redactModal.getByPlaceholder("Text to redact…").fill("PERSIST SHEET 6");
   await redactModal.getByRole("button", { name: "Search all pages", exact: true }).click();
   await expect(redactModal).toContainText("0 match(es) found", { timeout: 30_000 });
 
   await redactModal.getByRole("button", { name: "Cancel", exact: true }).click();
-  const header = page.locator("header");
-  await header.getByRole("button", { name: "Tools", exact: true }).click();
-  await expect(header.getByRole("menuitem", { name: "Digital Sign...", exact: true })).toBeDisabled();
+  const digitalSignItem = await getApplicationMenuItem(page, "Digital Sign...");
+  await expect(digitalSignItem).toBeDisabled();
   await page.keyboard.press("Escape");
 });
 
@@ -114,7 +109,7 @@ test("server compare, split and merge workflows execute end to end", async ({ pa
   const stored = await uploadPdf(request, "tool-workflow.pdf", base);
   const viewer = await openStored(page, stored.filePath, 3);
 
-  await clickHeaderMenuItem(page, "Tools", "Compare Revisions...");
+  await clickApplicationMenuItem(page, "Compare Revisions...");
   const compare = page.locator("div.fixed.inset-0").filter({ hasText: "Compare Revisions" });
   const revision = await createPdf(3, "BASE", true);
   await compare.locator('input[type="file"]').setInputFiles({
@@ -127,7 +122,7 @@ test("server compare, split and merge workflows execute end to end", async ({ pa
   await compare.getByRole("button", { name: "Close", exact: true }).click();
   await expect(viewer).toHaveAttribute("data-opdf-source", "server");
 
-  await clickHeaderMenuItem(page, "Tools", "Split PDF...");
+  await clickApplicationMenuItem(page, "Split PDF...");
   const splitPanel = page.locator("aside.acrobat-tool-panel").filter({ hasText: "Advanced Split Document" });
   await splitPanel.getByLabel("Consolidate selected pages").check();
   await splitPanel.getByPlaceholder("Example: 1, 3, 5-8").fill("1, 2");
@@ -139,7 +134,7 @@ test("server compare, split and merge workflows execute end to end", async ({ pa
   const splitDoc = await PDFDocument.load(await readFile(splitPath!));
   expect(splitDoc.getPageCount()).toBe(2);
 
-  await clickHeaderMenuItem(page, "Tools", "Merge PDFs...");
+  await clickApplicationMenuItem(page, "Merge PDFs...");
   const mergePanel = page.locator("aside.acrobat-tool-panel").filter({ hasText: "Advanced Merge Documents" });
   const extra = await createPdf(1, "EXTRA");
   await mergePanel.locator('input[type="file"]').setInputFiles({
@@ -187,7 +182,7 @@ test("server review annotations persist and browser export paths stay usable", a
   }).toBe(true);
 
   const exportDownloadPromise = page.waitForEvent("download");
-  await clickHeaderMenuItem(page, "File", "Export PDF...");
+  await clickApplicationMenuItem(page, "Export PDF...");
   const exportDownload = await exportDownloadPromise;
   expect(exportDownload.suggestedFilename()).toMatch(/^exported-.*\.pdf$/i);
   const exportPath = await exportDownload.path();
@@ -196,7 +191,7 @@ test("server review annotations persist and browser export paths stay usable", a
   expect(exported.getPageCount()).toBe(2);
 
   const imageDownloadPromise = page.waitForEvent("download");
-  await clickHeaderMenuItem(page, "File", "Convert to Images");
+  await clickApplicationMenuItem(page, "Convert to Images");
   const imageDownload = await imageDownloadPromise;
   expect(imageDownload.suggestedFilename()).toMatch(/-images\.zip$/i);
 });

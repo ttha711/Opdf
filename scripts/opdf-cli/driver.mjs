@@ -301,15 +301,23 @@ export class OpdfDriver {
     return this.inspect();
   }
 
-  async openMenu(name) {
+  async openMenu(name = "application") {
     const key = String(name).trim().toLowerCase();
-    const labels = { file: "File", edit: "Edit", view: "View", tools: "Tools" };
-    const label = labels[key];
-    if (!label) throw new Error('Menu must be one of: File, Edit, View, Tools');
-    const trigger = this.page.locator(`[data-opdf-menu-trigger="${label}"]`);
-    await trigger.click();
-    const menu = this.page.locator(`[data-opdf-menu-surface="${label}"]`);
-    await menu.waitFor({ state: "visible" });
+    const sections = { file: "File", edit: "Edit", view: "View", tools: "Tools" };
+    if (key !== "application" && !sections[key]) {
+      throw new Error('Menu must be "Application" or one of its legacy sections: File, Edit, View, Tools');
+    }
+
+    const timeout = Math.min(this.options.timeout, 10_000);
+    const trigger = this.page.locator('button[aria-label="Application menu"]:visible').first();
+    await trigger.waitFor({ state: "visible", timeout });
+
+    if ((await trigger.getAttribute("aria-expanded")) !== "true") {
+      await trigger.click({ timeout });
+    }
+
+    const menu = trigger.locator("xpath=..").locator('[role="menu"]').first();
+    await menu.waitFor({ state: "visible", timeout });
     const reachable = await menu.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       if (rect.width < 20 || rect.height < 20) return false;
@@ -318,33 +326,50 @@ export class OpdfDriver {
       const hit = document.elementFromPoint(x, y);
       return Boolean(hit && element.contains(hit));
     });
-    if (!reachable) throw new Error(`${label} menu is clipped or visually occluded`);
-    return { ok: true, menu: label };
+    if (!reachable) throw new Error("Application menu is clipped or visually occluded");
+    return { ok: true, menu: "Application", section: sections[key] || null };
   }
 
   async openTool(name) {
     const tool = resolveTool(name);
+    const timeout = Math.min(this.options.timeout, 10_000);
+
+    // Tool/markup panels share the right rail. Close the previous one first so
+    // a stale panel cannot mask the state transition requested by the next tool.
+    await this.closeDialog();
+    await this.closeTool();
+    await this.page.keyboard.press("Escape").catch(() => {});
+
     if (tool.quick) {
-      const quick = this.page.locator(`button[data-opdf-tool="${tool.quick}"]`);
+      const quick = this.page.locator(`button[data-opdf-tool="${tool.quick}"]:visible`).first();
       if (await quick.isVisible().catch(() => false)) {
-        await quick.click();
-        await this.page.waitForTimeout(200);
+        await quick.click({ timeout });
+        if (tool.quick !== "ocr") {
+          const panel = this.page.locator(
+            `[data-opdf-panel][data-opdf-tool="${tool.quick}"]:visible`,
+          ).first();
+          await panel.waitFor({ state: "visible", timeout });
+        }
         return { ok: true, tool: tool.key, via: "quick-tool", state: await this.inspect() };
       }
     }
 
     await this.openMenu("Tools");
-    const item = this.page.locator(`[data-opdf-menu-item="${tool.menu}"]`);
-    if ((await item.count()) === 0) throw new Error(`Tool "${name}" was not found in the Tools menu`);
+    const menu = this.page.locator('[role="menu"]:visible').first();
+    const item = menu.locator(`[data-opdf-menu-item="${tool.menu}"]`).first();
+    await item.waitFor({ state: "visible", timeout });
     if (await item.isDisabled()) throw new Error(`Tool "${name}" is disabled in the current runtime`);
-    await item.click();
-    await this.page.waitForTimeout(200);
-    return { ok: true, tool: tool.key, via: "tools-menu", state: await this.inspect() };
+    await item.click({ timeout });
+    await this.page.waitForTimeout(100);
+    return { ok: true, tool: tool.key, via: "application-menu", state: await this.inspect() };
   }
 
   async closeTool() {
-    const close = this.page.locator('[data-opdf-action="close-tool"]').first();
-    if (await close.isVisible().catch(() => false)) await close.click();
+    const close = this.page.locator('[data-opdf-action="close-tool"]:visible').first();
+    if (await close.isVisible().catch(() => false)) {
+      await close.click({ timeout: Math.min(this.options.timeout, 10_000) });
+      await close.waitFor({ state: "hidden", timeout: Math.min(this.options.timeout, 10_000) }).catch(() => {});
+    }
   }
 
   async closeDialog() {
@@ -398,7 +423,8 @@ export class OpdfDriver {
 
   async exportPdf(targetDir, label = "export") {
     await this.openMenu("File");
-    const item = this.page.locator('[data-opdf-menu-item="Export PDF..."]');
+    const item = this.page.locator('[data-opdf-menu-item="Export PDF..."]').first();
+    await item.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
     if (await item.isDisabled()) throw new Error("Export PDF is disabled");
     return this.downloadByClick(item, targetDir, label);
   }
@@ -499,9 +525,26 @@ export class OpdfDriver {
 
   async runOcrDownload(targetDir) {
     await this.openMenu("Tools");
-    const item = this.page.locator('[data-opdf-menu-item="Run OCR"]');
+    const item = this.page.locator('[data-opdf-menu-item="Run OCR"]').first();
+    await item.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
     if (await item.isDisabled()) throw new Error("OCR is disabled");
     return this.downloadByClick(item, targetDir, "ocr");
+  }
+
+  async runCompress() {
+    await this.openTool("compress");
+    const panel = this.page.locator(
+      '[data-opdf-panel="tool"][data-opdf-tool="compress-pdf"]:visible',
+    ).first();
+    await panel.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
+    const run = panel.locator('[data-opdf-action="compress-run"]');
+    await run.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
+    if (await run.isDisabled()) throw new Error("Compress Document is disabled");
+    await run.click({ timeout: Math.min(this.options.timeout, 10_000) });
+    await this.waitForStatusMessage(/optimized successfully/i);
+    await this.waitForPdfSurface();
+    await this.closeTool();
+    return this.inspect();
   }
 
   async createAnnotation() {

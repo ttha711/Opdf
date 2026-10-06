@@ -56,7 +56,7 @@ async function expectSafeViewerFailure(
   ).toBe(true);
 
   await expect(
-    page.locator("header").getByRole("button", { name: "File", exact: true }),
+    page.locator("header").getByRole("button", { name: "Application menu", exact: true }),
   ).toBeVisible();
   await expect(page.locator("[data-opdf-native-editor='true']")).toHaveCount(0);
 }

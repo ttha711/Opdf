@@ -31,7 +31,6 @@ export function App() {
   });
   const isAiEditorWindow = typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("ai-editor") === "1";
-
   const [updateInfo, setUpdateInfo] = useState<{ version: string; description?: string } | null>(null);
   const [activeMarkupTool, setActiveMarkupTool] = useState<MarkupTool | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
@@ -41,14 +40,13 @@ export function App() {
   const [showSearchRedact, setShowSearchRedact] = useState(false);
   const [showAdvancedPdf, setShowAdvancedPdf] = useState(false);
   const [showDigitalSignature, setShowDigitalSignature] = useState(false);
+  const [showHome, setShowHome] = useState(false);
   const [bridgeRecents, setBridgeRecents] = useState<Array<{ filePath: string; openedAt: number }>>([]);
-
   const sidebars = useResizableSidebars();
   const fab = useDraggableFab();
   const controllers = useAppControllers({ isPublic, setActiveMarkupTool });
   const { state, bridge, headerProps, onDragOver, onDrop, replaceDocumentBytes, materializeDocumentBytes, openAiEditorWindow, openFileWithPath } = controllers;
   const toast = useToast();
-
   const { handleIntegratedFileSelected } = useIntegratedFileConverter({
     activeDashboardTool: state.activeDashboardTool,
     setActiveDashboardTool: state.setActiveDashboardTool,
@@ -64,11 +62,9 @@ export function App() {
       if (info) setUpdateInfo(info);
     });
   }, []);
-
   useEffect(() => {
     if (state.activeTool === "edit-content") sidebars.setIsRightCollapsed(false);
   }, [state.activeTool, sidebars.setIsRightCollapsed]);
-
   useEffect(() => {
     let cancelled = false;
     void bridge.getRecent()
@@ -76,7 +72,6 @@ export function App() {
       .catch(() => { if (!cancelled) setBridgeRecents([]); });
     return () => { cancelled = true; };
   }, [bridge, state.fileName, state.sourceIdentity]);
-
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (state.hasDocument && state.saveState === "idle") {
@@ -87,7 +82,6 @@ export function App() {
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [state.hasDocument, state.saveState]);
-
   const resetDocumentScopedUi = useCallback(() => {
     state.setActiveTool("select");
     state.setActiveDashboardTool(null);
@@ -103,7 +97,6 @@ export function App() {
     sidebars.setIsRightCollapsed(true);
   }, [sidebars.setIsRightCollapsed, state.setActiveDashboardTool, state.setActiveTool, state.setShowDashboard]);
   useDocumentScopedUiReset(state.hasDocument, resetDocumentScopedUi);
-
   const homeRecentDocuments = useMemo(() => [
     ...state.tabs.map((tab) => ({
       id: `tab:${tab.id}`,
@@ -121,7 +114,6 @@ export function App() {
         }
       }),
   ].slice(0, 8), [bridgeRecents, state.tabs]);
-
   const activePdfSource = resolvePdfSource({
     sourceBlob: state.sourceBlob,
     docBytes: state.docBytes,
@@ -137,16 +129,13 @@ export function App() {
     setActiveMarkupTool(tool);
     sidebars.setIsRightCollapsed(false);
   }, [sidebars.setIsRightCollapsed, state.setActiveDashboardTool]);
-
   if (isAiEditorWindow) {
     if (isPublic) {
       return <div className="flex h-screen items-center justify-center text-gray-500">This feature is only available on Local or Desktop App versions.</div>;
     }
     return <AiRewriteEditorWindow />;
   }
-
   const showWorkspace = state.hasDocument || Boolean(state.activeDashboardTool);
-
   return (
     <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}`}>
       <AppUpdateBanner updateInfo={updateInfo} />
@@ -154,10 +143,18 @@ export function App() {
       <AppHeader
         {...headerProps}
         isPublic={isPublic}
+        onGoHome={() => setShowHome(true)}
+        openFile={() => {
+          setShowHome(false);
+          headerProps.openFile();
+        }}
         tabs={state.tabs}
         activeTabId={state.activeTabId}
         activeGroupFilter={state.activeGroupFilter}
-        switchTab={state.switchTab}
+        switchTab={(id) => {
+          setShowHome(false);
+          state.switchTab(id);
+        }}
         closeTab={state.closeTab}
         addTabToGroup={state.addTabToGroup}
         removeTabFromGroup={state.removeTabFromGroup}
@@ -192,7 +189,29 @@ export function App() {
         setShowDigitalSignature={setShowDigitalSignature}
         success={toast.success}
       />
-      {state.showDashboard && !isPublic ? (
+      {showHome ? (
+        <div className="min-h-0 overflow-hidden" onDragOver={onDragOver} onDrop={(event) => {
+          setShowHome(false);
+          onDrop(event);
+        }}>
+          <HomeScreen
+            recentDocuments={homeRecentDocuments}
+            onOpenFile={() => {
+              setShowHome(false);
+              headerProps.openFile();
+            }}
+            onOpenTools={() => {
+              setShowHome(false);
+              state.setShowDashboard(true);
+            }}
+            onOpenRecent={(id) => {
+              setShowHome(false);
+              if (id.startsWith("tab:")) return state.switchTab(id.slice(4));
+              if (id.startsWith("path:")) void openFileWithPath(id.slice(5));
+            }}
+          />
+        </div>
+      ) : state.showDashboard && !isPublic ? (
         <AllToolsDashboard
           hasDocument={state.hasDocument}
           fileName={state.fileName}
@@ -243,7 +262,7 @@ export function App() {
           success={toast.success}
         />
       )}
-      <StatusBar hasDocument={state.hasDocument} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} />
+      <StatusBar hasDocument={state.hasDocument && !showHome} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} />
       {!isAiPanelOpen ? (
         <button
           ref={fab.buttonRef}

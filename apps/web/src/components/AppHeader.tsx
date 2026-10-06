@@ -117,7 +117,6 @@ export function AppHeader(props: AppHeaderProps) {
     closeTabGroup,
     ungroupGroup,
   } = props;
-
   const bridgeCapabilities = useOpdfBridge().capabilities;
   const effectiveEditMenuItems = activeTool === "edit-content"
     ? editMenuItems.map((item) =>
@@ -128,7 +127,6 @@ export function AppHeader(props: AppHeaderProps) {
             : item,
       )
     : editMenuItems;
-
   const compactToolsMenuItems = buildCompactToolsMenuItems({
     hasDocument,
     hasDesktopBridge,
@@ -149,11 +147,9 @@ export function AppHeader(props: AppHeaderProps) {
     runDocumentTool,
     openDocumentMarkupTool,
   });
-
   const aiEdit = isPublic
     ? () => toast.info("This feature is only available in the Local or Desktop App.")
     : () => onOpenAiEditorWindow?.();
-
   const globalMenuItems = buildGlobalMenuItems({
     fileMenuItems,
     editMenuItems: effectiveEditMenuItems,
@@ -161,14 +157,12 @@ export function AppHeader(props: AppHeaderProps) {
     toolsMenuItems: compactToolsMenuItems,
     aiEdit,
   });
-
   const undo = activeTool === "edit-content"
     ? () => { void undoNativeContentEdit(); }
     : undoAnnotations;
   const redo = activeTool === "edit-content"
     ? () => { void redoNativeContentEdit(); }
     : redoAnnotations;
-
   return (
     <header
       data-opdf-region="app-header"

@@ -60,7 +60,6 @@ export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
   { id: "bates", title: "Add Bates Numbering", description: "Add Bates numbering to pages.", risk: "safe", requiresDocument: true, markupTool: "bates" },
   { id: "encrypt", title: "Encrypt PDF", description: "Encrypt the PDF with a password.", risk: "destructive", requiresDocument: true, requiredArgs: ["password"], documentTool: "encrypt" },
   { id: "decrypt", title: "Decrypt PDF", description: "Decrypt the PDF with a password.", risk: "destructive", requiresDocument: true, requiredArgs: ["password"], documentTool: "decrypt" },
-  { id: "normalize", title: "Convert to PDF/A", description: "Normalize the PDF to PDF/A where supported.", risk: "safe", requiresDocument: true, documentTool: "normalize" },
   { id: "open-tools-dashboard", title: "Open Tools Dashboard", description: "Open the all-tools dashboard.", risk: "safe" },
   { id: "open-tool-panel", title: "Open Tool Panel", description: "Open a specific tool panel by id.", risk: "safe", requiredArgs: ["toolId"] },
   ...conversionPanelTools,

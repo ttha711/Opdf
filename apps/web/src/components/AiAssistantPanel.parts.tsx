@@ -154,6 +154,14 @@ interface SettingsPanelProps {
   setDifyKey: (value: string) => void;
   iframeUrl: string;
   setIframeUrl: (value: string) => void;
+  isProductionWeb: boolean;
+  machineAgentConnected: boolean;
+  machineAgentCount: number;
+  pairingCode?: string;
+  pairingExpiresAt?: number;
+  pairingLoading: boolean;
+  pairingError: string;
+  onStartPairing: () => void;
   onCancel: () => void;
   onSave: () => void;
 }
@@ -167,57 +175,104 @@ export function SettingsPanel({
   setDifyKey,
   iframeUrl,
   setIframeUrl,
+  isProductionWeb,
+  machineAgentConnected,
+  machineAgentCount,
+  pairingCode,
+  pairingExpiresAt,
+  pairingLoading,
+  pairingError,
+  onStartPairing,
   onCancel,
   onSave,
 }: SettingsPanelProps) {
   return (
     <div className="ai-settings-panel">
-      <h4>AI Engine Configuration</h4>
-      <div className="form-group">
-        <label className="form-label">AI Mode</label>
-        <select className="ai-engine-select" value={engineMode} onChange={(e) => setEngineMode(e.target.value as EngineMode)}>
-          <option value="local">Local</option>
-          <option value="dify">Dify API</option>
-          <option value="iframe">Iframe</option>
-        </select>
-      </div>
+      <h4>{isProductionWeb ? "Machine Agent Pairing" : "AI Engine Configuration"}</h4>
 
-      {engineMode === "dify" ? (
+      {isProductionWeb ? (
+        <>
+          <div
+            className="ai-radio-option active"
+            data-opdf-machine-agent-status={machineAgentConnected ? "connected" : "unpaired"}
+          >
+            <strong>Authenticated Local / Machine Agent Bridge</strong>
+            <p>
+              {machineAgentConnected
+                ? `${machineAgentCount} paired machine agent${machineAgentCount === 1 ? "" : "s"} available for this OPDF account and project.`
+                : "Pair your local machine agent to use AI. No public Dify API key is stored in this browser."}
+            </p>
+          </div>
+          {pairingCode ? (
+            <div className="ai-pairing-code" data-opdf-pairing-code>
+              <span>Pairing code</span>
+              <strong>{pairingCode}</strong>
+              {pairingExpiresAt ? (
+                <small>Expires at {new Date(pairingExpiresAt).toLocaleTimeString()}</small>
+              ) : null}
+            </div>
+          ) : null}
+          {pairingError ? <div className="ai-pairing-error">{pairingError}</div> : null}
+          <button
+            className="btn-premium btn-premium-primary"
+            type="button"
+            disabled={pairingLoading}
+            onClick={onStartPairing}
+          >
+            {pairingLoading ? "Creating pairing code..." : machineAgentConnected ? "Pair another machine" : "Pair machine agent"}
+          </button>
+        </>
+      ) : (
         <>
           <div className="form-group">
-            <label className="form-label">Dify URL</label>
-            <input className="ai-settings-input" value={difyUrl} onChange={(e) => setDifyUrl(e.target.value)} placeholder="https://.../v1" />
+            <label className="form-label">AI Mode</label>
+            <select className="ai-engine-select" value={engineMode} onChange={(e) => setEngineMode(e.target.value as EngineMode)}>
+              <option value="local">Local</option>
+              <option value="dify">Dify API (legacy development)</option>
+              <option value="iframe">Iframe</option>
+            </select>
           </div>
-          <div className="form-group">
-            <label className="form-label">Dify API Key</label>
-            <input className="ai-settings-input" value={difyKey} onChange={(e) => setDifyKey(e.target.value)} placeholder="app-..." />
-          </div>
+
+          {engineMode === "dify" ? (
+            <>
+              <div className="form-group">
+                <label className="form-label">Dify URL</label>
+                <input className="ai-settings-input" value={difyUrl} onChange={(e) => setDifyUrl(e.target.value)} placeholder="https://.../v1" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Dify API Key</label>
+                <input className="ai-settings-input" value={difyKey} onChange={(e) => setDifyKey(e.target.value)} placeholder="app-..." />
+              </div>
+            </>
+          ) : null}
+
+          {engineMode === "iframe" ? (
+            <div className="form-group">
+              <label className="form-label">Iframe URL</label>
+              <input className="ai-settings-input" value={iframeUrl} onChange={(e) => setIframeUrl(e.target.value)} placeholder="http://localhost:3000" />
+            </div>
+          ) : null}
+
+          {engineMode === "local" ? (
+            <div className="ai-radio-group">
+              <div className="ai-radio-option active">
+                <strong>Local Agent Bridge</strong>
+                <p>Runs through the OPDF desktop bridge without exposing an external API key in the renderer.</p>
+              </div>
+            </div>
+          ) : null}
         </>
-      ) : null}
-
-      {engineMode === "iframe" ? (
-        <div className="form-group">
-          <label className="form-label">Iframe URL</label>
-          <input className="ai-settings-input" value={iframeUrl} onChange={(e) => setIframeUrl(e.target.value)} placeholder="http://localhost:3000" />
-        </div>
-      ) : null}
-
-      {engineMode === "local" ? (
-        <div className="ai-radio-group">
-          <div className="ai-radio-option active">
-            <strong>Local Agent Bridge</strong>
-            <p>Runs through OPDF desktop bridge without external chat endpoint.</p>
-          </div>
-        </div>
-      ) : null}
+      )}
 
       <div className="ai-settings-actions">
         <button className="btn-premium btn-premium-secondary" onClick={onCancel} type="button">
           Close
         </button>
-        <button className="btn-premium btn-premium-primary" onClick={onSave} type="button">
-          Apply
-        </button>
+        {!isProductionWeb ? (
+          <button className="btn-premium btn-premium-primary" onClick={onSave} type="button">
+            Apply
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -357,7 +412,7 @@ export function ChatInputForm({ inputValue, setInputValue, onSubmit, engineMode 
             onSubmit(e);
           }
         }}
-        placeholder={engineMode === "local" ? "Type a command (for example: 'compress file', 'rotate left')..." : "Chat with Dify AI..."}
+        placeholder={engineMode === "agent" ? "Ask your paired machine agent..." : engineMode === "local" ? "Type a command (for example: 'compress file', 'rotate left')..." : "Chat with AI..."}
       />
       <button 
         data-opdf-ai-send

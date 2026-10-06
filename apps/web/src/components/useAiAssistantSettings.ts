@@ -16,7 +16,7 @@ export function useAiAssistantSettings() {
   const [iframeUrl, setIframeUrl] = useState("http://localhost:3005");
 
   const syncAiConfigToDesktop = async (nextMode: EngineMode, nextUrl: string, nextKey: string) => {
-    if (!window.opdf?.setAiConfig) return;
+    if (nextMode === "agent" || !window.opdf?.setAiConfig) return;
     try {
       await window.opdf.setAiConfig({ mode: nextMode, difyUrl: nextUrl, difyKey: nextKey });
     } catch (error) {

@@ -20,13 +20,14 @@ test("Watermark writes visible text into every exported PDF page", async ({ page
   await loadToolFixture(page);
   await openDashboardTool(page, "watermark-pdf");
   const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="watermark-pdf"]');
-  await panel.locator('[data-opdf-field="watermark-text"]').fill("OPDF-WATERMARK-CHECK");
+  await panel.locator('[data-opdf-field="watermark-text"]').fill("WM-CHECK");
+  await panel.locator('[data-opdf-field="watermark-size"]').fill("20");
   await panel.locator('[data-opdf-action="watermark-run"]').click();
   await waitForStatusText(page, /Watermark stamped|Watermark applied/i);
 
   const textPages = await extractPdfTextPages(await exportCurrentPdf(page));
   expect(textPages).toHaveLength(3);
-  for (const text of textPages) expect(text).toContain("OPDF-WATERMARK-CHECK");
+  for (const text of textPages) expect(text).toContain("WM-CHECK");
 });
 
 test("Page Numbers writes the configured sequence into the PDF", async ({ page }) => {

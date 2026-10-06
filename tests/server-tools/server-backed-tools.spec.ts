@@ -80,7 +80,10 @@ test.describe("full OPDF Server tool UI", () => {
         buffer: fixture.bytes,
       });
 
-      await waitForStatusText(page, "Office document converted to PDF.");
+      const convertedName = fixture.name.replace(/\.[^/.]+$/, "") + ".pdf";
+      await expect(page.locator(`.tab-item[title="${convertedName}"]`)).toBeVisible({
+        timeout: 90_000,
+      });
       await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 90_000 });
       const output = await saveCurrentRawPdf(page);
       const pdf = await PDFDocument.load(output);

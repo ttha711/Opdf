@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { closeEmbedPdfSidebar, openEmbedPdfSidebar } from "../helpers/embedpdf";
+import { clickApplicationMenuPath, getApplicationMenuPathItem } from "../helpers/app-menu";
 
 async function createMobilePdf() {
   const pdf = await PDFDocument.create();
@@ -108,8 +109,8 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   // actions retain the 44px touch-target assertion above.
   await closeEmbedPdfSidebar(viewer);
 
-  await mobileMenu.click();
-  await expect(page.locator("header").getByRole("menuitem", { name: "Fit Page", exact: true })).toBeEnabled();
-  await page.locator("header").getByRole("menuitem", { name: "Fit Page", exact: true }).click();
+  const fitPageItem = await getApplicationMenuPathItem(page, ["View", "Zoom", "Fit Page"]);
+  await expect(fitPageItem).toBeEnabled();
+  await clickApplicationMenuPath(page, ["View", "Zoom", "Fit Page"]);
   await expect(page.locator("header").getByRole("menu")).toHaveCount(0);
 });

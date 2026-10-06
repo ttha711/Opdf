@@ -3,9 +3,9 @@ import type { EngineMode } from "./AiAssistantPanel.types";
 
 export function useAiAssistantSettings() {
   const [showSettings, setShowSettings] = useState(false);
-  const [engineMode, setEngineMode] = useState<EngineMode>("dify");
-  
+  const isServerRuntime = typeof window !== "undefined" && window.__OPDF_RUNTIME__ === "server";
   const isDesktopRuntime = typeof window !== "undefined" && Boolean(window.opdf?.setAiConfig);
+  const [engineMode, setEngineMode] = useState<EngineMode>(isServerRuntime ? "agent" : "local");
 
   // VITE_* values are browser-development fallbacks. Desktop secrets live in the main process.
   const [difyUrl, setDifyUrl] = useState(import.meta.env.VITE_DIFY_API_URL || "https://api.dify.ai/v1");
@@ -62,7 +62,13 @@ export function useAiAssistantSettings() {
         if (!isDesktopRuntime) localStorage.setItem("opdf_dify_key", savedKey);
       }
 
-      savedMode = savedMode || "dify";
+      if (isServerRuntime) {
+        savedMode = "agent";
+        savedKey = "";
+        localStorage.removeItem("opdf_dify_key");
+      } else {
+        savedMode = savedMode || "local";
+      }
       localStorage.setItem("opdf_ai_mode", savedMode);
 
       if (cancelled) return;
@@ -81,7 +87,7 @@ export function useAiAssistantSettings() {
     return () => {
       cancelled = true;
     };
-  }, [isDesktopRuntime]);
+  }, [isDesktopRuntime, isServerRuntime]);
 
 
   return {
@@ -98,5 +104,6 @@ export function useAiAssistantSettings() {
     iframeUrl,
     setIframeUrl,
     syncAiConfigToDesktop,
+    isServerRuntime,
   };
 }

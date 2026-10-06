@@ -1,40 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 import type {
-  OpenDocumentResult,
-  PasswordOptions,
-  PageNumbers,
-  HeaderFooterLine,
+  Bookmark,
   CropOptions,
+  HeaderFooterLine,
   InsertOptions,
-  Bookmark as BookmarkType,
+  OpenDocumentResult,
+  PageNumbers,
+  PasswordOptions,
 } from "../types/index.js";
+import { PdfFlattenService } from "./pdf-flatten-service.js";
+import { PdfFontSupport } from "./pdf-font-support.js";
+import { PdfStructureService } from "./pdf-structure-service.js";
+import { PdfTextMarkupService } from "./pdf-text-markup-service.js";
 
 export class DocumentService {
-  private _unicodeFontCache: Uint8Array | null = null;
-
-  private async loadUnicodeFontBytes(): Promise<Uint8Array | null> {
-    if (this._unicodeFontCache) return this._unicodeFontCache;
-    try {
-      const __filename = fileURLToPath(import.meta.url);
-      const fontPath = resolve(dirname(__filename), "../assets/VietnameseFont.ttf");
-      this._unicodeFontCache = new Uint8Array(await readFile(fontPath));
-      return this._unicodeFontCache;
-    } catch {
-      return null;
-    }
-  }
-
-  private toWinAnsiSafeText(value: unknown): string {
-    const raw = String(value ?? "");
-    return raw
-      .normalize("NFKD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/đ/g, "d")
-      .replace(/Đ/g, "D");
-  }
+  private readonly fontSupport = new PdfFontSupport();
+  private readonly flattenService = new PdfFlattenService(this.fontSupport);
+  private readonly structureService = new PdfStructureService();
+  private readonly textMarkupService = new PdfTextMarkupService(this.fontSupport);
 
   async open(filePath: string): Promise<OpenDocumentResult> {
     const bytes = new Uint8Array(await readFile(filePath));
@@ -51,254 +36,38 @@ export class DocumentService {
   }
 
   async merge(pdfBytesList: Uint8Array[]): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const outDoc = await module.PDFDocument.create();
-
-    for (const bytes of pdfBytesList) {
-      const source = await module.PDFDocument.load(bytes);
-      const copiedPages = await outDoc.copyPages(source, source.getPageIndices());
-      copiedPages.forEach((page) => outDoc.addPage(page));
-    }
-
-    return outDoc.save();
+    return this.structureService.merge(pdfBytesList);
   }
 
   async split(pdfBytes: Uint8Array, pageIndexes: number[]): Promise<Uint8Array[]> {
-    const module = await import("pdf-lib");
-    const source = await module.PDFDocument.load(pdfBytes);
-    const out: Uint8Array[] = [];
-
-    for (const index of pageIndexes) {
-      const child = await module.PDFDocument.create();
-      const [copiedPage] = await child.copyPages(source, [index]);
-      child.addPage(copiedPage);
-      out.push(await child.save());
-    }
-
-    return out;
+    return this.structureService.split(pdfBytes, pageIndexes);
   }
 
   async reorder(pdfBytes: Uint8Array, order: number[]): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const source = await module.PDFDocument.load(pdfBytes);
-    const output = await module.PDFDocument.create();
-    const copiedPages = await output.copyPages(source, order);
-    copiedPages.forEach((page) => output.addPage(page));
-    return output.save();
+    return this.structureService.reorder(pdfBytes, order);
   }
 
   async exportFlattened(pdfBytes: Uint8Array, annotations: any[] = []): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const fontkitModule = await import("@pdf-lib/fontkit");
-    const fontkit = (fontkitModule as any).default ?? fontkitModule;
-    const doc = await module.PDFDocument.load(pdfBytes);
-    doc.registerFontkit(fontkit);
-    const pages = doc.getPages();
-    const orderedAnnotations = [...annotations].sort((a, b) => {
-      const aPatch = Boolean((a?.payload as any)?.isPatch);
-      const bPatch = Boolean((b?.payload as any)?.isPatch);
-      if (a.kind === "redact" && b.kind !== "redact") return -1;
-      if (a.kind !== "redact" && b.kind === "redact") return 1;
-      if (aPatch && !bPatch) return 1;
-      if (!aPatch && bPatch) return -1;
-      return 0;
-    });
-
-    for (const ann of orderedAnnotations) {
-      const pageIndex = ann.page - 1;
-      if (pageIndex < 0 || pageIndex >= pages.length) continue;
-      const page = pages[pageIndex];
-      const { width, height } = page.getSize();
-      
-      const payload = (ann.payload ?? {}) as Record<string, unknown>;
-      const uiX = Number(payload.x ?? 0);
-      const uiY = Number(payload.y ?? 0);
-      const uiW = Number(payload.width ?? 0.1);
-      const uiH = Number(payload.height ?? 0.05);
-
-      const x = uiX * width;
-      const objW = uiW * width;
-      const objH = uiH * height;
-      const y = height - (uiY * height) - objH;
-
-      if (ann.kind === "highlight") {
-        page.drawRectangle({
-          x, y, width: objW, height: objH,
-          color: module.rgb(1, 0.8, 0.1),
-          opacity: 0.4
-        });
-      } else if (ann.kind === "note") {
-        const rawText = String(payload.text ?? "Note");
-        const fontSize = Number(payload.fontSize ?? 16) || 16;
-        const textColor = typeof payload.textColor === "string" ? payload.textColor : "#000000";
-        const textAlign = payload.isPatch ? "left" : this.normalizeTextAlign(payload.textAlign);
-        const rgb = this.parseCssColor(textColor, module) ?? module.rgb(0, 0, 0);
-        const unicodeFontBytes = await this.loadUnicodeFontBytes();
-        const noteFont = unicodeFontBytes
-          ? await doc.embedFont(unicodeFontBytes)
-          : null;
-        const noteText = noteFont ? rawText : this.toWinAnsiSafeText(rawText);
-        const size = Math.max(8, Math.min(fontSize, 64));
-        const lineHeight = Math.max(size * 1.2, size + 2);
-        const lines = noteText.split(/\r?\n/);
-        let currentY = y + Math.max(2, objH - fontSize - 2);
-        for (const line of lines) {
-          const lineWidth = noteFont ? noteFont.widthOfTextAtSize(line || " ", size) : Math.max(1, (line || "").length * size * 0.5);
-          const drawX = this.resolveAlignedTextX(textAlign, x, objW, lineWidth);
-          page.drawText(line, {
-            x: drawX,
-            y: currentY,
-            size,
-            ...(noteFont ? { font: noteFont } : {}),
-            color: rgb,
-          });
-          currentY -= lineHeight;
-        }
-      } else if (ann.kind === "shape") {
-        page.drawRectangle({
-          x, y, width: objW, height: objH,
-          borderColor: module.rgb(1, 0, 0),
-          borderWidth: 2
-        });
-      } else if (ann.kind === "signature") {
-        page.drawText(this.toWinAnsiSafeText(payload.signer ?? "Signature"), {
-          x, y: y + objH - 24, size: 24, color: module.rgb(0, 0, 1)
-        });
-      } else if (ann.kind === "redact") {
-        const redactColor = this.parseCssColor(payload.color, module) ?? module.rgb(0, 0, 0);
-        const redactOpacity = typeof payload.opacity === "number" ? payload.opacity : 1;
-        page.drawRectangle({
-          x, y, width: objW, height: objH,
-          color: redactColor,
-          opacity: redactOpacity
-        });
-      } else if (ann.kind === "image" && payload.image) {
-        let base64Data = payload.image as string;
-        if (base64Data.startsWith("data:")) {
-          base64Data = base64Data.split(",")[1];
-        }
-        const imgBytes = Buffer.from(base64Data, "base64");
-        let embeddedImage;
-        if (payload.imageType === "jpg" || payload.imageType === "jpeg") {
-          embeddedImage = await doc.embedJpg(imgBytes);
-        } else {
-          embeddedImage = await doc.embedPng(imgBytes);
-        }
-        page.drawImage(embeddedImage, {
-          x, y, width: objW, height: objH
-        });
-      }
-    }
-
-    return doc.save();
-  }
-
-  private parseCssColor(value: unknown, module: any) {
-    if (typeof value !== "string") return null;
-    const normalized = value.trim().toLowerCase();
-    if (!normalized || normalized === "transparent" || normalized === "none") return null;
-
-    const named: Record<string, [number, number, number]> = {
-      black: [0, 0, 0],
-      white: [255, 255, 255],
-      red: [255, 0, 0],
-      green: [0, 128, 0],
-      blue: [0, 0, 255],
-      yellow: [255, 255, 0],
-      gray: [128, 128, 128],
-      grey: [128, 128, 128],
-      orange: [255, 165, 0],
-      purple: [128, 0, 128],
-      pink: [255, 192, 203],
-      brown: [165, 42, 42],
-      cyan: [0, 255, 255],
-      magenta: [255, 0, 255],
-    };
-
-    const namedRgb = named[normalized];
-    if (namedRgb) {
-      return module.rgb(namedRgb[0] / 255, namedRgb[1] / 255, namedRgb[2] / 255);
-    }
-
-    // rgb() / rgba() — produced by sampleColorsFromImage
-    const rgbMatch = normalized.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-    if (rgbMatch) {
-      return module.rgb(Number(rgbMatch[1]) / 255, Number(rgbMatch[2]) / 255, Number(rgbMatch[3]) / 255);
-    }
-
-    const hex = normalized.replace(/^#/, "");
-    if (/^[0-9a-f]{3}$/i.test(hex)) {
-      const r = Number.parseInt(hex[0] + hex[0], 16) / 255;
-      const g = Number.parseInt(hex[1] + hex[1], 16) / 255;
-      const b = Number.parseInt(hex[2] + hex[2], 16) / 255;
-      return module.rgb(r, g, b);
-    }
-
-    if (!/^[0-9a-f]{6}$/i.test(hex)) return null;
-    const r = Number.parseInt(hex.slice(0, 2), 16) / 255;
-    const g = Number.parseInt(hex.slice(2, 4), 16) / 255;
-    const b = Number.parseInt(hex.slice(4, 6), 16) / 255;
-    return module.rgb(r, g, b);
-  }
-
-  private normalizeTextAlign(value: unknown) {
-    if (typeof value !== "string") return "left";
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "start") return "left";
-    if (normalized === "end") return "right";
-    if (normalized === "left" || normalized === "center" || normalized === "right" || normalized === "justify") {
-      return normalized;
-    }
-    return "left";
-  }
-
-  private resolveAlignedTextX(textAlign: string, x: number, width: number, lineWidth: number) {
-    if (textAlign === "center") {
-      return x + Math.max(2, (width - lineWidth) / 2);
-    }
-    if (textAlign === "right") {
-      return x + Math.max(2, width - lineWidth - 2);
-    }
-    return x + 2;
+    return this.flattenService.exportFlattened(pdfBytes, annotations);
   }
 
   async compressPdf(pdfBytes: Uint8Array): Promise<Uint8Array> {
     const qpdfWasm = await import("@neslinesli93/qpdf-wasm");
     const loadWasm = (qpdfWasm as any).default || qpdfWasm;
     const qpdf = await loadWasm();
-    
+
     qpdf.FS.writeFile("/input.pdf", pdfBytes);
     qpdf.callMain(["--linearize", "--optimize-images", "/input.pdf", "/output.pdf"]);
     const outputBytes = qpdf.FS.readFile("/output.pdf");
     qpdf.FS.unlink("/input.pdf");
     qpdf.FS.unlink("/output.pdf");
-    
     return outputBytes;
   }
 
   async watermarkPdf(pdfBytes: Uint8Array, text: string): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const doc = await module.PDFDocument.load(pdfBytes);
-    const pages = doc.getPages();
-
-    for (const page of pages) {
-      const { width, height } = page.getSize();
-      page.drawText(text, {
-        x: width / 4,
-        y: height / 2,
-        size: 48,
-        color: module.rgb(0.5, 0.5, 0.5),
-        opacity: 0.3,
-        rotate: module.degrees(45),
-      });
-    }
-
-    return doc.save();
+    return this.textMarkupService.watermarkPdf(pdfBytes, text);
   }
 
-  /* ========= NEW FEATURES ========= */
-
-  /** Password protect PDF (encrypt) */
   async encryptPdf(pdfBytes: Uint8Array, opts: PasswordOptions): Promise<Uint8Array> {
     const userPassword = opts.userPassword?.trim();
     const ownerPassword = (opts.ownerPassword || opts.userPassword)?.trim();
@@ -315,11 +84,9 @@ export class DocumentService {
     const outputBytes = qpdf.FS.readFile("/output.pdf");
     qpdf.FS.unlink("/input.pdf");
     qpdf.FS.unlink("/output.pdf");
-
     return outputBytes;
   }
 
-  /** Remove password protection */
   async decryptPdf(pdfBytes: Uint8Array, password: string): Promise<Uint8Array> {
     const qpdfWasm = await import("@neslinesli93/qpdf-wasm");
     const loadWasm = (qpdfWasm as any).default || qpdfWasm;
@@ -330,266 +97,59 @@ export class DocumentService {
     const outputBytes = qpdf.FS.readFile("/output.pdf");
     qpdf.FS.unlink("/input.pdf");
     qpdf.FS.unlink("/output.pdf");
-
     return outputBytes;
   }
 
-  /** Insert pages from another PDF */
   async insertPages(pdfBytes: Uint8Array, opts: InsertOptions): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const doc = await module.PDFDocument.load(pdfBytes);
-    const source = await module.PDFDocument.load(opts.bytes);
-    const copiedPages = await doc.copyPages(source, source.getPageIndices());
-    
-    let insertAt = opts.targetPage - 1;
-    if (opts.position === "after") insertAt += 1;
-    
-    copiedPages.forEach((page) => doc.insertPage(insertAt++, page));
-    return doc.save();
+    return this.structureService.insertPages(pdfBytes, opts);
   }
 
-  /** Delete pages by 1-indexed array */
   async deletePages(pdfBytes: Uint8Array, pageNumbers: number[]): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const doc = await module.PDFDocument.load(pdfBytes);
-    const allPages = doc.getPageIndices();
-    const toRemove = new Set(pageNumbers.map((n) => n - 1));
-    const keep = allPages.filter((i) => !toRemove.has(i));
-    
-    if (keep.length === 0) throw new Error("Cannot delete all pages");
-    
-    const output = await module.PDFDocument.create();
-    const copiedPages = await output.copyPages(doc, keep);
-    copiedPages.forEach((page) => output.addPage(page));
-    return output.save();
+    return this.structureService.deletePages(pdfBytes, pageNumbers);
   }
 
-  /** Crop a specific page */
   async cropPage(pdfBytes: Uint8Array, opts: CropOptions): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const doc = await module.PDFDocument.load(pdfBytes);
-    const page = doc.getPage(opts.page - 1);
-    const { width, height } = page.getSize();
-    
-    const x = opts.x * width;
-    const y = height - (opts.y * height) - (opts.height * height);
-    const cropW = opts.width * width;
-    const cropH = opts.height * height;
-    
-    page.setMediaBox(x, y, cropW, cropH);
-    page.setCropBox(x, y, cropW, cropH);
-    return doc.save();
+    return this.structureService.cropPage(pdfBytes, opts);
   }
 
-  /** Add page numbers to PDF */
   async addPageNumbers(pdfBytes: Uint8Array, opts: PageNumbers): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const doc = await module.PDFDocument.load(pdfBytes);
-    const pages = doc.getPages();
-    const fontSize = opts.fontSize || 12;
-    const color = this._parseColor(opts.fontColor || "#000000", module);
-    
-    const pageStart = Math.max(1, opts.pages?.start ?? 1);
-    const pageEnd = Math.min(pages.length, opts.pages?.end ?? pages.length);
-    let counter = opts.startNumber ?? 1;
-
-    for (let i = pageStart - 1; i < pageEnd; i++) {
-      const page = pages[i];
-      const { width, height } = page.getSize();
-      const text = `${opts.prefix || ""}${counter}${opts.suffix || ""}`;
-      
-      const textWidth = fontSize * text.length * 0.45;
-      let x = width / 2 - textWidth / 2;
-      if (opts.position.includes("left")) x = 40;
-      else if (opts.position.includes("right")) x = width - 40 - textWidth;
-      
-      const y = opts.position.startsWith("top") ? height - 28 : 20;
-
-      page.drawText(text, {
-        x, y,
-        size: fontSize,
-        color,
-      });
-      counter++;
-    }
-    return doc.save();
+    return this.textMarkupService.addPageNumbers(pdfBytes, opts);
   }
 
-  /** Add header or footer */
-  async addHeaderFooter(pdfBytes: Uint8Array, lines: HeaderFooterLine[], isHeader: boolean): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const doc = await module.PDFDocument.load(pdfBytes);
-    const pages = doc.getPages();
-
-    for (const page of pages) {
-      const { width, height } = page.getSize();
-      
-      for (let index = 0; index < lines.length; index++) {
-        const line = lines[index];
-        const fontSize = line.fontSize || 10;
-        const color = this._parseColor(line.fontColor || "#555555", module);
-        
-        const textWidth = fontSize * line.text.length * 0.45;
-        let x = width / 2 - textWidth / 2;
-        if (line.align === "left") x = 40;
-        else if (line.align === "right") x = width - 40 - textWidth;
-
-        const y = isHeader 
-          ? height - 24 - index * (fontSize + 3) 
-          : 18 + index * (fontSize + 3);
-
-        page.drawText(line.text, { x, y, size: fontSize, color });
-      }
-    }
-    return doc.save();
+  async addHeaderFooter(
+    pdfBytes: Uint8Array,
+    lines: HeaderFooterLine[],
+    isHeader: boolean,
+  ): Promise<Uint8Array> {
+    return this.textMarkupService.addHeaderFooter(pdfBytes, lines, isHeader);
   }
 
-  /** Add hierarchical bookmarks (PDF Outlines) */
-  async addBookmarks(pdfBytes: Uint8Array, bookmarks: BookmarkType[]): Promise<Uint8Array> {
-    if (bookmarks.length === 0) return pdfBytes;
-
-    const module = await import("pdf-lib");
-    const doc = await module.PDFDocument.load(pdfBytes);
-    const pages = doc.getPages();
-    const cleaned = bookmarks
-      .map((bookmark, originalIndex) => ({
-        title: bookmark.title.trim(),
-        page: Math.trunc(bookmark.page),
-        originalIndex,
-        parent: Number.isInteger(bookmark.parent) ? bookmark.parent : undefined,
-      }))
-      .filter((bookmark) => bookmark.title && bookmark.page >= 1 && bookmark.page <= pages.length);
-
-    if (cleaned.length === 0) return pdfBytes;
-
-    const originalToClean = new Map<number, number>();
-    cleaned.forEach((bookmark, index) => originalToClean.set(bookmark.originalIndex, index));
-
-    const normalized = cleaned.map((bookmark, index) => {
-      const parentIndex = bookmark.parent === undefined ? undefined : originalToClean.get(bookmark.parent);
-      return {
-        ...bookmark,
-        parent: parentIndex !== undefined && parentIndex >= 0 && parentIndex < index
-          ? parentIndex
-          : undefined,
-      };
-    });
-
-    const context = doc.context;
-    const outlinesRef = context.nextRef();
-    const itemRefs = normalized.map(() => context.nextRef());
-    const rootChildren: number[] = [];
-    const childMap = new Map<number, number[]>();
-
-    normalized.forEach((bookmark, index) => {
-      if (bookmark.parent === undefined) {
-        rootChildren.push(index);
-        return;
-      }
-      const list = childMap.get(bookmark.parent) ?? [];
-      list.push(index);
-      childMap.set(bookmark.parent, list);
-    });
-
-    normalized.forEach((bookmark, index) => {
-      const siblings = bookmark.parent === undefined
-        ? rootChildren
-        : (childMap.get(bookmark.parent) ?? []);
-      const siblingIndex = siblings.indexOf(index);
-      const ownChildren = childMap.get(index) ?? [];
-      const destination = context.obj([pages[bookmark.page - 1].ref, module.PDFName.of("Fit")]);
-
-      context.assign(itemRefs[index], context.obj({
-        Title: module.PDFString.of(bookmark.title),
-        Parent: bookmark.parent === undefined ? outlinesRef : itemRefs[bookmark.parent],
-        Dest: destination,
-        ...(siblingIndex > 0 ? { Prev: itemRefs[siblings[siblingIndex - 1]] } : {}),
-        ...(siblingIndex >= 0 && siblingIndex < siblings.length - 1
-          ? { Next: itemRefs[siblings[siblingIndex + 1]] }
-          : {}),
-        ...(ownChildren.length > 0
-          ? {
-              First: itemRefs[ownChildren[0]],
-              Last: itemRefs[ownChildren[ownChildren.length - 1]],
-              Count: module.PDFNumber.of(ownChildren.length),
-            }
-          : {}),
-      }));
-    });
-
-    context.assign(outlinesRef, context.obj({
-      Type: module.PDFName.of("Outlines"),
-      First: itemRefs[rootChildren[0]],
-      Last: itemRefs[rootChildren[rootChildren.length - 1]],
-      Count: module.PDFNumber.of(normalized.length),
-    }));
-
-    doc.catalog.set(module.PDFName.of("Outlines"), outlinesRef);
-    doc.catalog.set(module.PDFName.of("PageMode"), module.PDFName.of("UseOutlines"));
-    return doc.save();
+  async addBookmarks(pdfBytes: Uint8Array, bookmarks: Bookmark[]): Promise<Uint8Array> {
+    return this.structureService.addBookmarks(pdfBytes, bookmarks);
   }
 
-  /** Bates numbering: add sequential numbers to each page */
   async addBatesNumbering(
     pdfBytes: Uint8Array,
     prefix: string,
     startNumber: number,
-    suffix: string = ""
+    suffix = "",
   ): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const doc = await module.PDFDocument.load(pdfBytes);
-    const pages = doc.getPages();
-    const color = module.rgb(0, 0, 0);
-
-    for (let i = 0; i < pages.length; i++) {
-      const page = pages[i];
-      const { width, height } = page.getSize();
-      const num = startNumber + i;
-      const text = `${prefix}${num.toString().padStart(6, "0")}${suffix}`;
-      
-      // Bates numbers go at bottom-right corner
-      page.drawText(text, {
-        x: width - 120,
-        y: 20,
-        size: 8,
-        color,
-      });
-    }
-    return doc.save();
+    return this.textMarkupService.addBatesNumbering(pdfBytes, prefix, startNumber, suffix);
   }
 
-  /** Search and replace text in PDF (for redact search) */
   async searchText(pdfBytes: Uint8Array, query: string): Promise<Array<{ page: number; text: string }>> {
     void pdfBytes;
     void query;
     throw new Error("Text extraction is available in the browser viewer, not in the core Node service");
   }
 
-  /** Convert PDF to PDF/A (basic: embed fonts, no transparency) 
-   *  Note: proper PDF/A conversion requires verapdf or similar tool */
   async convertToPdfA(pdfBytes: Uint8Array): Promise<Uint8Array> {
     void pdfBytes;
     throw new Error("PDF/A conversion requires a dedicated validator/converter and is not available in this offline bundle yet");
   }
 
-  /** Rotate page(s) */
   async rotatePages(pdfBytes: Uint8Array, pageNumbers: number[], degrees: number): Promise<Uint8Array> {
-    const module = await import("pdf-lib");
-    const doc = await module.PDFDocument.load(pdfBytes);
-    
-    for (const pn of pageNumbers) {
-      const page = doc.getPage(pn - 1);
-      const current = page.getRotation().angle;
-      page.setRotation(module.degrees(current + degrees));
-    }
-    return doc.save();
-  }
-
-  private _parseColor(hex: string, module: any) {
-    const r = parseInt(hex.slice(1, 3), 16) / 255;
-    const g = parseInt(hex.slice(3, 5), 16) / 255;
-    const b = parseInt(hex.slice(5, 7), 16) / 255;
-    return module.rgb(r, g, b);
+    return this.structureService.rotatePages(pdfBytes, pageNumbers, degrees);
   }
 
   createTempName(prefix = "opdf"): string {

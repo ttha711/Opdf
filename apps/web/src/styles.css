@@ -4,6 +4,7 @@
 @import "./styles/variables.css";
 @import "./styles/base.css";
 @import "./styles/app-layout.css";
+@import "./styles/mobile-workspace.css";
 @import "./styles/pdf-viewer.css";
 @import "./styles/ann-toolbar.css";
 @import "./styles/premium-modal.css";

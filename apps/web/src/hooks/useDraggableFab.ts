@@ -67,8 +67,9 @@ export function useDraggableFab({
       let newY = clientY - dragStartOffset.current.y;
 
       const btnSize = 48;
+      const bottomSafe = window.innerWidth <= 760 ? 96 : 10;
       newX = Math.max(10, Math.min(window.innerWidth - btnSize - 10, newX));
-      newY = Math.max(10, Math.min(window.innerHeight - btnSize - 10, newY));
+      newY = Math.max(10, Math.min(window.innerHeight - btnSize - bottomSafe, newY));
 
       setPosition({ x: newX, y: newY });
     };
@@ -99,7 +100,8 @@ export function useDraggableFab({
       }
       
       setPanelAlign(alignSide);
-      const finalY = Math.max(50, Math.min(window.innerHeight - btnSize - 50, position.y));
+      const bottomSafe = window.innerWidth <= 760 ? 96 : 50;
+      const finalY = Math.max(50, Math.min(window.innerHeight - btnSize - bottomSafe, position.y));
       setPosition({ x: finalX, y: finalY });
     };
 
@@ -124,7 +126,8 @@ export function useDraggableFab({
       if (panelAlign === "right") {
         finalX = window.innerWidth - btnSize - 24;
       }
-      const finalY = Math.max(50, Math.min(window.innerHeight - btnSize - 50, position.y));
+      const bottomSafe = window.innerWidth <= 760 ? 96 : 50;
+      const finalY = Math.max(50, Math.min(window.innerHeight - btnSize - bottomSafe, position.y));
       setPosition({ x: finalX, y: finalY });
     };
     window.addEventListener("resize", handleResize);

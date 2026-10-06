@@ -6,6 +6,7 @@ import { getEditorLaunchTitle } from "../lib/documentEditingExperience";
 import { redoNativeContentEdit, undoNativeContentEdit } from "../lib/nativeContentHistory";
 import { useOpdfBridge } from "../hooks/useOpdfBridge";
 import { AiSparkIcon } from "./AiSparkIcon";
+import { OpdfIcon } from "./OpdfIcon";
 import { SaveControl, RedoButton, UndoButton } from "./AppHeaderControls";
 import {
   buildCompactToolsMenuItems,
@@ -153,7 +154,6 @@ export function AppHeader(props: AppHeaderProps) {
   const globalMenuItems = buildGlobalMenuItems({
     fileMenuItems,
     editMenuItems: effectiveEditMenuItems,
-    viewMenuItems,
     toolsMenuItems: compactToolsMenuItems,
     aiEdit,
   });
@@ -178,17 +178,14 @@ export function AppHeader(props: AppHeaderProps) {
           aria-label="Go to OPDF Home"
           data-opdf-action="home"
         >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="#e03e2d" aria-hidden="true">
-            <path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6H6z" />
-            <path fill="white" d="M14 2v6h6" />
-            <text x="5" y="17" fontSize="6" fill="white" fontWeight="bold">PDF</text>
-          </svg>
+          <OpdfIcon name="file-pdf" size={18} strokeWidth={1.9} />
           <span>Opdf</span>
         </button>
 
         <div className="opdf-mobile-menu">
           <MenuDropdown
-            label="⋯"
+            label="Application"
+            triggerIcon="more-horizontal"
             items={globalMenuItems}
             isOpen={openMenu === "ApplicationMobile"}
             onToggle={() => toggleMenu("ApplicationMobile")}
@@ -199,7 +196,8 @@ export function AppHeader(props: AppHeaderProps) {
         </div>
         <div className="opdf-desktop-menus">
           <MenuDropdown
-            label="⋯"
+            label="Application"
+            triggerIcon="more-horizontal"
             items={globalMenuItems}
             isOpen={openMenu === "ApplicationDesktop"}
             onToggle={() => toggleMenu("ApplicationDesktop")}
@@ -215,11 +213,7 @@ export function AppHeader(props: AppHeaderProps) {
           title={theme === "light" ? "Switch to Dark Mode (Ctrl+Shift+L)" : "Switch to Light Mode (Ctrl+Shift+L)"}
           type="button"
         >
-          {theme === "light" ? (
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364-.707.707M6.343 17.657l-.707.707m0-12.728.707.707m11.314 11.314.707.707M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>
-          ) : (
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 9.75 9.75 0 0 0-6.74-9.26 1 1 0 0 0-1.17 1.45 6.75 6.75 0 1 1-8.24 8.24 1 1 0 0 0-1.45 1.17A9.75 9.75 0 0 0 12 3z"/></svg>
-          )}
+          {theme === "light" ? <OpdfIcon name="sun" size={18} /> : <OpdfIcon name="moon" size={18} />}
         </button>
 
         <div className="opdf-header-tabs">
@@ -285,7 +279,7 @@ export function AppHeader(props: AppHeaderProps) {
             title="Open PDF"
             type="button"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8h-8l-2-3H5a2 2 0 0 0-2 2z" /></svg>
+            <OpdfIcon name="folder-open" size={18} />
             <span>Open</span>
           </button>
         </div>

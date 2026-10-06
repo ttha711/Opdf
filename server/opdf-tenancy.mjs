@@ -5,6 +5,7 @@ import { createOpdfStorage } from "./opdf-storage.mjs";
 import { createS3OpdfStorage } from "./opdf-storage-s3.mjs";
 import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
 import { createCertificateStore } from "./opdf-certificate-store.mjs";
+import { DEFAULT_UPLOAD_TTL_MS } from "./opdf-maintenance.mjs";
 
 const PROJECT_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 
@@ -28,7 +29,12 @@ async function directorySize(root) {
   return total;
 }
 
-async function pendingUploadReservationsLocal(root) {
+function reservationIsFresh(payload, now = Date.now(), maxAgeMs = DEFAULT_UPLOAD_TTL_MS) {
+  const activity = Math.max(Number(payload?.updatedAt || 0), Number(payload?.createdAt || 0));
+  return activity > 0 && activity >= now - maxAgeMs;
+}
+
+async function pendingUploadReservationsLocal(root, maxAgeMs = DEFAULT_UPLOAD_TTL_MS) {
   let total = 0;
   async function walk(path) {
     let entries;
@@ -46,7 +52,7 @@ async function pendingUploadReservationsLocal(root) {
         try {
           const payload = JSON.parse(await readFile(full, "utf8"));
           const expected = Number(payload?.uploadExpectedSize || 0);
-          if (Number.isFinite(expected) && expected > 0) total += expected;
+          if (Number.isFinite(expected) && expected > 0 && reservationIsFresh(payload, Date.now(), maxAgeMs)) total += expected;
         } catch {
           // Corrupt storage metadata must not create quota credit.
         }
@@ -57,7 +63,7 @@ async function pendingUploadReservationsLocal(root) {
   return total;
 }
 
-async function pendingUploadReservationsRemote(objectStore, userId) {
+async function pendingUploadReservationsRemote(objectStore, userId, maxAgeMs = DEFAULT_UPLOAD_TTL_MS) {
   const objects = await objectStore.list(`users/${userId}/projects/`);
   const metaObjects = objects.filter((item) => /\/documents\/[^/]+\/meta\.json$/.test(item.key));
   let total = 0;
@@ -66,7 +72,7 @@ async function pendingUploadReservationsRemote(objectStore, userId) {
       const bytes = await objectStore.get(item.key);
       const payload = bytes ? JSON.parse(bytes.toString("utf8")) : null;
       const expected = Number(payload?.uploadExpectedSize || 0);
-      if (Number.isFinite(expected) && expected > 0) total += expected;
+      if (Number.isFinite(expected) && expected > 0 && reservationIsFresh(payload, Date.now(), maxAgeMs)) total += expected;
     } catch {
       // Fail conservative by not inventing available capacity from bad metadata.
     }
@@ -83,6 +89,9 @@ export function assertProjectId(value) {
 export function createTenantRuntime(dataDir, options = {}) {
   const root = resolve(dataDir);
   const authEnabled = Boolean(options.authEnabled);
+  const uploadReservationTtlMs = Number.isFinite(Number(options.uploadReservationTtlMs))
+    ? Math.max(60_000, Number(options.uploadReservationTtlMs))
+    : DEFAULT_UPLOAD_TTL_MS;
   const contexts = new Map();
   const scope = new AsyncLocalStorage();
 
@@ -163,9 +172,9 @@ export function createTenantRuntime(dataDir, options = {}) {
     const usedBytes = options.objectStore
       ? (await options.objectStore.list(`users/${user.id}/`))
           .reduce((sum, item) => sum + Number(item.size || 0), 0) +
-        await pendingUploadReservationsRemote(options.objectStore, user.id)
+        await pendingUploadReservationsRemote(options.objectStore, user.id, uploadReservationTtlMs)
       : await directorySize(userRoot) +
-        await pendingUploadReservationsLocal(userRoot);
+        await pendingUploadReservationsLocal(userRoot, uploadReservationTtlMs);
     const quotaBytes = Math.max(0, Number(user.quotaBytes || 0));
     return {
       usedBytes,

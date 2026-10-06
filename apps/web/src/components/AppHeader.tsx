@@ -197,7 +197,7 @@ export function AppHeader({
         </button>
         <div className="mx-1 h-4 w-px bg-[var(--border-color)]" />
         <div className="opdf-mobile-menu">
-          <MenuDropdown label="☰" items={mobileMenuItems} isOpen={openMenu === "Mobile"} onToggle={() => toggleMenu("Mobile")} onClose={closeMenu} />
+          <MenuDropdown label="☰" items={mobileMenuItems} isOpen={openMenu === "Mobile"} onToggle={() => toggleMenu("Mobile")} onClose={closeMenu} mobileSheet />
         </div>
         <div className="opdf-desktop-menus">
           <MenuDropdown label="File" items={fileMenuItems} isOpen={openMenu === "File"} onToggle={() => toggleMenu("File")} onClose={closeMenu} />

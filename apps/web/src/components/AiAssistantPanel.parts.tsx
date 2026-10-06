@@ -1,285 +1,9 @@
-// opdf-file-size-allow: legacy AI panel render primitives stay together while production pairing replaces the credential form without duplicating chat UI.
 import React, { useEffect, useRef } from "react";
 import type { Message, EngineMode } from "./AiAssistantPanel.types";
 import type { AgentCommand } from "../agent/agentCommands";
 import { AiSparkIcon } from "./AiSparkIcon";
+import { MarkdownMessage } from "./AiAssistantMarkdown";
 
-// --- MARKDOWN MESSAGE COMPONENT ---
-interface MarkdownMessageProps {
-  text: string;
-}
-
-export function MarkdownMessage({ text }: MarkdownMessageProps) {
-  if (!text) return null;
-
-  // Helper to parse inline formatting like bold text and inline code tags
-  const formatInline = (str: string) => {
-    // Bold **text** parser
-    const splitBold = str.split(/\*\*(.*?)\*\*/g);
-    return splitBold.map((part, index) => {
-      if (index % 2 === 1) {
-        return <strong key={index}>{part}</strong>;
-      }
-      
-      // Inline code `code` parser
-      const splitCode = part.split(/`(.*?)`/g);
-      return splitCode.map((subPart, subIndex) => {
-        if (subIndex % 2 === 1) {
-          return <code key={subIndex} className="ai-inline-code">{subPart}</code>;
-        }
-        return subPart;
-      });
-    });
-  };
-
-  const lines = text.split("\n");
-  const elements: React.ReactNode[] = [];
-  
-  let inTable = false;
-  let tableHeaders: string[] = [];
-  let tableRows: string[][] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-
-    // Check if it's a table row
-    if (line.startsWith("|")) {
-      inTable = true;
-      const cells = line.split("|").map(c => c.trim()).filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
-      
-      if (line.includes("---")) {
-        // Divider line, skip
-        continue;
-      }
-      
-      if (tableHeaders.length === 0) {
-        tableHeaders = cells;
-      } else {
-        tableRows.push(cells);
-      }
-      continue;
-    } else if (inTable) {
-      // Table block ended, render it
-      if (tableHeaders.length > 0) {
-        elements.push(
-          <div key={`table-${i}`} className="ai-table-container">
-            <table className="ai-markdown-table">
-              <thead>
-                <tr>
-                  {tableHeaders.map((h, idx) => (
-                    <th key={idx}>{formatInline(h)}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {tableRows.map((row, rIdx) => (
-                  <tr key={rIdx}>
-                    {row.map((cell, cIdx) => (
-                      <td key={cIdx}>{formatInline(cell)}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-      }
-      // Reset table state
-      inTable = false;
-      tableHeaders = [];
-      tableRows = [];
-    }
-
-    // Headings
-    if (line.startsWith("###")) {
-      elements.push(<h4 key={i} className="ai-markdown-h4">{formatInline(line.replace(/^###\s*/, ""))}</h4>);
-    } else if (line.startsWith("##")) {
-      elements.push(<h2 key={i} className="ai-markdown-h2">{formatInline(line.replace(/^##\s*/, ""))}</h2>);
-    } else if (line.startsWith("#")) {
-      elements.push(<h2 key={i} className="ai-markdown-h2">{formatInline(line.replace(/^#\s*/, ""))}</h2>);
-    }
-    // Bullet lists
-    else if (line.startsWith("-") || line.startsWith("•") || line.startsWith("*")) {
-      elements.push(
-        <li key={i} className="ai-markdown-li">
-          {formatInline(line.replace(/^[-•*]\s*/, ""))}
-        </li>
-      );
-    }
-    // Empty spacing lines
-    else if (line === "") {
-      elements.push(<div key={i} style={{ height: "4px" }} />);
-    }
-    // Normal paragraph text
-    else {
-      elements.push(<p key={i} className="ai-markdown-p">{formatInline(line)}</p>);
-    }
-  }
-
-  // Render remaining table if still active at the end
-  if (inTable && tableHeaders.length > 0) {
-    elements.push(
-      <div key="table-end" className="ai-table-container">
-        <table className="ai-markdown-table">
-          <thead>
-            <tr>
-              {tableHeaders.map((h, idx) => (
-                <th key={idx}>{formatInline(h)}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {tableRows.map((row, rIdx) => (
-              <tr key={rIdx}>
-                {row.map((cell, cIdx) => (
-                  <td key={cIdx}>{formatInline(cell)}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  return <div className="ai-markdown-body">{elements}</div>;
-}
-
-// --- SETTINGS PANEL COMPONENT ---
-interface SettingsPanelProps {
-  engineMode: EngineMode;
-  setEngineMode: (value: EngineMode) => void;
-  difyUrl: string;
-  setDifyUrl: (value: string) => void;
-  difyKey: string;
-  setDifyKey: (value: string) => void;
-  iframeUrl: string;
-  setIframeUrl: (value: string) => void;
-  isProductionWeb: boolean;
-  machineAgentConnected: boolean;
-  machineAgentCount: number;
-  pairingCode?: string;
-  pairingExpiresAt?: number;
-  pairingLoading: boolean;
-  pairingError: string;
-  onStartPairing: () => void;
-  onCancel: () => void;
-  onSave: () => void;
-}
-
-export function SettingsPanel({
-  engineMode,
-  setEngineMode,
-  difyUrl,
-  setDifyUrl,
-  difyKey,
-  setDifyKey,
-  iframeUrl,
-  setIframeUrl,
-  isProductionWeb,
-  machineAgentConnected,
-  machineAgentCount,
-  pairingCode,
-  pairingExpiresAt,
-  pairingLoading,
-  pairingError,
-  onStartPairing,
-  onCancel,
-  onSave,
-}: SettingsPanelProps) {
-  return (
-    <div className="ai-settings-panel">
-      <h4>{isProductionWeb ? "Machine Agent Pairing" : "AI Engine Configuration"}</h4>
-
-      {isProductionWeb ? (
-        <>
-          <div
-            className="ai-radio-option active"
-            data-opdf-machine-agent-status={machineAgentConnected ? "connected" : "unpaired"}
-          >
-            <strong>Authenticated Local / Machine Agent Bridge</strong>
-            <p>
-              {machineAgentConnected
-                ? `${machineAgentCount} paired machine agent${machineAgentCount === 1 ? "" : "s"} available for this OPDF account and project.`
-                : "Pair your local machine agent to use AI. No public Dify API key is stored in this browser."}
-            </p>
-          </div>
-          {pairingCode ? (
-            <div className="ai-pairing-code" data-opdf-pairing-code>
-              <span>Pairing code</span>
-              <strong>{pairingCode}</strong>
-              {pairingExpiresAt ? (
-                <small>Expires at {new Date(pairingExpiresAt).toLocaleTimeString()}</small>
-              ) : null}
-            </div>
-          ) : null}
-          {pairingError ? <div className="ai-pairing-error">{pairingError}</div> : null}
-          <button
-            className="btn-premium btn-premium-primary"
-            type="button"
-            disabled={pairingLoading}
-            onClick={onStartPairing}
-          >
-            {pairingLoading ? "Creating pairing code..." : machineAgentConnected ? "Pair another machine" : "Pair machine agent"}
-          </button>
-        </>
-      ) : (
-        <>
-          <div className="form-group">
-            <label className="form-label">AI Mode</label>
-            <select className="ai-engine-select" value={engineMode} onChange={(e) => setEngineMode(e.target.value as EngineMode)}>
-              <option value="local">Local</option>
-              <option value="dify">Dify API (legacy development)</option>
-              <option value="iframe">Iframe</option>
-            </select>
-          </div>
-
-          {engineMode === "dify" ? (
-            <>
-              <div className="form-group">
-                <label className="form-label">Dify URL</label>
-                <input className="ai-settings-input" value={difyUrl} onChange={(e) => setDifyUrl(e.target.value)} placeholder="https://.../v1" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Dify API Key</label>
-                <input className="ai-settings-input" value={difyKey} onChange={(e) => setDifyKey(e.target.value)} placeholder="app-..." />
-              </div>
-            </>
-          ) : null}
-
-          {engineMode === "iframe" ? (
-            <div className="form-group">
-              <label className="form-label">Iframe URL</label>
-              <input className="ai-settings-input" value={iframeUrl} onChange={(e) => setIframeUrl(e.target.value)} placeholder="http://localhost:3000" />
-            </div>
-          ) : null}
-
-          {engineMode === "local" ? (
-            <div className="ai-radio-group">
-              <div className="ai-radio-option active">
-                <strong>Local Agent Bridge</strong>
-                <p>Runs through the OPDF desktop bridge without exposing an external API key in the renderer.</p>
-              </div>
-            </div>
-          ) : null}
-        </>
-      )}
-
-      <div className="ai-settings-actions">
-        <button className="btn-premium btn-premium-secondary" onClick={onCancel} type="button">
-          Close
-        </button>
-        {!isProductionWeb ? (
-          <button className="btn-premium btn-premium-primary" onClick={onSave} type="button">
-            Apply
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-// --- CHAT MESSAGE BUBBLE COMPONENT ---
 interface ChatMessageBubbleProps {
   message: Message;
   onConfirmInline: (cmd: AgentCommand, confirm: boolean) => void;
@@ -287,9 +11,12 @@ interface ChatMessageBubbleProps {
 
 export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbleProps) {
   const { sender, isPending, text, toolLogs, confirmation } = message;
-  
   return (
-    <div data-opdf-ai-message={sender} data-opdf-ai-pending={isPending ? "true" : "false"} className={`ai-message-bubble-wrapper ${sender}`}>
+    <div
+      data-opdf-ai-message={sender}
+      data-opdf-ai-pending={isPending ? "true" : "false"}
+      className={`ai-message-bubble-wrapper ${sender}`}
+    >
       <div className="ai-message-avatar">
         {sender === "user" ? (
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -301,34 +28,26 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
       </div>
       <div className="ai-message-bubble">
         {isPending ? (
-          <div className="ai-typing-indicator">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
+          <div className="ai-typing-indicator"><span /><span /><span /></div>
         ) : (
-          <div className="ai-message-text">
-            <MarkdownMessage text={text} />
-          </div>
+          <div className="ai-message-text"><MarkdownMessage text={text} /></div>
         )}
-
-        {toolLogs && (
+        {toolLogs ? (
           <details className="ai-tool-logs">
             <summary>View Agent Bridge call log</summary>
             <pre>{toolLogs}</pre>
           </details>
-        )}
-
-        {confirmation && (
+        ) : null}
+        {confirmation ? (
           <div className="ai-confirmation-box">
-            <button 
+            <button
               className="ai-confirm-btn cancel"
               onClick={() => onConfirmInline(confirmation, false)}
               type="button"
             >
               Cancel
             </button>
-            <button 
+            <button
               className="ai-confirm-btn confirm"
               onClick={() => onConfirmInline(confirmation, true)}
               type="button"
@@ -336,23 +55,17 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
               Confirm action
             </button>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
 }
 
-// --- SUGGESTION CHIPS COMPONENT ---
-interface SuggestionChipsProps {
-  onSuggestionClick: (text: string) => void;
-}
-
-export function SuggestionChips({ onSuggestionClick }: SuggestionChipsProps) {
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (e.deltaY !== 0) {
-      e.preventDefault();
-      e.currentTarget.scrollLeft += e.deltaY;
-    }
+export function SuggestionChips({ onSuggestionClick }: { onSuggestionClick: (text: string) => void }) {
+  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (event.deltaY === 0) return;
+    event.preventDefault();
+    event.currentTarget.scrollLeft += event.deltaY;
   };
 
   return (
@@ -379,24 +92,32 @@ export function SuggestionChips({ onSuggestionClick }: SuggestionChipsProps) {
   );
 }
 
-// --- CHAT INPUT FORM COMPONENT ---
 interface ChatInputFormProps {
   inputValue: string;
-  setInputValue: (val: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  setInputValue: (value: string) => void;
+  onSubmit: (event: React.FormEvent) => void;
   engineMode: EngineMode;
 }
 
-export function ChatInputForm({ inputValue, setInputValue, onSubmit, engineMode }: ChatInputFormProps) {
+export function ChatInputForm({
+  inputValue,
+  setInputValue,
+  onSubmit,
+  engineMode,
+}: ChatInputFormProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Handle textarea autogrow inside the component for better encapsulation
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(100, textareaRef.current.scrollHeight)}px`;
-    }
+    if (!textareaRef.current) return;
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${Math.min(100, textareaRef.current.scrollHeight)}px`;
   }, [inputValue]);
+
+  const placeholder = engineMode === "agent"
+    ? "Ask your paired machine agent..."
+    : engineMode === "local"
+      ? "Type a command (for example: 'compress file', 'rotate left')..."
+      : "Chat with AI...";
 
   return (
     <form className="ai-chat-input-form" onSubmit={onSubmit}>
@@ -406,19 +127,18 @@ export function ChatInputForm({ inputValue, setInputValue, onSubmit, engineMode 
         className="ai-chat-textarea"
         rows={1}
         value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            onSubmit(e);
-          }
+        onChange={(event) => setInputValue(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.shiftKey) return;
+          event.preventDefault();
+          onSubmit(event);
         }}
-        placeholder={engineMode === "agent" ? "Ask your paired machine agent..." : engineMode === "local" ? "Type a command (for example: 'compress file', 'rotate left')..." : "Chat with AI..."}
+        placeholder={placeholder}
       />
-      <button 
+      <button
         data-opdf-ai-send
-        className="ai-chat-send-btn" 
-        disabled={!inputValue.trim()} 
+        className="ai-chat-send-btn"
+        disabled={!inputValue.trim()}
         type="submit"
         title="Send command"
       >
@@ -429,6 +149,3 @@ export function ChatInputForm({ inputValue, setInputValue, onSubmit, engineMode 
     </form>
   );
 }
-
-
-

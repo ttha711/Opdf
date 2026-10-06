@@ -41,6 +41,7 @@ export function App() {
   const [showSearchRedact, setShowSearchRedact] = useState(false);
   const [showAdvancedPdf, setShowAdvancedPdf] = useState(false);
   const [showDigitalSignature, setShowDigitalSignature] = useState(false);
+  const [showHome, setShowHome] = useState(false);
   const [bridgeRecents, setBridgeRecents] = useState<Array<{ filePath: string; openedAt: number }>>([]);
 
   const sidebars = useResizableSidebars();
@@ -154,10 +155,18 @@ export function App() {
       <AppHeader
         {...headerProps}
         isPublic={isPublic}
+        onGoHome={() => setShowHome(true)}
+        openFile={() => {
+          setShowHome(false);
+          headerProps.openFile();
+        }}
         tabs={state.tabs}
         activeTabId={state.activeTabId}
         activeGroupFilter={state.activeGroupFilter}
-        switchTab={state.switchTab}
+        switchTab={(id) => {
+          setShowHome(false);
+          state.switchTab(id);
+        }}
         closeTab={state.closeTab}
         addTabToGroup={state.addTabToGroup}
         removeTabFromGroup={state.removeTabFromGroup}
@@ -192,7 +201,29 @@ export function App() {
         setShowDigitalSignature={setShowDigitalSignature}
         success={toast.success}
       />
-      {state.showDashboard && !isPublic ? (
+      {showHome ? (
+        <div className="min-h-0 overflow-hidden" onDragOver={onDragOver} onDrop={(event) => {
+          setShowHome(false);
+          onDrop(event);
+        }}>
+          <HomeScreen
+            recentDocuments={homeRecentDocuments}
+            onOpenFile={() => {
+              setShowHome(false);
+              headerProps.openFile();
+            }}
+            onOpenTools={() => {
+              setShowHome(false);
+              state.setShowDashboard(true);
+            }}
+            onOpenRecent={(id) => {
+              setShowHome(false);
+              if (id.startsWith("tab:")) return state.switchTab(id.slice(4));
+              if (id.startsWith("path:")) void openFileWithPath(id.slice(5));
+            }}
+          />
+        </div>
+      ) : state.showDashboard && !isPublic ? (
         <AllToolsDashboard
           hasDocument={state.hasDocument}
           fileName={state.fileName}
@@ -243,7 +274,7 @@ export function App() {
           success={toast.success}
         />
       )}
-      <StatusBar hasDocument={state.hasDocument} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} />
+      <StatusBar hasDocument={state.hasDocument && !showHome} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} />
       {!isAiPanelOpen ? (
         <button
           ref={fab.buttonRef}

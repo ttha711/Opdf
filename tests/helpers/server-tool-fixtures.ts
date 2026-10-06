@@ -33,9 +33,9 @@ export async function buildOfficeFixtures() {
   const pptx = Buffer.from(pptArrayBuffer);
 
   return {
-    docx: { name: "server-ui.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", bytes: docx, marker: wordMarker },
-    xlsx: { name: "server-ui.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes: xlsx, marker: excelMarker },
-    pptx: { name: "server-ui.pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", bytes: pptx, marker: pptMarker },
+    docx: { name: "server-ui-word.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", bytes: docx, marker: wordMarker },
+    xlsx: { name: "server-ui-excel.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes: xlsx, marker: excelMarker },
+    pptx: { name: "server-ui-slides.pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", bytes: pptx, marker: pptMarker },
   } as const;
 }
 

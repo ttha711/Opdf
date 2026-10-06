@@ -20,9 +20,9 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(page.getByRole("button", { name: "Open PDF", exact: true })).toBeVisible();
   await expect(page.getByText("Opdf Power Tools Dashboard")).toHaveCount(0);
 
-  const mobileMenu = page.locator("header").getByRole("button", { name: "☰", exact: true });
+  const mobileMenu = page.locator("header").getByRole("button", { name: "Application menu", exact: true });
   await expect(mobileMenu).toBeVisible();
-  await expect(page.locator("header").getByRole("button", { name: "File", exact: true })).toBeHidden();
+  await expect(page.locator("header").getByRole("button", { name: "File", exact: true })).toHaveCount(0);
 
   const primary = page.getByRole("button", { name: "Open PDF", exact: true });
   const primaryBox = await primary.boundingBox();
@@ -53,6 +53,13 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
 
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+3/i, { timeout: 30_000 });
+
+  await expect(page.locator(".opdf-topbar .tab-bar-container")).toBeVisible();
+  await page.locator('[data-opdf-action="home"]').click();
+  await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toBeVisible();
+  await expect(page.getByText("mobile-three-pages.pdf", { exact: true })).toBeVisible();
+  await page.getByText("mobile-three-pages.pdf", { exact: true }).click();
+  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
 
   const documentOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(documentOverflow).toBeLessThanOrEqual(1);

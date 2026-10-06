@@ -96,14 +96,8 @@ export function NativeEditPageOverlay({
     else if (selection.objectId) setSelectedId(null);
   }), [pageIndex]);
 
-  const selected = useMemo(
-    () => objects.find((object) => object.id === selectedId) ?? null,
-    [objects, selectedId],
-  );
-  const baseGeometry = useMemo(
-    () => selected ? geometryForObject(selected) : null,
-    [selected],
-  );
+  const selected = useMemo(() => objects.find((object) => object.id === selectedId) ?? null, [objects, selectedId]);
+  const baseGeometry = useMemo(() => selected ? geometryForObject(selected) : null, [selected]);
   const displayGeometry = useMemo(
     () => baseGeometry && previewMatrix ? transformGeometry(baseGeometry, previewMatrix) : baseGeometry,
     [baseGeometry, previewMatrix],

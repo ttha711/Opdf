@@ -11,6 +11,7 @@ import { MergeModal } from "../MergeModal";
 import { SplitModal } from "../SplitModal";
 import type { MarkupTool } from "../../hooks/useDocumentActions";
 import { useNativeEditBytes } from "../../hooks/useNativeEditBytes";
+import { requestNativeInlineTextEdit } from "../../lib/nativeEditRuntime";
 
 type Controllers = ReturnType<typeof import("../../hooks/useAppControllers").useAppControllers>;
 type Sidebars = ReturnType<typeof import("../../hooks/useResizableSidebars").useResizableSidebars>;
@@ -97,6 +98,13 @@ export function AppWorkspace({
           onWheel={onViewerWheel}
           onDragOver={onDragOver}
           onDrop={onDrop}
+          onDoubleClick={() => {
+            if (state.activeTool !== "select") return;
+            const text = window.getSelection()?.toString().trim() ?? "";
+            if (!text) return;
+            requestNativeInlineTextEdit(state.page - 1, text);
+            state.setActiveTool("edit-content");
+          }}
           aria-label="PDF viewer area"
           style={{ gridColumn: 1 }}
         >

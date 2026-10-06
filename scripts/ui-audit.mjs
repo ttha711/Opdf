@@ -131,7 +131,7 @@ async function openApplicationMenu(focusItem = null) {
   }
 
   if (focusItem) {
-    const action = menu.getByRole("menuitem", { name: focusItem, exact: true });
+    const action = menu.locator('[data-opdf-menu-item]').filter({ hasText: focusItem }).first();
     await action.scrollIntoViewIfNeeded();
     await page.waitForTimeout(80);
   }

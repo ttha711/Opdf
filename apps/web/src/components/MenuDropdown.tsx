@@ -109,6 +109,7 @@ function SubmenuItem({
       <button
         type="button"
         role="menuitem"
+        data-opdf-menu-item={item.label}
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={item.disabled}

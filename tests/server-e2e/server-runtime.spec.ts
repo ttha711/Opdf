@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { embedPdfSidebarPanel, openEmbedPdfSidebar } from "../helpers/embedpdf";
 import { clickApplicationMenuItem } from "../helpers/app-menu";

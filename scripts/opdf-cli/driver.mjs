@@ -407,7 +407,8 @@ export class OpdfDriver {
 
   async exportPdf(targetDir, label = "export") {
     await this.openMenu("File");
-    const item = this.page.locator('[data-opdf-menu-item="Export PDF..."]');
+    const item = this.page.locator('[data-opdf-menu-item="Export PDF..."]').first();
+    await item.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
     if (await item.isDisabled()) throw new Error("Export PDF is disabled");
     return this.downloadByClick(item, targetDir, label);
   }
@@ -508,7 +509,8 @@ export class OpdfDriver {
 
   async runOcrDownload(targetDir) {
     await this.openMenu("Tools");
-    const item = this.page.locator('[data-opdf-menu-item="Run OCR"]');
+    const item = this.page.locator('[data-opdf-menu-item="Run OCR"]').first();
+    await item.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
     if (await item.isDisabled()) throw new Error("OCR is disabled");
     return this.downloadByClick(item, targetDir, "ocr");
   }

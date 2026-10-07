@@ -228,13 +228,21 @@ try {
 
   let logEntries = [];
   const logDir = join(dataDir, "logs");
-  for (let attempt = 0; attempt < 20 && logEntries.length === 0; attempt += 1) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    logEntries = [];
     const files = await readdir(logDir).catch(() => []);
     for (const file of files.filter((name) => name.endsWith(".jsonl"))) {
       const raw = await readFile(join(logDir, file), "utf8");
       logEntries.push(...raw.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)));
     }
-    if (logEntries.length === 0) await new Promise((resolve) => setTimeout(resolve, 50));
+    const hasReadyLog = logEntries.some((entry) =>
+      entry.path === "/api/opdf/ready" && entry.status === 200
+    );
+    const hasClientLog = logEntries.some((entry) =>
+      entry.event === "client-error" && entry.client?.message === "production smoke client diagnostic"
+    );
+    if (hasReadyLog && hasClientLog) break;
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
   assert(logEntries.length > 0, "structured request log was not written");
   assert(

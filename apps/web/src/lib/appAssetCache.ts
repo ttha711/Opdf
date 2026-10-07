@@ -40,6 +40,19 @@ async function warmAssets(paths: string[]) {
   await Promise.all(workers);
 }
 
+export function registerOfflineAppCache(buildSha: string) {
+  if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
+
+  const scriptUrl = new URL("opdf-sw.js", document.baseURI);
+  scriptUrl.searchParams.set("build", buildSha);
+  void navigator.serviceWorker.register(scriptUrl.href, {
+    scope: new URL("./", document.baseURI).pathname,
+    updateViaCache: "none",
+  }).catch(() => {
+    // Offline support must never prevent the current online session from loading.
+  });
+}
+
 export function warmAppAssetCache() {
   if (!import.meta.env.PROD) return;
 
@@ -53,7 +66,7 @@ export function warmAppAssetCache() {
       const manifest = await response.json() as ViteManifest;
       await warmAssets(collectAssetPaths(manifest));
     } catch {
-      // The current page is already usable; warming is only an optimization.
+      // A service worker may already hold the complete previous app shell.
     }
   };
 

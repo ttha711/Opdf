@@ -54,6 +54,7 @@ try {
     "frame-ancestors 'none'",
     "script-src 'self' 'wasm-unsafe-eval'",
     "worker-src 'self' blob:",
+    "connect-src 'self' https: wss: blob:",
   ]) {
     assert(csp.includes(directive), `CSP directive missing: ${directive}`);
   }

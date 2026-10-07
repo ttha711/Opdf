@@ -78,7 +78,7 @@ test("cached app shell reopens offline and accepts a local PDF", async ({ page, 
     const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
     await expect(viewer).toBeVisible({ timeout: 30_000 });
     await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy");
-    await expect(page.getByText(/Offline .* PDF is open locally/i)).toBeVisible();
+    await expect(page.getByTestId("status-bar").getByText(/Offline .* PDF is open locally/i)).toBeVisible();
   } finally {
     await context.setOffline(false);
   }

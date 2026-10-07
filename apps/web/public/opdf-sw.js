@@ -4,6 +4,7 @@ const CACHE_NAME = CACHE_PREFIX + build;
 const scopeUrl = new URL(self.registration.scope);
 const shellUrl = new URL("./", scopeUrl).href;
 const manifestUrl = new URL("asset-manifest.json", scopeUrl).href;
+const runtimeUrl = new URL("opdf-runtime.js", scopeUrl).href;
 
 async function cacheResponse(cache, request, response) {
   if (!response || !response.ok) return response;
@@ -16,6 +17,16 @@ async function precacheAppShell() {
   const shellResponse = await fetch(shellUrl, { cache: "no-cache", credentials: "same-origin" });
   if (shellResponse.ok) {
     await cache.put(shellUrl, shellResponse.clone());
+  }
+
+  try {
+    const runtimeResponse = await fetch(runtimeUrl, {
+      cache: "no-cache",
+      credentials: "same-origin",
+    });
+    await cacheResponse(cache, runtimeUrl, runtimeResponse);
+  } catch {
+    // Static/local builds do not expose server runtime configuration.
   }
 
   const manifestResponse = await fetch(manifestUrl, {

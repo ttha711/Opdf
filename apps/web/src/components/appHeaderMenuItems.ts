@@ -104,8 +104,8 @@ export function buildCompactToolsMenuItems(args: CompactToolsArgs): MenuItemDef[
           kind: "action",
           label: "Digital Sign...",
           icon: "signature",
-          disabled: !hasDocument || !hasDesktopBridge || capabilities?.digitalSignature === false,
-          title: !hasDesktopBridge ? "Available in the Desktop App only" : undefined,
+          disabled: !hasDocument || capabilities?.digitalSignature === false,
+          title: capabilities?.digitalSignature === false ? "Digital signing is unavailable in this runtime" : undefined,
           onClick: digitalSign,
         },
       ],
@@ -152,6 +152,7 @@ export function buildGlobalMenuItems({
   toolsMenuItems: MenuItemDef[];
   aiEdit: () => void;
 }): MenuItemDef[] {
+  const openDocument = findAction(fileMenuItems, "Open...");
   const closeDocument = findAction(fileMenuItems, "Close");
   const save = findAction(fileMenuItems, "Save");
   const saveAs = findAction(fileMenuItems, "Save As...");
@@ -188,7 +189,7 @@ export function buildGlobalMenuItems({
       kind: "submenu",
       label: "Document",
       icon: "file-pdf",
-      items: [closeDocument, save, saveAs, exportPdf].filter(Boolean) as MenuItemDef[],
+      items: [openDocument, closeDocument, save, saveAs, exportPdf].filter(Boolean) as MenuItemDef[],
     },
     {
       kind: "submenu",

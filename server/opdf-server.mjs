@@ -785,6 +785,30 @@ async function handleApi(req, res, url) {
   const projectId = tenantRuntime.projectFromRequest(req, url);
 
   return tenantRuntime.run(user, projectId, async () => {
+  if (url.pathname === "/api/opdf/client-events" && req.method === "POST") {
+    const body = await readJsonBody(req, 16 * 1024);
+    const kind = ["window-error", "unhandled-rejection", "error-boundary"].includes(body.kind)
+      ? body.kind
+      : "window-error";
+    requestLogger.log({
+      event: "client-error",
+      requestId: String(res.getHeader("X-Request-Id") || ""),
+      client: {
+        kind,
+        message: typeof body.message === "string" ? body.message.slice(0, 500) : "",
+        stack: typeof body.stack === "string" ? body.stack.slice(0, 4_000) : "",
+        componentStack: typeof body.componentStack === "string" ? body.componentStack.slice(0, 4_000) : "",
+        buildSha: typeof body.buildSha === "string" ? body.buildSha.slice(0, 128) : "",
+        path: typeof body.path === "string" ? body.path.slice(0, 500) : "",
+        occurredAt: typeof body.occurredAt === "string" ? body.occurredAt.slice(0, 64) : "",
+      },
+    });
+    setBaseHeaders(res);
+    res.statusCode = 204;
+    res.end();
+    return;
+  }
+
   if (url.pathname === "/api/opdf/auth/me" && req.method === "GET") {
     return sendJson(res, 200, {
       user: auth.publicUser(user),

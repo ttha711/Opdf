@@ -78,6 +78,9 @@ try {
   );
   assert((await runtimeConfig.text()).includes('__OPDF_RUNTIME__="server"'), "runtime config payload missing");
 
+  const traversal = await fetch(`${base}/%2e%2e%2fpackage.json`);
+  assert(traversal.status === 403, `static path traversal was not rejected: ${traversal.status}`);
+
   const ready = await fetch(`${base}/api/opdf/ready`);
   assert(ready.status === 200, `readiness failed: ${ready.status}`);
   const readyPayload = await ready.json();

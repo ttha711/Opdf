@@ -419,7 +419,10 @@ specific JSONL entry.
 ### Automated local backups
 
 For local-storage deployments, OPDF includes a verified backup CLI. Store backups
-outside `OPDF_DATA_DIR`:
+outside `OPDF_DATA_DIR`. For a fully consistent recovery point, stop/quiesce OPDF
+before the filesystem backup (or use an atomic volume snapshot); the CLI verifies
+the copied bytes but cannot make multiple files change atomically while the server
+is still writing them.
 
 ```powershell
 npm run backup:create -- --data-dir "D:\OPDF\data" --backup-root "E:\OPDF-backups" --keep 7

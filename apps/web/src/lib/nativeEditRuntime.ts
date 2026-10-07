@@ -7,11 +7,16 @@ export type NativeEditSelection = {
 
 type SelectionListener = (selection: NativeEditSelection) => void;
 type PatchApplier = (patches: PdfContentPatch[], successMessage: string) => Promise<void>;
+type InlineCommitter = () => Promise<void>;
+type RendererRefresher = (bytes: Uint8Array) => Promise<void>;
 
 const selectionListeners = new Set<SelectionListener>();
 let currentSelection: NativeEditSelection | null = null;
 let patchApplier: PatchApplier | null = null;
+let inlineCommitter: InlineCommitter | null = null;
+let rendererRefresher: RendererRefresher | null = null;
 let pendingInlineText: { pageIndex: number; text: string } | null = null;
+let workingBytes: Uint8Array | null = null;
 
 export function emitNativeEditSelection(selection: NativeEditSelection) {
   currentSelection = selection;
@@ -39,6 +44,17 @@ export function consumeNativeInlineTextEdit(pageIndex: number) {
   return pending;
 }
 
+export function registerNativeInlineCommitter(committer: InlineCommitter) {
+  inlineCommitter = committer;
+  return () => {
+    if (inlineCommitter === committer) inlineCommitter = null;
+  };
+}
+
+export async function commitNativeInlineEdit() {
+  await inlineCommitter?.();
+}
+
 export function registerNativeEditPatchApplier(applier: PatchApplier) {
   patchApplier = applier;
   return () => {
@@ -54,8 +70,30 @@ export async function applyNativeEditPatches(
   await patchApplier(patches, successMessage);
 }
 
+export function registerNativeEditRendererRefresher(refresher: RendererRefresher) {
+  rendererRefresher = refresher;
+  return () => {
+    if (rendererRefresher === refresher) rendererRefresher = null;
+  };
+}
+
+export async function refreshNativeEditRenderer(bytes: Uint8Array) {
+  await rendererRefresher?.(bytes);
+}
+
+export function setNativeEditWorkingBytes(bytes: Uint8Array | null) {
+  workingBytes = bytes;
+}
+
+export function getNativeEditWorkingBytes() {
+  return workingBytes;
+}
+
 export function clearNativeEditRuntime() {
   currentSelection = null;
   patchApplier = null;
+  inlineCommitter = null;
+  rendererRefresher = null;
   pendingInlineText = null;
+  workingBytes = null;
 }

@@ -110,7 +110,7 @@ async function assertMainPdfSurface() {
 }
 
 const APPLICATION_MENU_PATHS = {
-  "Open...": ["Document", "Open..."],
+  "Close": ["Document", "Close"],
   "All Tools...": ["Tools", "All Tools..."],
   "Split PDF...": ["Tools", "Pages", "Split PDF..."],
   "Merge PDFs...": ["Tools", "Pages", "Merge PDFs..."],
@@ -199,7 +199,7 @@ try {
   await assertMainPdfSurface();
   await shot("02-viewer-light");
 
-  await openApplicationMenuPath("Open...");
+  await openApplicationMenuPath("Close");
   await page.waitForTimeout(250);
   await shot("03-file-menu");
   await page.keyboard.press("Escape");

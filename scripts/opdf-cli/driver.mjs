@@ -359,8 +359,20 @@ export class OpdfDriver {
 
       const exactLabel = await item.getAttribute("data-opdf-menu-item");
       if (exactLabel !== label) {
-        item = surface.locator(`[data-opdf-menu-item="${label.replace(/"/g, '\\"')}"]`).first();
-        await item.waitFor({ state: "visible", timeout });
+        const candidates = surface.locator("[data-opdf-menu-item]");
+        const count = await candidates.count();
+        item = null;
+        for (let candidateIndex = 0; candidateIndex < count; candidateIndex += 1) {
+          const candidate = candidates.nth(candidateIndex);
+          if (
+            await candidate.getAttribute("data-opdf-menu-item") === label &&
+            await candidate.isVisible()
+          ) {
+            item = candidate;
+            break;
+          }
+        }
+        if (!item) throw new Error(`Application menu item "${label}" was not found`);
       }
 
       if (index < labels.length - 1) {

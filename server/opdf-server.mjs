@@ -634,10 +634,11 @@ async function serveWeb(req, res, pathname) {
   res.statusCode = 200;
   res.setHeader("Content-Type", contentTypeFor(filePath));
   res.setHeader("Content-Length", String(info.size));
-  const isAssetManifest = filePath.endsWith("asset-manifest.json");
+  const isMutableRuntimeAsset =
+    filePath.endsWith("asset-manifest.json") || filePath.endsWith("opdf-sw.js");
   res.setHeader(
     "Cache-Control",
-    isAssetManifest ? "no-cache" : "public, max-age=31536000, immutable",
+    isMutableRuntimeAsset ? "no-cache" : "public, max-age=31536000, immutable",
   );
   createReadStream(filePath).pipe(res);
 }
@@ -895,7 +896,7 @@ async function handleApi(req, res, url) {
         officeConversion: true,
         officeToPdf: true,
         storedMutations: true,
-        rangePreview: true,
+        rangePreview: false,
         resumableUpload: true,
         localFirstUpload: true,
         ocrQueue: true,

@@ -11,6 +11,10 @@ async function buildPdf() {
   return Buffer.from(await doc.save({ useObjectStreams: false }));
 }
 
+function boundsX(value: string | null) {
+  return Number(value?.split(",")[0] ?? Number.NaN);
+}
+
 async function openCanvasEditor(page: import("@playwright/test").Page, request: import("@playwright/test").APIRequestContext) {
   const upload = await request.post("/api/opdf/documents?name=native-canvas.pdf", {
     headers: { "Content-Type": "application/pdf" },
@@ -34,6 +38,9 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
   await openCanvasEditor(page, request);
 
   const editor = page.locator("[data-opdf-native-editor='true']");
+  const viewerRoot = page.locator("[data-opdf-native-viewer-root='true']");
+  const viewerInstance = await viewerRoot.getAttribute("data-opdf-native-viewer-instance");
+  expect(viewerInstance).toBeTruthy();
   const textObject = page.locator("[data-opdf-canvas-object][data-opdf-object-kind='text']").first();
   await expect(textObject).toBeVisible({ timeout: 20_000 });
 
@@ -44,8 +51,32 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
   await page.mouse.down();
   await page.mouse.move(before.x + before.width / 2 + 24, before.y + before.height / 2 - 12, { steps: 4 });
+  const preview = await page.locator("[data-opdf-canvas-selection]").boundingBox();
+  expect(preview).not.toBeNull();
+  expect(preview?.x ?? 0).toBeGreaterThan(before.x + 10);
+
+  await page.evaluate(() => {
+    const samples: number[] = [];
+    (window as any).__opdfDragSamples = samples;
+    (window as any).__opdfSampleDrag = true;
+    const sample = () => {
+      if (!(window as any).__opdfSampleDrag) return;
+      const element = document.querySelector("[data-opdf-canvas-selection]");
+      if (element) samples.push(element.getBoundingClientRect().x);
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
   await page.mouse.up();
   await expect(editor.getByText("Object moved on page.")).toBeVisible({ timeout: 20_000 });
+  await page.waitForTimeout(100);
+  const samples = await page.evaluate(() => {
+    (window as any).__opdfSampleDrag = false;
+    return (window as any).__opdfDragSamples as number[];
+  });
+  expect(samples.length).toBeGreaterThan(0);
+  expect(Math.min(...samples)).toBeGreaterThan(before.x + 8);
+  await expect(viewerRoot).toHaveAttribute("data-opdf-native-viewer-instance", viewerInstance ?? "");
 
   const refreshedSelection = page.locator("[data-opdf-canvas-selection]");
   await expect(refreshedSelection).toHaveCount(1);
@@ -93,4 +124,68 @@ test("canvas selection stays synchronized with the right-side object list", asyn
 
   await page.locator("[data-opdf-native-edit-page='1']").click({ position: { x: 8, y: 8 } });
   await expect(page.locator("[data-opdf-canvas-selection]")).toHaveCount(0);
+});
+
+
+test("inline text commits before click-outside deselection and Escape cancels", async ({ page, request }) => {
+  await openCanvasEditor(page, request);
+  const editor = page.locator("[data-opdf-native-editor='true']");
+  const selection = page.locator("[data-opdf-canvas-selection]");
+  const object = page.locator("[data-opdf-canvas-object][data-opdf-object-kind='text']").first();
+
+  await object.dblclick();
+  const inline = page.locator("[data-opdf-inline-text-editor='true']");
+  await expect(inline).toBeVisible();
+  await inline.fill("Saved by click outside");
+
+  await page.locator("[data-opdf-native-edit-page='1']").click({ position: { x: 8, y: 8 } });
+  await expect(editor.getByText(/Inline text updated/)).toBeVisible({ timeout: 20_000 });
+  await expect(inline).toHaveCount(0);
+  await expect(selection).toHaveCount(0);
+  await expect(
+    editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "Saved by click outside" }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  const updatedObject = page.locator("[data-opdf-canvas-object][data-opdf-object-kind='text']").first();
+  await updatedObject.dblclick();
+  await expect(inline).toBeVisible();
+  await inline.fill("This must be cancelled");
+  await inline.press("Escape");
+  await expect(inline).toHaveCount(0);
+  await expect(
+    editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "Saved by click outside" }),
+  ).toBeVisible();
+  await expect(editor).not.toContainText("This must be cancelled");
+});
+
+test("rapid native mutations serialize and immediate undo sees the latest bytes", async ({ page, request }) => {
+  await openCanvasEditor(page, request);
+  const editor = page.locator("[data-opdf-native-editor='true']");
+  const objectButton = editor.locator("[data-opdf-object-kind='text']").first();
+  await objectButton.click();
+
+  const before = boundsX(await objectButton.getAttribute("data-opdf-bounds"));
+  expect(Number.isFinite(before)).toBeTruthy();
+
+  const moveRight = editor.getByRole("button", { name: "→", exact: true });
+  await moveRight.evaluate((element) => {
+    (element as HTMLButtonElement).click();
+    (element as HTMLButtonElement).click();
+  });
+
+  await expect.poll(async () => {
+    const current = editor.locator("[data-opdf-object-kind='text']").first();
+    return boundsX(await current.getAttribute("data-opdf-bounds"));
+  }, { timeout: 30_000 }).toBeGreaterThan(before + 9);
+
+  const moved = boundsX(await editor.locator("[data-opdf-object-kind='text']").first().getAttribute("data-opdf-bounds"));
+  expect(moved).toBeGreaterThan(before + 9);
+
+  moveRight.evaluate((element) => (element as HTMLButtonElement).click());
+  await page.keyboard.press("Control+z");
+
+  await expect.poll(async () => {
+    const current = editor.locator("[data-opdf-object-kind='text']").first();
+    return boundsX(await current.getAttribute("data-opdf-bounds"));
+  }, { timeout: 30_000 }).toBeCloseTo(moved, 2);
 });

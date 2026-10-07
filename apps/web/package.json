@@ -26,7 +26,7 @@
     "@pdf-lib/fontkit": "^1.1.1",
     "docx": "^9.6.1",
     "dompurify": "^3.4.9",
-    "fflate": "^0.8.2",
+    "fflate": "^0.8.3",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.5.136",
     "pptxgenjs": "^4.0.1",

@@ -6,6 +6,7 @@ import { ConfirmProvider } from "./components/ConfirmDialog";
 import "./styles.css";
 import { warmAppAssetCache } from "./lib/appAssetCache";
 import { ServerAuthGate } from "./components/ServerAuthGate";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 
 declare const __OPDF_BUILD_SHA__: string;
 
@@ -17,13 +18,15 @@ if (!document.documentElement.dataset.density) {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ToastProvider>
-      <ConfirmProvider>
-        <ServerAuthGate>
-          <App />
-        </ServerAuthGate>
-      </ConfirmProvider>
-    </ToastProvider>
+    <AppErrorBoundary buildSha={__OPDF_BUILD_SHA__}>
+      <ToastProvider>
+        <ConfirmProvider>
+          <ServerAuthGate>
+            <App />
+          </ServerAuthGate>
+        </ConfirmProvider>
+      </ToastProvider>
+    </AppErrorBoundary>
   </React.StrictMode>
 );
 

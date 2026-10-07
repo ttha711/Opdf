@@ -11,6 +11,15 @@ on:
       - "scripts/opdf-cli.mjs"
       - "scripts/opdf-cli/**"
       - ".github/workflows/ui-audit.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "server/**"
+      - "scripts/ui-audit.mjs"
+      - "scripts/opdf-cli.mjs"
+      - "scripts/opdf-cli/**"
+      - ".github/workflows/ui-audit.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

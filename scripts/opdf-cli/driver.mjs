@@ -679,9 +679,21 @@ export class OpdfDriver {
       }
       toolLabel = "Highlight Tool";
     }
-    const surface = viewer.locator("canvas, img").filter({ visible: true }).last();
-    const box = await surface.boundingBox();
-    if (!box || box.width < 200 || box.height < 200) throw new Error("No usable PDF surface for annotation gesture");
+    const surfaces = viewer.locator("canvas, img");
+    let box = null;
+    let largestArea = 0;
+    for (let index = 0; index < await surfaces.count(); index += 1) {
+      const candidate = surfaces.nth(index);
+      if (!(await candidate.isVisible().catch(() => false))) continue;
+      const candidateBox = await candidate.boundingBox();
+      if (!candidateBox || candidateBox.width < 200 || candidateBox.height < 200) continue;
+      const area = candidateBox.width * candidateBox.height;
+      if (area > largestArea) {
+        largestArea = area;
+        box = candidateBox;
+      }
+    }
+    if (!box) throw new Error("No usable PDF surface for annotation gesture");
 
     const startX = box.x + Math.min(180, box.width * 0.25);
     const startY = box.y + Math.min(180, box.height * 0.25);

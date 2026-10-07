@@ -120,14 +120,9 @@ export function NativeEditPdfViewer({
     () => sourceIdentity.startsWith("server://") ? getServerDocumentUrl(sourceIdentity) : null,
     [sourceIdentity],
   );
-  const [sessionSource] = useState(() => {
-    const blob = sourceBlob ?? (data
-      ? new Blob([data as unknown as BlobPart], { type: "application/pdf" })
-      : null);
-    if (blob) {
-      return { url: URL.createObjectURL(blob), revoke: true };
-    }
-    return { url: serverUrl, revoke: false };
+  const initialSourceRef = useRef({ sourceBlob, data, serverUrl });
+  const [sessionSource, setSessionSource] = useState<{ url: string | null }>({
+    url: serverUrl,
   });
   const viewerInstanceRef = useRef(
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -135,9 +130,21 @@ export function NativeEditPdfViewer({
       : `native-${Date.now()}-${Math.random()}`,
   );
 
-  useEffect(() => () => {
-    if (sessionSource.revoke && sessionSource.url) URL.revokeObjectURL(sessionSource.url);
-  }, [sessionSource]);
+  useEffect(() => {
+    const initial = initialSourceRef.current;
+    const blob = initial.sourceBlob ?? (initial.data
+      ? new Blob([initial.data as unknown as BlobPart], { type: "application/pdf" })
+      : null);
+    if (!blob) return;
+
+    // Create the session URL inside the effect, not a state initializer.
+    // React StrictMode intentionally runs setup -> cleanup -> setup; this
+    // pattern recreates the URL after the simulated cleanup while still
+    // keeping it stable for subsequent object-level data updates.
+    const url = URL.createObjectURL(blob);
+    setSessionSource({ url });
+    return () => URL.revokeObjectURL(url);
+  }, []);
 
   useEffect(() => {
     if (engineError) onError?.(engineError.message);

@@ -160,6 +160,21 @@ try {
     "machine agent result did not round-trip to the authenticated web session",
   );
 
+  const clientEvent = await fetch(`${base}/api/opdf/client-events`, {
+    method: "POST",
+    headers: { Cookie: cookie, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      kind: "error-boundary",
+      message: "production smoke client diagnostic",
+      stack: "stack",
+      componentStack: "component",
+      buildSha: "smoke-sha",
+      path: "/",
+      occurredAt: new Date().toISOString(),
+    }),
+  });
+  assert(clientEvent.status === 204, `client diagnostics endpoint failed: ${clientEvent.status}`);
+
   const crossSite = await fetch(`${base}/api/opdf/auth/login`, {
     method: "POST",
     headers: {
@@ -229,6 +244,14 @@ try {
       Number.isFinite(entry.durationMs)
     ),
     "structured request log is missing readiness request fields",
+  );
+  assert(
+    logEntries.some((entry) =>
+      entry.event === "client-error" &&
+      entry.client?.message === "production smoke client diagnostic" &&
+      entry.client?.buildSha === "smoke-sha"
+    ),
+    "client crash diagnostic was not written to structured logs",
   );
 
   console.log("OPDF production hardening smoke passed.");

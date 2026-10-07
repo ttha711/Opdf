@@ -181,7 +181,7 @@ test("rapid native mutations serialize and immediate undo sees the latest bytes"
   const moved = boundsX(await editor.locator("[data-opdf-object-kind='text']").first().getAttribute("data-opdf-bounds"));
   expect(moved).toBeGreaterThan(before + 9);
 
-  moveRight.evaluate((element) => (element as HTMLButtonElement).click());
+  await moveRight.evaluate((element) => (element as HTMLButtonElement).click());
   await page.keyboard.press("Control+z");
 
   await expect.poll(async () => {

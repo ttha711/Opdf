@@ -45,7 +45,7 @@ jobs:
       OPDF_E2E_HEADERS_JSON: ${{ secrets.OPDF_E2E_HEADERS_JSON }}
     steps:
       - name: Checkout tested revision
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.EXPECTED_SHA }}
 

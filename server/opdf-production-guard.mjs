@@ -118,7 +118,7 @@ export function applyProductionSecurityHeaders(res, env = process.env) {
     "style-src 'self' 'unsafe-inline'",
     "script-src 'self' 'wasm-unsafe-eval'",
     "worker-src 'self' blob:",
-    "connect-src 'self' https: wss:",
+    "connect-src 'self' https: wss: blob:",
     "frame-src 'self' https:",
     "media-src 'self' data: blob:",
     "manifest-src 'self'",

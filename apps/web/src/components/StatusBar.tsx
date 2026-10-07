@@ -12,7 +12,7 @@ export function StatusBar({
   viewMode,
   activeTool,
   saveState,
-  autosaveStatus,
+  autosaveStatus = "idle",
 }: {
   hasDocument: boolean;
   page: number;
@@ -22,7 +22,7 @@ export function StatusBar({
   viewMode: ViewMode;
   activeTool: ActiveTool;
   saveState: "idle" | "saving" | "saved";
-  autosaveStatus: "idle" | "offline" | "retrying";
+  autosaveStatus?: "idle" | "offline" | "retrying";
 }) {
   const pagesLoading = hasDocument && totalPages <= 0;
   const [pagePreviewOpen, setPagePreviewOpen] = useState(false);

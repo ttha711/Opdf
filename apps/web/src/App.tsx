@@ -144,6 +144,7 @@ export function App() {
       <ServerUploadBanner />
       <AppHeader
         {...headerProps}
+        autosaveStatus={controllers.autosaveStatus}
         isPublic={isPublic}
         onGoHome={() => setShowHome(true)}
         openFile={() => {

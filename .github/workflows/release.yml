@@ -23,6 +23,7 @@ jobs:
       - run: npm run test -w @opdf/web
       - run: npm run build
       - run: npm run server-smoke
+      - run: npm run backup-smoke
       - run: node apps/desktop/dist/main/pdf-signature.smoke.js
       - run: npx playwright install chromium --with-deps
       - run: npx playwright test --project=chromium --project=mobile-chromium

@@ -1,7 +1,7 @@
 // opdf-file-size-allow: legacy central HTTP router; large-upload logic is delegated to opdf-upload.mjs while router extraction is handled separately.
 import { createReadStream } from "node:fs";
 import { mkdir, mkdtemp, open, readFile, rename, rm, stat } from "node:fs/promises";
-import { extname, join, normalize, resolve } from "node:path";
+import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
@@ -601,7 +601,9 @@ async function serveWeb(req, res, pathname) {
   const relative = pathname === "/" ? "index.html" : decodeURIComponent(pathname).replace(/^\/+/, "");
   const normalized = normalize(relative).replace(/^(\.\.[/\\])+/, "");
   let filePath = resolve(webDist, normalized);
-  if (!filePath.startsWith(webDist)) return sendError(res, 403, "Forbidden.");
+  if (filePath !== webDist && !filePath.startsWith(webDist + sep)) {
+    return sendError(res, 403, "Forbidden.");
+  }
 
   let info = await stat(filePath).catch(() => null);
   if (!info?.isFile()) {

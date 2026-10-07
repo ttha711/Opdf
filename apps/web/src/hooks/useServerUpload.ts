@@ -223,6 +223,13 @@ export function useServerUpload(args: Args) {
       documentIdentity: localIdentity,
       annotations: [],
     });
+    if (!navigator.onLine) {
+      pendingRef.current = null;
+      argsRef.current.setViewerError("Offline — PDF is open locally.");
+      emitUploadState({ status: "idle" });
+      return;
+    }
+
     emitUploadState({
       status: "uploading",
       fileName: file.name,

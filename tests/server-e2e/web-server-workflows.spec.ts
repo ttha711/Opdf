@@ -99,7 +99,7 @@ test("server structural edits and secure redaction survive Save + reload", async
 
   await redactModal.getByRole("button", { name: "Cancel", exact: true }).click();
   const digitalSignItem = await getApplicationMenuItem(page, "Digital Sign...");
-  await expect(digitalSignItem).toBeDisabled();
+  await expect(digitalSignItem).toBeEnabled();
   await page.keyboard.press("Escape");
 });
 

@@ -55,16 +55,15 @@ test("cached app shell reopens offline and accepts a local PDF", async ({ page, 
     await navigator.serviceWorker.ready;
   });
 
-  // A reload guarantees the installed worker controls the page before the
-  // network is removed.
-  await page.reload();
-  await expect(page.locator("body")).toBeVisible();
+  // The first successful load must be enough to make the next navigation
+  // offline-capable; no second online reload should be required.
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBeTruthy();
 
   await context.setOffline(true);
   try {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.__OPDF_RUNTIME__)).toBe("server");
 
     const pdf = await PDFDocument.create();
     const sheet = pdf.addPage([612, 792]);

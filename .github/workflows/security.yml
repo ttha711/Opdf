@@ -26,15 +26,15 @@ jobs:
           languages: javascript-typescript
       - uses: github/codeql-action/analyze@v3
 
-  dependency-review:
-    name: Dependency Review
-    if: github.event_name == 'pull_request'
+  dependency-audit:
+    name: Production Dependency Audit
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/setup-node@v4
         with:
-          fail-on-severity: high
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Block critical production dependency vulnerabilities
+        run: npm audit --omit=dev --audit-level=critical

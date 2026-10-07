@@ -12,6 +12,7 @@ export function StatusBar({
   viewMode,
   activeTool,
   saveState,
+  autosaveStatus = "idle",
 }: {
   hasDocument: boolean;
   page: number;
@@ -21,6 +22,7 @@ export function StatusBar({
   viewMode: ViewMode;
   activeTool: ActiveTool;
   saveState: "idle" | "saving" | "saved";
+  autosaveStatus?: "idle" | "offline" | "retrying";
 }) {
   const pagesLoading = hasDocument && totalPages <= 0;
   const [pagePreviewOpen, setPagePreviewOpen] = useState(false);
@@ -68,8 +70,16 @@ export function StatusBar({
           {hasDocument && viewerError ? (
             <span className="text-[11px] text-[var(--ui-error-text)]">{viewerError}</span>
           ) : hasDocument ? (
-            <span className={`text-[11px] font-semibold ${saveState === "saving" ? "text-amber-600" : saveState === "saved" ? "text-emerald-600" : "text-rose-600"}`}>
-              {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Unsaved"}
+            <span className={`text-[11px] font-semibold ${saveState === "saving" ? "text-amber-600" : saveState === "saved" ? "text-emerald-600" : autosaveStatus === "offline" ? "text-amber-600" : "text-rose-600"}`}>
+              {saveState === "saving"
+                ? "Saving..."
+                : saveState === "saved"
+                  ? "Saved"
+                  : autosaveStatus === "offline"
+                    ? "Offline — changes pending"
+                    : autosaveStatus === "retrying"
+                      ? "Save failed — retrying"
+                      : "Unsaved"}
             </span>
           ) : null}
         </div>

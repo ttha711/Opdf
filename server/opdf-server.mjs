@@ -1,7 +1,7 @@
 // opdf-file-size-allow: legacy central HTTP router; large-upload logic is delegated to opdf-upload.mjs while router extraction is handled separately.
 import { createReadStream } from "node:fs";
 import { mkdir, mkdtemp, open, readFile, rename, rm, stat } from "node:fs/promises";
-import { extname, join, normalize, resolve } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
@@ -28,6 +28,7 @@ import {
   createLoginRateLimiter,
   requestId,
 } from "./opdf-production-guard.mjs";
+import { createRequestLogger } from "./opdf-request-log.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -35,6 +36,10 @@ const port = Number(process.env.OPDF_PORT || process.env.PORT || 8787);
 const host = process.env.OPDF_HOST || "127.0.0.1";
 const dataDir = resolve(process.env.OPDF_DATA_DIR || join(repoRoot, ".opdf-data"));
 const webDist = resolve(process.env.OPDF_WEB_DIST || join(repoRoot, "apps", "web", "dist"));
+const requestLogger = createRequestLogger(
+  resolve(process.env.OPDF_LOG_DIR || join(dataDir, "logs")),
+  { retentionDays: Number(process.env.OPDF_LOG_RETENTION_DAYS || 14) },
+);
 const maxBytes = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 750 * 1024 * 1024);
 const maxOperationBytes = Number(process.env.OPDF_MAX_OPERATION_BYTES || 250 * 1024 * 1024);
 const objectStore = createS3ObjectStoreFromEnv(process.env);
@@ -584,17 +589,27 @@ function contentTypeFor(path) {
 }
 
 async function serveWeb(req, res, pathname) {
+  if (pathname === "/opdf-runtime.js") {
+    setBaseHeaders(res);
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end('window.__OPDF_RUNTIME__="server";window.__OPDF_SERVER_BASE__="/api/opdf";\n');
+    return;
+  }
+
   const relative = pathname === "/" ? "index.html" : decodeURIComponent(pathname).replace(/^\/+/, "");
-  const normalized = normalize(relative).replace(/^(\.\.[/\\])+/, "");
-  let filePath = resolve(webDist, normalized);
-  if (!filePath.startsWith(webDist)) return sendError(res, 403, "Forbidden.");
+  let filePath = resolve(webDist, relative);
+  if (filePath !== webDist && !filePath.startsWith(webDist + sep)) {
+    return sendError(res, 403, "Forbidden.");
+  }
 
   let info = await stat(filePath).catch(() => null);
   if (!info?.isFile()) {
     // Never send the SPA shell for a missing static asset. ES module imports
     // require a real JavaScript response and otherwise fail with misleading
     // "dynamically imported module" errors.
-    if (extname(normalized)) {
+    if (extname(relative)) {
       return sendError(res, 404, "Static asset not found.");
     }
     filePath = join(webDist, "index.html");
@@ -607,7 +622,7 @@ async function serveWeb(req, res, pathname) {
   setBaseHeaders(res);
   if (filePath.endsWith("index.html")) {
     let html = await readFile(filePath, "utf8");
-    const runtimeScript = '<script>window.__OPDF_RUNTIME__="server";window.__OPDF_SERVER_BASE__="/api/opdf";</script>';
+    const runtimeScript = '<script src="/opdf-runtime.js"></script>';
     html = html.includes("</head>") ? html.replace("</head>", runtimeScript + "</head>") : runtimeScript + html;
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
@@ -769,6 +784,30 @@ async function handleApi(req, res, url) {
   const projectId = tenantRuntime.projectFromRequest(req, url);
 
   return tenantRuntime.run(user, projectId, async () => {
+  if (url.pathname === "/api/opdf/client-events" && req.method === "POST") {
+    const body = await readJsonBody(req, 16 * 1024);
+    const kind = ["window-error", "unhandled-rejection", "error-boundary"].includes(body.kind)
+      ? body.kind
+      : "window-error";
+    requestLogger.log({
+      event: "client-error",
+      requestId: String(res.getHeader("X-Request-Id") || ""),
+      client: {
+        kind,
+        message: typeof body.message === "string" ? body.message.slice(0, 500) : "",
+        stack: typeof body.stack === "string" ? body.stack.slice(0, 4_000) : "",
+        componentStack: typeof body.componentStack === "string" ? body.componentStack.slice(0, 4_000) : "",
+        buildSha: typeof body.buildSha === "string" ? body.buildSha.slice(0, 128) : "",
+        path: typeof body.path === "string" ? body.path.slice(0, 500) : "",
+        occurredAt: typeof body.occurredAt === "string" ? body.occurredAt.slice(0, 64) : "",
+      },
+    });
+    setBaseHeaders(res);
+    res.statusCode = 204;
+    res.end();
+    return;
+  }
+
   if (url.pathname === "/api/opdf/auth/me" && req.method === "GET") {
     return sendJson(res, 200, {
       user: auth.publicUser(user),
@@ -1002,9 +1041,27 @@ maintenanceTimer.unref();
 
 const server = http.createServer(async (req, res) => {
   const id = requestId(req);
+  const startedAt = Date.now();
+  let requestPath = "/";
+  let errorSummary = null;
   res.setHeader("X-Request-Id", id);
+
+  res.once("finish", () => {
+    requestLogger.log({
+      timestamp: new Date().toISOString(),
+      requestId: id,
+      method: String(req.method || "GET").toUpperCase(),
+      path: requestPath,
+      status: res.statusCode,
+      durationMs: Date.now() - startedAt,
+      contentLength: Number(res.getHeader("Content-Length") || 0) || undefined,
+      error: errorSummary,
+    });
+  });
+
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    requestPath = url.pathname;
     if (url.pathname.startsWith("/api/opdf/")) {
       await handleApi(req, res, url);
       return;
@@ -1013,6 +1070,10 @@ const server = http.createServer(async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const status = error?.statusCode || (/too large|exceeds|quota/i.test(message) ? 413 : /Invalid document id|Invalid project id/.test(message) ? 400 : 500);
+    errorSummary = {
+      name: error instanceof Error ? error.name : "Error",
+      message: message.slice(0, 500),
+    };
     if (error?.retryAfterSeconds) {
       res.setHeader("Retry-After", String(error.retryAfterSeconds));
     }
@@ -1030,7 +1091,8 @@ function beginShutdown(signal) {
   shuttingDown = true;
   clearInterval(maintenanceTimer);
   console.log(`OPDF Server received ${signal}; draining connections.`);
-  server.close((error) => {
+  server.close(async (error) => {
+    await requestLogger.flush();
     if (error) {
       console.error("OPDF Server shutdown failed:", error);
       process.exitCode = 1;

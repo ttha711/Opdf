@@ -51,18 +51,24 @@ export function SaveControl({
   saveState,
   onSave,
   autosaveEnabled,
+  autosaveStatus,
 }: {
   saveState: SaveState;
   onSave: () => void;
   autosaveEnabled: boolean;
+  autosaveStatus: "idle" | "offline" | "retrying";
 }) {
   const label =
     saveState === "saving" ? "Saving..." :
     saveState === "saved" ? "Saved" :
+    autosaveStatus === "offline" ? "Offline" :
+    autosaveStatus === "retrying" ? "Retrying" :
     "Unsaved";
   const title =
     saveState === "saving" ? "Saving document" :
     saveState === "saved" ? (autosaveEnabled ? "All changes saved. Autosave is on." : "All changes saved.") :
+    autosaveStatus === "offline" ? "Offline. Changes are pending and will retry when the connection returns." :
+    autosaveStatus === "retrying" ? "The last autosave failed. OPDF will retry automatically." :
     (autosaveEnabled ? "Unsaved changes. Autosave will run shortly." : "Unsaved changes.");
 
   return (

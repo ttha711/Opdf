@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -47,15 +47,39 @@ try {
 
   const live = await waitForLive();
   assert(live.headers.get("x-frame-options") === "DENY", "X-Frame-Options missing");
-  assert(
-    (live.headers.get("content-security-policy") || "").includes("frame-ancestors 'none'"),
-    "frame-ancestors CSP missing",
-  );
+  const csp = live.headers.get("content-security-policy") || "";
+  for (const directive of [
+    "default-src 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "script-src 'self' 'wasm-unsafe-eval'",
+    "worker-src 'self' blob:",
+    "connect-src 'self' https: wss: blob:",
+  ]) {
+    assert(csp.includes(directive), `CSP directive missing: ${directive}`);
+  }
   assert(
     (live.headers.get("strict-transport-security") || "").includes("max-age="),
     "HSTS header missing when enabled",
   );
   assert(live.headers.get("x-request-id"), "request id header missing");
+
+  const web = await fetch(`${base}/`);
+  assert(web.status === 200, `web shell failed: ${web.status}`);
+  const webHtml = await web.text();
+  assert(webHtml.includes('src="/opdf-runtime.js"'), "external runtime config script missing");
+  assert(!webHtml.includes('window.__OPDF_RUNTIME__="server"'), "runtime config must not be inline");
+
+  const runtimeConfig = await fetch(`${base}/opdf-runtime.js`);
+  assert(runtimeConfig.status === 200, "runtime config endpoint failed");
+  assert(
+    (runtimeConfig.headers.get("content-type") || "").includes("text/javascript"),
+    "runtime config has wrong content type",
+  );
+  assert((await runtimeConfig.text()).includes('__OPDF_RUNTIME__="server"'), "runtime config payload missing");
+
+  const traversal = await fetch(`${base}/%2e%2e%2fpackage.json`);
+  assert(traversal.status === 403, `static path traversal was not rejected: ${traversal.status}`);
 
   const ready = await fetch(`${base}/api/opdf/ready`);
   assert(ready.status === 200, `readiness failed: ${ready.status}`);
@@ -140,6 +164,21 @@ try {
     "machine agent result did not round-trip to the authenticated web session",
   );
 
+  const clientEvent = await fetch(`${base}/api/opdf/client-events`, {
+    method: "POST",
+    headers: { Cookie: cookie, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      kind: "error-boundary",
+      message: "production smoke client diagnostic",
+      stack: "stack",
+      componentStack: "component",
+      buildSha: "smoke-sha",
+      path: "/",
+      occurredAt: new Date().toISOString(),
+    }),
+  });
+  assert(clientEvent.status === 204, `client diagnostics endpoint failed: ${clientEvent.status}`);
+
   const crossSite = await fetch(`${base}/api/opdf/auth/login`, {
     method: "POST",
     headers: {
@@ -188,6 +227,43 @@ try {
   assert(
     otherAccount.status === 401,
     "login throttling was not scoped to address + account",
+  );
+
+  let logEntries = [];
+  const logDir = join(dataDir, "logs");
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    logEntries = [];
+    const files = await readdir(logDir).catch(() => []);
+    for (const file of files.filter((name) => name.endsWith(".jsonl"))) {
+      const raw = await readFile(join(logDir, file), "utf8");
+      logEntries.push(...raw.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)));
+    }
+    const hasReadyLog = logEntries.some((entry) =>
+      entry.path === "/api/opdf/ready" && entry.status === 200
+    );
+    const hasClientLog = logEntries.some((entry) =>
+      entry.event === "client-error" && entry.client?.message === "production smoke client diagnostic"
+    );
+    if (hasReadyLog && hasClientLog) break;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  assert(logEntries.length > 0, "structured request log was not written");
+  assert(
+    logEntries.some((entry) =>
+      entry.path === "/api/opdf/ready" &&
+      entry.status === 200 &&
+      typeof entry.requestId === "string" &&
+      Number.isFinite(entry.durationMs)
+    ),
+    "structured request log is missing readiness request fields",
+  );
+  assert(
+    logEntries.some((entry) =>
+      entry.event === "client-error" &&
+      entry.client?.message === "production smoke client diagnostic" &&
+      entry.client?.buildSha === "smoke-sha"
+    ),
+    "client crash diagnostic was not written to structured logs",
   );
 
   console.log("OPDF production hardening smoke passed.");

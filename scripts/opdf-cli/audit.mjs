@@ -113,15 +113,16 @@ export async function runAudit(driver, mode, options) {
   });
 
   await check("application-menu", async () => {
-    await driver.openMenu("application");
-    const menu = driver.page.locator('[role="menu"]:visible').first();
-    for (const label of ["Open...", "Undo", "Fit Page", "All Tools..."]) {
-      assert(
-        (await menu.locator(`[data-opdf-menu-item="${label}"]`).count()) === 1,
-        `Application menu is missing "${label}"`,
-      );
+    for (const path of [
+      ["Document", "Open..."],
+      ["Edit", "Undo"],
+      ["View", "Zoom", "Fit Page"],
+      ["Tools", "All Tools..."],
+    ]) {
+      const item = await driver.findMenuItemPath(path);
+      assert((await item.count()) === 1, `Application menu is missing "${path.at(-1)}"`);
+      await driver.page.keyboard.press("Escape");
     }
-    await driver.page.keyboard.press("Escape");
   });
 
   if (mode === "full" || e2e) {
@@ -175,10 +176,9 @@ export async function runAudit(driver, mode, options) {
     }
 
     await check("digital-sign-capability", async () => {
-      await driver.openMenu("Tools");
-      const item = driver.page.locator('[data-opdf-menu-item="Digital Sign..."]');
+      const item = await driver.findMenuItemPath(["Tools", "Security", "Digital Sign..."]);
       assert((await item.count()) === 1, "Digital Sign menu item is missing");
-      assert(await item.isDisabled(), "Digital Sign should be disabled in the web/server production audit runtime");
+      assert(!(await item.isDisabled()), "Digital Sign should be enabled in the OPDF server runtime");
       await driver.page.keyboard.press("Escape");
     });
 

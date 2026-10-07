@@ -54,6 +54,7 @@ type AppHeaderProps = {
   savePdf: () => void;
   saveState: "idle" | "saving" | "saved";
   autosaveEnabled: boolean;
+  autosaveStatus: "idle" | "offline" | "retrying";
   tabs: OpdfTab[];
   activeTabId: string | null;
   activeGroupFilter: string | null;
@@ -106,6 +107,7 @@ export function AppHeader(props: AppHeaderProps) {
     savePdf,
     saveState,
     autosaveEnabled,
+    autosaveStatus,
     tabs,
     activeTabId,
     activeGroupFilter,
@@ -242,7 +244,7 @@ export function AppHeader(props: AppHeaderProps) {
             <>
               <UndoButton onClick={undo} />
               <RedoButton onClick={redo} />
-              <SaveControl saveState={saveState} onSave={savePdf} autosaveEnabled={autosaveEnabled} />
+              <SaveControl saveState={saveState} onSave={savePdf} autosaveEnabled={autosaveEnabled} autosaveStatus={autosaveStatus} />
               <button
                 data-opdf-action="edit-content"
                 className="top-menu-btn"

@@ -107,8 +107,25 @@ export function assertSafeMutationRequest(req, env = process.env) {
 }
 
 export function applyProductionSecurityHeaders(res, env = process.env) {
+  const csp = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "script-src 'self' 'wasm-unsafe-eval'",
+    "worker-src 'self' blob:",
+    "connect-src 'self' https: wss: blob:",
+    "frame-src 'self' https:",
+    "media-src 'self' data: blob:",
+    "manifest-src 'self'",
+  ].join("; ");
+
   res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("Content-Security-Policy", "frame-ancestors 'none'");
+  res.setHeader("Content-Security-Policy", csp);
   res.setHeader("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
   if (env.OPDF_HSTS === "1") {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");

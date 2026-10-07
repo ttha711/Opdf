@@ -109,15 +109,44 @@ async function assertMainPdfSurface() {
   throw new Error("Main PDF page surface did not render a visible page-sized image or canvas");
 }
 
-async function openApplicationMenu(focusItem = null) {
-  const trigger = page.locator('button[aria-label="Application menu"]:visible').first();
-  await trigger.click();
-  const menuHost = trigger.locator("xpath=..");
-  const menu = menuHost.locator('[role="menu"]').first();
-  await menu.waitFor({ state: "visible", timeout: 5000 });
-  await page.waitForTimeout(120);
+const APPLICATION_MENU_PATHS = {
+  "Close": ["Document", "Close"],
+  "All Tools...": ["Tools", "All Tools..."],
+  "Split PDF...": ["Tools", "Pages", "Split PDF..."],
+  "Merge PDFs...": ["Tools", "Pages", "Merge PDFs..."],
+  "Page Numbers...": ["Tools", "Document", "Page Numbers..."],
+  "Search & Secure Redact...": ["Tools", "Security", "Search & Secure Redact..."],
+  "Advanced PDF...": ["Tools", "Advanced PDF..."],
+  "Compare Revisions...": ["Tools", "Edit & Review", "Compare Revisions..."],
+};
 
-  const visuallyReachable = await menu.evaluate((element) => {
+function menuItemSelector(label) {
+  const escaped = label.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `[data-opdf-menu-item="${escaped}"]:visible`;
+}
+
+async function assertReachable(element, label) {
+  await element.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(80);
+  const reachable = await element.evaluate((item) => {
+    const rect = item.getBoundingClientRect();
+    if (rect.width < 20 || rect.height < 10) return false;
+    const x = Math.min(window.innerWidth - 2, Math.max(1, rect.left + 14));
+    const y = Math.min(window.innerHeight - 2, Math.max(1, rect.top + rect.height / 2));
+    const hit = document.elementFromPoint(x, y);
+    return Boolean(hit && item.contains(hit));
+  });
+  if (!reachable) throw new Error(`Application menu item "${label}" is clipped or overlapped`);
+}
+
+async function openApplicationMenuPath(label = null) {
+  const trigger = page.locator('button[aria-label="Application menu"]:visible').first();
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+
+  let surface = trigger.locator("xpath=..").locator('[role="menu"]').first();
+  await surface.waitFor({ state: "visible", timeout: 5000 });
+
+  const visuallyReachable = await surface.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     if (rect.width < 20 || rect.height < 20) return false;
     const x = Math.min(window.innerWidth - 2, Math.max(1, rect.left + Math.min(20, rect.width / 2)));
@@ -125,34 +154,31 @@ async function openApplicationMenu(focusItem = null) {
     const hit = document.elementFromPoint(x, y);
     return Boolean(hit && element.contains(hit));
   });
+  if (!visuallyReachable) throw new Error("Application menu is open in the DOM but clipped or visually occluded");
 
-  if (!visuallyReachable) {
-    throw new Error("Application menu is open in the DOM but clipped or visually occluded");
-  }
+  if (!label) return { surface, item: null };
 
-  if (focusItem) {
-    const action = menu.locator('[data-opdf-menu-item]').filter({ hasText: focusItem }).first();
-    await action.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(80);
-    const actionReachable = await action.evaluate((item) => {
-      const rect = item.getBoundingClientRect();
-      if (rect.width < 20 || rect.height < 10) return false;
-      const x = Math.min(window.innerWidth - 2, Math.max(1, rect.left + 14));
-      const y = Math.min(window.innerHeight - 2, Math.max(1, rect.top + rect.height / 2));
-      const hit = document.elementFromPoint(x, y);
-      return Boolean(hit && item.contains(hit));
-    });
-    if (!actionReachable) {
-      throw new Error(`Application menu item "${focusItem}" is clipped or overlapped`);
+  const path = APPLICATION_MENU_PATHS[label] || [label];
+  let item = null;
+  for (let index = 0; index < path.length; index += 1) {
+    const part = path[index];
+    item = surface.locator(menuItemSelector(part)).first();
+    await item.waitFor({ state: "visible", timeout: 5000 });
+    await assertReachable(item, part);
+    if (index < path.length - 1) {
+      if ((await item.getAttribute("aria-expanded")) !== "true") await item.click();
+      const nested = item.locator("xpath=..").locator('[role="menu"]').first();
+      await nested.waitFor({ state: "visible", timeout: 5000 });
+      surface = nested;
     }
   }
-
-  return menu;
+  return { surface, item };
 }
 
 async function clickToolsAction(label) {
-  const menu = await openApplicationMenu(label);
-  await menu.getByRole("menuitem", { name: label, exact: true }).click();
+  const { item } = await openApplicationMenuPath(label);
+  if (!item) throw new Error(`Application menu item "${label}" was not found`);
+  await item.click();
 }
 
 async function closeOverlay() {
@@ -173,7 +199,7 @@ try {
   await assertMainPdfSurface();
   await shot("02-viewer-light");
 
-  await openApplicationMenu("Open...");
+  await openApplicationMenuPath("Close");
   await page.waitForTimeout(250);
   await shot("03-file-menu");
   await page.keyboard.press("Escape");
@@ -185,9 +211,10 @@ try {
     await shot("04-viewer-dark");
   }
 
-  const toolsMenu = await openApplicationMenu("All Tools...");
+  const { item: allToolsItem } = await openApplicationMenuPath("All Tools...");
   await shot("05-tools-menu");
-  await toolsMenu.getByRole("menuitem", { name: "All Tools...", exact: true }).click();
+  if (!allToolsItem) throw new Error("All Tools menu item was not found");
+  await allToolsItem.click();
   await page.waitForTimeout(350);
   await shot("06-dashboard-document");
   const close = page.getByRole("button", { name: /Close Tools/i });
@@ -231,7 +258,6 @@ try {
   await page.waitForTimeout(500);
   await shot("13-revision-compare");
   await closeOverlay();
-
   await page.setViewportSize({ width: 412, height: 915 });
   await page.goto(baseURL, { waitUntil: "networkidle" });
   // Session restore may reopen the last server-backed tab after navigation.
@@ -241,7 +267,6 @@ try {
   await homeButton.click();
   await page.getByRole("heading", { name: "Your documents, ready when you are." }).waitFor({ state: "visible", timeout: 10000 });
   await shot("14-mobile-home");
-
   const fileChooserPromise = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Open PDF", exact: true }).click();
   const fileChooser = await fileChooserPromise;
@@ -249,7 +274,6 @@ try {
   await page.locator('[data-opdf-engine="pdfium-wasm"]').waitFor({ state: "visible", timeout: 30000 });
   await page.waitForTimeout(800);
   await shot("15-mobile-viewer");
-
   const mobileViewer = page.locator(".viewer-shell");
   const pagesToggle = mobileViewer.getByRole("button", { name: "Sidebar", exact: true }).first();
   const sidebarPanel = mobileViewer.locator('[data-sidebar-id="sidebar-panel"]').first();
@@ -257,15 +281,18 @@ try {
   await pagesToggle.click();
   await sidebarPanel.waitFor({ state: "visible", timeout: 15000 });
   await shot("16-mobile-pages-drawer");
-
-  const sidebarOverlay = sidebarPanel.locator("xpath=preceding-sibling::div[1]");
-  if (await sidebarOverlay.isVisible()) await sidebarOverlay.click();
-  else await pagesToggle.click();
-  await sidebarPanel.waitFor({ state: "hidden", timeout: 15000 });
+  await page.keyboard.press("Escape");
+  const sidebarClosedWithEscape = await sidebarPanel
+    .waitFor({ state: "hidden", timeout: 2500 })
+    .then(() => true)
+    .catch(() => false);
+  if (!sidebarClosedWithEscape) {
+    await pagesToggle.click({ force: true });
+    await sidebarPanel.waitFor({ state: "hidden", timeout: 15000 });
+  }
   await page.locator("header").getByRole("button", { name: "Application menu", exact: true }).click();
   await page.locator('[data-opdf-mobile-sheet="true"]').waitFor({ state: "visible", timeout: 5000 });
   await shot("17-mobile-menu");
-
   console.log("UI audit screenshots written to", outDir);
 } finally {
   await browser.close();

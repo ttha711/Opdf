@@ -584,5 +584,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     openAiEditorWindow,
     openFileWithPath,
     goToPage,
+    autosaveStatus: autosave.autosaveStatus,
   };
 }

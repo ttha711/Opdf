@@ -144,6 +144,7 @@ export function App() {
       <ServerUploadBanner />
       <AppHeader
         {...headerProps}
+        autosaveStatus={controllers.autosaveStatus}
         isPublic={isPublic}
         onGoHome={() => setShowHome(true)}
         openFile={() => {
@@ -264,7 +265,7 @@ export function App() {
           success={toast.success}
         />
       )}
-      <StatusBar hasDocument={state.hasDocument && !showHome} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} />
+      <StatusBar hasDocument={state.hasDocument && !showHome} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} autosaveStatus={controllers.autosaveStatus} />
       {!isAiPanelOpen ? (
         <button
           ref={fab.buttonRef}

@@ -32,6 +32,7 @@ jobs:
       - run: npm run server-s3-smoke
       - run: npm run server-production-smoke
       - run: npm run server-reliability
+      - run: npm run backup-smoke
       - run: node apps/desktop/dist/main/pdf-signature.smoke.js
       - uses: actions/upload-artifact@v4
         with:

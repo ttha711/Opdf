@@ -106,7 +106,9 @@ export function useExportAction({
       return true;
     } catch (err) {
       console.error(err);
-      setViewerError("Failed to save PDF.");
+      if (!options.silent) {
+        setViewerError("Failed to save PDF.");
+      }
       setSaveState("idle");
       return false;
     }

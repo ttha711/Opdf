@@ -37,16 +37,25 @@ export function useNativeEditKeyboardMove({
     const commit = () => {
       const move = moveRef.current;
       moveRef.current = null;
-      setPreviewMatrix(null);
-      if (!objectId || !move || (move.dx === 0 && move.dy === 0)) return;
+      if (!objectId || !move || (move.dx === 0 && move.dy === 0)) {
+        setPreviewMatrix(null);
+        return;
+      }
+      const matrix = translationMatrix(move.dx, move.dy);
+      setPreviewMatrix(matrix);
       void applyNativeEditPatches(
         [{
           type: "relative-transform",
           objectId,
-          matrix: translationMatrix(move.dx, move.dy),
+          matrix,
         }],
         "Object moved with keyboard.",
-      ).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+      ).then(() => {
+        setPreviewMatrix(null);
+      }).catch((reason) => {
+        setPreviewMatrix(null);
+        setError(reason instanceof Error ? reason.message : String(reason));
+      });
     };
 
     const onKeyDown = (event: KeyboardEvent) => {

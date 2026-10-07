@@ -1,7 +1,7 @@
 // opdf-file-size-allow: legacy central HTTP router; large-upload logic is delegated to opdf-upload.mjs while router extraction is handled separately.
 import { createReadStream } from "node:fs";
 import { mkdir, mkdtemp, open, readFile, rename, rm, stat } from "node:fs/promises";
-import { extname, join, normalize, resolve, sep } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
@@ -599,8 +599,7 @@ async function serveWeb(req, res, pathname) {
   }
 
   const relative = pathname === "/" ? "index.html" : decodeURIComponent(pathname).replace(/^\/+/, "");
-  const normalized = normalize(relative).replace(/^(\.\.[/\\])+/, "");
-  let filePath = resolve(webDist, normalized);
+  let filePath = resolve(webDist, relative);
   if (filePath !== webDist && !filePath.startsWith(webDist + sep)) {
     return sendError(res, 403, "Forbidden.");
   }
@@ -610,7 +609,7 @@ async function serveWeb(req, res, pathname) {
     // Never send the SPA shell for a missing static asset. ES module imports
     // require a real JavaScript response and otherwise fail with misleading
     // "dynamically imported module" errors.
-    if (extname(normalized)) {
+    if (extname(relative)) {
       return sendError(res, 404, "Static asset not found.");
     }
     filePath = join(webDist, "index.html");

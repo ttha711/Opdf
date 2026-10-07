@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -208,6 +208,27 @@ try {
   assert(
     otherAccount.status === 401,
     "login throttling was not scoped to address + account",
+  );
+
+  let logEntries = [];
+  const logDir = join(dataDir, "logs");
+  for (let attempt = 0; attempt < 20 && logEntries.length === 0; attempt += 1) {
+    const files = await readdir(logDir).catch(() => []);
+    for (const file of files.filter((name) => name.endsWith(".jsonl"))) {
+      const raw = await readFile(join(logDir, file), "utf8");
+      logEntries.push(...raw.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)));
+    }
+    if (logEntries.length === 0) await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  assert(logEntries.length > 0, "structured request log was not written");
+  assert(
+    logEntries.some((entry) =>
+      entry.path === "/api/opdf/ready" &&
+      entry.status === 200 &&
+      typeof entry.requestId === "string" &&
+      Number.isFinite(entry.durationMs)
+    ),
+    "structured request log is missing readiness request fields",
   );
 
   console.log("OPDF production hardening smoke passed.");

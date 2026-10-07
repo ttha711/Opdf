@@ -584,6 +584,15 @@ function contentTypeFor(path) {
 }
 
 async function serveWeb(req, res, pathname) {
+  if (pathname === "/opdf-runtime.js") {
+    setBaseHeaders(res);
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "text/javascript; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end('window.__OPDF_RUNTIME__="server";window.__OPDF_SERVER_BASE__="/api/opdf";\n');
+    return;
+  }
+
   const relative = pathname === "/" ? "index.html" : decodeURIComponent(pathname).replace(/^\/+/, "");
   const normalized = normalize(relative).replace(/^(\.\.[/\\])+/, "");
   let filePath = resolve(webDist, normalized);
@@ -607,7 +616,7 @@ async function serveWeb(req, res, pathname) {
   setBaseHeaders(res);
   if (filePath.endsWith("index.html")) {
     let html = await readFile(filePath, "utf8");
-    const runtimeScript = '<script>window.__OPDF_RUNTIME__="server";window.__OPDF_SERVER_BASE__="/api/opdf";</script>';
+    const runtimeScript = '<script src="/opdf-runtime.js"></script>';
     html = html.includes("</head>") ? html.replace("</head>", runtimeScript + "</head>") : runtimeScript + html;
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");

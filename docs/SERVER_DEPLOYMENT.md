@@ -396,6 +396,60 @@ npm run server-production-smoke
 
 It verifies security headers, request IDs, liveness/readiness, authentication protection, cross-site mutation rejection, login throttling, and `Retry-After`.
 
+### Structured request logs
+
+OPDF writes one JSONL request log per UTC day under `OPDF_DATA_DIR\logs` by default.
+Each record includes the request ID, HTTP method, route path, status code, duration,
+response content length when known, and a bounded error summary for failed requests.
+Query strings are intentionally excluded so credentials and operation parameters do not
+end up in the request log.
+
+Override the directory and retention period when required:
+
+```powershell
+$env:OPDF_LOG_DIR="D:\OPDF\logs"
+$env:OPDF_LOG_RETENTION_DAYS="14"
+npm run server-start
+```
+
+Retention is clamped to 1-90 days. Keep these logs on the server side only; use the
+`X-Request-Id` returned to the browser to correlate a user-visible failure with a
+specific JSONL entry.
+
+### Automated local backups
+
+For local-storage deployments, OPDF includes a verified backup CLI. Store backups
+outside `OPDF_DATA_DIR`:
+
+```powershell
+npm run backup:create -- --data-dir "D:\OPDF\data" --backup-root "E:\OPDF-backups" --keep 7
+```
+
+Each backup is written to a temporary directory, every copied file is hashed with
+SHA-256, a manifest is written, and only then is the backup atomically renamed into
+its final timestamped directory. Older backups are pruned only after a successful
+backup.
+
+Verify a recovery point independently:
+
+```powershell
+npm run backup:verify -- --backup "E:\OPDF-backups\opdf-backup-<timestamp>"
+```
+
+Restore only from a verified backup:
+
+```powershell
+npm run backup:restore -- --backup "E:\OPDF-backups\opdf-backup-<timestamp>" --target "D:\OPDF\data"
+```
+
+If the target already exists, restoration refuses to proceed unless `--force` is
+supplied. With `--force`, the existing target is renamed to a timestamped
+`.pre-restore-...` directory instead of being deleted, so rollback remains possible.
+
+The built-in backup CLI is for local filesystem mode. In S3-compatible mode, use
+bucket versioning/snapshots for the configured prefix and keep application secrets in
+a separate secrets manager as described below.
+
 ### Backup and restore
 
 For local storage deployments, back up the entire `OPDF_DATA_DIR` as one consistency unit. Quiesce or stop the OPDF process before a filesystem-level copy unless the snapshot mechanism provides atomic volume snapshots.

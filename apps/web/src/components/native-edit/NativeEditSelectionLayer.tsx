@@ -42,7 +42,7 @@ type Props = {
   selected: PdfContentObject | null;
   displayGeometry: NativeObjectGeometry | null;
   geometryFor: (object: PdfContentObject) => NativeObjectGeometry;
-  onEmptyPointerDown: () => void;
+  onEmptyPointerDown: (event: React.PointerEvent<SVGSVGElement>) => void;
   onObjectPointerDown: (event: React.PointerEvent, object: PdfContentObject) => void;
   onObjectDoubleClick: (event: React.MouseEvent, object: PdfContentObject) => void;
   onResizePointerDown: (event: React.PointerEvent, handle: NativeResizeHandle) => void;
@@ -73,7 +73,7 @@ export function NativeEditSelectionLayer({
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
       onPointerDown={(event) => {
-        if (event.target === event.currentTarget) onEmptyPointerDown();
+        if (event.target === event.currentTarget) onEmptyPointerDown(event);
       }}
       data-opdf-native-edit-page={pageIndex + 1}
     >

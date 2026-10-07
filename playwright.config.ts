@@ -28,5 +28,15 @@ export default defineConfig({
       testMatch: /mobile\.spec\.ts/,
       use: { ...devices["Pixel 7"] },
     },
+    {
+      name: "firefox",
+      testMatch: /browser-compat\.spec\.ts/,
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      testMatch: /browser-compat\.spec\.ts/,
+      use: { ...devices["Desktop Safari"] },
+    },
   ],
 });

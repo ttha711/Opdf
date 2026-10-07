@@ -103,6 +103,20 @@ The CLI uses stable `data-opdf-*` automation hooks instead of screen coordinates
 
 See `docs/OPDF_AUTOMATION_CLI.md` for commands and agent-oriented JSON output.
 
+## Web production resilience
+
+The web/server runtime includes production safeguards beyond functional PDF tests:
+
+- autosave retries with backoff after transient save failures and immediately retries when connectivity returns;
+- a root React error boundary plus bounded browser crash diagnostics in server JSONL logs;
+- strict same-origin mutation checks and a Content Security Policy that allows PDFium/WASM workers without allowing inline scripts;
+- daily structured request logs with request IDs and configurable 1-90 day retention;
+- verified local backup/create/restore commands using per-file SHA-256 manifests;
+- Chromium, Firefox, WebKit, and mobile-Chromium compatibility gates;
+- CodeQL, dependency review, and Dependabot configuration.
+
+See `docs/SERVER_DEPLOYMENT.md` for logging, backup, restore, and production configuration.
+
 ## Verification
 
 Run the same main gates used by CI:

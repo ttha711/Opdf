@@ -45,10 +45,8 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
     state: "visible",
     timeout: 120_000,
   });
-  // Capture the page count without holding onto the preview locator. The fast
-  // Range preview can hand off to PDFium immediately after first paint, which
-  // intentionally removes that DOM node. Snapshot whichever status is present
-  // across the handoff instead of auto-waiting on a locator that was detached.
+  // Snapshot the page status from the stable PDFium shell. Server PDFs no
+  // longer hand off from a temporary PDF.js range preview.
   let pageStatus = null;
   const pageStatusDeadline = Date.now() + 5_000;
   while (!pageStatus && Date.now() < pageStatusDeadline) {

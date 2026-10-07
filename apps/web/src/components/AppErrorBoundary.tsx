@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { reportClientError } from "../lib/clientDiagnostics";
 
 type Props = {
   children: ReactNode;
@@ -28,6 +29,13 @@ export class AppErrorBoundary extends Component<Props, State> {
       message: error.message,
       stack: error.stack,
       componentStack: info.componentStack,
+      buildSha: this.props.buildSha,
+    });
+    reportClientError({
+      kind: "error-boundary",
+      message: error.message,
+      stack: error.stack,
+      componentStack: info.componentStack ?? undefined,
       buildSha: this.props.buildSha,
     });
     this.setState({ componentStack: info.componentStack ?? "" });

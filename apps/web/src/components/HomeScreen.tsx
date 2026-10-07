@@ -21,7 +21,7 @@ export function HomeScreen({
   const visibleRecent = recentDocuments.slice(0, 6);
 
   return (
-    <section className="opdf-home" aria-label="Opdf home">
+    <main className="opdf-home" aria-label="Opdf home">
       <div className="opdf-home__hero">
         <div className="opdf-home__mark" aria-hidden="true">
           <OpdfIcon name="file-pdf" size={34} />
@@ -82,6 +82,6 @@ export function HomeScreen({
           </button>
         )}
       </div>
-    </section>
+    </main>
   );
 }

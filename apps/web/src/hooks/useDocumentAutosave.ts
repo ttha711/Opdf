@@ -29,6 +29,7 @@ export function useDocumentAutosave({
   const stateRef = useRef({ hasDocument, saveState });
   const savingRef = useRef(false);
   const failureCountRef = useRef(0);
+  const scheduleRef = useRef<(fromMutation?: boolean, immediate?: boolean) => void>(() => {});
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
 
   useEffect(() => {
@@ -114,11 +115,13 @@ export function useDocumentAutosave({
             stateRef.current.saveState === "idle" &&
             navigator.onLine
           ) {
-            schedule(false);
+            scheduleRef.current(false);
           }
         });
     }, waitMs);
   }, [cancel, delayMs]);
+
+  scheduleRef.current = schedule;
 
   useEffect(() => {
     if (!hasDocument || saveState !== "idle") {

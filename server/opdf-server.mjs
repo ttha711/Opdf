@@ -28,6 +28,7 @@ import {
   createLoginRateLimiter,
   requestId,
 } from "./opdf-production-guard.mjs";
+import { createRequestLogger } from "./opdf-request-log.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -35,6 +36,10 @@ const port = Number(process.env.OPDF_PORT || process.env.PORT || 8787);
 const host = process.env.OPDF_HOST || "127.0.0.1";
 const dataDir = resolve(process.env.OPDF_DATA_DIR || join(repoRoot, ".opdf-data"));
 const webDist = resolve(process.env.OPDF_WEB_DIST || join(repoRoot, "apps", "web", "dist"));
+const requestLogger = createRequestLogger(
+  resolve(process.env.OPDF_LOG_DIR || join(dataDir, "logs")),
+  { retentionDays: Number(process.env.OPDF_LOG_RETENTION_DAYS || 14) },
+);
 const maxBytes = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 750 * 1024 * 1024);
 const maxOperationBytes = Number(process.env.OPDF_MAX_OPERATION_BYTES || 250 * 1024 * 1024);
 const objectStore = createS3ObjectStoreFromEnv(process.env);
@@ -1011,9 +1016,27 @@ maintenanceTimer.unref();
 
 const server = http.createServer(async (req, res) => {
   const id = requestId(req);
+  const startedAt = Date.now();
+  let requestPath = "/";
+  let errorSummary = null;
   res.setHeader("X-Request-Id", id);
+
+  res.once("finish", () => {
+    requestLogger.log({
+      timestamp: new Date().toISOString(),
+      requestId: id,
+      method: String(req.method || "GET").toUpperCase(),
+      path: requestPath,
+      status: res.statusCode,
+      durationMs: Date.now() - startedAt,
+      contentLength: Number(res.getHeader("Content-Length") || 0) || undefined,
+      error: errorSummary,
+    });
+  });
+
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    requestPath = url.pathname;
     if (url.pathname.startsWith("/api/opdf/")) {
       await handleApi(req, res, url);
       return;
@@ -1022,6 +1045,10 @@ const server = http.createServer(async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const status = error?.statusCode || (/too large|exceeds|quota/i.test(message) ? 413 : /Invalid document id|Invalid project id/.test(message) ? 400 : 500);
+    errorSummary = {
+      name: error instanceof Error ? error.name : "Error",
+      message: message.slice(0, 500),
+    };
     if (error?.retryAfterSeconds) {
       res.setHeader("Retry-After", String(error.retryAfterSeconds));
     }
@@ -1039,7 +1066,8 @@ function beginShutdown(signal) {
   shuttingDown = true;
   clearInterval(maintenanceTimer);
   console.log(`OPDF Server received ${signal}; draining connections.`);
-  server.close((error) => {
+  server.close(async (error) => {
+    await requestLogger.flush();
     if (error) {
       console.error("OPDF Server shutdown failed:", error);
       process.exitCode = 1;

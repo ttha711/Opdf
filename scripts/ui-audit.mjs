@@ -285,10 +285,15 @@ try {
   await sidebarPanel.waitFor({ state: "visible", timeout: 15000 });
   await shot("16-mobile-pages-drawer");
 
-  const sidebarOverlay = sidebarPanel.locator("xpath=preceding-sibling::div[1]");
-  if (await sidebarOverlay.isVisible()) await sidebarOverlay.click();
-  else await pagesToggle.click();
-  await sidebarPanel.waitFor({ state: "hidden", timeout: 15000 });
+  await page.keyboard.press("Escape");
+  const sidebarClosedWithEscape = await sidebarPanel
+    .waitFor({ state: "hidden", timeout: 2500 })
+    .then(() => true)
+    .catch(() => false);
+  if (!sidebarClosedWithEscape) {
+    await pagesToggle.click({ force: true });
+    await sidebarPanel.waitFor({ state: "hidden", timeout: 15000 });
+  }
   await page.locator("header").getByRole("button", { name: "Application menu", exact: true }).click();
   await page.locator('[data-opdf-mobile-sheet="true"]').waitFor({ state: "visible", timeout: 5000 });
   await shot("17-mobile-menu");

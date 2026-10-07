@@ -47,15 +47,35 @@ try {
 
   const live = await waitForLive();
   assert(live.headers.get("x-frame-options") === "DENY", "X-Frame-Options missing");
-  assert(
-    (live.headers.get("content-security-policy") || "").includes("frame-ancestors 'none'"),
-    "frame-ancestors CSP missing",
-  );
+  const csp = live.headers.get("content-security-policy") || "";
+  for (const directive of [
+    "default-src 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "script-src 'self' 'wasm-unsafe-eval'",
+    "worker-src 'self' blob:",
+  ]) {
+    assert(csp.includes(directive), `CSP directive missing: ${directive}`);
+  }
   assert(
     (live.headers.get("strict-transport-security") || "").includes("max-age="),
     "HSTS header missing when enabled",
   );
   assert(live.headers.get("x-request-id"), "request id header missing");
+
+  const web = await fetch(`${base}/`);
+  assert(web.status === 200, `web shell failed: ${web.status}`);
+  const webHtml = await web.text();
+  assert(webHtml.includes('src="/opdf-runtime.js"'), "external runtime config script missing");
+  assert(!webHtml.includes('window.__OPDF_RUNTIME__="server"'), "runtime config must not be inline");
+
+  const runtimeConfig = await fetch(`${base}/opdf-runtime.js`);
+  assert(runtimeConfig.status === 200, "runtime config endpoint failed");
+  assert(
+    (runtimeConfig.headers.get("content-type") || "").includes("text/javascript"),
+    "runtime config has wrong content type",
+  );
+  assert((await runtimeConfig.text()).includes('__OPDF_RUNTIME__="server"'), "runtime config payload missing");
 
   const ready = await fetch(`${base}/api/opdf/ready`);
   assert(ready.status === 200, `readiness failed: ${ready.status}`);

@@ -4,6 +4,26 @@ import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { resolveTool } from "./tools.mjs";
 
+const TOOL_MENU_PATHS = {
+  "All Tools...": ["Tools", "All Tools..."],
+  "Insert PDF...": ["Tools", "Pages", "Insert PDF..."],
+  "Split PDF...": ["Tools", "Pages", "Split PDF..."],
+  "Merge PDFs...": ["Tools", "Pages", "Merge PDFs..."],
+  "Run OCR": ["Tools", "Document", "Run OCR"],
+  "Page Numbers...": ["Tools", "Document", "Page Numbers..."],
+  "Header...": ["Tools", "Document", "Header..."],
+  "Footer...": ["Tools", "Document", "Footer..."],
+  "Bates Numbering...": ["Tools", "Document", "Bates Numbering..."],
+  "Watermark...": ["Tools", "Document", "Watermark..."],
+  "Compress PDF": ["Tools", "Convert & Optimize", "Compress PDF"],
+  "Convert to Images": ["Tools", "Convert & Optimize", "Convert to Images"],
+  "Measure Drawing": ["Tools", "Edit & Review", "Measure Drawing"],
+  "Compare Revisions...": ["Tools", "Edit & Review", "Compare Revisions..."],
+  "Search & Secure Redact...": ["Tools", "Security", "Search & Secure Redact..."],
+  "Digital Sign...": ["Tools", "Security", "Digital Sign..."],
+  "Advanced PDF...": ["Tools", "Advanced PDF..."],
+};
+
 export class OpdfDriver {
   constructor(options) {
     this.options = options;
@@ -301,13 +321,7 @@ export class OpdfDriver {
     return this.inspect();
   }
 
-  async openMenu(name = "application") {
-    const key = String(name).trim().toLowerCase();
-    const sections = { file: "File", edit: "Edit", view: "View", tools: "Tools" };
-    if (key !== "application" && !sections[key]) {
-      throw new Error('Menu must be "Application" or one of its legacy sections: File, Edit, View, Tools');
-    }
-
+  async openApplicationMenuSurface() {
     const timeout = Math.min(this.options.timeout, 10_000);
     const trigger = this.page.locator('button[aria-label="Application menu"]:visible').first();
     await trigger.waitFor({ state: "visible", timeout });
@@ -327,7 +341,62 @@ export class OpdfDriver {
       return Boolean(hit && element.contains(hit));
     });
     if (!reachable) throw new Error("Application menu is clipped or visually occluded");
-    return { ok: true, menu: "Application", section: sections[key] || null };
+    return menu;
+  }
+
+  async findMenuItemPath(path) {
+    const labels = Array.isArray(path) ? path : [path];
+    if (!labels.length) throw new Error("Menu path is empty");
+
+    const timeout = Math.min(this.options.timeout, 10_000);
+    let surface = await this.openApplicationMenuSurface();
+    let item = null;
+
+    for (let index = 0; index < labels.length; index += 1) {
+      const label = String(labels[index]);
+      item = surface.locator('[data-opdf-menu-item]').filter({ hasText: label }).first();
+      await item.waitFor({ state: "visible", timeout });
+
+      const exactLabel = await item.getAttribute("data-opdf-menu-item");
+      if (exactLabel !== label) {
+        item = surface.locator(`[data-opdf-menu-item="${label.replace(/"/g, '\\"')}"]`).first();
+        await item.waitFor({ state: "visible", timeout });
+      }
+
+      if (index < labels.length - 1) {
+        if (await item.isDisabled()) throw new Error(`Menu "${label}" is disabled`);
+        if ((await item.getAttribute("aria-expanded")) !== "true") {
+          await item.click({ timeout });
+        }
+        const nested = item.locator("xpath=..").locator('[role="menu"]').first();
+        await nested.waitFor({ state: "visible", timeout });
+        surface = nested;
+      }
+    }
+
+    return item;
+  }
+
+  async openMenu(name = "application") {
+    const key = String(name).trim().toLowerCase();
+    const sections = { file: "Document", edit: "Edit", view: "View", tools: "Tools" };
+    if (key !== "application" && !sections[key]) {
+      throw new Error('Menu must be "Application" or one of its legacy sections: File, Edit, View, Tools');
+    }
+
+    if (key === "application") {
+      await this.openApplicationMenuSurface();
+      return { ok: true, menu: "Application", section: null };
+    }
+
+    const item = await this.findMenuItemPath([sections[key]]);
+    const timeout = Math.min(this.options.timeout, 10_000);
+    if ((await item.getAttribute("aria-expanded")) !== "true") {
+      await item.click({ timeout });
+    }
+    const nested = item.locator("xpath=..").locator('[role="menu"]').first();
+    await nested.waitFor({ state: "visible", timeout });
+    return { ok: true, menu: "Application", section: sections[key] };
   }
 
   async openTool(name) {
@@ -354,9 +423,7 @@ export class OpdfDriver {
       }
     }
 
-    await this.openMenu("Tools");
-    const menu = this.page.locator('[role="menu"]:visible').first();
-    const item = menu.locator(`[data-opdf-menu-item="${tool.menu}"]`).first();
+    const item = await this.findMenuItemPath(TOOL_MENU_PATHS[tool.menu] || ["Tools", tool.menu]);
     await item.waitFor({ state: "visible", timeout });
     if (await item.isDisabled()) throw new Error(`Tool "${name}" is disabled in the current runtime`);
     await item.click({ timeout });
@@ -422,8 +489,7 @@ export class OpdfDriver {
   }
 
   async exportPdf(targetDir, label = "export") {
-    await this.openMenu("File");
-    const item = this.page.locator('[data-opdf-menu-item="Export PDF..."]').first();
+    const item = await this.findMenuItemPath(["Document", "Export PDF..."]);
     await item.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
     if (await item.isDisabled()) throw new Error("Export PDF is disabled");
     return this.downloadByClick(item, targetDir, label);
@@ -524,8 +590,7 @@ export class OpdfDriver {
   }
 
   async runOcrDownload(targetDir) {
-    await this.openMenu("Tools");
-    const item = this.page.locator('[data-opdf-menu-item="Run OCR"]').first();
+    const item = await this.findMenuItemPath(["Tools", "Document", "Run OCR"]);
     await item.waitFor({ state: "visible", timeout: Math.min(this.options.timeout, 10_000) });
     if (await item.isDisabled()) throw new Error("OCR is disabled");
     return this.downloadByClick(item, targetDir, "ocr");

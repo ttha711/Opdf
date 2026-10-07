@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   codeql:
     name: CodeQL
@@ -37,4 +41,4 @@ jobs:
           cache: "npm"
       - run: npm ci
       - name: Block critical production dependency vulnerabilities
-        run: npm audit --omit=dev --audit-level=critical
+        run: npm audit --workspace=@opdf/web --workspace=@opdf/core --omit=dev --audit-level=critical

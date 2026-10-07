@@ -4,6 +4,7 @@ import { pdfiumContentEditingEngine } from "../../lib/pdfiumContentEngine";
 import {
   geometryForObject,
   pdfPointFromClient,
+  transformGeometry,
   type NativeResizeHandle,
 } from "../../lib/nativeEditGeometry";
 import {
@@ -96,13 +97,7 @@ export function NativeEditPageOverlay({
   );
   const displayGeometry = useMemo(
     () => baseGeometry && previewMatrix
-      ? {
-          ...baseGeometry,
-          ...(() => {
-            const { transformGeometry } = requireGeometry();
-            return transformGeometry(baseGeometry, previewMatrix);
-          })(),
-        }
+      ? transformGeometry(baseGeometry, previewMatrix)
       : baseGeometry,
     [baseGeometry, previewMatrix],
   );
@@ -271,32 +266,3 @@ export function NativeEditPageOverlay({
   );
 }
 
-function requireGeometry() {
-  return {
-    transformGeometry: (
-      geometry: import("../../lib/nativeEditGeometry").NativeObjectGeometry,
-      matrix: PdfMatrix,
-    ) => {
-      const apply = (point: { x: number; y: number }) => ({
-        x: matrix[0] * point.x + matrix[2] * point.y + matrix[4],
-        y: matrix[1] * point.x + matrix[3] * point.y + matrix[5],
-      });
-      const uEnd = apply({
-        x: geometry.center.x + geometry.u.x,
-        y: geometry.center.y + geometry.u.y,
-      });
-      const vEnd = apply({
-        x: geometry.center.x + geometry.v.x,
-        y: geometry.center.y + geometry.v.y,
-      });
-      const center = apply(geometry.center);
-      return {
-        ...geometry,
-        center,
-        u: { x: uEnd.x - center.x, y: uEnd.y - center.y },
-        v: { x: vEnd.x - center.x, y: vEnd.y - center.y },
-        corners: geometry.corners.map(apply),
-      };
-    },
-  };
-}

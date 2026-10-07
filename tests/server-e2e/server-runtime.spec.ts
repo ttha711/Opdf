@@ -45,6 +45,47 @@ test("OPDF Server serves the full web runtime", async ({ page, request }) => {
 });
 
 
+test("cached app shell reopens offline and accepts a local PDF", async ({ page, context, request }) => {
+  const worker = await request.get("/opdf-sw.js");
+  expect(worker.ok()).toBeTruthy();
+  expect(worker.headers()["cache-control"]).toContain("no-cache");
+
+  await page.goto("/");
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+
+  // A reload guarantees the installed worker controls the page before the
+  // network is removed.
+  await page.reload();
+  await expect(page.locator("body")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBeTruthy();
+
+  await context.setOffline(true);
+  try {
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toBeVisible();
+
+    const pdf = await PDFDocument.create();
+    const sheet = pdf.addPage([612, 792]);
+    sheet.drawText("OFFLINE LOCAL PDF", { x: 48, y: 720, size: 18 });
+    const input = page.locator('input[type="file"][accept="application/pdf"]').first();
+    await input.setInputFiles({
+      name: "offline-local.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from(await pdf.save()),
+    });
+
+    const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+    await expect(viewer).toBeVisible({ timeout: 30_000 });
+    await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy");
+    await expect(page.getByText(/Offline .* PDF is open locally/i)).toBeVisible();
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+
 test("production open URLs use the OPDF document API and never Vite /@fs", async ({ page, request }) => {
   const pdf = await PDFDocument.create();
   pdf.addPage([612, 792]);
@@ -131,7 +172,7 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
 });
 
 
-test("large persisted PDFs keep the full EmbedPDF toolbar and sidebar", async ({ page, request }) => {
+test("large persisted PDFs use one PDFium viewer with toolbar and sidebar", async ({ page, request }) => {
   const pdf = await PDFDocument.create();
   const sheet = pdf.addPage([842, 595]);
   sheet.drawText("LARGE SERVER VIEWER SHELL", { x: 48, y: 520, size: 20 });
@@ -144,29 +185,24 @@ test("large persisted PDFs keep the full EmbedPDF toolbar and sidebar", async ({
   expect(upload.ok()).toBeTruthy();
   const stored = await upload.json() as { filePath: string };
 
-  await page.route("**/api/opdf/documents/**", async (route) => {
-    if (route.request().method() !== "HEAD") {
-      await route.continue();
-      return;
+  const headRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "HEAD" && request.url().includes("/api/opdf/documents/")) {
+      headRequests.push(request.url());
     }
-    await route.fulfill({
-      status: 200,
-      headers: {
-        "content-type": "application/pdf",
-        "content-length": String(40 * 1024 * 1024),
-        "accept-ranges": "bytes",
-      },
-      body: "",
-    });
   });
 
   await page.goto(`/?open=${encodeURIComponent(stored.filePath)}`);
-  await expect(page.locator('[data-opdf-progressive-viewer="true"]')).toBeVisible({
-    timeout: 30_000,
-  });
   const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
   await expect(viewer).toBeVisible({ timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+
+  // The server path must not create a temporary PDF.js preview or progressive
+  // handoff. The same PDFium shell owns page rendering and the editing chrome.
+  await expect(page.locator('[data-opdf-progressive-viewer="true"]')).toHaveCount(0);
   await expect(page.locator('[data-opdf-engine="pdfjs-range"]')).toHaveCount(0);
+  expect(headRequests).toEqual([]);
+
   await expect(viewer.getByRole("button", { name: "View", exact: true })).toBeVisible();
   await expect(viewer.getByRole("button", { name: "Annotate", exact: true })).toBeVisible();
   await expect(viewer.getByRole("button", { name: "Shapes", exact: true })).toBeVisible();

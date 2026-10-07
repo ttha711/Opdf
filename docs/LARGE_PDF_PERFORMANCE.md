@@ -46,7 +46,7 @@ npx playwright install chromium
 npm run perf:real-world
 ```
 
-The gate currently checks two public engineering documents and records transfer behavior, page count, searchability, and persistence. The browser must remain on the stable EmbedPDF/PDFium viewer shell; large files must not switch back to the legacy range-only viewer.
+The gate currently checks two public engineering documents and records transfer behavior, page count, searchability, and persistence. The browser must remain on one stable EmbedPDF/PDFium viewer shell for the entire open lifecycle. Large server PDFs must not create a temporary PDF.js preview, progressive handoff, or size-probe HEAD request before starting PDFium. HTTP Range support remains a transport concern of the persisted document URL, not a second viewer engine.
 
 Current first-page budgets on GitHub-hosted Linux runners:
 

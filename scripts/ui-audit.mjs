@@ -258,7 +258,6 @@ try {
   await page.waitForTimeout(500);
   await shot("13-revision-compare");
   await closeOverlay();
-
   await page.setViewportSize({ width: 412, height: 915 });
   await page.goto(baseURL, { waitUntil: "networkidle" });
   // Session restore may reopen the last server-backed tab after navigation.
@@ -268,7 +267,6 @@ try {
   await homeButton.click();
   await page.getByRole("heading", { name: "Your documents, ready when you are." }).waitFor({ state: "visible", timeout: 10000 });
   await shot("14-mobile-home");
-
   const fileChooserPromise = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Open PDF", exact: true }).click();
   const fileChooser = await fileChooserPromise;
@@ -276,7 +274,6 @@ try {
   await page.locator('[data-opdf-engine="pdfium-wasm"]').waitFor({ state: "visible", timeout: 30000 });
   await page.waitForTimeout(800);
   await shot("15-mobile-viewer");
-
   const mobileViewer = page.locator(".viewer-shell");
   const pagesToggle = mobileViewer.getByRole("button", { name: "Sidebar", exact: true }).first();
   const sidebarPanel = mobileViewer.locator('[data-sidebar-id="sidebar-panel"]').first();
@@ -284,7 +281,6 @@ try {
   await pagesToggle.click();
   await sidebarPanel.waitFor({ state: "visible", timeout: 15000 });
   await shot("16-mobile-pages-drawer");
-
   await page.keyboard.press("Escape");
   const sidebarClosedWithEscape = await sidebarPanel
     .waitFor({ state: "hidden", timeout: 2500 })
@@ -297,7 +293,6 @@ try {
   await page.locator("header").getByRole("button", { name: "Application menu", exact: true }).click();
   await page.locator('[data-opdf-mobile-sheet="true"]').waitFor({ state: "visible", timeout: 5000 });
   await shot("17-mobile-menu");
-
   console.log("UI audit screenshots written to", outDir);
 } finally {
   await browser.close();

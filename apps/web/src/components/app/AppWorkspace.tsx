@@ -102,14 +102,10 @@ export function AppWorkspace({
           onDrop={onDrop}
           onMouseUp={(event) => {
             if (state.activeTool !== "select") return;
-            const selection = window.getSelection();
-            const text = selection?.toString().trim() ?? "";
-            const anchor = selection?.anchorNode;
-            const focus = selection?.focusNode;
-            if (!text || !anchor || !focus ||
-              !event.currentTarget.contains(anchor) || !event.currentTarget.contains(focus)) {
-              setSelectedTextForEdit(null);
-              return;
+            const selection = window.getSelection(), text = selection?.toString().trim() ?? "";
+            const anchor = selection?.anchorNode, focus = selection?.focusNode;
+            if (!text || !anchor || !focus || !event.currentTarget.contains(anchor) || !event.currentTarget.contains(focus)) {
+              setSelectedTextForEdit(null); return;
             }
             setSelectedTextForEdit({ text, page: state.page, tabId: activeTab.id });
           }}
@@ -137,8 +133,7 @@ export function AppWorkspace({
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
                 requestNativeInlineTextEdit(selectedTextForEdit.page - 1, selectedTextForEdit.text);
-                setSelectedTextForEdit(null);
-                state.setActiveTool("edit-content");
+                setSelectedTextForEdit(null); state.setActiveTool("edit-content");
               }}
             >
               Edit selected text

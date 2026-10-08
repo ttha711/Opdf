@@ -93,3 +93,27 @@ test("native PDF text editing is inline and advanced settings are opt-in", async
   await expect(page.locator('[data-opdf-native-editor="true"]')).toBeVisible();
   await expect(page.locator('[data-opdf-action="collapse-right-panel"]')).toBeVisible();
 });
+
+test("entering and leaving Edit PDF preserves the original reader instance", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/");
+  const pdf = await PDFDocument.create();
+  pdf.addPage([612, 792]);
+  await page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles({
+    name: "preserve-reader.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from(await pdf.save()),
+  });
+
+  const reader = page.locator('[data-opdf-engine="pdfium-wasm"]').first();
+  await expect(reader).toBeVisible({ timeout: 20_000 });
+  await reader.evaluate((node) => node.setAttribute("data-reader-stability-probe", "original"));
+  await page.locator('[data-opdf-action="edit-content"]').click();
+  await expect(page.locator('[data-opdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-reader-stability-probe="original"]')).toBeAttached();
+
+  const expand = page.locator('[data-opdf-action="expand-right-panel"]');
+  if (await expand.isVisible()) await expand.click();
+  await page.getByRole("button", { name: "Close Edit PDF" }).click();
+  await expect(page.locator('[data-reader-stability-probe="original"]')).toBeVisible({ timeout: 20_000 });
+});

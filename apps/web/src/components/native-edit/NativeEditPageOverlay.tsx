@@ -26,6 +26,7 @@ import {
 
 type Props = {
   pageIndex: number;
+  enabled: boolean;
   width: number;
   height: number;
   revisionKey: string;
@@ -34,6 +35,7 @@ type Props = {
 
 export function NativeEditPageOverlay({
   pageIndex,
+  enabled,
   width,
   height,
   revisionKey,
@@ -49,9 +51,13 @@ export function NativeEditPageOverlay({
 
   useEffect(() => {
     let cancelled = false;
+    if (!enabled) {
+      setObjects([]);
+      return () => { cancelled = true; };
+    }
     setError(null);
     void getDocumentBytes()
-      .then((bytes) => bytes ? pdfiumContentEditingEngine.inspectPage(bytes, pageIndex) : [])
+      .then((bytes) => !cancelled && bytes ? pdfiumContentEditingEngine.inspectPage(bytes, pageIndex) : [])
       .then((next) => {
         if (cancelled) return;
         setObjects(next);
@@ -71,7 +77,7 @@ export function NativeEditPageOverlay({
         if (!cancelled) setError(reason instanceof Error ? reason.message : "Unable to inspect PDF objects.");
       });
     return () => { cancelled = true; };
-  }, [getDocumentBytes, pageIndex, revisionKey]);
+  }, [enabled, getDocumentBytes, pageIndex, revisionKey]);
 
   const refreshObjectsFromBytes = useCallback(async (bytes: Uint8Array) => {
     const next = await pdfiumContentEditingEngine.inspectPage(bytes, pageIndex);

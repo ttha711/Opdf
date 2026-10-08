@@ -73,11 +73,6 @@ export function NativeEditPageOverlay({
     return () => { cancelled = true; };
   }, [getDocumentBytes, pageIndex, revisionKey]);
 
-  useEffect(() => registerNativeEditSelectionListener((selection) => {
-    if (selection.pageIndex === pageIndex) setSelectedId(selection.objectId);
-    else if (selection.objectId) setSelectedId(null);
-  }), [pageIndex]);
-
   const refreshObjectsFromBytes = useCallback(async (bytes: Uint8Array) => {
     const next = await pdfiumContentEditingEngine.inspectPage(bytes, pageIndex);
     setObjects(next);
@@ -233,6 +228,15 @@ export function NativeEditPageOverlay({
 
   const commitInlineText = useNativeInlineCommit({ selected, editingText, setEditingText, refreshObjectsFromBytes });
   useEffect(() => registerNativeInlineCommitter(commitInlineText), [commitInlineText]);
+  useEffect(() => registerNativeEditSelectionListener((selection) => {
+    if (selection.pageIndex === pageIndex) {
+      setSelectedId(selection.objectId);
+      return;
+    }
+    const clearSelection = () => setSelectedId(null);
+    if (editingText !== null) void commitInlineText().then(clearSelection);
+    else clearSelection();
+  }), [commitInlineText, editingText, pageIndex]);
 
   return (
     <>

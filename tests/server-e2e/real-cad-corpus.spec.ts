@@ -35,6 +35,14 @@ async function logFailureState(page: import('@playwright/test').Page, fixture: s
       error: document.querySelector('[role="alert"]')?.textContent?.slice(0, 350) ?? null,
       editMessage: document.querySelector('.native-content-editor__message')?.textContent?.slice(0, 350) ?? null,
       saveState: document.querySelector('[data-opdf-region="status-bar"]')?.getAttribute('data-opdf-save-state') ?? null,
+      pageChildren: [...document.querySelectorAll('.native-edit-page')].slice(0, 3).map((node) => ({
+        rect: [Math.round(node.getBoundingClientRect().width), Math.round(node.getBoundingClientRect().height)],
+        children: [...node.children].map((child) => ({
+          tag: child.tagName,
+          className: child.getAttribute('class')?.slice(0, 80) ?? null,
+          count: child.childElementCount,
+        })),
+      })),
     };
   });
   console.log(JSON.stringify({ fixture, stage, state }));
@@ -57,6 +65,10 @@ test.describe('public real-world CAD reference PDFs', () => {
       const stored = await upload.json();
       const pageErrors: string[] = [];
       page.on('pageerror', (error) => pageErrors.push(error.message));
+      page.on('console', (message) => {
+        if (message.type() !== 'error' && message.type() !== 'warning') return;
+        if (pageErrors.length < 25) pageErrors.push('console: ' + message.text().slice(0, 500));
+      });
       const started = Date.now();
       await page.goto('/?open=' + encodeURIComponent(stored.filePath));
       await expect(page.locator("[data-opdf-engine='pdfium-wasm']"))
@@ -72,6 +84,7 @@ test.describe('public real-world CAD reference PDFs', () => {
           .toBeVisible({ timeout: 35_000 });
       } catch (error) {
         await logFailureState(page, fixture.id, 'raster');
+        console.log(JSON.stringify({ fixture: fixture.id, browserErrors: pageErrors }));
         throw error;
       }
       await expect.poll(() => page.locator('polygon.native-edit-object').count(), {
@@ -98,6 +111,7 @@ test.describe('public real-world CAD reference PDFs', () => {
           await expect(input).toHaveCount(0, { timeout: 35_000 });
         } catch (error) {
           await logFailureState(page, fixture.id, 'inline-apply');
+          console.log(JSON.stringify({ fixture: fixture.id, browserErrors: pageErrors }));
           throw error;
         }
         await expect(editor.locator('.native-content-editor__objects button[data-opdf-object-kind="text"]')
@@ -106,6 +120,7 @@ test.describe('public real-world CAD reference PDFs', () => {
           await saveServerDocumentAndWait(page);
         } catch (error) {
           await logFailureState(page, fixture.id, 'save');
+          console.log(JSON.stringify({ fixture: fixture.id, browserErrors: pageErrors }));
           throw error;
         }
         await page.reload();

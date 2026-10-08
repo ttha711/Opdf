@@ -150,6 +150,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
         : success);
       return edited;
     } catch (error) {
+      console.error("[opdf:native-edit] PDF patch rejected:", error);
       setMessage(error instanceof Error ? error.message : "Unable to edit PDF content.");
       return null;
     } finally {

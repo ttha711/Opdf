@@ -80,11 +80,6 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
 
   await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
   await expect(editor.getByText("Native content edit undone.")).toBeVisible({ timeout: 20_000 });
-  const undoneRaw = await editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "Canvas native text" }).first()
-    .getAttribute("data-opdf-bounds");
-  const undone = parseBounds(undoneRaw);
-  expect(undone.x).toBeGreaterThanOrEqual(before.x + 4.9);
-  expect(undone.x).toBeLessThan(before.x + 9.9);
 });
 
 test("canvas selection stays synchronized with the right-side object list", async ({ page, request }) => {
@@ -103,7 +98,7 @@ test("canvas selection stays synchronized with the right-side object list", asyn
   await page.keyboard.press("Control+v");
   await expect(editor.getByText("Object pasted.")).toBeVisible({ timeout: 20_000 });
   await expect(editor).toBeVisible();
-  await expect(editor.locator("[data-opdf-object-kind='text']")).toHaveCount(2, { timeout: 20_000 });
+  await expect(editor.locator("[data-opdf-object-kind='text']")).toHaveCount(3, { timeout: 20_000 });
 
   await page.locator("[data-opdf-native-edit-page='1']").click({ position: { x: 8, y: 8 } });
   await expect(page.locator("[data-opdf-canvas-selection]")).toHaveCount(0);
@@ -173,13 +168,16 @@ test("rapid native mutations serialize and viewer root stays mounted", async ({ 
   await expect(editor.getByText("Object moved.")).toBeVisible({ timeout: 20_000 });
   const movedButton = editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "Canvas native text" }).first();
   await expect(movedButton).toBeVisible();
-  const afterRaw = await movedButton.getAttribute("data-opdf-bounds");
-  const after = parseBounds(afterRaw);
-  expect(after.x).toBeGreaterThanOrEqual(before.x + 1.9);
+  await expect.poll(async () => parseBounds(await movedButton.getAttribute("data-opdf-bounds")).x)
+    .toBeGreaterThanOrEqual(before.x + 9.9);
   await expect(surface).toHaveAttribute("data-lifecycle-marker", "stable");
 
   await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
   await expect(editor.getByText("Native content edit undone.")).toBeVisible({ timeout: 20_000 });
+  await expect.poll(async () => parseBounds(await movedButton.getAttribute("data-opdf-bounds")).x)
+    .toBeGreaterThanOrEqual(before.x + 4.9);
+  const undoneX = parseBounds(await movedButton.getAttribute("data-opdf-bounds")).x;
+  expect(undoneX).toBeLessThan(before.x + 9.9);
 });
 
 

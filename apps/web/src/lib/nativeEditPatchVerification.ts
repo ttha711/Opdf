@@ -70,6 +70,10 @@ export async function applyVerifiedNativePatches(
         objectsAfter: after.length,
         textBefore: before.filter((item) => item.kind === "text").length,
         textAfter: after.filter((item) => item.kind === "text").length,
+        originalFont: originalObject?.fontFamily,
+        updatedFont: updatedObject?.fontFamily,
+        originalRenderMode: originalObject?.textRenderMode,
+        updatedRenderMode: updatedObject?.textRenderMode,
         originalTextLength: originalObject?.text?.length,
         afterTextLength: updatedObject?.text?.length,
         candidateLengths: after.filter((item) => item.kind === "text")

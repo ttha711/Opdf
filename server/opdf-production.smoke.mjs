@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { applyProductionSecurityHeaders } from "./opdf-production-guard.mjs";
 
 const port = 22787;
 const dataDir = await mkdtemp(join(tmpdir(), "opdf-production-smoke-"));
@@ -12,6 +13,32 @@ let stderr = "";
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
+
+function headersFor(config) {
+  const headers = new Map();
+  applyProductionSecurityHeaders({
+    setHeader(name, value) { headers.set(name.toLowerCase(), value); },
+  }, config);
+  return headers;
+}
+
+const defaultHeaders = headersFor({});
+assert(!defaultHeaders.has("strict-transport-security"), "HSTS must remain opt-in for unknown HTTP origins");
+assert(!defaultHeaders.get("content-security-policy").includes("cloudflareinsights.com"),
+  "Analytics must remain blocked by default");
+const publicHttpsHeaders = headersFor({ OPDF_PUBLIC_ORIGIN: "https://pdf.example.com" });
+assert(publicHttpsHeaders.get("strict-transport-security") === "max-age=31536000; includeSubDomains",
+  "HTTPS public origin must enable HSTS");
+assert(!headersFor({ OPDF_PUBLIC_ORIGIN: "https://pdf.example.com", OPDF_HSTS: "0" })
+  .has("strict-transport-security"), "Explicit HSTS opt-out must work");
+assert(headersFor({ OPDF_HSTS: "1" }).has("strict-transport-security"),
+  "Explicit HSTS opt-in must work");
+const insightsHeaders = headersFor({ OPDF_CLOUDFLARE_INSIGHTS: "1" });
+const insightsCsp = insightsHeaders.get("content-security-policy");
+assert(insightsCsp.includes("script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com/beacon.min.js"),
+  "Cloudflare analytics opt-in must use the exact beacon URL");
+assert(!insightsCsp.includes("script-src *") && !insightsCsp.includes("script-src https:"),
+  "Cloudflare analytics may not broadly relax script-src");
 
 async function waitForLive() {
   const deadline = Date.now() + 15000;
@@ -39,7 +66,9 @@ try {
       OPDF_BOOTSTRAP_PASSWORD: "admin-production-2026",
       OPDF_LOGIN_RATE_MAX_ATTEMPTS: "3",
       OPDF_LOGIN_RATE_WINDOW_MS: "60000",
-      OPDF_HSTS: "1",
+      OPDF_PUBLIC_ORIGIN: "https://pdf.example.com",
+      OPDF_HSTS: "",
+      OPDF_CLOUDFLARE_INSIGHTS: "",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -60,7 +89,7 @@ try {
   }
   assert(
     (live.headers.get("strict-transport-security") || "").includes("max-age="),
-    "HSTS header missing when enabled",
+    "HSTS header missing for an HTTPS public origin",
   );
   assert(live.headers.get("x-request-id"), "request id header missing");
 

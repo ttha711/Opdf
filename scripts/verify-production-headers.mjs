@@ -40,8 +40,8 @@ const script = csp.split(";").map((part) => part.trim())
 check(!script.includes(" *") && !script.includes(" https:") && !script.includes("'unsafe-inline'"),
   "script-src has a broad script allowance");
 if (html.includes("static.cloudflareinsights.com/beacon.min.js")) {
-  check(script.includes("https://static.cloudflareinsights.com/beacon.min.js"),
-    "Cloudflare-injected beacon is blocked by CSP; enable OPDF_CLOUDFLARE_INSIGHTS=1 or disable injection");
+  check(script.includes("https://static.cloudflareinsights.com/beacon.min.js/"),
+    "Versioned Cloudflare beacon requires a trailing-slash CSP path prefix; otherwise disable injection");
 }
 
 console.log("OPDF production security headers passed:", url.origin);

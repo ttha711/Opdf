@@ -64,3 +64,13 @@ export function buildMalformedPdf() {
     "ascii",
   );
 }
+
+export async function buildDigitsOnlySubsetPdf() {
+  const fontPath = resolve(process.cwd(), "apps", "web", "public", "fonts", "NotoSans-VietnameseMerged.ttf");
+  const pdf = await PDFDocument.create();
+  pdf.registerFontkit(fontkit);
+  const font = await pdf.embedFont(await readFile(fontPath), { subset: true });
+  const page = pdf.addPage([595, 420]);
+  page.drawText("12345", { x: 72, y: 240, size: 32, font });
+  return Buffer.from(await pdf.save({ useObjectStreams: false }));
+}

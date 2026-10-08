@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { saveServerDocumentAndWait } from "../helpers/save";
 import {
+  buildDigitsOnlySubsetPdf,
   buildEncryptedPdf,
   buildMalformedPdf,
   buildSubsetFontPdf,
@@ -144,4 +145,43 @@ test("truncated malformed PDF degrades explicitly without crashing", async ({
     "malformed-truncated.pdf",
     buildMalformedPdf(),
   );
+});
+
+test("ASCII letters replace digits in a subset font and survive save/reload", async ({ page, request }) => {
+  const source = await buildDigitsOnlySubsetPdf();
+  const upload = await uploadPdf(request, "native-subset-digits.pdf", source);
+  expect(upload.status()).toBe(201);
+  const document = await upload.json();
+  await page.goto("/?open=" + encodeURIComponent(document.filePath));
+  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await page.getByTitle("Edit PDF Content").click();
+  const editor = await expandAdvancedEditor(page);
+  await expect(editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "12345" })).toBeVisible();
+
+  const hit = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").first();
+  await expect(hit).toBeVisible({ timeout: 30_000 });
+  await hit.dblclick();
+  const draft = page.getByRole("textbox", { name: "Edit PDF text" });
+  await draft.fill("KITCHEN ABC");
+  await draft.press("Enter");
+  await expect(draft).toHaveCount(0, { timeout: 30000 });
+  await expect(editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "KITCHEN ABC" }))
+    .toBeVisible({ timeout: 30000 });
+
+  // Embedding a full Unicode font rather than reusing the digits-only subset
+  // increases the PDF data size. Text extraction alone can miss invisible glyphs.
+  await saveServerDocumentAndWait(page);
+  const documentId = /^server:\/\/([0-9a-f-]{36})/i.exec(document.filePath)?.[1];
+  expect(documentId).toBeTruthy();
+  const response = await request.get("/api/opdf/documents/" + documentId);
+  expect(response.ok()).toBe(true);
+  const saved = Buffer.from(await response.body());
+  expect(saved.byteLength).toBeGreaterThan(source.byteLength + 1000);
+
+  await page.reload();
+  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await page.getByTitle("Edit PDF Content").click();
+  const reopened = await expandAdvancedEditor(page);
+  await expect(reopened.locator("[data-opdf-object-kind='text']").filter({ hasText: "KITCHEN ABC" }))
+    .toBeVisible({ timeout: 30_000 });
 });

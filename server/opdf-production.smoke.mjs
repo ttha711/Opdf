@@ -67,7 +67,11 @@ try {
   const web = await fetch(`${base}/`);
   assert(web.status === 200, `web shell failed: ${web.status}`);
   const webHtml = await web.text();
-  assert(webHtml.includes('src="/opdf-runtime.js"'), "external runtime config script missing");
+  assert(webHtml.includes('<meta name="opdf-runtime" content="server">'),
+    "runtime mode metadata missing");
+  assert(webHtml.includes('<meta name="opdf-server-base" content="/api/opdf">'),
+    "server API base metadata missing");
+  assert(!webHtml.includes('src="/opdf-runtime.js"'), "external runtime script must not block parsing");
   assert(!webHtml.includes('window.__OPDF_RUNTIME__="server"'), "runtime config must not be inline");
 
   const runtimeConfig = await fetch(`${base}/opdf-runtime.js`);

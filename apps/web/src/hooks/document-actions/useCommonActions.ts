@@ -94,7 +94,7 @@ export function useCommonActions({
     setShowSplitModal?.(true);
   }
 
-  async function convertToImages() {
+  async function convertToImages(format: "png" | "jpeg" = "png") {
     if (!fileName || totalPages < 1) return;
     try {
       setViewerError("Rendering page images...");
@@ -102,23 +102,50 @@ export function useCommonActions({
       setViewerError("Zipping images...");
       const { zipSync } = await import("fflate");
       const zipData: Record<string, Uint8Array> = {};
+      const targetMime = format === "jpeg" ? "image/jpeg" : "image/png";
+      const extension = format === "jpeg" ? "jpg" : "png";
+
       for (const thumb of pageImages) {
-        const buf = await thumb.blob.arrayBuffer();
-        const extension = thumb.blob.type.includes("png") ? "png" : "jpg";
+        let outputBlob = thumb.blob;
+        if (thumb.blob.type !== targetMime) {
+          const bitmap = await createImageBitmap(thumb.blob);
+          const canvas = document.createElement("canvas");
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("Unable to create image conversion canvas.");
+          if (format === "jpeg") {
+            context.fillStyle = "#fff";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+          }
+          context.drawImage(bitmap, 0, 0);
+          bitmap.close();
+          outputBlob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob(
+              (blob) => blob ? resolve(blob) : reject(new Error("Unable to encode page image.")),
+              targetMime,
+              format === "jpeg" ? 0.92 : undefined,
+            );
+          });
+        }
+
+        const buf = await outputBlob.arrayBuffer();
         zipData[`page-${thumb.page}.${extension}`] = new Uint8Array(buf);
       }
+
       const zipped = zipSync(zipData);
       const blob = new Blob([zipped as unknown as BlobPart], { type: "application/zip" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${fileName}-images.zip`;
+      a.download = `${fileName}-images-${format}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       setViewerError(null);
-      toast.success("Page images exported successfully.");
+      toast.success(`Page images exported as ${format.toUpperCase()} successfully.`);
     } catch (err) {
       setViewerError("Failed to convert: " + err);
+      throw err;
     }
   }
 

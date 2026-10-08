@@ -14,6 +14,7 @@ type Props = {
   enabled: boolean;
   setPreviewMatrix: (matrix: PdfMatrix | null) => void;
   setError: (message: string | null) => void;
+  onPersistedBytes: (bytes: Uint8Array) => void | Promise<void>;
 };
 
 const ARROWS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
@@ -30,6 +31,7 @@ export function useNativeEditKeyboardMove({
   enabled,
   setPreviewMatrix,
   setError,
+  onPersistedBytes,
 }: Props) {
   const moveRef = useRef<KeyboardMove | null>(null);
 
@@ -37,8 +39,10 @@ export function useNativeEditKeyboardMove({
     const commit = () => {
       const move = moveRef.current;
       moveRef.current = null;
-      setPreviewMatrix(null);
-      if (!objectId || !move || (move.dx === 0 && move.dy === 0)) return;
+      if (!objectId || !move || (move.dx === 0 && move.dy === 0)) {
+        setPreviewMatrix(null);
+        return;
+      }
       void applyNativeEditPatches(
         [{
           type: "relative-transform",
@@ -46,7 +50,13 @@ export function useNativeEditKeyboardMove({
           matrix: translationMatrix(move.dx, move.dy),
         }],
         "Object moved with keyboard.",
-      ).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+      ).then(async (bytes) => {
+        if (bytes) await onPersistedBytes(bytes);
+        setPreviewMatrix(null);
+      }).catch((reason) => {
+        setPreviewMatrix(null);
+        setError(reason instanceof Error ? reason.message : String(reason));
+      });
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -83,5 +93,5 @@ export function useNativeEditKeyboardMove({
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [enabled, objectId, setError, setPreviewMatrix]);
+  }, [enabled, objectId, onPersistedBytes, setError, setPreviewMatrix]);
 }

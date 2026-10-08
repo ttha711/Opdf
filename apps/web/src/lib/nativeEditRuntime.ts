@@ -7,10 +7,12 @@ export type NativeEditSelection = {
 
 type SelectionListener = (selection: NativeEditSelection) => void;
 type PatchApplier = (patches: PdfContentPatch[], successMessage: string) => Promise<Uint8Array | null>;
+type InlineCommitter = () => Promise<void>;
 
 const selectionListeners = new Set<SelectionListener>();
 let currentSelection: NativeEditSelection | null = null;
 let patchApplier: PatchApplier | null = null;
+let inlineCommitter: InlineCommitter | null = null;
 let pendingInlineText: { pageIndex: number; text: string } | null = null;
 
 export function emitNativeEditSelection(selection: NativeEditSelection) {
@@ -54,8 +56,18 @@ export async function applyNativeEditPatches(
   return patchApplier(patches, successMessage);
 }
 
+export function registerNativeInlineCommitter(committer: InlineCommitter) {
+  inlineCommitter = committer;
+  return () => { if (inlineCommitter === committer) inlineCommitter = null; };
+}
+
+export async function commitPendingNativeInlineEdit() {
+  await inlineCommitter?.();
+}
+
 export function clearNativeEditRuntime() {
   currentSelection = null;
   patchApplier = null;
+  inlineCommitter = null;
   pendingInlineText = null;
 }

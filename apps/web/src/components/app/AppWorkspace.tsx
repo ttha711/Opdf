@@ -190,7 +190,7 @@ export function AppWorkspace({
             page={state.page}
             getDocumentBytes={getNativeEditBytes}
             onApplyBytes={(bytes) => {
-              replaceDocumentBytes(bytes, state.page, { preserveAnnotations: true });
+              replaceDocumentBytes(bytes, state.page, { preserveAnnotations: true, preservePageCount: true });
             }}
             onClose={() => state.setActiveTool("select")}
           />

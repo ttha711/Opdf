@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { PdfContentPatch } from "@opdf/core";
-import { withUnicodeGlyphFallback } from "./nativeEditPatchVerification";
+import { editedTextPages, withUnicodeGlyphFallback } from "./nativeEditPatchVerification";
 
 describe("native CAD text fallback", () => {
+  it("validates replacements on their actual PDF pages, not the sidebar page", () => {
+    const patches: PdfContentPatch[] = [
+      { type: "replace-text", objectId: "p1-o32", text: "KITCHEN" },
+      { type: "replace-text", objectId: "p0-o2-f3", text: "OFFICE" },
+      { type: "style-text", objectId: "p0-o2-f3", fontSize: 12 },
+    ];
+    expect(editedTextPages(patches)).toEqual([1, 0]);
+  });
+
   it("adds a Unicode font before replacing missing Latin glyphs", () => {
     const patches: PdfContentPatch[] = [{ type: "replace-text", objectId: "one", text: "KITCHEN" }];
     expect(withUnicodeGlyphFallback(patches)).toEqual([

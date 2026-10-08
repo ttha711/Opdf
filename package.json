@@ -33,6 +33,7 @@
     "opdf": "node scripts/opdf-cli.mjs",
     "test:cli": "node --test tests/cli/*.test.mjs",
     "audit:prod": "node scripts/opdf-cli.mjs audit smoke",
+    "audit:headers": "node scripts/verify-production-headers.mjs",
     "server-reliability": "node server/opdf-server.reliability.mjs",
     "backup-smoke": "node server/opdf-backup.smoke.mjs",
     "backup:create": "node scripts/opdf-backup.mjs create",

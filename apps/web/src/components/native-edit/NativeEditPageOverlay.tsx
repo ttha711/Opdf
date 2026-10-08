@@ -11,7 +11,6 @@ import {
   applyNativeEditPatches,
   consumeNativeInlineTextEdit,
   emitNativeEditSelection,
-  registerNativeEditSelectionListener,
   registerNativeInlineCommitter,
 } from "../../lib/nativeEditRuntime";
 import { NativeEditSelectionLayer, nativeEditObjectIsEditable } from "./NativeEditSelectionLayer";
@@ -19,6 +18,7 @@ import { getNativeEditOverlayObjects } from "./nativeEditOverlayObjects";
 import { NativeInlineTextEditor } from "./NativeInlineTextEditor";
 import { useNativeEditKeyboardMove } from "./useNativeEditKeyboardMove";
 import { useNativeInlineCommit } from "./useNativeInlineCommit";
+import { useNativeEditSelectionSync } from "./useNativeEditSelectionSync";
 import {
   matrixForPointer,
   matrixIsIdentity,
@@ -48,6 +48,7 @@ export function NativeEditPageOverlay({
   const [drag, setDrag] = useState<NativeEditDragState | null>(null);
   const [previewMatrix, setPreviewMatrix] = useState<PdfMatrix | null>(null);
   const [editingText, setEditingText] = useState<string | null>(null);
+  const [isApplyingText, setIsApplyingText] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -178,12 +179,13 @@ export function NativeEditPageOverlay({
       setPreviewMatrix(null);
     };
     if (editingText !== null) {
-      void commitInlineText().catch((reason) =>
+      // A pointer click must not switch objects while the previous draft saves.
+      void commitInlineText().then(() => selectObject(object)).catch((reason) =>
         setError(reason instanceof Error ? reason.message : String(reason)));
+      return;
     }
     beginMove();
   };
-
   const startResize = (event: React.PointerEvent, handle: NativeResizeHandle) => {
     if (!baseGeometry || !selected || !nativeEditObjectIsEditable(selected)) return;
     event.preventDefault();
@@ -197,12 +199,13 @@ export function NativeEditPageOverlay({
       geometry: baseGeometry,
     });
     if (editingText !== null) {
+      // Do not start a pointer gesture after its pointer-up has already fired.
       void commitInlineText().catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+      return;
     }
     beginResize();
     setPreviewMatrix(null);
   };
-
   const startRotate = (event: React.PointerEvent) => {
     if (!baseGeometry || !selected || !nativeEditObjectIsEditable(selected)) return;
     const point = clientToPdf(selected, event.clientX, event.clientY);
@@ -219,11 +222,11 @@ export function NativeEditPageOverlay({
     });
     if (editingText !== null) {
       void commitInlineText().catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+      return;
     }
     beginRotate();
     setPreviewMatrix(null);
   };
-
   useNativeEditKeyboardMove({
     objectId: selected?.id ?? null,
     enabled: Boolean(selected && nativeEditObjectIsEditable(selected) && editingText === null && !drag),
@@ -232,18 +235,11 @@ export function NativeEditPageOverlay({
     onPersistedBytes: refreshObjectsFromBytes,
   });
 
-  const commitInlineText = useNativeInlineCommit({ selected, editingText, setEditingText, refreshObjectsFromBytes });
+  const commitInlineText = useNativeInlineCommit({ selected, editingText, setEditingText, setIsApplying: setIsApplyingText });
   useEffect(() => registerNativeInlineCommitter(commitInlineText), [commitInlineText]);
-  useEffect(() => registerNativeEditSelectionListener((selection) => {
-    if (selection.pageIndex === pageIndex) {
-      setSelectedId(selection.objectId);
-      return;
-    }
-    const clearSelection = () => setSelectedId(null);
-    if (editingText !== null) void commitInlineText().then(clearSelection);
-    else clearSelection();
-  }), [commitInlineText, editingText, pageIndex]);
-
+  useNativeEditSelectionSync({
+    pageIndex, selectedId, editingText, setSelectedId, commitInlineText, setError,
+  });
   return (
     <>
       <NativeEditSelectionLayer
@@ -274,8 +270,10 @@ export function NativeEditPageOverlay({
             selectObject(object);
             if (object.kind === "text" && nativeEditObjectIsEditable(object)) setEditingText(object.text ?? "");
           };
-          if (editingText !== null && selected?.id !== object.id) void commitInlineText().then(beginEdit);
-          else beginEdit();
+          if (editingText !== null && selected?.id !== object.id) {
+            void commitInlineText().then(beginEdit).catch((reason) =>
+              setError(reason instanceof Error ? reason.message : String(reason)));
+          } else beginEdit();
         }}
         onResizePointerDown={startResize}
         onRotatePointerDown={startRotate}
@@ -287,8 +285,10 @@ export function NativeEditPageOverlay({
           width={width}
           height={height}
           value={editingText}
-          onChange={setEditingText}
+          onChange={(value) => { setError(null); setEditingText(value); }}
           onCommit={commitInlineText}
+          isApplying={isApplyingText}
+          externalError={error}
           onCancel={() => setEditingText(null)}
           onError={setError}
         />

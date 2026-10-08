@@ -138,8 +138,7 @@ export function AppWorkspace({
             </button>
           ) : null}
         </section>
-      ) : null}
-
+      ) : null} 
       <SplitModal
         isOpen={state.showSplitModal}
         onClose={() => state.setShowSplitModal(false)}
@@ -179,7 +178,6 @@ export function AppWorkspace({
         hasDesktopBridge={state.hasDesktopBridge}
         bridge={bridge}
       />
-
       <div
         className={`sidebar-resizer ${isDraggingRight ? "dragging" : ""}`}
         onMouseDown={() => setIsDraggingRight(true)}
@@ -218,7 +216,11 @@ export function AppWorkspace({
             onApplyBytes={(bytes) => {
               replaceDocumentBytes(bytes, state.page, { preserveAnnotations: true, preservePageCount: true });
             }}
-            onClose={() => { void commitPendingNativeInlineEdit().finally(() => state.setActiveTool("select")); }}
+            onClose={() => {
+              void commitPendingNativeInlineEdit()
+                .then(() => state.setActiveTool("select"))
+                .catch((error) => state.setViewerError(error instanceof Error ? error.message : String(error)));
+            }}
           />
         ) : isAiPanelOpen ? (
           <AiAssistantPanel
@@ -281,7 +283,6 @@ export function AppWorkspace({
           />
         ) : null}
       </div>
-
       {rightAvailable && isRightCollapsed ? (
         <button
           type="button"

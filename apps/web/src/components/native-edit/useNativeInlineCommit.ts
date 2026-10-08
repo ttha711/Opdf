@@ -7,18 +7,18 @@ type Props = {
   selected: PdfContentObject | null;
   editingText: string | null;
   setEditingText: Dispatch<SetStateAction<string | null>>;
-  refreshObjectsFromBytes: (bytes: Uint8Array) => void | Promise<void>;
+  setIsApplying: Dispatch<SetStateAction<boolean>>;
 };
 
 export function useNativeInlineCommit({
   selected,
   editingText,
   setEditingText,
-  refreshObjectsFromBytes,
+  setIsApplying,
 }: Props) {
   const commitPromiseRef = useRef<Promise<void> | null>(null);
-  const latestRef = useRef({ selected, editingText, refreshObjectsFromBytes });
-  latestRef.current = { selected, editingText, refreshObjectsFromBytes };
+  const latestRef = useRef({ selected, editingText });
+  latestRef.current = { selected, editingText };
 
   return useCallback(async () => {
     if (commitPromiseRef.current) return commitPromiseRef.current;
@@ -27,6 +27,8 @@ export function useNativeInlineCommit({
     const nextText = latest.editingText;
     const selectedObject = latest.selected;
     const commit = (async () => {
+      setIsApplying(true);
+      try {
       if (nextText === (selectedObject.text ?? "")) {
         setEditingText(null);
         return;
@@ -42,14 +44,21 @@ export function useNativeInlineCommit({
         });
       }
       patches.push({ type: "replace-text", objectId: selectedObject.id, text: nextText });
+      // Let the browser paint "Applying" before heavy PDFium operations.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const bytes = await applyNativeEditPatches(
         patches,
         unicodeFallback ? "Inline text updated with Unicode fallback." : "Inline text updated.",
       );
       // Preserve the draft when the editing engine reports failure.
       if (!bytes) throw new Error("Unable to apply PDF text; your draft is still available.");
-      await latestRef.current.refreshObjectsFromBytes(bytes);
+      // The panel already reopened and verified these PDF bytes. The next
+      // document revision reloads the selection overlay automatically.
+      latestRef.current.editingText = null;
       setEditingText(null);
+      } finally {
+        setIsApplying(false);
+      }
     })();
     commitPromiseRef.current = commit;
     try {
@@ -57,5 +66,5 @@ export function useNativeInlineCommit({
     } finally {
       if (commitPromiseRef.current === commit) commitPromiseRef.current = null;
     }
-  }, [setEditingText]);
+  }, [setEditingText, setIsApplying]);
 }

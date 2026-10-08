@@ -112,3 +112,21 @@
   pointer-events: none;
   background: var(--viewer-bg, #e8eaed);
 }
+
+.native-edit-inline-feedback {
+  position: absolute;
+  z-index: 9;
+  max-width: min(320px, 85%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  border: 1px solid #2563eb;
+  border-radius: 4px;
+  background: #fff;
+  color: #1e3a8a;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+  font-size: 12px;
+}
+.native-edit-inline-feedback.is-error { border-color: #dc2626; color: #991b1b; }
+.native-edit-inline-feedback button { padding: 3px 5px; border: 1px solid currentColor; border-radius: 3px; }

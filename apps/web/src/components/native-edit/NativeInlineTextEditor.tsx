@@ -27,7 +27,15 @@ export function NativeInlineTextEditor({
   onError,
 }: Props) {
   const cancelRef = useRef(false);
-  const layout = nativeInlineTextLayout(object, geometry, width, height, value);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  if (!canvasRef.current) canvasRef.current = document.createElement("canvas");
+  const layout = nativeInlineTextLayout(object, geometry, width, height, value, (line, size) => {
+    const context = canvasRef.current?.getContext("2d");
+    if (!context) return line.length * size * 0.57;
+    const family = (object.fontFamily || "Arial").replace(/["']/g, "");
+    context.font = `${size}px "${family}"`;
+    return context.measureText(line).width;
+  });
 
   return (
     <textarea

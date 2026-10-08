@@ -19,9 +19,31 @@ describe("native inline text popover", () => {
     const object = textObject();
     const result = nativeInlineTextLayout(object, geometryForObject(object), 600, 800, "43\n20");
     expect(result.fontSize).toBe(20);
-    expect(result.width).toBeLessThanOrEqual(260);
+    expect(result.width).toBeLessThan(65);
     expect(result.height).toBeLessThanOrEqual(144);
-    expect(result.height).toBeLessThan(280);
+    expect(result.height).toBeLessThan(80);
+  });
+
+  it("fits a two-digit CAD label without a fixed 180px minimum", () => {
+    const object = textObject({
+      text: "43",
+      fontSize: 7,
+      bounds: { x: 80, y: 200, width: 13, height: 8 },
+    });
+    const result = nativeInlineTextLayout(object, geometryForObject(object), 600, 800, "43");
+    expect(result.width).toBeLessThanOrEqual(40);
+    expect(result.height).toBeLessThanOrEqual(32);
+    expect(result.fontSize).toBe(11);
+  });
+
+  it("grows with typed content and preserves original width while editing", () => {
+    const object = textObject({
+      text: "A", fontSize: 11, bounds: { x: 12, y: 10, width: 8, height: 12 },
+    });
+    const short = nativeInlineTextLayout(object, geometryForObject(object), 600, 800, "A");
+    const longer = nativeInlineTextLayout(object, geometryForObject(object), 600, 800, "A much longer label");
+    expect(short.width).toBeLessThan(45);
+    expect(longer.width).toBeGreaterThan(short.width);
   });
 
   it("stays within the PDF page at high zoom and near edges", () => {

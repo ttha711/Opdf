@@ -31,8 +31,8 @@ test("inline text editor stays compact and keeps a raster through commit", async
     const box = node.getBoundingClientRect();
     return { width: box.width, height: box.height, fontSize: parseFloat(getComputedStyle(node).fontSize) };
   });
-  expect(layout.width).toBeLessThanOrEqual(280);
-  expect(layout.height).toBeLessThanOrEqual(160);
+  expect(layout.width).toBeLessThan(65);
+  expect(layout.height).toBeLessThan(52);
   expect(layout.fontSize).toBeLessThanOrEqual(20);
 
   await page.evaluate(() => {
@@ -47,7 +47,7 @@ test("inline text editor stays compact and keeps a raster through commit", async
   await textarea.fill("43 edited");
   await textarea.press("Enter");
   await expect(textarea).toHaveCount(0);
-  await expect(page.locator(".native-edit-page canvas").first()).toBeVisible({ timeout: 60000 });
+  await expect(page.locator(".native-edit-page img, .native-edit-page canvas").first()).toBeVisible({ timeout: 60000 });
   await expect.poll(() => page.evaluate(() =>
     (window as Window & { __paintShieldActivated?: boolean }).__paintShieldActivated ?? false,
   ), { timeout: 30000 }).toBe(true);

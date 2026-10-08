@@ -14,32 +14,38 @@ function clamp(value: number, min: number, max: number) {
 }
 
 // The selection follows the original PDF geometry, but the typing control is
-// deliberately a compact, upright popover. CAD fonts may exceed 100 PDF points.
+// deliberately fit the glyphs, not the potentially huge CAD bounding box.
 export function nativeInlineTextLayout(
   object: PdfContentObject,
   geometry: NativeObjectGeometry,
   pageWidth: number,
   pageHeight: number,
   value: string,
+  measureText?: (line: string, fontSize: number) => number,
 ): InlineTextLayout {
   const center = pdfPointToDom(
     geometry.center, object.pageWidth, object.pageHeight, pageWidth, pageHeight,
   );
-  const fontSize = clamp(
-    (object.fontSize ?? 16) * pageWidth / Math.max(1, object.pageWidth),
-    14, 20,
-  );
-  const availableWidth = Math.max(40, pageWidth - 16);
-  const availableHeight = Math.max(32, pageHeight - 16);
-  const width = Math.min(availableWidth, clamp(180 + Math.min(value.length, 40) * 2, 180, 260));
-  const columns = Math.max(1, Math.floor((width - 22) / (fontSize * 0.58)));
-  const rows = value.split(/\r?\n/).reduce(
-    (sum, line) => sum + Math.max(1, Math.ceil(line.length / columns)), 0,
-  );
-  const height = Math.min(availableHeight, clamp(rows * fontSize * 1.35 + 18, 46, 144));
+  const visualHeight = geometry.height * pageHeight / Math.max(1, object.pageHeight);
+  const fontSize = clamp(Math.min(
+    (object.fontSize ?? 12) * pageWidth / Math.max(1, object.pageWidth),
+    visualHeight * 0.95,
+  ), 11, 20);
+  const measure = (line: string) => measureText?.(line, fontSize)
+    ?? Array.from(line).reduce((sum, char) =>
+      sum + fontSize * (/\s/.test(char) ? 0.35 : /[^\x00-\xff]/.test(char) ? 0.95 : 0.57), 0);
+  const lines = value.split(/\r?\n/);
+  const originalLines = (object.text ?? "").split(/\r?\n/);
+  const longest = Math.max(0, ...[...lines, ...originalLines].map(measure));
+  const width = Math.min(Math.max(1, pageWidth - 16),
+    Math.max(36, Math.min(320, Math.ceil(longest + 20))));
+  const rows = lines.reduce((sum, line) =>
+    sum + Math.max(1, Math.ceil(measure(line) / Math.max(1, width - 16))), 0);
+  const height = Math.min(Math.max(1, pageHeight - 16),
+    Math.max(26, Math.min(160, Math.ceil(rows * fontSize * 1.35 + 12))));
   return {
     left: clamp(center.x - width / 2, 8, Math.max(8, pageWidth - width - 8)),
-    top: clamp(center.y - height - 12, 8, Math.max(8, pageHeight - height - 8)),
+    top: clamp(center.y - height / 2, 8, Math.max(8, pageHeight - height - 8)),
     width,
     height,
     fontSize,

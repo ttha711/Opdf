@@ -21,8 +21,11 @@ export function NativeEditPaintShield({
     const surface = cover?.parentElement;
     const viewport = surface?.querySelector(".native-edit-viewport");
     if (!cover || !surface || !viewport) return;
-    const canvases = viewport.querySelectorAll<HTMLCanvasElement>(".native-edit-page canvas");
-    if (canvases.length === 0) return;
+    // RenderLayer can produce a raster <img> instead of a <canvas>.
+    const rasters = viewport.querySelectorAll<HTMLImageElement | HTMLCanvasElement>(
+      ".native-edit-page img, .native-edit-page canvas",
+    );
+    if (!rasters.length) return;
 
     const rect = surface.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
@@ -42,14 +45,17 @@ export function NativeEditPaintShield({
       context.fillStyle = "#fff";
       context.fillRect(bounds.left - rect.left, bounds.top - rect.top, bounds.width, bounds.height);
     }
-    for (const canvas of canvases) {
-      if (!canvas.width || !canvas.height) continue;
-      const bounds = canvas.getBoundingClientRect();
+    for (const raster of rasters) {
+      const ready = raster instanceof HTMLCanvasElement
+        ? raster.width > 0 && raster.height > 0
+        : raster.complete && raster.naturalWidth > 0;
+      if (!ready) continue;
+      const bounds = raster.getBoundingClientRect();
       try {
-        context.drawImage(canvas, bounds.left - rect.left, bounds.top - rect.top, bounds.width, bounds.height);
+        context.drawImage(raster, bounds.left - rect.left, bounds.top - rect.top, bounds.width, bounds.height);
         painted = true;
       } catch {
-        // A stale canvas may already have been disposed. Never block the editor.
+        // A stale raster may have been disposed. Never block PDF editing.
       }
     }
     if (!painted) return;
@@ -70,10 +76,13 @@ export function NativeEditPaintShield({
     let cancelled = false;
     const check = () => {
       if (cancelled) return;
-      const canvas = cover.parentElement?.querySelector<HTMLCanvasElement>(
-        ".native-edit-viewport .native-edit-page canvas",
+      const raster = cover.parentElement?.querySelector<HTMLImageElement | HTMLCanvasElement>(
+        ".native-edit-viewport .native-edit-page img, .native-edit-viewport .native-edit-page canvas",
       );
-      if (canvas && canvas.width > 0 && canvas.height > 0) stableFrames++;
+      const ready = raster instanceof HTMLCanvasElement
+        ? raster.width > 0 && raster.height > 0
+        : raster instanceof HTMLImageElement && raster.complete && raster.naturalWidth > 0;
+      if (ready) stableFrames++;
       else stableFrames = 0;
 
       // Wait for the new canvas to settle for two paints before uncovering it.

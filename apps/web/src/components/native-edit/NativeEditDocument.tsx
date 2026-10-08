@@ -90,9 +90,9 @@ export function NativeEditDocument({
     <Viewport documentId={documentId} className="native-edit-viewport">
       <Scroller
         documentId={documentId}
-        renderPage={({ width, height, pageIndex, scale: pageScale }) => (
+        renderPage={({ width, height, pageIndex }) => (
           <div className="native-edit-page" style={{ width, height }}>
-            <RenderLayer documentId={documentId} pageIndex={pageIndex} scale={pageScale} />
+            <RenderLayer documentId={documentId} pageIndex={pageIndex} />
             <NativeEditPageOverlay
               pageIndex={pageIndex}
               enabled={pageIndex + 1 === (scrollState.currentPage || page)}

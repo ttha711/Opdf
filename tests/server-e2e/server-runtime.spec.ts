@@ -12,8 +12,18 @@ test("OPDF Server serves the full web runtime", async ({ page, request }) => {
     runtime: "server",
   });
 
+  const appShell = await request.get("/");
+  const html = await appShell.text();
+  expect(html).toContain('<meta name="opdf-runtime" content="server">');
+  expect(html).not.toContain('src="/opdf-runtime.js"');
+  const runtimeRequests: string[] = [];
+  page.on("request", (req) => {
+    if (req.url().endsWith("/opdf-runtime.js")) runtimeRequests.push(req.url());
+  });
+
   await page.goto("/");
   await expect(page.locator("body")).toBeVisible();
+  expect(runtimeRequests).toEqual([]);
 
   const runtime = await page.evaluate(() => ({
     mode: window.__OPDF_RUNTIME__,

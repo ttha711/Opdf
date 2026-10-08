@@ -309,6 +309,7 @@ export function AllToolsDashboard({
       <input
         type="file"
         ref={fileInputRef}
+        aria-label="Choose a file for conversion"
         onChange={handleFileChange}
         className="hidden"
       />

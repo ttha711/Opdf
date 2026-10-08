@@ -44,11 +44,7 @@ export function App() {
   const [bridgeRecents, setBridgeRecents] = useState<Array<{ filePath: string; openedAt: number }>>([]);
   const sidebars = useResizableSidebars();
   const fab = useDraggableFab();
-  const controllers = useAppControllers({
-    isPublic,
-    setActiveMarkupTool,
-    openRightSidebar: () => sidebars.setIsRightCollapsed(false),
-  });
+  const controllers = useAppControllers({ isPublic, setActiveMarkupTool, openRightSidebar: () => sidebars.setIsRightCollapsed(false) });
   const { state, bridge, headerProps, onDragOver, onDrop, replaceDocumentBytes, materializeDocumentBytes, openAiEditorWindow, openFileWithPath } = controllers;
   const toast = useToast();
   const { handleIntegratedFileSelected } = useIntegratedFileConverter({

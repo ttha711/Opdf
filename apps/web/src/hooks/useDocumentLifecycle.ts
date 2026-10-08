@@ -82,7 +82,7 @@ export function useDocumentLifecycle({
     setSourceBlob(file);
     setSourceIdentity(identity);
     setPage(1);
-    setTotalPages(0);
+    if (!options.preservePageCount) setTotalPages(0);
     setViewerError(null);
     setAnnotations(savedAnnotations);
     markDocumentSaved({
@@ -175,7 +175,7 @@ export function useDocumentLifecycle({
   function replaceDocumentBytes(
     bytes: Uint8Array,
     nextPage = page,
-    options: { preserveSourceIdentity?: boolean; resetDocumentMetadata?: boolean; preserveAnnotations?: boolean } = {},
+    options: { preserveSourceIdentity?: boolean; resetDocumentMetadata?: boolean; preserveAnnotations?: boolean; preservePageCount?: boolean } = {},
   ) {
     const preserveSourceIdentity = options.preserveSourceIdentity ?? true;
     setDocBytes(bytes);

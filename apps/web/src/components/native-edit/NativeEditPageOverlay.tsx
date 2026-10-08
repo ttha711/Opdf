@@ -1,14 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { PdfContentObject, PdfContentPatch, PdfMatrix, PdfPoint } from "@opdf/core";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PdfContentObject, PdfMatrix } from "@opdf/core";
 import { pdfiumContentEditingEngine } from "../../lib/pdfiumContentEngine";
 import {
   geometryForObject,
   pdfPointFromClient,
-  resizeMatrix,
-  rotationMatrix,
   transformGeometry,
-  translationMatrix,
-  type NativeObjectGeometry,
   type NativeResizeHandle,
 } from "../../lib/nativeEditGeometry";
 import {
@@ -16,10 +12,17 @@ import {
   consumeNativeInlineTextEdit,
   emitNativeEditSelection,
   registerNativeEditSelectionListener,
+  registerNativeInlineCommitter,
 } from "../../lib/nativeEditRuntime";
 import { NativeEditSelectionLayer, nativeEditObjectIsEditable } from "./NativeEditSelectionLayer";
 import { NativeInlineTextEditor } from "./NativeInlineTextEditor";
 import { useNativeEditKeyboardMove } from "./useNativeEditKeyboardMove";
+import { useNativeInlineCommit } from "./useNativeInlineCommit";
+import {
+  matrixForPointer,
+  matrixIsIdentity,
+  type NativeEditDragState,
+} from "./nativeEditPointerTransform";
 
 type Props = {
   pageIndex: number;
@@ -27,27 +30,6 @@ type Props = {
   height: number;
   revisionKey: string;
   getDocumentBytes: () => Promise<Uint8Array | null>;
-};
-
-const TRANSFORM_EPSILON = 0.0005;
-
-function matrixIsIdentity(matrix: PdfMatrix) {
-  const identity: PdfMatrix = [1, 0, 0, 1, 0, 0];
-  return matrix.every((value, index) => Math.abs(value - identity[index]) < TRANSFORM_EPSILON);
-}
-
-type DragState = {
-  mode: "move" | "resize" | "rotate";
-  objectId: string;
-  pageWidth: number;
-  pageHeight: number;
-  geometry: NativeObjectGeometry;
-  start?: PdfPoint;
-  handle?: NativeResizeHandle;
-  startAngle?: number;
-  startClientX?: number;
-  startClientY?: number;
-  clickText?: string;
 };
 
 export function NativeEditPageOverlay({
@@ -60,7 +42,7 @@ export function NativeEditPageOverlay({
   const overlayRef = useRef<SVGSVGElement>(null);
   const [objects, setObjects] = useState<PdfContentObject[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [drag, setDrag] = useState<DragState | null>(null);
+  const [drag, setDrag] = useState<NativeEditDragState | null>(null);
   const [previewMatrix, setPreviewMatrix] = useState<PdfMatrix | null>(null);
   const [editingText, setEditingText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,18 +73,18 @@ export function NativeEditPageOverlay({
     return () => { cancelled = true; };
   }, [getDocumentBytes, pageIndex, revisionKey]);
 
-  useEffect(() => registerNativeEditSelectionListener((selection) => {
-    if (selection.pageIndex === pageIndex) setSelectedId(selection.objectId);
-    else if (selection.objectId) setSelectedId(null);
-  }), [pageIndex]);
+  const refreshObjectsFromBytes = useCallback(async (bytes: Uint8Array) => {
+    const next = await pdfiumContentEditingEngine.inspectPage(bytes, pageIndex);
+    setObjects(next);
+    setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
+  }, [pageIndex]);
 
-  const selected = useMemo(() => objects.find((object) => object.id === selectedId) ?? null, [objects, selectedId]);
-  const baseGeometry = useMemo(() => selected ? geometryForObject(selected) : null, [selected]);
+  const selected = useMemo(() => objects.find((object) => object.id === selectedId) ?? null, [objects, selectedId]); const baseGeometry = useMemo(() => selected ? geometryForObject(selected) : null, [selected]);
   const displayGeometry = useMemo(() =>
     baseGeometry && previewMatrix ? transformGeometry(baseGeometry, previewMatrix) : baseGeometry,
   [baseGeometry, previewMatrix]);
 
-  const clientToPdf = (state: DragState | PdfContentObject, clientX: number, clientY: number) => {
+  const clientToPdf = (state: NativeEditDragState | PdfContentObject, clientX: number, clientY: number) => {
     if (!overlayRef.current) return null;
     return pdfPointFromClient(
       clientX,
@@ -111,20 +93,6 @@ export function NativeEditPageOverlay({
       state.pageWidth,
       state.pageHeight,
     );
-  };
-
-  const matrixForPointer = (state: DragState, pointer: PdfPoint): PdfMatrix => {
-    if (state.mode === "move" && state.start) {
-      return translationMatrix(pointer.x - state.start.x, pointer.y - state.start.y);
-    }
-    if (state.mode === "resize" && state.handle) {
-      return resizeMatrix(state.geometry, state.handle, pointer);
-    }
-    const angle = Math.atan2(
-      pointer.y - state.geometry.center.y,
-      pointer.x - state.geometry.center.x,
-    );
-    return rotationMatrix(state.geometry.center, angle - (state.startAngle ?? angle));
   };
 
   useEffect(() => {
@@ -139,7 +107,6 @@ export function NativeEditPageOverlay({
       const mode = drag.mode;
       const objectId = drag.objectId;
       setDrag(null);
-      setPreviewMatrix(null);
       const clickDistance = drag.startClientX === undefined || drag.startClientY === undefined
         ? Number.POSITIVE_INFINITY
         : Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
@@ -147,14 +114,23 @@ export function NativeEditPageOverlay({
         if (drag.clickText !== undefined) setEditingText(drag.clickText);
         return;
       }
-      if (!matrix || matrixIsIdentity(matrix)) return;
+      if (!matrix || matrixIsIdentity(matrix)) {
+        setPreviewMatrix(null);
+        return;
+      }
       const message = mode === "move" ? "Object moved on page." :
         mode === "resize" ? "Object resized on page." :
         "Object rotated on page.";
       void applyNativeEditPatches(
         [{ type: "relative-transform", objectId, matrix }],
         message,
-      ).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+      ).then(async (bytes) => {
+        if (bytes) await refreshObjectsFromBytes(bytes);
+        setPreviewMatrix(null);
+      }).catch((reason) => {
+        setPreviewMatrix(null);
+        setError(reason instanceof Error ? reason.message : String(reason));
+      });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -170,33 +146,43 @@ export function NativeEditPageOverlay({
   };
 
   const startMove = (event: React.PointerEvent, object: PdfContentObject) => {
-    selectObject(object);
-    if (!nativeEditObjectIsEditable(object) || event.button !== 0) return;
+    if (!nativeEditObjectIsEditable(object) || event.button !== 0) {
+      selectObject(object);
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
-
-    const point = clientToPdf(object, event.clientX, event.clientY);
-    if (!point) return;
-    setEditingText(null);
-    setDrag({
+    const clientX = event.clientX;
+    const clientY = event.clientY;
+    const beginMove = () => {
+      selectObject(object);
+      const point = clientToPdf(object, clientX, clientY);
+      if (!point) return;
+      setDrag({
       mode: "move",
       objectId: object.id,
       pageWidth: object.pageWidth,
       pageHeight: object.pageHeight,
       start: point,
       geometry: geometryForObject(object),
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      clickText: object.kind === "text" ? object.text ?? "" : undefined,
-    });
-    setPreviewMatrix(null);
+        startClientX: clientX,
+        startClientY: clientY,
+        clickText: object.kind === "text" ? object.text ?? "" : undefined,
+      });
+      setPreviewMatrix(null);
+    };
+    if (editingText !== null) {
+      void commitInlineText().catch((reason) =>
+        setError(reason instanceof Error ? reason.message : String(reason)));
+    }
+    beginMove();
   };
 
   const startResize = (event: React.PointerEvent, handle: NativeResizeHandle) => {
     if (!baseGeometry || !selected || !nativeEditObjectIsEditable(selected)) return;
     event.preventDefault();
     event.stopPropagation();
-    setDrag({
+    const beginResize = () => setDrag({
       mode: "resize",
       objectId: selected.id,
       pageWidth: selected.pageWidth,
@@ -204,6 +190,10 @@ export function NativeEditPageOverlay({
       handle,
       geometry: baseGeometry,
     });
+    if (editingText !== null) {
+      void commitInlineText().catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+    }
+    beginResize();
     setPreviewMatrix(null);
   };
 
@@ -213,7 +203,7 @@ export function NativeEditPageOverlay({
     if (!point) return;
     event.preventDefault();
     event.stopPropagation();
-    setDrag({
+    const beginRotate = () => setDrag({
       mode: "rotate",
       objectId: selected.id,
       pageWidth: selected.pageWidth,
@@ -221,6 +211,10 @@ export function NativeEditPageOverlay({
       startAngle: Math.atan2(point.y - baseGeometry.center.y, point.x - baseGeometry.center.x),
       geometry: baseGeometry,
     });
+    if (editingText !== null) {
+      void commitInlineText().catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+    }
+    beginRotate();
     setPreviewMatrix(null);
   };
 
@@ -229,29 +223,20 @@ export function NativeEditPageOverlay({
     enabled: Boolean(selected && nativeEditObjectIsEditable(selected) && editingText === null && !drag),
     setPreviewMatrix,
     setError,
+    onPersistedBytes: refreshObjectsFromBytes,
   });
 
-  const commitInlineText = async () => {
-    if (!selected || selected.kind !== "text" || editingText === null) return;
-    const nextText = editingText;
-    setEditingText(null);
-    if (nextText === (selected.text ?? "")) return;
-    const unicodeFallback = /[^ -]/.test(nextText);
-    const patches: PdfContentPatch[] = [];
-    if (unicodeFallback) {
-      patches.push({
-        type: "style-text",
-        objectId: selected.id,
-        fontFamily: "__opdf_unicode__",
-        fontSize: selected.fontSize,
-      });
+  const commitInlineText = useNativeInlineCommit({ selected, editingText, setEditingText, refreshObjectsFromBytes });
+  useEffect(() => registerNativeInlineCommitter(commitInlineText), [commitInlineText]);
+  useEffect(() => registerNativeEditSelectionListener((selection) => {
+    if (selection.pageIndex === pageIndex) {
+      setSelectedId(selection.objectId);
+      return;
     }
-    patches.push({ type: "replace-text", objectId: selected.id, text: nextText });
-    await applyNativeEditPatches(
-      patches,
-      unicodeFallback ? "Inline text updated with Unicode fallback." : "Inline text updated.",
-    );
-  };
+    const clearSelection = () => setSelectedId(null);
+    if (editingText !== null) void commitInlineText().then(clearSelection);
+    else clearSelection();
+  }), [commitInlineText, editingText, pageIndex]);
 
   return (
     <>
@@ -265,17 +250,26 @@ export function NativeEditPageOverlay({
         displayGeometry={displayGeometry}
         geometryFor={geometryForObject}
         onEmptyPointerDown={() => {
-          setSelectedId(null);
-          setEditingText(null);
-          emitNativeEditSelection({ pageIndex, objectId: null });
+          const deselect = () => {
+            setSelectedId(null);
+            emitNativeEditSelection({ pageIndex, objectId: null });
+          };
+          if (editingText !== null) {
+            void commitInlineText().then(deselect).catch((reason) =>
+              setError(reason instanceof Error ? reason.message : String(reason)));
+            return;
+          }
+          deselect();
         }}
         onObjectPointerDown={startMove}
         onObjectDoubleClick={(event, object) => {
           event.stopPropagation();
-          selectObject(object);
-          if (object.kind === "text" && nativeEditObjectIsEditable(object)) {
-            setEditingText(object.text ?? "");
-          }
+          const beginEdit = () => {
+            selectObject(object);
+            if (object.kind === "text" && nativeEditObjectIsEditable(object)) setEditingText(object.text ?? "");
+          };
+          if (editingText !== null && selected?.id !== object.id) void commitInlineText().then(beginEdit);
+          else beginEdit();
         }}
         onResizePointerDown={startResize}
         onRotatePointerDown={startRotate}

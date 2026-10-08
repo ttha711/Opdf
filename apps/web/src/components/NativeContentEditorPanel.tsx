@@ -4,6 +4,7 @@ import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
 import {
   clearNativeEditRuntime,
+  commitPendingNativeInlineEdit,
   emitNativeEditSelection,
   registerNativeEditPatchApplier,
   registerNativeEditSelectionListener,
@@ -19,6 +20,25 @@ type Props = {
   onApplyBytes: (bytes: Uint8Array) => void;
   onClose: () => void;
 };
+
+function trimHistory(items: Uint8Array[], maxHistoryBytes: number) {
+  const candidates = [...items];
+  let total = candidates.reduce((sum, item) => sum + item.byteLength, 0);
+  while (candidates.length > 10 || (candidates.length && total > maxHistoryBytes)) {
+    total -= candidates[0].byteLength;
+    candidates.shift();
+  }
+  return candidates;
+}
+
+function createSerialMutationQueue() {
+  let tail = Promise.resolve();
+  return <T,>(operation: () => Promise<T>) => {
+    const run = tail.then(operation, operation);
+    tail = run.then(() => undefined, () => undefined);
+    return run;
+  };
+}
 
 const DEFAULT_DRAFT: NativeContentDraft = {
   text: "",
@@ -43,6 +63,9 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
   const [redoStack, setRedoStack] = useState<Uint8Array[]>([]);
   const currentBytesRef = useRef<Uint8Array | null>(null);
+  const undoStackRef = useRef<Uint8Array[]>([]);
+  const redoStackRef = useRef<Uint8Array[]>([]);
+  const enqueueMutation = useRef(createSerialMutationQueue()).current;
   const getDocumentBytesRef = useRef(getDocumentBytes);
   useEffect(() => { getDocumentBytesRef.current = getDocumentBytes; }, [getDocumentBytes]);
 
@@ -103,23 +126,17 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     });
   }, [selected?.id]);
 
-  const apply = useCallback(async (patches: PdfContentPatch[], success: string) => {
+  const apply = useCallback((patches: PdfContentPatch[], success: string) => enqueueMutation(async () => {
     setLoading(true);
     setMessage(null);
     try {
-      const bytes = currentBytesRef.current ?? await getDocumentBytes();
+      const bytes = currentBytesRef.current ?? await getDocumentBytesRef.current();
       if (!bytes) throw new Error("Unable to read the current PDF.");
       const edited = await pdfiumContentEditingEngine.applyPatches(bytes, patches);
       const maxHistoryBytes = 128 * 1024 * 1024;
-      setUndoStack((current) => {
-        const candidates = [...current, bytes];
-        let total = candidates.reduce((sum, item) => sum + item.byteLength, 0);
-        while (candidates.length > 10 || (candidates.length && total > maxHistoryBytes)) {
-          total -= candidates[0].byteLength;
-          candidates.shift();
-        }
-        return candidates;
-      });
+      undoStackRef.current = trimHistory([...undoStackRef.current, bytes], maxHistoryBytes);
+      redoStackRef.current = [];
+      setUndoStack(undoStackRef.current);
       setRedoStack([]);
       currentBytesRef.current = edited;
       onApplyBytes(edited);
@@ -127,12 +144,14 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       setMessage(bytes.byteLength > maxHistoryBytes
         ? success + " Undo snapshot skipped for this large PDF."
         : success);
+      return edited;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to edit PDF content.");
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [getDocumentBytes, inspectBytes, onApplyBytes]);
+  }), [enqueueMutation, inspectBytes, onApplyBytes]);
 
   useEffect(() => registerNativeEditPatchApplier(apply), [apply]);
 
@@ -174,31 +193,35 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     );
   }, [centeredTransform]);
 
-  const undo = useCallback(async () => {
-    const previous = undoStack.at(-1);
+  const undo = useCallback(() => enqueueMutation(async () => {
+    const previous = undoStackRef.current.at(-1);
     if (!previous) return;
-    const current = currentBytesRef.current ?? await getDocumentBytes();
+    const current = currentBytesRef.current ?? await getDocumentBytesRef.current();
     if (!current) return;
-    setUndoStack((items) => items.slice(0, -1));
-    setRedoStack((items) => [...items.slice(-9), current]);
+    undoStackRef.current = undoStackRef.current.slice(0, -1);
+    redoStackRef.current = [...redoStackRef.current.slice(-9), current];
+    setUndoStack(undoStackRef.current);
+    setRedoStack(redoStackRef.current);
     currentBytesRef.current = previous;
     onApplyBytes(previous);
     await inspectBytes(previous);
     setMessage("Native content edit undone.");
-  }, [getDocumentBytes, inspectBytes, onApplyBytes, undoStack]);
+  }), [enqueueMutation, inspectBytes, onApplyBytes]);
 
-  const redo = useCallback(async () => {
-    const next = redoStack.at(-1);
+  const redo = useCallback(() => enqueueMutation(async () => {
+    const next = redoStackRef.current.at(-1);
     if (!next) return;
-    const current = currentBytesRef.current ?? await getDocumentBytes();
+    const current = currentBytesRef.current ?? await getDocumentBytesRef.current();
     if (!current) return;
-    setRedoStack((items) => items.slice(0, -1));
-    setUndoStack((items) => [...items.slice(-9), current]);
+    redoStackRef.current = redoStackRef.current.slice(0, -1);
+    undoStackRef.current = [...undoStackRef.current.slice(-9), current];
+    setRedoStack(redoStackRef.current);
+    setUndoStack(undoStackRef.current);
     currentBytesRef.current = next;
     onApplyBytes(next);
     await inspectBytes(next);
     setMessage("Native content edit redone.");
-  }, [getDocumentBytes, inspectBytes, onApplyBytes, redoStack]);
+  }), [enqueueMutation, inspectBytes, onApplyBytes]);
 
   useEffect(() => registerNativeContentHistoryControls({
     undo,
@@ -239,8 +262,10 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   }, [apply, deepFormReadOnly, draft, selected]);
 
   const selectFromPanel = useCallback((id: string) => {
-    setSelectedId(id);
-    emitNativeEditSelection({ pageIndex: page - 1, objectId: id });
+    void commitPendingNativeInlineEdit().then(() => {
+      setSelectedId(id);
+      emitNativeEditSelection({ pageIndex: page - 1, objectId: id });
+    });
   }, [page]);
 
   return (

@@ -25,7 +25,7 @@ type Props = {
   move: (dx: number, dy: number) => void;
   scale: (factor: number) => void;
   rotate: (degrees: number) => void;
-  apply: (patches: PdfContentPatch[], success: string) => Promise<void>;
+  apply: (patches: PdfContentPatch[], success: string) => Promise<unknown>;
 };
 
 const BLEND_MODES: PdfBlendMode[] = [

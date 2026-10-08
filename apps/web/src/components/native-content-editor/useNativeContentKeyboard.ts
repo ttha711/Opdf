@@ -5,7 +5,7 @@ type Props = {
   selected: PdfContentObject | null;
   loading: boolean;
   readOnly: boolean;
-  apply: (patches: PdfContentPatch[], message: string) => Promise<void>;
+  apply: (patches: PdfContentPatch[], message: string) => Promise<unknown>;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
 };

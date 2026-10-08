@@ -79,7 +79,7 @@ export function NativeEditDocument({
   }, [onViewerScaleChange, scale, zoomState.currentZoomLevel]);
 
   return (
-    <Viewport documentId={documentId} className="native-edit-surface">
+    <Viewport documentId={documentId} className="native-edit-viewport">
       <Scroller
         documentId={documentId}
         renderPage={({ width, height, pageIndex }) => (

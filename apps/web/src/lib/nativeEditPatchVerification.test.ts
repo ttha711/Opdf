@@ -13,7 +13,7 @@ describe("native CAD text fallback", () => {
   it("does not duplicate a Unicode style already supplied by the caller", () => {
     const patches: PdfContentPatch[] = [
       { type: "style-text", objectId: "one", fontFamily: "__opdf_unicode__" },
-      { type: "replace-text", objectId: "one", text: "TẦNG 1" },
+      { type: "replace-text", objectId: "one", text: "LEVEL 1" },
     ];
     expect(withUnicodeGlyphFallback(patches)).toEqual(patches);
   });

@@ -43,7 +43,7 @@
   stroke: #2563eb;
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
-  pointer-events: none;
+  pointer-events: all;
   cursor: move;
 }
 

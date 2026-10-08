@@ -77,73 +77,74 @@ export function NativeEditSelectionLayer({
       }}
       data-opdf-native-edit-page={pageIndex + 1}
     >
-      {objects.map((object) => (
-        <polygon
-          key={object.id}
-          className="native-edit-object"
-          points={pointsAttribute(geometryFor(object), object.pageWidth, object.pageHeight, width, height)}
-          onPointerDown={(event) => onObjectPointerDown(event, object)}
-          onDoubleClick={(event) => onObjectDoubleClick(event, object)}
-          data-opdf-canvas-object={object.id}
-          data-opdf-object-kind={object.kind}
-          data-opdf-object-depth={object.depth ?? 0}
-        />
-      ))}
-
-      {selected && displayGeometry ? (
-        <>
+      {objects.map((object) => {
+        const isSelected = selected?.id === object.id;
+        const geometry = isSelected && displayGeometry ? displayGeometry : geometryFor(object);
+        const editable = nativeEditObjectIsEditable(object);
+        return (
           <polygon
-            className={`native-edit-selection${nativeEditObjectIsEditable(selected) ? "" : " readonly"}`}
-            points={pointsAttribute(displayGeometry, selected.pageWidth, selected.pageHeight, width, height)}
-            data-opdf-canvas-selection={selected.id}
-            data-opdf-object-kind={selected.kind}
+            key={object.id}
+            className={[
+              "native-edit-object",
+              isSelected ? "native-edit-selection" : "",
+              isSelected && !editable ? "readonly" : "",
+            ].filter(Boolean).join(" ")}
+            points={pointsAttribute(geometry, object.pageWidth, object.pageHeight, width, height)}
+            onPointerDown={(event) => onObjectPointerDown(event, object)}
+            onDoubleClick={(event) => onObjectDoubleClick(event, object)}
+            data-opdf-canvas-object={object.id}
+            data-opdf-canvas-selection={isSelected ? object.id : undefined}
+            data-opdf-object-kind={object.kind}
+            data-opdf-object-depth={object.depth ?? 0}
           />
-          {nativeEditObjectIsEditable(selected) ? HANDLES.map((handle) => {
-            const dom = pdfPointToDom(
-              handlePdfPoint(displayGeometry, handle),
-              selected.pageWidth,
-              selected.pageHeight,
-              width,
-              height,
-            );
-            return (
-              <rect
-                key={handle}
-                className="native-edit-handle"
-                x={dom.x - 4}
-                y={dom.y - 4}
-                width={8}
-                height={8}
-                style={{ cursor: handleCursor(handle) }}
-                onPointerDown={(event) => onResizePointerDown(event, handle)}
-                data-opdf-resize-handle={handle}
-              />
-            );
-          }) : null}
-          {nativeEditObjectIsEditable(selected) ? (() => {
-            const top = handlePdfPoint(displayGeometry, "n");
-            const rotate = {
-              x: top.x + displayGeometry.v.x * rotateOffset,
-              y: top.y + displayGeometry.v.y * rotateOffset,
-            };
-            const topDom = pdfPointToDom(top, selected.pageWidth, selected.pageHeight, width, height);
-            const rotateDom = pdfPointToDom(rotate, selected.pageWidth, selected.pageHeight, width, height);
-            return (
-              <>
-                <line className="native-edit-rotate-line" x1={topDom.x} y1={topDom.y} x2={rotateDom.x} y2={rotateDom.y} />
-                <circle
-                  className="native-edit-rotate-handle"
-                  cx={rotateDom.x}
-                  cy={rotateDom.y}
-                  r={5}
-                  onPointerDown={onRotatePointerDown}
-                  data-opdf-rotate-handle="true"
-                />
-              </>
-            );
-          })() : null}
-        </>
-      ) : null}
+        );
+      })}
+
+      {selected && displayGeometry && nativeEditObjectIsEditable(selected) ? HANDLES.map((handle) => {
+        const dom = pdfPointToDom(
+          handlePdfPoint(displayGeometry, handle),
+          selected.pageWidth,
+          selected.pageHeight,
+          width,
+          height,
+        );
+        return (
+          <rect
+            key={handle}
+            className="native-edit-handle"
+            x={dom.x - 4}
+            y={dom.y - 4}
+            width={8}
+            height={8}
+            style={{ cursor: handleCursor(handle) }}
+            onPointerDown={(event) => onResizePointerDown(event, handle)}
+            data-opdf-resize-handle={handle}
+          />
+        );
+      }) : null}
+
+      {selected && displayGeometry && nativeEditObjectIsEditable(selected) ? (() => {
+        const top = handlePdfPoint(displayGeometry, "n");
+        const rotate = {
+          x: top.x + displayGeometry.v.x * rotateOffset,
+          y: top.y + displayGeometry.v.y * rotateOffset,
+        };
+        const topDom = pdfPointToDom(top, selected.pageWidth, selected.pageHeight, width, height);
+        const rotateDom = pdfPointToDom(rotate, selected.pageWidth, selected.pageHeight, width, height);
+        return (
+          <>
+            <line className="native-edit-rotate-line" x1={topDom.x} y1={topDom.y} x2={rotateDom.x} y2={rotateDom.y} />
+            <circle
+              className="native-edit-rotate-handle"
+              cx={rotateDom.x}
+              cy={rotateDom.y}
+              r={5}
+              onPointerDown={onRotatePointerDown}
+              data-opdf-rotate-handle="true"
+            />
+          </>
+        );
+      })() : null}
     </svg>
   );
 }

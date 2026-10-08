@@ -131,8 +131,7 @@ export function AppWorkspace({
               className="absolute right-4 top-4 z-30 rounded-md border border-[var(--acrobat-blue)] bg-white px-3 py-2 text-sm font-semibold text-[var(--acrobat-blue)] shadow-md"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
-                if (selectedTextForEdit.documentKey !== state.sourceIdentity) return;
-                requestNativeInlineTextEdit(selectedTextForEdit.page - 1, selectedTextForEdit.text);
+                if (selectedTextForEdit.documentKey !== state.sourceIdentity) return; requestNativeInlineTextEdit(selectedTextForEdit.page - 1, selectedTextForEdit.text);
                 setSelectedTextForEdit(null); state.setActiveTool("edit-content");
               }}
             >

@@ -126,3 +126,41 @@ test("90-page virtualized navigation remains responsive without fetch flooding",
   expect(fetches).toBeLessThan(15);
   expect(failures).toEqual([]);
 });
+
+test("dense CAD-style page keeps raster visible and bounds interactive DOM", async ({ page, request }) => {
+  const pdf = await PDFDocument.create();
+  const canvas = pdf.addPage([595, 842]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  for (let i = 0; i < 1600; i++) {
+    const x = 30 + (i % 50) * 10;
+    const y = 120 + Math.floor(i / 50) * 15;
+    canvas.drawLine({
+      start: { x, y }, end: { x: x + 7, y: y + 6 }, thickness: 0.2,
+    });
+  }
+  canvas.drawText("CAD title block", { x: 60, y: 740, size: 18, font });
+  const upload = await request.post("/api/opdf/documents?name=cad-overlay-budget.pdf", {
+    headers: { "Content-Type": "application/pdf" },
+    data: Buffer.from(await pdf.save({ useObjectStreams: false })),
+  });
+  expect(upload.status()).toBe(201);
+  const stored = await upload.json();
+  await page.goto("/?open=" + encodeURIComponent(stored.filePath));
+  const editor = await openNativeEditor(page);
+
+  // A headless PDF viewer must paint the page itself, not just mount
+  // transparent editing polygons over a blank white page.
+  await expect(page.locator(".native-edit-page canvas, .native-edit-page img").first())
+    .toBeVisible({ timeout: 60_000 });
+  const polygons = page.locator("polygon.native-edit-object");
+  await expect(polygons.first()).toBeAttached({ timeout: 45_000 });
+  expect(await polygons.count()).toBeLessThanOrEqual(500);
+  await expect(page.locator("polygon[data-opdf-object-kind='text']")).toHaveCount(1);
+
+  // The properties sidebar must not create another 1600 buttons at once.
+  const objectButtons = editor.locator(".native-content-editor__objects button[data-opdf-object-id]");
+  expect(await objectButtons.count()).toBeLessThanOrEqual(201);
+  await editor.getByRole("searchbox", { name: "Find PDF object" }).fill("CAD title block");
+  await expect(editor.locator(".native-content-editor__objects button[data-opdf-object-kind='text']"))
+    .toHaveCount(1);
+});

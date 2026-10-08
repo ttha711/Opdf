@@ -14,6 +14,7 @@ import type { PdfViewerProps } from "./PdfViewer.types";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import { NativeEditDocument } from "./native-edit/NativeEditDocument";
 import { NativeEditDocumentRevisionBridge } from "./native-edit/NativeEditDocumentRevisionBridge";
+import { NativeEditPaintShield } from "./native-edit/NativeEditPaintShield";
 import "../styles/native-edit-surface.css";
 
 const EDIT_DOCUMENT_ID = "opdf-native-edit-document";
@@ -134,6 +135,7 @@ export function NativeEditPdfViewer({
               }}
             </DocumentContent>
           ) : <div className="native-edit-loading">Opening PDF…</div>}
+          <NativeEditPaintShield revisionKey={sourceUrl} activeDocumentId={activeDocumentId} />
         </div>
       )}
     </EmbedPDF>

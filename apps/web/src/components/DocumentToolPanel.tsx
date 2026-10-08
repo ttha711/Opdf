@@ -1,3 +1,4 @@
+// opdf-file-size-allow: existing legacy panel over 300 lines; this issue makes a narrow accessibility fix without unrelated refactor.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SplitToolPanel } from "./document-tool-panel/SplitToolPanel";
 import { MergeToolPanel } from "./document-tool-panel/MergeToolPanel";
@@ -166,6 +167,8 @@ export function DocumentToolPanel({
     <aside data-opdf-panel="tool" data-opdf-tool={activeToolId} className="acrobat-tool-panel select-none overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
       <input
         type="file"
+        id={`opdf-tool-file-${activeToolId}`}
+        aria-label={activeToolId === "merge-pdf" ? "Choose PDF documents to merge" : "Choose a file for conversion"}
         ref={fileInputRef}
         onChange={activeToolId === "merge-pdf" ? handleMergeFileSelected : handleOfficeFileSelected}
         multiple={activeToolId === "merge-pdf"}

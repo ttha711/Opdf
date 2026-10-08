@@ -15,6 +15,7 @@ import {
   registerNativeInlineCommitter,
 } from "../../lib/nativeEditRuntime";
 import { NativeEditSelectionLayer, nativeEditObjectIsEditable } from "./NativeEditSelectionLayer";
+import { getNativeEditOverlayObjects } from "./nativeEditOverlayObjects";
 import { NativeInlineTextEditor } from "./NativeInlineTextEditor";
 import { useNativeEditKeyboardMove } from "./useNativeEditKeyboardMove";
 import { useNativeInlineCommit } from "./useNativeInlineCommit";
@@ -48,7 +49,6 @@ export function NativeEditPageOverlay({
   const [previewMatrix, setPreviewMatrix] = useState<PdfMatrix | null>(null);
   const [editingText, setEditingText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     let cancelled = false;
     if (!enabled) {
@@ -84,7 +84,7 @@ export function NativeEditPageOverlay({
     setObjects(next);
     setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
   }, [pageIndex]);
-
+  const visibleObjects = useMemo(() => getNativeEditOverlayObjects(objects, selectedId), [objects, selectedId]);
   const selected = useMemo(() => objects.find((object) => object.id === selectedId) ?? null, [objects, selectedId]); const baseGeometry = useMemo(() => selected ? geometryForObject(selected) : null, [selected]);
   const displayGeometry = useMemo(() =>
     baseGeometry && previewMatrix ? transformGeometry(baseGeometry, previewMatrix) : baseGeometry,
@@ -251,7 +251,7 @@ export function NativeEditPageOverlay({
         pageIndex={pageIndex}
         width={width}
         height={height}
-        objects={objects}
+        objects={visibleObjects}
         selected={selected}
         displayGeometry={displayGeometry}
         geometryFor={geometryForObject}

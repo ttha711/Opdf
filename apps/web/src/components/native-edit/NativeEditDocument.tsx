@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { RenderLayer } from "@embedpdf/plugin-render/react";
 import { Scroller, useScroll } from "@embedpdf/plugin-scroll/react";
 import { Viewport } from "@embedpdf/plugin-viewport/react";
@@ -31,6 +31,9 @@ export function NativeEditDocument({
 }: Props) {
   const { provides: scroll, state: scrollState } = useScroll(documentId);
   const { provides: zoom, state: zoomState } = useZoom(documentId);
+  // Keep Automatic zoom during first layout. An early numeric request can
+  // leave EmbedPDF 2.x waiting for a viewport layout and paint no page.
+  const previousExternalScale = useRef(scale);
 
   useEffect(() => registerViewerControls({
     zoomIn: () => zoom?.zoomIn(),
@@ -66,10 +69,15 @@ export function NativeEditDocument({
   }, [page, scroll, scrollState.currentPage]);
 
   useEffect(() => {
-    if (!zoom || !Number.isFinite(scale) || scale <= 0) return;
+    // Only apply actual external zoom changes after the initial document layout.
+    // Zoom changes reported by the viewer already match currentZoomLevel.
+    if (!zoom || !scrollState.totalPages) return;
+    if (previousExternalScale.current === scale) return;
+    previousExternalScale.current = scale;
+    if (!Number.isFinite(scale) || scale <= 0) return;
     if (Math.abs(zoomState.currentZoomLevel - scale) < 0.001) return;
     zoom.requestZoom(scale);
-  }, [scale, zoom, zoomState.currentZoomLevel]);
+  }, [scale, scrollState.totalPages, zoom, zoomState.currentZoomLevel]);
 
   useEffect(() => {
     const next = zoomState.currentZoomLevel;
@@ -82,9 +90,9 @@ export function NativeEditDocument({
     <Viewport documentId={documentId} className="native-edit-viewport">
       <Scroller
         documentId={documentId}
-        renderPage={({ width, height, pageIndex }) => (
+        renderPage={({ width, height, pageIndex, scale: pageScale }) => (
           <div className="native-edit-page" style={{ width, height }}>
-            <RenderLayer documentId={documentId} pageIndex={pageIndex} />
+            <RenderLayer documentId={documentId} pageIndex={pageIndex} scale={pageScale} />
             <NativeEditPageOverlay
               pageIndex={pageIndex}
               enabled={pageIndex + 1 === (scrollState.currentPage || page)}

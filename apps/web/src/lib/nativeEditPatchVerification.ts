@@ -55,6 +55,29 @@ export async function applyVerifiedNativePatches(
   }
   edited = await pdfiumContentEditingEngine.applyPatches(bytes, fallback);
   ({ missing, next } = await inspectReplacements(edited, patches, panelPageIndex));
-  if (missing) throw new Error("Unable to preserve edited CAD text, including Unicode fallback.");
+  if (missing) {
+    const targets = patches.filter((patch) => patch.type === "replace-text");
+    for (const target of targets) {
+      const index = parseContentObjectId(target.objectId).pageIndex;
+      const before = await pdfiumContentEditingEngine.inspectPage(bytes, index);
+      const after = await pdfiumContentEditingEngine.inspectPage(edited, index);
+      const originalObject = before.find((item) => item.id === target.objectId);
+      const updatedObject = after.find((item) => item.id === target.objectId);
+      console.error("[opdf:verify] PDF text persistence diagnostics", {
+        objectId: target.objectId,
+        pageIndex: index,
+        objectsBefore: before.length,
+        objectsAfter: after.length,
+        textBefore: before.filter((item) => item.kind === "text").length,
+        textAfter: after.filter((item) => item.kind === "text").length,
+        originalTextLength: originalObject?.text?.length,
+        afterTextLength: updatedObject?.text?.length,
+        candidateLengths: after.filter((item) => item.kind === "text")
+          .map((item) => item.text?.length ?? 0).filter((length) =>
+            length >= target.text.length - 3 && length <= target.text.length + 5).slice(0, 8),
+      });
+    }
+    throw new Error("Unable to preserve edited CAD text, including Unicode fallback.");
+  }
   return { edited, next };
 }

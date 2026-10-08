@@ -1,15 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AiRewriteEditorWindow } from "./components/AiRewriteEditorWindow";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AiSparkIcon } from "./components/AiSparkIcon";
-import { AllToolsDashboard } from "./components/AllToolsDashboard";
 import { AppHeader } from "./components/AppHeader";
 import { HomeScreen } from "./components/HomeScreen";
-import { LiveHtmlEditor } from "./components/LiveHtmlEditor";
 import { StatusBar } from "./components/StatusBar";
 import { ServerUploadBanner } from "./components/ServerUploadBanner";
-import { AppDocumentDialogs } from "./components/app/AppDocumentDialogs";
 import { AppUpdateBanner } from "./components/app/AppUpdateBanner";
-import { AppWorkspace } from "./components/app/AppWorkspace";
 import { useToast } from "./components/ToastProvider";
 import type { MarkupTool } from "./hooks/useDocumentActions";
 import { useAppControllers } from "./hooks/useAppControllers";
@@ -19,6 +14,7 @@ import { useIntegratedFileConverter } from "./hooks/useIntegratedFileConverter";
 import { useResizableSidebars } from "./hooks/useResizableSidebars";
 import { resolvePdfSource } from "./lib/documentSource";
 import { hasFullWebAccess } from "./lib/runtimeAccess";
+import { AiRewriteEditorWindow, AllToolsDashboard, LiveHtmlEditor, AppDocumentDialogs, AppWorkspace } from "./components/app/AppLazyModules";
 import "./types/opdf";
 
 export function App() {
@@ -135,7 +131,7 @@ export function App() {
     if (isPublic) {
       return <div className="flex h-screen items-center justify-center text-gray-500">This feature is only available on Local or Desktop App versions.</div>;
     }
-    return <AiRewriteEditorWindow />;
+    return <Suspense fallback={<div role="status">Loading AI editor…</div>}><AiRewriteEditorWindow /></Suspense>;
   }
   const showWorkspace = state.hasDocument || Boolean(state.activeDashboardTool);
   return (
@@ -177,7 +173,8 @@ export function App() {
         convertToImages={() => openSidebarTool("pdf-to-png")}
         openDocumentMarkupTool={openMarkupSidebar}
       />
-      <AppDocumentDialogs
+      {(showRevisionCompare || showSearchRedact || showAdvancedPdf || showDigitalSignature) && <Suspense fallback={null}>
+        <AppDocumentDialogs
         state={state}
         bridge={bridge}
         source={activePdfSource}
@@ -191,7 +188,8 @@ export function App() {
         showDigitalSignature={showDigitalSignature}
         setShowDigitalSignature={setShowDigitalSignature}
         success={toast.success}
-      />
+        />
+      </Suspense>}
       {showHome ? (
         <div className="min-h-0 overflow-hidden" onDragOver={onDragOver} onDrop={(event) => {
           setShowHome(false);
@@ -215,7 +213,7 @@ export function App() {
           />
         </div>
       ) : state.showDashboard && !isPublic ? (
-        <AllToolsDashboard
+        <Suspense fallback={<div role="status" className="min-h-0 p-4">Loading tools…</div>}><AllToolsDashboard
           hasDocument={state.hasDocument}
           fileName={state.fileName}
           docBytes={state.docBytes}
@@ -240,7 +238,7 @@ export function App() {
             state.setShowDashboard(false);
             sidebars.setIsRightCollapsed(false);
           }}
-        />
+        /></Suspense>
       ) : !showWorkspace ? (
         <div className="min-h-0 overflow-hidden" onDragOver={onDragOver} onDrop={onDrop}>
           <HomeScreen
@@ -254,7 +252,7 @@ export function App() {
           />
         </div>
       ) : (
-        <AppWorkspace
+        <Suspense fallback={<div role="status" className="min-h-0 p-4">Loading PDF workspace…</div>}><AppWorkspace
           controllers={controllers}
           sidebars={sidebars}
           activeMarkupTool={activeMarkupTool}
@@ -267,7 +265,7 @@ export function App() {
           openSidebarTool={openSidebarTool}
           openMarkupSidebar={openMarkupSidebar}
           success={toast.success}
-        />
+        /></Suspense>
       )}
       <StatusBar hasDocument={state.hasDocument && !showHome} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} autosaveStatus={controllers.autosaveStatus} />
       {!isAiPanelOpen ? (
@@ -290,7 +288,9 @@ export function App() {
           <AiSparkIcon size={24} />
         </button>
       ) : null}
-      <LiveHtmlEditor isOpen={isLiveEditorOpen} onClose={() => setIsLiveEditorOpen(false)} initialHtml={liveEditorHtml} />
+      {isLiveEditorOpen && <Suspense fallback={null}>
+        <LiveHtmlEditor isOpen onClose={() => setIsLiveEditorOpen(false)} initialHtml={liveEditorHtml} />
+      </Suspense>}
     </div>
   );
 }

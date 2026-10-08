@@ -206,8 +206,12 @@ export function AllToolsDashboard({
     const a = document.createElement("a");
     a.href = url;
     a.download = name;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    // The browser consumes blob URLs asynchronously. Revoking them in the
+    // same tick can cancel a download after a lazy-loaded tool unmounts.
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
   };
 
   const runPdfTextExport = async (bytes: Uint8Array, name: string, format: "txt" | "xml") => {

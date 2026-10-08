@@ -14,7 +14,7 @@ import { useAgentBridge, createAgentStateSnapshot } from "./useAgentBridge";
 import type { MarkupTool } from "./useDocumentActions";
 import { toast } from "../components/ToastProvider";
 import { buildPdfTextExport } from "../lib/pdfTextExport";
-import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
+
 import { useDocumentAutosave } from "./useDocumentAutosave";
 
 type UseAppControllersArgs = {
@@ -473,6 +473,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
     const objectId = typeof args.objectId === "string" ? args.objectId.trim() : "";
     const targetText = typeof args.targetText === "string" ? args.targetText : "";
     const replaceAll = args.replaceAll === true;
+    const { pdfiumContentEditingEngine } = await import("../lib/pdfiumContentEngine");
 
     if (objectId) {
       const edited = await pdfiumContentEditingEngine.applyPatches(bytes, [

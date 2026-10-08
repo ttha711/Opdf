@@ -27,8 +27,10 @@ export function useNativeInlineCommit({
     const nextText = latest.editingText;
     const selectedObject = latest.selected;
     const commit = (async () => {
-      setEditingText(null);
-      if (nextText === (selectedObject.text ?? "")) return;
+      if (nextText === (selectedObject.text ?? "")) {
+        setEditingText(null);
+        return;
+      }
       const unicodeFallback = /[^\x00-\x7F]/.test(nextText);
       const patches: PdfContentPatch[] = [];
       if (unicodeFallback) {
@@ -44,7 +46,10 @@ export function useNativeInlineCommit({
         patches,
         unicodeFallback ? "Inline text updated with Unicode fallback." : "Inline text updated.",
       );
-      if (bytes) await latestRef.current.refreshObjectsFromBytes(bytes);
+      // Preserve the draft when the editing engine reports failure.
+      if (!bytes) throw new Error("Unable to apply PDF text; your draft is still available.");
+      await latestRef.current.refreshObjectsFromBytes(bytes);
+      setEditingText(null);
     })();
     commitPromiseRef.current = commit;
     try {

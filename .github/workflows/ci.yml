@@ -108,7 +108,24 @@ jobs:
           cache: "pip"
           cache-dependency-path: apps/desktop/tools/requirements.txt
       - run: npm ci
-      - run: choco install libreoffice-fresh -y --no-progress
+      - name: Install LibreOffice for Windows E2E
+        shell: pwsh
+        run: |
+          $soffice = 'C:\Program Files\LibreOffice\program\soffice.exe'
+          for ($attempt = 1; $attempt -le 3 -and !(Test-Path $soffice); $attempt++) {
+            choco install libreoffice-fresh -y --no-progress
+            if (!(Test-Path $soffice)) {
+              Write-Warning "LibreOffice missing after Chocolatey attempt $attempt"
+              Start-Sleep -Seconds (15 * $attempt)
+            }
+          }
+          if (!(Test-Path $soffice) -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+            winget install --id TheDocumentFoundation.LibreOffice --exact --silent --accept-package-agreements --accept-source-agreements
+          }
+          if (!(Test-Path $soffice)) {
+            throw 'LibreOffice did not install; Windows E2E cannot run Office conversion'
+          }
+          & $soffice --version
       - run: python -m pip install -r apps/desktop/tools/requirements.txt
       - run: npm run build --workspace=@opdf/core
       - run: npm run build --workspace=@opdf/web
@@ -118,7 +135,7 @@ jobs:
         timeout-minutes: 12
         env:
           CI: true
-          OPDF_SOFFICE_PATH: C:\\Program Files\\LibreOffice\\program\\soffice.exe
+          OPDF_SOFFICE_PATH: 'C:\Program Files\LibreOffice\program\soffice.exe'
       - run: npm run package --workspace=@opdf/desktop -- --win nsis
         timeout-minutes: 15
       - name: Verify Windows installer

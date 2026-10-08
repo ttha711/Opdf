@@ -117,3 +117,23 @@ test("entering and leaving Edit PDF preserves the original reader instance", asy
   await page.getByRole("button", { name: "Close Edit PDF" }).click();
   await expect(page.locator('[data-reader-stability-probe="original"]')).toBeVisible({ timeout: 20_000 });
 });
+
+test("double-clicking a PDF page enters editing without Edit PDF", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/");
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const first = pdf.addPage([612, 792]);
+  first.drawText("DIRECT EDIT TARGET", { x: 72, y: 700, size: 24, font });
+  await page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles({
+    name: "direct-edit-target.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from(await pdf.save()),
+  });
+  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  // EmbedPDF can render text on a canvas without a selectable DOM span.
+  // Double-clicking the page itself must still enter the native editor.
+  await page.locator(".viewer-area").dblclick({ position: { x: 250, y: 250 } });
+  await expect(page.locator('[data-opdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-opdf-canvas-object][data-opdf-object-kind="text"]').first()).toBeVisible();
+});

@@ -1,0 +1,41 @@
+name: PDF Edit E2E
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/web/src/components/AdaptivePdfViewer.tsx"
+      - "apps/web/src/components/PdfViewer.tsx"
+      - "apps/web/src/components/app/AppWorkspace.tsx"
+      - "apps/web/src/components/native-edit/**"
+      - "apps/web/src/lib/viewer-runtime.ts"
+      - "tests/e2e/smoke.spec.ts"
+      - ".github/workflows/direct-pdf-edit-e2e.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: pdf-edit-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pdf-edit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - name: Direct editing and reader-retention smoke
+        run: npx playwright test tests/e2e/smoke.spec.ts --project=chromium -g "native PDF text editing|entering and leaving Edit PDF|double-clicking selectable PDF text"
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: pdf-edit-playwright-report
+          path: |
+            playwright-report/
+            test-results/

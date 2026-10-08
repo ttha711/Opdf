@@ -109,12 +109,11 @@ export function AppWorkspace({
             }
             setSelectedTextForEdit({ text, page: state.page, tabId: activeTab.id, documentKey: state.sourceIdentity });
           }}
-          onDoubleClick={() => {
-            if (state.activeTool !== "select") return;
+          onDoubleClick={(event) => {
+            if (state.activeTool !== "select" || (event.target instanceof Element && event.target.closest("button,a,input,textarea,[role='button']"))) return;
             const text = window.getSelection()?.toString().trim() ?? "";
-            if (!text) return;
-            setSelectedTextForEdit(null);
-            requestNativeInlineTextEdit(state.page - 1, text); state.setActiveTool("edit-content");
+            if (text) requestNativeInlineTextEdit(state.page - 1, text);
+            setSelectedTextForEdit(null); state.setActiveTool("edit-content");
           }}
           aria-label="PDF viewer area"
           style={{ gridColumn: 1 }}

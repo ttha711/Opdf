@@ -41,8 +41,7 @@ check(!script.includes(" *") && !script.includes(" https:") && !script.includes(
   "script-src has a broad script allowance");
 if (html.includes("static.cloudflareinsights.com/beacon.min.js")) {
   check(script.includes("https://static.cloudflareinsights.com/beacon.min.js/"),
-    "Versioned Cloudflare beacon requires a trailing-slash CSP path prefix; do not allow unrelated Cloudflare scripts"
-    );
+    "Versioned Cloudflare beacon requires a trailing-slash CSP path prefix; otherwise disable injection");
 }
 
 console.log("OPDF production security headers passed:", url.origin);

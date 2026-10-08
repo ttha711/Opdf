@@ -104,6 +104,12 @@ test.describe('public real-world CAD reference PDFs', () => {
         await targets.first().dblclick();
         const input = page.getByRole('textbox', { name: 'Edit PDF text' });
         await expect(input).toBeVisible({ timeout: 20_000 });
+        console.log(JSON.stringify({
+          fixture: fixture.id,
+          pickedTextObject: await targets.first().getAttribute('data-opdf-canvas-object'),
+          pickedDepth: await targets.first().getAttribute('data-opdf-object-depth'),
+          originalText: (await input.inputValue()).slice(0, 90),
+        }));
         const replacement = 'OPDF CAD TEST ' + fixture.id;
         await input.fill(replacement);
         await input.press('Enter');

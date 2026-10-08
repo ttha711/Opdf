@@ -184,4 +184,25 @@ test("ASCII letters replace digits in a subset font and survive save/reload", as
   const reopened = await expandAdvancedEditor(page);
   await expect(reopened.locator("[data-opdf-object-kind='text']").filter({ hasText: "KITCHEN ABC" }))
     .toBeVisible({ timeout: 30_000 });
+  // Text extraction can succeed while a subset font paints no glyphs. Inspect
+  // the actual PDF raster: this fixture contains no other dark content.
+  const raster = page.locator(".native-edit-page img, .native-edit-page canvas").first();
+  await expect(raster).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => raster.evaluate((element) => {
+    const width = element instanceof HTMLImageElement ? element.naturalWidth : (element as HTMLCanvasElement).width;
+    const height = element instanceof HTMLImageElement ? element.naturalHeight : (element as HTMLCanvasElement).height;
+    if (!width || !height) return 0;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return 0;
+    context.drawImage(element as CanvasImageSource, 0, 0);
+    const data = context.getImageData(0, 0, width, height).data;
+    let glyphPixels = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] < 170 && data[i + 1] < 170 && data[i + 2] < 170 && data[i + 3] > 0) glyphPixels++;
+    }
+    return glyphPixels;
+  }), { timeout: 30_000 }).toBeGreaterThan(250);
 });

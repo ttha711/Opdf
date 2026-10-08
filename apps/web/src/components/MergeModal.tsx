@@ -1,3 +1,4 @@
+// opdf-file-size-allow: existing legacy modal over 300 lines; narrow accessible-picker repair, independent component split deferred.
 import { useState, useEffect, useRef } from "react";
 import { toast } from "./ToastProvider";
 import { useDialogClose } from "../hooks/useDialogClose";
@@ -196,13 +197,14 @@ export function MergeModal({
       <div className="premium-modal">
         {/* Hidden Input Picker */}
         <input
+          id="opdf-merge-pdf-picker"
           type="file"
+          aria-label="Choose PDF documents to merge"
           ref={fileInputRef}
           accept="application/pdf"
           multiple
           className="hidden"
           onChange={handleFileSelection}
-          aria-hidden="true"
         />
 
         {/* Header */}
@@ -228,6 +230,7 @@ export function MergeModal({
             <button
               className="btn-premium btn-premium-outline py-1 px-3 text-xs"
               onClick={triggerFilePicker}
+              aria-controls="opdf-merge-pdf-picker"
               disabled={isProcessing}
             >
               + Add PDF File

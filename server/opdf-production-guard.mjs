@@ -107,9 +107,9 @@ export function assertSafeMutationRequest(req, env = process.env) {
 }
 
 export function applyProductionSecurityHeaders(res, env = process.env) {
-  // Opt in only for Cloudflare Web Analytics; the trailing slash allows its\n  // versioned /beacon.min.js/<hash> path without allowing unrelated scripts.
+  // Opt in only for Cloudflare Web Analytics; the trailing slash allows its\n  // unversioned beacon URL and versioned /beacon.min.js/<hash> path without unrelated scripts.
   const insightsScript = env.OPDF_CLOUDFLARE_INSIGHTS === "1"
-    ? " https://static.cloudflareinsights.com/beacon.min.js/"
+    ? " https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/"
     : "";
   const csp = [
     "default-src 'self'",

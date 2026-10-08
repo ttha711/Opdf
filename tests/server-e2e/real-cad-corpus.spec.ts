@@ -102,13 +102,31 @@ test.describe('public real-world CAD reference PDFs', () => {
           '.native-edit-page polygon[data-opdf-object-kind="text"]:is([data-opdf-object-depth="0"], [data-opdf-object-depth="1"])',
         );
         await expect(targets.first()).toBeVisible({ timeout: 60_000 });
-        await targets.first().dblclick();
+        // CAD generators often split a label into 1-2 px text fragments.
+        // A user cannot realistically double-click those at fit-to-page zoom.
+        // Select a physically clickable, unobstructed label in the viewport.
+        const targetIndex = await targets.evaluateAll((nodes) => {
+          const viewport = document.querySelector('.native-edit-viewport')?.getBoundingClientRect();
+          if (!viewport) return -1;
+          return nodes.findIndex((node) => {
+            const rect = node.getBoundingClientRect();
+            if (rect.width < 16 || rect.height < 7) return false;
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            if (x < viewport.left + 8 || x > viewport.right - 8 ||
+                y < viewport.top + 8 || y > viewport.bottom - 8) return false;
+            return document.elementFromPoint(x, y) === node;
+          });
+        });
+        expect(targetIndex, 'A clickable CAD text label must exist in the viewport').toBeGreaterThanOrEqual(0);
+        const target = targets.nth(targetIndex);
+        await target.dblclick({ timeout: 15_000 });
         const input = page.getByRole('textbox', { name: 'Edit PDF text' });
         await expect(input).toBeVisible({ timeout: 20_000 });
         console.log(JSON.stringify({
           fixture: fixture.id,
-          pickedTextObject: await targets.first().getAttribute('data-opdf-canvas-object'),
-          pickedDepth: await targets.first().getAttribute('data-opdf-object-depth'),
+          pickedTextObject: await target.getAttribute('data-opdf-canvas-object'),
+          pickedDepth: await target.getAttribute('data-opdf-object-depth'),
           originalText: (await input.inputValue()).slice(0, 90),
         }));
         const replacement = 'OPDF CAD TEST ' + fixture.id;

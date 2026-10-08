@@ -82,7 +82,7 @@ export function useDocumentLifecycle({
     setSourceBlob(file);
     setSourceIdentity(identity);
     setPage(1);
-    if (!options.preservePageCount) setTotalPages(0);
+    setTotalPages(0);
     setViewerError(null);
     setAnnotations(savedAnnotations);
     markDocumentSaved({
@@ -188,7 +188,7 @@ export function useDocumentLifecycle({
     if (!options.preserveAnnotations) setAnnotations([]);
     if (options.resetDocumentMetadata) {
         }
-    setTotalPages(0);
+    if (!options.preservePageCount) setTotalPages(0);
     setViewerError(null);
     setPage(Math.max(1, nextPage));
     setSaveState("idle");

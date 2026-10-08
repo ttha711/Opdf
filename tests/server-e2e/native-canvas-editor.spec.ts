@@ -171,3 +171,48 @@ test("rapid native mutations serialize and viewer root stays mounted", async ({ 
   await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
   await expect(editor.getByText("Native content edit undone.")).toBeVisible({ timeout: 20_000 });
 });
+
+
+test("resize and rotate keep optimistic geometry until persistence completes", async ({ page, request }) => {
+  await openCanvasEditor(page, request);
+
+  const editor = page.locator("[data-opdf-native-editor='true']");
+  await editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "Canvas native text" }).first().click();
+
+  const selection = page.locator("[data-opdf-canvas-selection]");
+  const beforeResize = await selection.boundingBox();
+  expect(beforeResize).not.toBeNull();
+
+  const resize = page.locator("[data-opdf-resize-handle='se']");
+  const resizeBox = await resize.boundingBox();
+  expect(resizeBox).not.toBeNull();
+  if (!resizeBox) throw new Error("Resize handle is unavailable.");
+  await page.mouse.move(resizeBox.x + resizeBox.width / 2, resizeBox.y + resizeBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(resizeBox.x + resizeBox.width / 2 + 24, resizeBox.y + resizeBox.height / 2 + 12, { steps: 4 });
+  await page.mouse.up();
+
+  const optimisticResize = await selection.boundingBox();
+  expect(optimisticResize).not.toBeNull();
+  expect((optimisticResize?.width ?? 0)).not.toBeCloseTo(beforeResize?.width ?? 0, 0);
+  await expect(editor.getByText("Object resized on page.")).toBeVisible({ timeout: 20_000 });
+  const persistedResize = await selection.boundingBox();
+  expect(persistedResize).not.toBeNull();
+  expect(Math.abs((persistedResize?.width ?? 0) - (optimisticResize?.width ?? 0))).toBeLessThan(3);
+
+  const rotate = page.locator("[data-opdf-rotate-handle='true']");
+  const rotateBox = await rotate.boundingBox();
+  expect(rotateBox).not.toBeNull();
+  if (!rotateBox) throw new Error("Rotate handle is unavailable.");
+  const beforeRotate = await selection.getAttribute("points");
+  await page.mouse.move(rotateBox.x + rotateBox.width / 2, rotateBox.y + rotateBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rotateBox.x + rotateBox.width / 2 + 30, rotateBox.y + rotateBox.height / 2 + 18, { steps: 4 });
+  await page.mouse.up();
+
+  const optimisticRotate = await selection.getAttribute("points");
+  expect(optimisticRotate).not.toBe(beforeRotate);
+  await expect(editor.getByText("Object rotated on page.")).toBeVisible({ timeout: 20_000 });
+  const persistedRotate = await selection.getAttribute("points");
+  expect(persistedRotate).toBe(optimisticRotate);
+});

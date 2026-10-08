@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { PdfContentObject, PdfContentPatch, PdfMatrix, PdfPoint } from "@opdf/core";
+import type { PdfContentObject, PdfMatrix } from "@opdf/core";
 import { pdfiumContentEditingEngine } from "../../lib/pdfiumContentEngine";
 import {
   geometryForObject,
   pdfPointFromClient,
-  resizeMatrix,
-  rotationMatrix,
   transformGeometry,
-  translationMatrix,
-  type NativeObjectGeometry,
   type NativeResizeHandle,
 } from "../../lib/nativeEditGeometry";
 import {
@@ -20,6 +16,12 @@ import {
 import { NativeEditSelectionLayer, nativeEditObjectIsEditable } from "./NativeEditSelectionLayer";
 import { NativeInlineTextEditor } from "./NativeInlineTextEditor";
 import { useNativeEditKeyboardMove } from "./useNativeEditKeyboardMove";
+import { useNativeInlineCommit } from "./useNativeInlineCommit";
+import {
+  matrixForPointer,
+  matrixIsIdentity,
+  type NativeEditDragState,
+} from "./nativeEditPointerTransform";
 
 type Props = {
   pageIndex: number;
@@ -27,27 +29,6 @@ type Props = {
   height: number;
   revisionKey: string;
   getDocumentBytes: () => Promise<Uint8Array | null>;
-};
-
-const TRANSFORM_EPSILON = 0.0005;
-
-function matrixIsIdentity(matrix: PdfMatrix) {
-  const identity: PdfMatrix = [1, 0, 0, 1, 0, 0];
-  return matrix.every((value, index) => Math.abs(value - identity[index]) < TRANSFORM_EPSILON);
-}
-
-type DragState = {
-  mode: "move" | "resize" | "rotate";
-  objectId: string;
-  pageWidth: number;
-  pageHeight: number;
-  geometry: NativeObjectGeometry;
-  start?: PdfPoint;
-  handle?: NativeResizeHandle;
-  startAngle?: number;
-  startClientX?: number;
-  startClientY?: number;
-  clickText?: string;
 };
 
 export function NativeEditPageOverlay({
@@ -60,10 +41,9 @@ export function NativeEditPageOverlay({
   const overlayRef = useRef<SVGSVGElement>(null);
   const [objects, setObjects] = useState<PdfContentObject[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [drag, setDrag] = useState<DragState | null>(null);
+  const [drag, setDrag] = useState<NativeEditDragState | null>(null);
   const [previewMatrix, setPreviewMatrix] = useState<PdfMatrix | null>(null);
   const [editingText, setEditingText] = useState<string | null>(null);
-  const commitPromiseRef = useRef<Promise<void> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -109,7 +89,7 @@ export function NativeEditPageOverlay({
     baseGeometry && previewMatrix ? transformGeometry(baseGeometry, previewMatrix) : baseGeometry,
   [baseGeometry, previewMatrix]);
 
-  const clientToPdf = (state: DragState | PdfContentObject, clientX: number, clientY: number) => {
+  const clientToPdf = (state: NativeEditDragState | PdfContentObject, clientX: number, clientY: number) => {
     if (!overlayRef.current) return null;
     return pdfPointFromClient(
       clientX,
@@ -120,19 +100,6 @@ export function NativeEditPageOverlay({
     );
   };
 
-  const matrixForPointer = (state: DragState, pointer: PdfPoint): PdfMatrix => {
-    if (state.mode === "move" && state.start) {
-      return translationMatrix(pointer.x - state.start.x, pointer.y - state.start.y);
-    }
-    if (state.mode === "resize" && state.handle) {
-      return resizeMatrix(state.geometry, state.handle, pointer);
-    }
-    const angle = Math.atan2(
-      pointer.y - state.geometry.center.y,
-      pointer.x - state.geometry.center.x,
-    );
-    return rotationMatrix(state.geometry.center, angle - (state.startAngle ?? angle));
-  };
 
   useEffect(() => {
     if (!drag) return;
@@ -274,38 +241,12 @@ export function NativeEditPageOverlay({
     onPersistedBytes: refreshObjectsFromBytes,
   });
 
-  const commitInlineText = async () => {
-    if (commitPromiseRef.current) return commitPromiseRef.current;
-    if (!selected || selected.kind !== "text" || editingText === null) return;
-    const nextText = editingText;
-    const selectedObject = selected;
-    const commit = (async () => {
-      setEditingText(null);
-      if (nextText === (selectedObject.text ?? "")) return;
-      const unicodeFallback = /[^\x00-\x7F]/.test(nextText);
-      const patches: PdfContentPatch[] = [];
-      if (unicodeFallback) {
-        patches.push({
-          type: "style-text",
-          objectId: selectedObject.id,
-          fontFamily: "__opdf_unicode__",
-          fontSize: selectedObject.fontSize,
-        });
-      }
-      patches.push({ type: "replace-text", objectId: selectedObject.id, text: nextText });
-      const bytes = await applyNativeEditPatches(
-        patches,
-        unicodeFallback ? "Inline text updated with Unicode fallback." : "Inline text updated.",
-      );
-      if (bytes) await refreshObjectsFromBytes(bytes);
-    })();
-    commitPromiseRef.current = commit;
-    try {
-      await commit;
-    } finally {
-      if (commitPromiseRef.current === commit) commitPromiseRef.current = null;
-    }
-  };
+  const commitInlineText = useNativeInlineCommit({
+    selected,
+    editingText,
+    setEditingText,
+    refreshObjectsFromBytes,
+  });
 
   return (
     <>

@@ -11,7 +11,7 @@ import { MergeModal } from "../MergeModal";
 import { SplitModal } from "../SplitModal";
 import type { MarkupTool } from "../../hooks/useDocumentActions";
 import { useNativeEditBytes } from "../../hooks/useNativeEditBytes";
-import { requestNativeInlineTextEdit } from "../../lib/nativeEditRuntime";
+import { commitPendingNativeInlineEdit, requestNativeInlineTextEdit } from "../../lib/nativeEditRuntime";
 
 type Controllers = ReturnType<typeof import("../../hooks/useAppControllers").useAppControllers>;
 type Sidebars = ReturnType<typeof import("../../hooks/useResizableSidebars").useResizableSidebars>;
@@ -192,7 +192,7 @@ export function AppWorkspace({
             onApplyBytes={(bytes) => {
               replaceDocumentBytes(bytes, state.page, { preserveAnnotations: true, preservePageCount: true });
             }}
-            onClose={() => state.setActiveTool("select")}
+            onClose={() => { void commitPendingNativeInlineEdit().finally(() => state.setActiveTool("select")); }}
           />
         ) : isAiPanelOpen ? (
           <AiAssistantPanel

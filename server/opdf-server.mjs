@@ -622,7 +622,7 @@ async function serveWeb(req, res, pathname) {
   setBaseHeaders(res);
   if (filePath.endsWith("index.html")) {
     let html = await readFile(filePath, "utf8");
-    const runtimeScript = '<script src="/opdf-runtime.js"></script>';
+    const runtimeScript = '<script src="/opdf-runtime.js" defer></script>';
     html = html.includes("</head>") ? html.replace("</head>", runtimeScript + "</head>") : runtimeScript + html;
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");

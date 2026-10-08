@@ -20,12 +20,18 @@ export function NativeEditFallbackRaster({
   pageIndex, revisionKey, enabled, width, height, getDocumentBytes,
 }: Props) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const bytesProvider = useRef(getDocumentBytes);
+  const dimensions = useRef({ width, height });
+  bytesProvider.current = getDocumentBytes;
+  dimensions.current = { width, height };
+  const [stage, setStage] = useState("waiting");
   const [painted, setPainted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setPainted(false);
     setError(null);
+    setStage("waiting");
     if (!enabled || width <= 0 || height <= 0) return;
     let cancelled = false;
     let disposePdf: (() => void) | undefined;
@@ -34,9 +40,10 @@ export function NativeEditFallbackRaster({
       const canvas = ref.current;
       const pageNode = canvas?.closest<HTMLElement>(".native-edit-page");
       if (!canvas || !pageNode || hasPageBitmap(pageNode)) return;
+      setStage("loading");
       void (async () => {
         try {
-          const [pdfjs, bytes] = await Promise.all([import("pdfjs-dist"), getDocumentBytes()]);
+          const [pdfjs, bytes] = await Promise.all([import("pdfjs-dist"), bytesProvider.current()]);
           if (!bytes || cancelled) return;
           pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
           const loading = pdfjs.getDocument({ data: bytes.slice(), useSystemFonts: true });
@@ -44,9 +51,10 @@ export function NativeEditFallbackRaster({
           const doc = await loading.promise;
           const page = await doc.getPage(pageIndex + 1);
           const original = page.getViewport({ scale: 1 });
+          const { width: viewWidth, height: viewHeight } = dimensions.current;
           const target = Math.min(
-            width / Math.max(1, original.width),
-            height / Math.max(1, original.height),
+            viewWidth / Math.max(1, original.width),
+            viewHeight / Math.max(1, original.height),
             Math.sqrt(4_000_000 / Math.max(1, original.width * original.height)),
           );
           const viewport = page.getViewport({ scale: Math.max(0.001, target) });
@@ -54,12 +62,19 @@ export function NativeEditFallbackRaster({
           canvas.height = Math.max(1, Math.ceil(viewport.height));
           const context = canvas.getContext("2d", { alpha: false });
           if (!context) throw new Error("PDF fallback canvas unavailable.");
+          setStage("rendering");
           const rendering = page.render({ canvasContext: context, viewport });
           cancelRender = () => rendering.cancel();
           await rendering.promise;
-          if (!cancelled && !hasPageBitmap(pageNode)) setPainted(true);
+          if (!cancelled && !hasPageBitmap(pageNode)) {
+            setPainted(true);
+            setStage("ready");
+          }
         } catch (reason) {
-          if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
+          if (!cancelled) {
+            setError(reason instanceof Error ? reason.message : String(reason));
+            setStage("error");
+          }
         }
       })();
     }, 5000);
@@ -69,11 +84,13 @@ export function NativeEditFallbackRaster({
       cancelRender?.();
       disposePdf?.();
     };
-  }, [enabled, getDocumentBytes, height, pageIndex, revisionKey, width]);
+    // Function identities and zoom dimensions can change during an in-flight
+    // render. Only document/page activation should cancel that work.
+  }, [enabled, pageIndex, revisionKey]);
 
   return (
     <>
-      <canvas ref={ref} data-opdf-pdfjs-fallback="true" style={{
+      <canvas ref={ref} data-opdf-pdfjs-fallback="true" data-opdf-fallback-stage={stage} style={{
         display: painted ? "block" : "none", position: "absolute", inset: 0,
         width: "100%", height: "100%", pointerEvents: "none",
       }} />

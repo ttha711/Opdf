@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
 import { applyNativeEditPatches } from "../../lib/nativeEditRuntime";
@@ -17,12 +17,15 @@ export function useNativeInlineCommit({
   refreshObjectsFromBytes,
 }: Props) {
   const commitPromiseRef = useRef<Promise<void> | null>(null);
+  const latestRef = useRef({ selected, editingText, refreshObjectsFromBytes });
+  latestRef.current = { selected, editingText, refreshObjectsFromBytes };
 
-  return async function commitInlineText() {
+  return useCallback(async () => {
     if (commitPromiseRef.current) return commitPromiseRef.current;
-    if (!selected || selected.kind !== "text" || editingText === null) return;
-    const nextText = editingText;
-    const selectedObject = selected;
+    const latest = latestRef.current;
+    if (!latest.selected || latest.selected.kind !== "text" || latest.editingText === null) return;
+    const nextText = latest.editingText;
+    const selectedObject = latest.selected;
     const commit = (async () => {
       setEditingText(null);
       if (nextText === (selectedObject.text ?? "")) return;
@@ -41,7 +44,7 @@ export function useNativeInlineCommit({
         patches,
         unicodeFallback ? "Inline text updated with Unicode fallback." : "Inline text updated.",
       );
-      if (bytes) await refreshObjectsFromBytes(bytes);
+      if (bytes) await latestRef.current.refreshObjectsFromBytes(bytes);
     })();
     commitPromiseRef.current = commit;
     try {
@@ -49,5 +52,5 @@ export function useNativeInlineCommit({
     } finally {
       if (commitPromiseRef.current === commit) commitPromiseRef.current = null;
     }
-  };
+  }, [setEditingText]);
 }

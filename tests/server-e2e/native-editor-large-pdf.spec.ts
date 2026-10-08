@@ -27,17 +27,42 @@ async function openNativeEditor(page: Page) {
   return editor;
 }
 
-async function goToPage(page: Page, number: number) {
-  // The Pages button is hidden on desktop; navigate through the actual PDF scroller.
-  const target = page.locator(".native-edit-page").nth(number - 1);
-  await expect(target).toBeAttached({ timeout: 30_000 });
-  await target.scrollIntoViewIfNeeded({ timeout: 30_000 });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
-    "data-opdf-page", String(number), { timeout: 30_000 },
-  );
+async function goToPage(page: Page, target: number, totalPages: number) {
+  // EmbedPDF virtualizes page DOM nodes. Scroll the viewport, not an off-screen page.
+  const viewport = page.locator(".native-edit-viewport");
+  const status = page.locator('[data-opdf-region="status-bar"]');
+  await expect(viewport).toBeVisible({ timeout: 15_000 });
+  const history: Array<{ before: number; after: number; top: number; range: number }> = [];
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const before = Number(await status.getAttribute("data-opdf-page"));
+    if (before === target) return;
+    const result = await viewport.evaluate((root, args) => {
+      const candidates = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))]
+        .filter((element) => element.clientHeight > 50 &&
+          element.scrollHeight - element.clientHeight > 100);
+      // The virtualized Scroller occupies a large scrollable layout inside Viewport.
+      const scrolling = candidates.sort((a, b) =>
+        (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight))[0];
+      if (!scrolling) {
+        throw new Error("Native PDF viewport has no scrollable content.");
+      }
+      const range = scrolling.scrollHeight - scrolling.clientHeight;
+      const pageStride = scrolling.scrollHeight / args.totalPages;
+      const top = Math.max(0, Math.min(range,
+        scrolling.scrollTop + (args.target - args.before) * pageStride));
+      scrolling.scrollTo({ top, behavior: "instant" });
+      return { top, range };
+    }, { target, totalPages, before });
+    await page.waitForTimeout(250);
+    const after = Number(await status.getAttribute("data-opdf-page"));
+    history.push({ before, after, ...result });
+    if (after === target) return;
+    if (after === before && attempt >= 3) break;
+  }
+  throw new Error(`Could not reach page ${target}; scroll history: ${JSON.stringify(history)}`);
 }
 
-test("multi-page native edit remains responsive, saves and survives reload", async ({ page, request }) => {
+test("90-page native text replacement persists after save and reload", async ({ page, request }) => {
   const pdf = await makeMultiPagePdf(90);
   const upload = await request.post("/api/opdf/documents?name=large-editor-regression.pdf", {
     headers: { "Content-Type": "application/pdf" }, data: pdf,
@@ -69,18 +94,7 @@ test("multi-page native edit remains responsive, saves and survives reload", asy
   await editor.getByRole("button", { name: "Apply text" }).click();
   await expect(editor.getByText("Native PDF text updated.")).toBeVisible({ timeout: 30_000 });
 
-  const heapSamples: number[] = [];
-  for (const target of [45, 90, 2, 1]) {
-    await goToPage(page, target);
-    const probe = await page.evaluate(() => {
-      const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory;
-      return { responsive: true, heap: memory?.usedJSHeapSize ?? null };
-    });
-    expect(probe.responsive).toBe(true);
-    if (probe.heap !== null) heapSamples.push(probe.heap);
-  }
-  console.log(JSON.stringify({ documentFetches: fetches, heapMiB: heapSamples.map(x => Math.round(x / 1048576)) }));
-  // All pages must not independently download the full document.
+  // Saving is independent of navigation; verify it even if navigation later regresses.
   expect(fetches).toBeLessThan(15);
   expect(failures).toEqual([]);
 
@@ -91,5 +105,45 @@ test("multi-page native edit remains responsive, saves and survives reload", asy
     .filter({ hasText: "Large PDF edited text" }).first();
   await expect(persisted).toBeVisible({ timeout: 30_000 });
   await expect(editor.getByText("Large PDF original text")).toHaveCount(0);
+  expect(failures).toEqual([]);
+});
+
+test("90-page virtualized navigation remains responsive without fetch flooding", async ({ page, request }) => {
+  const upload = await request.post("/api/opdf/documents?name=large-editor-scroll.pdf", {
+    headers: { "Content-Type": "application/pdf" }, data: await makeMultiPagePdf(90),
+  });
+  expect(upload.status()).toBe(201);
+  const stored = await upload.json();
+
+  let fetches = 0;
+  const failures: string[] = [];
+  page.on("request", (req) => {
+    if (req.method() === "GET" &&
+        new URL(req.url()).pathname.startsWith("/api/opdf/documents/")) fetches++;
+  });
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("console", (msg) => {
+    if (msg.type() === "error" && msg.text().includes("ERR_INSUFFICIENT_RESOURCES")) {
+      failures.push(msg.text());
+    }
+  });
+
+  await page.goto("/?open=" + encodeURIComponent(stored.filePath));
+  await openNativeEditor(page);
+  await expect(page.locator('[data-opdf-region="status-bar"]'))
+    .toHaveAttribute("data-opdf-total-pages", "90");
+  // Virtualized viewers should not retain one DOM page for every document page.
+  expect(await page.locator(".native-edit-page").count()).toBeLessThan(90);
+
+  const heapSamples: number[] = [];
+  for (const target of [45, 90, 2, 1]) {
+    await goToPage(page, target, 90);
+    const heap = await page.evaluate(() =>
+      (performance as Performance & { memory?: { usedJSHeapSize: number } })
+        .memory?.usedJSHeapSize ?? null);
+    if (heap !== null) heapSamples.push(Math.round(heap / 1048576));
+  }
+  console.log(JSON.stringify({ documentFetches: fetches, heapMiB: heapSamples }));
+  expect(fetches).toBeLessThan(15);
   expect(failures).toEqual([]);
 });

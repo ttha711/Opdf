@@ -2,6 +2,7 @@
   font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
   --acrobat-blue: #0061d5;
   --acrobat-blue-hover: #0050b3;
+  --opdf-brand-accent: #a5281c;
   --bg-app: #e1e3e6;
   --bg-panel: #f4f4f4;
   --bg-toolbar: #ffffff;
@@ -47,6 +48,7 @@
 }
 
 :root[data-theme="dark"] {
+  --opdf-brand-accent: #ff8b80;
   --bg-app: #121212;
   --bg-panel: #1e1e1e;
   --bg-toolbar: #262626;

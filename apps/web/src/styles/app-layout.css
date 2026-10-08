@@ -26,7 +26,7 @@
     border-radius: 7px;
     padding: 0 8px;
     background: transparent;
-    color: #e03e2d;
+    color: var(--opdf-brand-accent);
     cursor: pointer;
     font-size: 14px;
     font-weight: 800;
@@ -69,6 +69,14 @@
   .opdf-theme-btn svg:last-child {
     fill: currentColor;
     stroke: none;
+  }
+
+  .opdf-brand-home:focus-visible,
+  .opdf-theme-btn:focus-visible,
+  .opdf-open-btn:focus-visible,
+  .top-menu-btn:focus-visible {
+    outline: 2px solid var(--acrobat-blue);
+    outline-offset: 2px;
   }
 
 
@@ -416,14 +424,14 @@
   place-items: center;
   border-radius: 18px;
   background: var(--bg-toolbar);
-  color: #e03e2d;
+  color: var(--opdf-brand-accent);
   border: 1px solid var(--border-color);
   box-shadow: 0 12px 30px rgba(0, 0, 0, .08);
 }
 
 .opdf-home__eyebrow {
   margin: 2px 0 6px;
-  color: #e03e2d;
+  color: var(--opdf-brand-accent);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: .12em;
@@ -531,8 +539,8 @@
   display: grid;
   place-items: center;
   border-radius: 9px;
-  background: color-mix(in srgb, #e03e2d 10%, var(--bg-toolbar));
-  color: #e03e2d;
+  background: color-mix(in srgb, var(--opdf-brand-accent) 10%, var(--bg-toolbar));
+  color: var(--opdf-brand-accent);
   font-size: 11px;
   font-weight: 900;
 }

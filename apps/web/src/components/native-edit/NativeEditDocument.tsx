@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { RenderLayer } from "@embedpdf/plugin-render/react";
+import { NativeEditResilientRaster } from "./NativeEditResilientRaster";
 import { Scroller, useScroll } from "@embedpdf/plugin-scroll/react";
 import { Viewport } from "@embedpdf/plugin-viewport/react";
 import { useZoom, ZoomMode } from "@embedpdf/plugin-zoom/react";
@@ -92,7 +92,7 @@ export function NativeEditDocument({
         documentId={documentId}
         renderPage={({ width, height, pageIndex }) => (
           <div className="native-edit-page" style={{ width, height }}>
-            <RenderLayer documentId={documentId} pageIndex={pageIndex} />
+            <NativeEditResilientRaster documentId={documentId} pageIndex={pageIndex} />
             <NativeEditPageOverlay
               pageIndex={pageIndex}
               enabled={pageIndex + 1 === (scrollState.currentPage || page)}

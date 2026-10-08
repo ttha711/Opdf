@@ -29,6 +29,8 @@ test("Cloudflare Insights script allowance is opt-in and exact", () => {
   const analytics = headersFor({ OPDF_CLOUDFLARE_INSIGHTS: "1" }).get("content-security-policy");
   assert.equal(strict.includes("static.cloudflareinsights.com"), false);
   assert.ok(analytics.includes("script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com"));
-  assert.equal(analytics.includes("script-src 'self' 'wasm-unsafe-eval' https:"), true);
+  const scriptSrc = analytics.split(";").map((value) => value.trim()).find((value) => value.startsWith("script-src "));
+  assert.ok(scriptSrc.endsWith("https://static.cloudflareinsights.com"));
+  assert.equal(scriptSrc.includes(" https: "), false);
   assert.equal(analytics.includes("script-src *"), false);
 });

@@ -65,6 +65,9 @@ export function PdfViewer({
   const localSourceKeyRef = useRef<Uint8Array | Blob | null>(null);
   const suppressExternalPageRef = useRef(false);
   const preserveNativeToolRef = useRef(false);
+  const pendingPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const activeToolRef = useRef(activeTool);
+  activeToolRef.current = activeTool;
   const lastPageRef = useRef(page);
   const lastScaleRef = useRef(scale);
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(() => {
@@ -113,6 +116,25 @@ export function PdfViewer({
   // server document that Save should update.
   const sourceUrl = localUrl ?? serverUrl;
   const activeRegistry = readyViewer?.sourceUrl === sourceUrl ? readyViewer.registry : null;
+  // Capture the original reader viewport when an edit commits new PDF bytes.
+  // The PDF component may reinitialize for that revision, but its scroll
+  // coordinates should survive rather than falling back to the page top.
+  useEffect(() => {
+    if (!activeRegistry || !sourceUrl) return;
+    const viewport = activeRegistry.getPlugin?.("viewport")?.provides?.() as any;
+    return () => {
+      if (activeToolRef.current !== "edit-content") return;
+      const scope = viewport?.forDocument?.(DOCUMENT_ID) ?? viewport;
+      const metrics = scope?.getMetrics?.();
+      if (Number.isFinite(metrics?.scrollTop)) {
+        pendingPositionRef.current = {
+          x: Number(metrics.scrollLeft) || 0,
+          y: metrics.scrollTop,
+        };
+      }
+    };
+  }, [activeRegistry, sourceUrl]);
+
 
   useEffect(() => {
     if (!sourceUrl || !activeRegistry) return;
@@ -421,6 +443,16 @@ export function PdfViewer({
         if (typeof off === "function") unsubscribers.push(off);
       }
 
+      const restoreReaderPosition = () => {
+        const position = pendingPositionRef.current;
+        if (!position) return;
+        const viewport = registry.getPlugin?.("viewport")?.provides?.() as any;
+        const scope = viewport?.forDocument?.(DOCUMENT_ID) ?? viewport;
+        if (!scope?.scrollTo) return;
+        pendingPositionRef.current = null;
+        requestAnimationFrame(() => scope.scrollTo({ ...position, behavior: "instant" }));
+      };
+
       if (scroll?.onLayoutReady) {
         const off = scroll.onLayoutReady((event: any) => {
           if (event.documentId !== DOCUMENT_ID) return;
@@ -429,6 +461,7 @@ export function PdfViewer({
             pageNumber: Math.max(1, page),
             behavior: "instant",
           });
+          restoreReaderPosition();
         });
         if (typeof off === "function") unsubscribers.push(off);
       }
@@ -453,7 +486,7 @@ export function PdfViewer({
 
       // If document-open/layout events happened before this bridge attached,
       // the live plugin state still contains the authoritative page count.
-      if (syncPageCount()) signalViewerReady();
+      if (syncPageCount()) { signalViewerReady(); restoreReaderPosition(); }
 
       if (documentManager?.onDocumentError) {
         const off = documentManager.onDocumentError((event: any) => {

@@ -99,3 +99,63 @@ test("inline blur persists edits through Save and reopen", async ({ page, reques
     .filter({ hasText: "Saved after blur 85" })).toBeVisible({ timeout: 45000 });
   await expect(reopened.getByText("Original label 43")).toHaveCount(0);
 });
+
+test("repeated inline Enter, blur and object switching persist the latest text", async ({ page, request }) => {
+  const document = await PDFDocument.create();
+  const sheet = document.addPage([595, 800]);
+  const font = await document.embedFont(StandardFonts.Helvetica);
+  sheet.drawText("ROOM 01", { x: 80, y: 690, font, size: 23 });
+  sheet.drawText("ROOM 02", { x: 80, y: 520, font, size: 23 });
+  const upload = await request.post("/api/opdf/documents?name=inline-repeat-commit.pdf", {
+    headers: { "Content-Type": "application/pdf" },
+    data: Buffer.from(await document.save({ useObjectStreams: false })),
+  });
+  expect(upload.status()).toBe(201);
+  const stored = await upload.json();
+  await page.goto("/?open=" + encodeURIComponent(stored.filePath));
+  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45000 });
+  await page.getByTitle("Edit PDF Content").click();
+  await page.locator('[data-opdf-action="expand-right-panel"]').click();
+  const editor = page.locator("[data-opdf-native-editor='true']");
+  await expect(editor).toBeVisible({ timeout: 30000 });
+  const first = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").first();
+  const second = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").nth(1);
+  const input = page.getByRole("textbox", { name: "Edit PDF text" });
+  const items = editor.locator(".native-content-editor__objects button[data-opdf-object-kind='text']");
+
+  await first.dblclick();
+  await input.fill("KITCHEN 10");
+  await input.press("Enter");
+  await expect(input).toHaveCount(0, { timeout: 45000 });
+  await expect(items.filter({ hasText: "KITCHEN 10" })).toHaveCount(1, { timeout: 45000 });
+
+  await first.dblclick();
+  await input.fill("STUDY 11");
+  await page.locator(".native-edit-overlay").first().click({ position: { x: 5, y: 5 } });
+  await expect(input).toHaveCount(0, { timeout: 45000 });
+  await expect(items.filter({ hasText: "STUDY 11" })).toHaveCount(1, { timeout: 45000 });
+
+  await first.dblclick();
+  await input.fill("BEDROOM 12");
+  // Clicking another text object while one is being edited must save the
+  // original object before changing the selected object.
+  await second.click();
+  await expect(input).toHaveCount(0, { timeout: 45000 });
+  await expect(items.filter({ hasText: "BEDROOM 12" })).toHaveCount(1, { timeout: 45000 });
+  await expect(items.filter({ hasText: "ROOM 02" })).toHaveCount(1);
+
+  await second.dblclick();
+  await input.fill("BATHROOM 13");
+  await input.press("Enter");
+  await expect(input).toHaveCount(0, { timeout: 45000 });
+  await expect(items.filter({ hasText: "BATHROOM 13" })).toHaveCount(1, { timeout: 45000 });
+
+  await saveServerDocumentAndWait(page);
+  await page.reload();
+  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45000 });
+  await page.getByTitle("Edit PDF Content").click();
+  await page.locator('[data-opdf-action="expand-right-panel"]').click();
+  const persisted = page.locator("[data-opdf-native-editor='true'] [data-opdf-object-kind='text']");
+  await expect(persisted.filter({ hasText: "BEDROOM 12" }).first()).toBeVisible({ timeout: 45000 });
+  await expect(persisted.filter({ hasText: "BATHROOM 13" }).first()).toBeVisible({ timeout: 45000 });
+});

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { PdfContentObject } from "@opdf/core";
 import type { NativeObjectGeometry } from "../../lib/nativeEditGeometry";
 import { nativeInlineTextLayout } from "./nativeInlineTextLayout";
@@ -11,6 +11,7 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   onCommit: () => Promise<void>;
+  isApplying: boolean;
   onCancel: () => void;
   onError: (message: string) => void;
 };
@@ -23,10 +24,20 @@ export function NativeInlineTextEditor({
   value,
   onChange,
   onCommit,
+  isApplying,
   onCancel,
   onError,
 }: Props) {
   const cancelRef = useRef(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
+  const submit = () => {
+    setCommitError(null);
+    void onCommit().catch((reason) => {
+      const message = reason instanceof Error ? reason.message : String(reason);
+      setCommitError(message);
+      onError(message);
+    });
+  };
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   if (!canvasRef.current) canvasRef.current = document.createElement("canvas");
   const layout = nativeInlineTextLayout(object, geometry, width, height, value, (line, size) => {
@@ -38,19 +49,22 @@ export function NativeInlineTextEditor({
   });
 
   return (
+    <>
     <textarea
       autoFocus
       spellCheck={false}
       aria-label="Edit PDF text"
       className="native-edit-inline-text"
       value={value}
-      onChange={(event) => onChange(event.target.value)}
+      readOnly={isApplying}
+      aria-busy={isApplying}
+      onChange={(event) => { setCommitError(null); onChange(event.target.value); }}
       onBlur={() => {
         if (cancelRef.current) {
           cancelRef.current = false;
           return;
         }
-        void onCommit().catch((reason) => onError(reason instanceof Error ? reason.message : String(reason)));
+        if (!isApplying) submit();
       }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
@@ -60,10 +74,10 @@ export function NativeInlineTextEditor({
           onCancel();
           return;
         }
-        if (event.key === "Enter" && !event.shiftKey) {
+        if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
           event.preventDefault();
           event.stopPropagation();
-          event.currentTarget.blur();
+          if (!isApplying) submit();
         }
       }}
       style={{
@@ -78,5 +92,18 @@ export function NativeInlineTextEditor({
       }}
       data-opdf-inline-text-editor="true"
     />
+    {isApplying ? (
+      <div className="native-edit-inline-feedback" role="status" style={{ left: layout.left, top: layout.top + layout.height + 4 }}>
+        Applying PDF edit…
+      </div>
+    ) : null}
+    {commitError && !isApplying ? (
+      <div className="native-edit-inline-feedback is-error" role="alert" style={{ left: layout.left, top: layout.top + layout.height + 4 }}>
+        <span>{commitError}</span>
+        <button type="button" onPointerDown={(event) => event.preventDefault()} onClick={submit}>Retry</button>
+        <button type="button" onPointerDown={(event) => event.preventDefault()} onClick={onCancel}>Cancel</button>
+      </div>
+    ) : null}
+    </>
   );
 }

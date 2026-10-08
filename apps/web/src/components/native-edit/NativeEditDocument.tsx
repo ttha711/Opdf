@@ -7,6 +7,7 @@ import {
   registerViewerControls,
 } from "../../lib/viewer-runtime";
 import { NativeEditPageOverlay } from "./NativeEditPageOverlay";
+import { NativeEditFallbackRaster } from "./NativeEditFallbackRaster";
 
 type Props = {
   documentId: string;
@@ -93,6 +94,14 @@ export function NativeEditDocument({
         renderPage={({ width, height, pageIndex }) => (
           <div className="native-edit-page" style={{ width, height }}>
             <RenderLayer documentId={documentId} pageIndex={pageIndex} />
+            <NativeEditFallbackRaster
+              pageIndex={pageIndex}
+              revisionKey={revisionKey}
+              enabled={pageIndex + 1 === (scrollState.currentPage || page)}
+              width={width}
+              height={height}
+              getDocumentBytes={getDocumentBytes}
+            />
             <NativeEditPageOverlay
               pageIndex={pageIndex}
               enabled={pageIndex + 1 === (scrollState.currentPage || page)}

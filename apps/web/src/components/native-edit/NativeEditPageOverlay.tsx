@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PdfContentObject, PdfMatrix } from "@opdf/core";
 import { pdfiumContentEditingEngine } from "../../lib/pdfiumContentEngine";
 import {
@@ -78,11 +78,11 @@ export function NativeEditPageOverlay({
     else if (selection.objectId) setSelectedId(null);
   }), [pageIndex]);
 
-  const refreshObjectsFromBytes = async (bytes: Uint8Array) => {
+  const refreshObjectsFromBytes = useCallback(async (bytes: Uint8Array) => {
     const next = await pdfiumContentEditingEngine.inspectPage(bytes, pageIndex);
     setObjects(next);
     setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
-  };
+  }, [pageIndex]);
 
   const selected = useMemo(() => objects.find((object) => object.id === selectedId) ?? null, [objects, selectedId]); const baseGeometry = useMemo(() => selected ? geometryForObject(selected) : null, [selected]);
   const displayGeometry = useMemo(() =>

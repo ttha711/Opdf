@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy PDFium WASM engine; this targeted glyph fix reuses existing routines, with module extraction reserved for a dedicated refactor.
 import { init } from "@embedpdf/pdfium";
 import pdfiumWasmUrl from "@embedpdf/pdfium/pdfium.wasm?url";
 import type {
@@ -9,6 +10,7 @@ import type {
   PdfPathCommand,
   PdfRect,
 } from "@opdf/core";
+import { needsSubsetFontFallback } from "./nativeEditSubsetFont";
 import {
   childContentObjectId,
   identityMatrix,
@@ -105,6 +107,12 @@ function readUtf8(module: PdfiumModule, sizeReader: (ptr: number, size: number) 
   } finally {
     free(module, ptr);
   }
+}
+
+function readBaseFontName(module: PdfiumModule, objectPtr: number): string | undefined {
+  const fontPtr = module.FPDFTextObj_GetFont(objectPtr);
+  if (!fontPtr || typeof module.FPDFFont_GetBaseFontName !== "function") return undefined;
+  return readUtf8(module, (ptr, size) => module.FPDFFont_GetBaseFontName(fontPtr, ptr, size));
 }
 
 function readFontFamily(module: PdfiumModule, objectPtr: number): string | undefined {
@@ -1087,8 +1095,29 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
               resolved = promoteNestedObjectToPage(module, docPtr, pagePtr, resolved);
               handles.set(patch.objectId, resolved);
             }
-            const objectPtr = resolved.objectPtr;
+            let objectPtr = resolved.objectPtr;
             if (patch.type === "replace-text") {
+              // PDF/CAD generators often embed only the glyphs used in the
+              // original label. Adding letters to a digits-only subset may
+              // silently produce invisible text despite a successful SetText.
+              const textPagePtr = module.FPDFText_LoadPage(pagePtr);
+              let oldText = "";
+              if (textPagePtr) {
+                try {
+                  oldText = readUtf16ObjectText(module, objectPtr, textPagePtr);
+                } finally {
+                  module.FPDFText_ClosePage(textPagePtr);
+                }
+              }
+              if (needsSubsetFontFallback(readBaseFontName(module, objectPtr), oldText, patch.text)) {
+                objectPtr = await replaceTextObjectFontSize(
+                  module, docPtr, pagePtr, objectPtr,
+                  resolved.rootObjectIndex,
+                  readFontSize(module, objectPtr) ?? 12,
+                  "__opdf_unicode__",
+                );
+                handles.set(patch.objectId, { ...resolved, objectPtr });
+              }
               const textPtr = writeUtf16(module, patch.text);
               try {
                 if (!module.FPDFText_SetText(objectPtr, textPtr)) throw new Error(`Unable to edit text object ${patch.objectId}.`);

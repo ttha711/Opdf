@@ -1,0 +1,17 @@
+# OPDF
+
+> A PDF workspace for viewing, editing, annotating, organizing, and converting PDF documents.
+
+OPDF runs as a web application, a self-hosted server application, and a desktop application. Some operations depend on the deployment mode and user permissions. PDF document contents may be private.
+
+## Public links
+
+- [OPDF source code](https://github.com/ttha711/Opdf)
+- [Usage and setup](https://github.com/ttha711/Opdf/blob/main/README.md)
+
+## Safe automation guidance
+
+- Use the visible application controls and authenticated, documented interfaces only.
+- Ask the user before modifying, signing, deleting, sharing, or uploading documents.
+- Do not infer access to a user's files from this public metadata.
+- No privileged API credentials, internal automation endpoints, or authentication tokens are published here.

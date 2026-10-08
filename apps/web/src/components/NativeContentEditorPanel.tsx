@@ -133,14 +133,24 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       const bytes = currentBytesRef.current ?? await getDocumentBytesRef.current();
       if (!bytes) throw new Error("Unable to read the current PDF.");
       const edited = await pdfiumContentEditingEngine.applyPatches(bytes, patches);
+      // Reinspect the saved bytes before publishing them to the viewer.
+      // Embedded CAD fonts may reject glyphs even when SetText succeeds.
+      const next = await pdfiumContentEditingEngine.inspectPage(edited, Math.max(0, page - 1));
+      for (const patch of patches) {
+        if (patch.type === "replace-text" && !next.some((item) =>
+          item.kind === "text" && item.text === patch.text)) {
+          throw new Error("Edited text did not persist in the PDF; the original document is unchanged.");
+        }
+      }
       const maxHistoryBytes = 128 * 1024 * 1024;
       undoStackRef.current = trimHistory([...undoStackRef.current, bytes], maxHistoryBytes);
       redoStackRef.current = [];
       setUndoStack(undoStackRef.current);
       setRedoStack([]);
       currentBytesRef.current = edited;
+      setObjects(next);
+      setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
       onApplyBytes(edited);
-      await inspectBytes(edited);
       setMessage(bytes.byteLength > maxHistoryBytes
         ? success + " Undo snapshot skipped for this large PDF."
         : success);
@@ -151,7 +161,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     } finally {
       setLoading(false);
     }
-  }), [enqueueMutation, inspectBytes, onApplyBytes]);
+  }), [enqueueMutation, onApplyBytes, page]);
 
   useEffect(() => registerNativeEditPatchApplier(apply), [apply]);
 

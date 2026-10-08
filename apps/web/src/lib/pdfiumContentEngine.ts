@@ -1,3 +1,4 @@
+// opdf-file-size-allow: legacy PDFium WASM engine; this targeted glyph fix reuses existing routines, with module extraction reserved for a dedicated refactor.
 import { init } from "@embedpdf/pdfium";
 import pdfiumWasmUrl from "@embedpdf/pdfium/pdfium.wasm?url";
 import type {

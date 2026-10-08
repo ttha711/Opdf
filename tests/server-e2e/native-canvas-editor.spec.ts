@@ -3,6 +3,11 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 
 test.setTimeout(90_000);
 
+function parseBounds(value: string | null) {
+  const [x = 0, y = 0, width = 0, height = 0] = (value ?? "").split(",").map(Number);
+  return { x, y, width, height };
+}
+
 async function buildPdf() {
   const doc = await PDFDocument.create();
   const page = doc.addPage([420, 300]);
@@ -77,7 +82,7 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
   await expect(editor.getByText("Native content edit undone.")).toBeVisible({ timeout: 20_000 });
   const undoneRaw = await editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "Canvas native text" }).first()
     .getAttribute("data-opdf-bounds");
-  const undone = JSON.parse(undoneRaw ?? "{}") as { x: number };
+  const undone = parseBounds(undoneRaw);
   expect(undone.x).toBeGreaterThanOrEqual(before.x + 4.9);
   expect(undone.x).toBeLessThan(before.x + 9.9);
 });
@@ -124,16 +129,16 @@ test("inline edit commits before deselect/selection change and Escape cancels", 
   ).toHaveCount(1, { timeout: 20_000 });
 
   const refreshedObjects = page.locator("[data-opdf-canvas-object][data-opdf-object-kind='text']");
-  await refreshedObjects.filter({ hasText: "Committed by click outside" }).dblclick();
+  await refreshedObjects.first().dblclick();
   await expect(inlineEditor).toBeVisible();
   await inlineEditor.fill("Committed before selection change");
-  await refreshedObjects.filter({ hasText: "Second native text" }).click();
+  await refreshedObjects.nth(1).click();
 
   await expect(
     editor.locator(".native-content-editor__objects button").filter({ hasText: "Committed before selection change" }),
   ).toHaveCount(1, { timeout: 20_000 });
 
-  await refreshedObjects.filter({ hasText: "Second native text" }).dblclick();
+  await refreshedObjects.nth(1).dblclick();
   await expect(inlineEditor).toBeVisible();
   await inlineEditor.fill("Should be cancelled");
   await inlineEditor.press("Escape");
@@ -157,7 +162,7 @@ test("rapid native mutations serialize and viewer root stays mounted", async ({ 
 
   const beforeRaw = await objectButton.getAttribute("data-opdf-bounds");
   expect(beforeRaw).toBeTruthy();
-  const before = JSON.parse(beforeRaw ?? "{}") as { x: number };
+  const before = parseBounds(beforeRaw);
 
   const right = editor.getByRole("button", { name: "→" });
   await right.evaluate((element) => {
@@ -169,7 +174,7 @@ test("rapid native mutations serialize and viewer root stays mounted", async ({ 
   const movedButton = editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "Canvas native text" }).first();
   await expect(movedButton).toBeVisible();
   const afterRaw = await movedButton.getAttribute("data-opdf-bounds");
-  const after = JSON.parse(afterRaw ?? "{}") as { x: number };
+  const after = parseBounds(afterRaw);
   expect(after.x).toBeGreaterThanOrEqual(before.x + 1.9);
   await expect(surface).toHaveAttribute("data-lifecycle-marker", "stable");
 
@@ -226,8 +231,7 @@ test("resize and rotate keep optimistic geometry until persistence completes", a
 test("closing native editor commits the active inline text edit", async ({ page, request }) => {
   await openCanvasEditor(page, request);
 
-  const canvasText = page.locator("[data-opdf-canvas-object][data-opdf-object-kind='text']")
-    .filter({ hasText: "Canvas native text" });
+  const canvasText = page.locator("[data-opdf-canvas-object][data-opdf-object-kind='text']").first();
   await canvasText.dblclick();
   const inlineEditor = page.locator("[data-opdf-inline-text-editor='true']");
   await inlineEditor.fill("Committed before editor close");

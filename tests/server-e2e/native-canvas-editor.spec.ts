@@ -75,6 +75,11 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
 
   await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
   await expect(editor.getByText("Native content edit undone.")).toBeVisible({ timeout: 20_000 });
+  const undoneRaw = await editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "Canvas native text" }).first()
+    .getAttribute("data-opdf-bounds");
+  const undone = JSON.parse(undoneRaw ?? "{}") as { x: number };
+  expect(undone.x).toBeGreaterThanOrEqual(before.x + 4.9);
+  expect(undone.x).toBeLessThan(before.x + 9.9);
 });
 
 test("canvas selection stays synchronized with the right-side object list", async ({ page, request }) => {
@@ -215,4 +220,27 @@ test("resize and rotate keep optimistic geometry until persistence completes", a
   await expect(editor.getByText("Object rotated on page.")).toBeVisible({ timeout: 20_000 });
   const persistedRotate = await selection.getAttribute("points");
   expect(persistedRotate).toBe(optimisticRotate);
+});
+
+
+test("closing native editor commits the active inline text edit", async ({ page, request }) => {
+  await openCanvasEditor(page, request);
+
+  const canvasText = page.locator("[data-opdf-canvas-object][data-opdf-object-kind='text']")
+    .filter({ hasText: "Canvas native text" });
+  await canvasText.dblclick();
+  const inlineEditor = page.locator("[data-opdf-inline-text-editor='true']");
+  await inlineEditor.fill("Committed before editor close");
+
+  await page.getByRole("button", { name: "Close Edit PDF" }).click();
+  await expect(page.locator("[data-opdf-native-editor='true']")).toHaveCount(0);
+
+  await page.getByTitle("Edit PDF Content").click();
+  const expand = page.locator("[data-opdf-action='expand-right-panel']");
+  if (await expand.isVisible()) await expand.click();
+  const reopened = page.locator("[data-opdf-native-editor='true']");
+  await expect(reopened).toBeVisible({ timeout: 20_000 });
+  await expect(
+    reopened.locator("[data-opdf-object-kind='text']").filter({ hasText: "Committed before editor close" }),
+  ).toHaveCount(1, { timeout: 20_000 });
 });

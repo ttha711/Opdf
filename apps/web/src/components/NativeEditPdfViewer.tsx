@@ -93,7 +93,7 @@ export function NativeEditPdfViewer({
   }
 
   return (
-    <EmbedPDF key={sourceUrl} engine={engine} plugins={plugins}>
+    <EmbedPDF engine={engine} plugins={plugins}>
       {({ activeDocumentId }) => activeDocumentId ? (
         <DocumentContent documentId={activeDocumentId}>
           {({ isLoaded, isError }) => {

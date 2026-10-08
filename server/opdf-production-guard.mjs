@@ -116,7 +116,7 @@ export function applyProductionSecurityHeaders(res, env = process.env) {
     "img-src 'self' data: blob:",
     "font-src 'self' data: https://fonts.gstatic.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "script-src 'self' 'wasm-unsafe-eval'",
+    "script-src 'self' 'wasm-unsafe-eval'" + (env.OPDF_CLOUDFLARE_INSIGHTS === "1" ? " https://static.cloudflareinsights.com" : ""),
     "worker-src 'self' blob:",
     "connect-src 'self' https: wss: blob:",
     "frame-src 'self' https:",
@@ -127,7 +127,13 @@ export function applyProductionSecurityHeaders(res, env = process.env) {
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Content-Security-Policy", csp);
   res.setHeader("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
-  if (env.OPDF_HSTS === "1") {
+  // HTTPS public origins enable HSTS by default; OPDF_HSTS=0 opts out.
+  // Explicit OPDF_HSTS=1 also supports TLS termination at a trusted proxy.
+  let httpsPublicOrigin = false;
+  try {
+    httpsPublicOrigin = new URL(String(env.OPDF_PUBLIC_ORIGIN || "")).protocol === "https:";
+  } catch {}
+  if (env.OPDF_HSTS === "1" || (env.OPDF_HSTS !== "0" && httpsPublicOrigin)) {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
 }

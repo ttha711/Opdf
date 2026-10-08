@@ -41,7 +41,9 @@
     "backup:restore": "node scripts/opdf-backup.mjs restore",
     "check:file-size": "node scripts/check-file-size.mjs",
     "perf:real-world": "node scripts/perf/real-world-pdf-smoke.mjs",
-    "storage:prune": "node scripts/opdf-storage-prune.mjs"
+    "storage:prune": "node scripts/opdf-storage-prune.mjs",
+    "test:cad:fetch": "node scripts/fixtures/fetch-real-cad-pdfs.mjs",
+    "test:cad": "playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

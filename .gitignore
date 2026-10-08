@@ -85,3 +85,6 @@ apps/editor/docs/
 
 # OPDF automation CLI artifacts
 opdf-cli-artifacts/
+
+# Downloaded external engineering plans (never commit third-party PDFs)
+.opdf-cad-fixtures/

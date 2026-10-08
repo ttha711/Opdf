@@ -1,0 +1,52 @@
+name: Public CAD PDF Corpus
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '25 3 * * 1'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/fixtures/fetch-real-cad-pdfs.mjs'
+      - 'tests/fixtures/real-cad-corpus.json'
+      - 'tests/server-e2e/real-cad-corpus.spec.ts'
+      - '.github/workflows/real-cad-corpus.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: real-cad-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reference-pdf-editor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Fetch and verify pinned PDFs from original sources
+        run: node scripts/fixtures/fetch-real-cad-pdfs.mjs
+        env:
+          OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures
+      - run: npx playwright install chromium --with-deps
+      - name: Test native PDF editor on real vector engineering plans
+        run: npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium
+        env:
+          CI: 'true'
+          OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures
+      - name: Upload failure screenshots and traces, not source PDFs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-cad-corpus-test-evidence
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore

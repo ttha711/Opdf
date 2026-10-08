@@ -186,7 +186,6 @@ export function NativeEditPageOverlay({
     }
     beginMove();
   };
-
   const startResize = (event: React.PointerEvent, handle: NativeResizeHandle) => {
     if (!baseGeometry || !selected || !nativeEditObjectIsEditable(selected)) return;
     event.preventDefault();
@@ -286,9 +285,10 @@ export function NativeEditPageOverlay({
           width={width}
           height={height}
           value={editingText}
-          onChange={setEditingText}
+          onChange={(value) => { setError(null); setEditingText(value); }}
           onCommit={commitInlineText}
           isApplying={isApplyingText}
+          externalError={error}
           onCancel={() => setEditingText(null)}
           onError={setError}
         />

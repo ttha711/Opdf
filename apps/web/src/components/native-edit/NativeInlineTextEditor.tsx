@@ -12,6 +12,7 @@ type Props = {
   onChange: (value: string) => void;
   onCommit: () => Promise<void>;
   isApplying: boolean;
+  externalError: string | null;
   onCancel: () => void;
   onError: (message: string) => void;
 };
@@ -25,6 +26,7 @@ export function NativeInlineTextEditor({
   onChange,
   onCommit,
   isApplying,
+  externalError,
   onCancel,
   onError,
 }: Props) {
@@ -32,6 +34,7 @@ export function NativeInlineTextEditor({
   const [commitError, setCommitError] = useState<string | null>(null);
   const submit = () => {
     setCommitError(null);
+    onError("");
     void onCommit().catch((reason) => {
       const message = reason instanceof Error ? reason.message : String(reason);
       setCommitError(message);
@@ -48,6 +51,7 @@ export function NativeInlineTextEditor({
     return context.measureText(line).width;
   });
 
+  const displayedError = commitError || externalError;
   return (
     <>
     <textarea
@@ -70,6 +74,7 @@ export function NativeInlineTextEditor({
         if (event.key === "Escape") {
           event.preventDefault();
           event.stopPropagation();
+          if (isApplying) return;
           cancelRef.current = true;
           onCancel();
           return;
@@ -97,9 +102,9 @@ export function NativeInlineTextEditor({
         Applying PDF edit…
       </div>
     ) : null}
-    {commitError && !isApplying ? (
+    {displayedError && !isApplying ? (
       <div className="native-edit-inline-feedback is-error" role="alert" style={{ left: layout.left, top: layout.top + layout.height + 4 }}>
-        <span>{commitError}</span>
+        <span>{displayedError}</span>
         <button type="button" onPointerDown={(event) => event.preventDefault()} onClick={submit}>Retry</button>
         <button type="button" onPointerDown={(event) => event.preventDefault()} onClick={onCancel}>Cancel</button>
       </div>

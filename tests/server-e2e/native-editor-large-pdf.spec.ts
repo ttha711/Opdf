@@ -28,8 +28,10 @@ async function openNativeEditor(page: Page) {
 }
 
 async function goToPage(page: Page, number: number) {
-  await page.locator('[data-opdf-action="toggle-page-filmstrip"]').click();
-  await page.locator(`[data-opdf-page-thumb="${number}"]`).click();
+  // The Pages button is hidden on desktop; navigate through the actual PDF scroller.
+  const target = page.locator(".native-edit-page").nth(number - 1);
+  await expect(target).toBeAttached({ timeout: 30_000 });
+  await target.scrollIntoViewIfNeeded({ timeout: 30_000 });
   await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
     "data-opdf-page", String(number), { timeout: 30_000 },
   );

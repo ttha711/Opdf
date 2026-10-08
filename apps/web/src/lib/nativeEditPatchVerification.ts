@@ -2,9 +2,11 @@ import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
 import { pdfiumContentEditingEngine } from "./pdfiumContentEngine";
 
 export function withUnicodeGlyphFallback(patches: PdfContentPatch[]): PdfContentPatch[] {
-  const unicodeStyled = new Set(patches.filter((patch) =>
-    patch.type === "style-text" && patch.fontFamily === "__opdf_unicode__",
-  ).map((patch) => patch.objectId));
+  const unicodeStyled = new Set(patches.flatMap((patch) =>
+    patch.type === "style-text" && patch.fontFamily === "__opdf_unicode__"
+      ? [patch.objectId]
+      : [],
+  ));
   return patches.flatMap((patch) => {
     if (patch.type !== "replace-text" || unicodeStyled.has(patch.objectId)) return [patch];
     // Apply font before replacing text; PDFium may silently retain the old

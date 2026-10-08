@@ -138,7 +138,7 @@ export function useCommonActions({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${fileName}-images-${format}.zip`;
+      a.download = format === "png" ? `${fileName}-images.zip` : `${fileName}-images-jpeg.zip`;
       a.click();
       URL.revokeObjectURL(url);
       setViewerError(null);

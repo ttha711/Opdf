@@ -4,6 +4,7 @@ import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
 import {
   clearNativeEditRuntime,
+  commitPendingNativeInlineEdit,
   emitNativeEditSelection,
   registerNativeEditPatchApplier,
   registerNativeEditSelectionListener,
@@ -261,8 +262,10 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   }, [apply, deepFormReadOnly, draft, selected]);
 
   const selectFromPanel = useCallback((id: string) => {
-    setSelectedId(id);
-    emitNativeEditSelection({ pageIndex: page - 1, objectId: id });
+    void commitPendingNativeInlineEdit().then(() => {
+      setSelectedId(id);
+      emitNativeEditSelection({ pageIndex: page - 1, objectId: id });
+    });
   }, [page]);
 
   return (

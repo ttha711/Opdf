@@ -44,7 +44,7 @@ export function App() {
   const [bridgeRecents, setBridgeRecents] = useState<Array<{ filePath: string; openedAt: number }>>([]);
   const sidebars = useResizableSidebars();
   const fab = useDraggableFab();
-  const controllers = useAppControllers({ isPublic, setActiveMarkupTool });
+  const controllers = useAppControllers({ isPublic, setActiveMarkupTool, openRightSidebar: () => sidebars.setIsRightCollapsed(false) });
   const { state, bridge, headerProps, onDragOver, onDrop, replaceDocumentBytes, materializeDocumentBytes, openAiEditorWindow, openFileWithPath } = controllers;
   const toast = useToast();
   const { handleIntegratedFileSelected } = useIntegratedFileConverter({
@@ -235,7 +235,11 @@ export function App() {
           onTriggerCompare={() => setShowRevisionCompare(true)}
           onTriggerRedact={() => setShowSearchRedact(true)}
           onTriggerSign={() => setShowDigitalSignature(true)}
-          onSelectTool={(toolId) => { state.setActiveDashboardTool(toolId); state.setShowDashboard(false); }}
+          onSelectTool={(toolId) => {
+            state.setActiveDashboardTool(toolId);
+            state.setShowDashboard(false);
+            sidebars.setIsRightCollapsed(false);
+          }}
         />
       ) : !showWorkspace ? (
         <div className="min-h-0 overflow-hidden" onDragOver={onDragOver} onDrop={onDrop}>

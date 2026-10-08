@@ -114,7 +114,7 @@ export interface AgentActionContext {
     savePdf?: () => void | boolean | Promise<void | boolean>;
     compressDocument?: () => void | Promise<void>;
     runOcr?: () => void | Promise<void>;
-    convertToImages?: () => void | Promise<void>;
+    convertToImages?: (format?: "png" | "jpeg") => void | Promise<void>;
     goPrevPage?: () => void;
     goNextPage?: () => void;
     zoomIn?: (scale?: number) => void;
@@ -133,6 +133,7 @@ export interface AgentActionContext {
     setActiveTool?: (tool: ActiveTool) => void;
     setShowDashboard?: (show: boolean) => void;
     setActiveDashboardTool?: (toolId: string | null) => void;
+    openRightSidebar?: () => void;
     setViewerError?: (message: string | null) => void;
     replaceText?: (args: Record<string, unknown>) => Promise<{ message?: string } | void>;
     runHeadlessConversion?: (

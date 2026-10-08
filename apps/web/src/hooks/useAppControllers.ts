@@ -20,9 +20,10 @@ import { useDocumentAutosave } from "./useDocumentAutosave";
 type UseAppControllersArgs = {
   isPublic: boolean;
   setActiveMarkupTool: (tool: MarkupTool | null) => void;
+  openRightSidebar?: () => void;
 };
 
-export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppControllersArgs) {
+export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSidebar }: UseAppControllersArgs) {
   const bridge = useOpdfBridge();
   const state = useAppState();
   const viewerAreaRef = useRef<HTMLDivElement>(null);
@@ -140,7 +141,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
   const openWatermarkPanel = useCallback(() => {
     if (!state.hasDocument) return;
     state.setActiveDashboardTool("watermark-pdf");
-  }, [state.hasDocument, state.setActiveDashboardTool]);
+    openRightSidebar?.();
+  }, [openRightSidebar, state.hasDocument, state.setActiveDashboardTool]);
 
   const {
     goToPage,
@@ -447,6 +449,12 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
       return { message: `Converted ${state.fileName} to ${format.toUpperCase()} and started the download.` };
     }
 
+    if (toolId === "pdf-to-png" || toolId === "pdf-to-jpeg") {
+      const format = toolId === "pdf-to-jpeg" ? "jpeg" : "png";
+      await convertToImages(format);
+      return { message: `Exported page images from ${state.fileName} as a ${format.toUpperCase()} ZIP file.` };
+    }
+
     if (toolId === "pdf-to-txt" || toolId === "pdf-to-xml") {
       const format = toolId === "pdf-to-txt" ? "txt" : "xml";
       const result = await buildPdfTextExport(bytes, state.fileName, format);
@@ -455,7 +463,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
     }
 
     return undefined;
-  }, [bridge, state.fileName, state.materializeDocumentBytes]);
+  }, [bridge, convertToImages, state.fileName, state.materializeDocumentBytes]);
 
   const replaceText = useCallback(async (args: Record<string, unknown>) => {
     const bytes = await state.materializeDocumentBytes();
@@ -548,6 +556,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool }: UseAppContr
       setActiveTool: state.setActiveTool,
       setShowDashboard: state.setShowDashboard,
       setActiveDashboardTool: state.setActiveDashboardTool,
+      openRightSidebar,
       setViewerError: state.setViewerError,
       runHeadlessConversion,
       replaceText,

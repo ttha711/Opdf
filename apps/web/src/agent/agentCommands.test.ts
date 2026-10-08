@@ -29,6 +29,7 @@ function createContext(overrides: Partial<Parameters<typeof executeAgentCommand>
       setViewMode: vi.fn((mode: any) => { calls.push(`view:${mode}`); }),
       setActiveTool: vi.fn((tool: any) => { calls.push(`active:${tool}`); }),
       setActiveDashboardTool: vi.fn((tool: string | null) => { calls.push(`panel:${tool}`); }),
+      openRightSidebar: vi.fn(() => { calls.push("sidebar:open"); }),
       setShowDashboard: vi.fn((show: boolean) => { calls.push(`dashboard:${show}`); }),
       setViewerError: vi.fn(),
     },
@@ -83,6 +84,33 @@ describe("agent command registry", () => {
 
     expect(result.status).toBe("completed");
     expect(ctx.actions.runConfiguredWatermark).toHaveBeenCalledWith({ text: "DRAFT" });
+  });
+
+  it("opens the right sidebar when an agent opens a tool panel", async () => {
+    const ctx = createContext();
+    const result = await executeAgentCommand({
+      tool: "open-tool-panel",
+      args: { toolId: "watermark-pdf" },
+    }, ctx);
+
+    expect(result.status).toBe("completed");
+    expect(ctx.actions.setActiveDashboardTool).toHaveBeenCalledWith("watermark-pdf");
+    expect(ctx.actions.openRightSidebar).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses headless conversion for PDF page image exports", async () => {
+    const runHeadlessConversion = vi.fn(async () => ({ message: "Exported images." }));
+    const ctx = createContext({
+      actions: {
+        ...createContext().actions,
+        runHeadlessConversion,
+      },
+    });
+    const result = await executeAgentCommand({ tool: "pdf-to-jpeg" }, ctx);
+
+    expect(result.status).toBe("completed");
+    expect(runHeadlessConversion).toHaveBeenCalledWith("pdf-to-jpeg", {});
+    expect(ctx.actions.setActiveDashboardTool).not.toHaveBeenCalled();
   });
 
   it("serializes commands through a queue", async () => {

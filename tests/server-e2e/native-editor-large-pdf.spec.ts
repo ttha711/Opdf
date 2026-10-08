@@ -52,7 +52,7 @@ test("multi-page native edit remains responsive, saves and survives reload", asy
     }
   });
   page.on("request", (req) => {
-    if (req.method() === "GET" && /\\/api\\/opdf\\/documents\\/[^/]+/.test(new URL(req.url()).pathname)) fetches++;
+    if (req.method() === "GET" && new URL(req.url()).pathname.startsWith("/api/opdf/documents/")) fetches++;
   });
 
   await page.goto("/?open=" + encodeURIComponent(stored.filePath));

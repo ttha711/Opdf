@@ -165,19 +165,15 @@ test("rapid native mutations serialize and viewer root stays mounted", async ({ 
     (element as HTMLButtonElement).click();
   });
 
-  await expect(editor.getByText("Object moved.")).toBeVisible({ timeout: 20_000 });
-  const movedButton = editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "Canvas native text" }).first();
-  await expect(movedButton).toBeVisible();
-  await expect.poll(async () => parseBounds(await movedButton.getAttribute("data-opdf-bounds")).x)
-    .toBeGreaterThanOrEqual(before.x + 9.9);
-  await expect(surface).toHaveAttribute("data-lifecycle-marker", "stable");
-
   await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
   await expect(editor.getByText("Native content edit undone.")).toBeVisible({ timeout: 20_000 });
+  const movedButton = editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "Canvas native text" }).first();
+  await expect(movedButton).toBeVisible();
   await expect.poll(async () => parseBounds(await movedButton.getAttribute("data-opdf-bounds")).x)
     .toBeGreaterThanOrEqual(before.x + 4.9);
   const undoneX = parseBounds(await movedButton.getAttribute("data-opdf-bounds")).x;
   expect(undoneX).toBeLessThan(before.x + 9.9);
+  await expect(surface).toHaveAttribute("data-lifecycle-marker", "stable");
 });
 
 

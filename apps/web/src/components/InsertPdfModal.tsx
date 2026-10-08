@@ -1,3 +1,4 @@
+// opdf-file-size-allow: existing legacy modal over 300 lines; narrow accessible-picker repair, independent component split deferred.
 import { useState, useEffect, useRef } from "react";
 import { toast } from "./ToastProvider";
 import { useDialogClose } from "../hooks/useDialogClose";
@@ -167,12 +168,13 @@ export function InsertPdfModal({
         {/* Hidden Input Picker */}
         <input
           data-opdf-field="insert-file"
+          id="opdf-insert-pdf-file"
           type="file"
+          aria-label="Choose a PDF to insert"
           ref={fileInputRef}
           accept="application/pdf"
           className="hidden"
           onChange={handleFileSelection}
-          aria-hidden="true"
         />
 
         {/* Header */}
@@ -208,7 +210,7 @@ export function InsertPdfModal({
 
           {/* Step 1: Document selection */}
           <div className="form-group">
-            <label className="form-label">Select PDF to Insert</label>
+            <label className="form-label" htmlFor="opdf-insert-pdf-file">Select PDF to Insert</label>
             {!selectedFile ? (
               <div
                 className="flex flex-col items-center justify-center p-8 rounded-xl border border-dashed text-center transition-all"
@@ -229,6 +231,7 @@ export function InsertPdfModal({
                 <button
                   className="btn-premium btn-premium-outline py-1 px-4 text-xs font-semibold"
                   onClick={triggerFilePicker}
+                  aria-controls="opdf-insert-pdf-file"
                   disabled={isProcessing}
                   type="button"
                 >
@@ -253,6 +256,7 @@ export function InsertPdfModal({
                 <button
                   className="btn-premium btn-premium-secondary py-1 px-3 text-xs"
                   onClick={triggerFilePicker}
+                  aria-controls="opdf-insert-pdf-file"
                   disabled={isProcessing}
                   type="button"
                 >

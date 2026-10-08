@@ -1,3 +1,7 @@
+// Vite emits this URL as a hashed asset; the worker is only fetched when
+// PDF.js is loaded by an explicit text-export action.
+import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
 export type PdfTextExportFormat = "txt" | "xml" | "html" | "rtf";
 
 export type PdfTextExportResult = {
@@ -89,6 +93,9 @@ export function buildTextExportFromPages(
 
 export async function extractPdfTextPages(bytes: Uint8Array): Promise<string[]> {
   const pdfjs = await import("pdfjs-dist");
+  // Do not rely on PDF.js resolving "./pdf.worker.mjs" relative to the
+  // generated app chunk: Vite renames and relocates worker assets.
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
   const pdf = await pdfjs.getDocument({ data: bytes }).promise;
   const pages: string[] = [];
 

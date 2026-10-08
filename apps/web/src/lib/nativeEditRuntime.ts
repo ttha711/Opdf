@@ -6,7 +6,7 @@ export type NativeEditSelection = {
 };
 
 type SelectionListener = (selection: NativeEditSelection) => void;
-type PatchApplier = (patches: PdfContentPatch[], successMessage: string) => Promise<void>;
+type PatchApplier = (patches: PdfContentPatch[], successMessage: string) => Promise<Uint8Array | null>;
 
 const selectionListeners = new Set<SelectionListener>();
 let currentSelection: NativeEditSelection | null = null;
@@ -51,7 +51,7 @@ export async function applyNativeEditPatches(
   successMessage: string,
 ) {
   if (!patchApplier) throw new Error("Native editor is still initializing.");
-  await patchApplier(patches, successMessage);
+  return patchApplier(patches, successMessage);
 }
 
 export function clearNativeEditRuntime() {

@@ -1,4 +1,5 @@
-.native-edit-surface {
+.native-edit-surface,
+.native-edit-viewport {
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -42,7 +43,7 @@
   stroke: #2563eb;
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
-  pointer-events: all;
+  pointer-events: none;
   cursor: move;
 }
 
@@ -57,12 +58,14 @@
   stroke: #2563eb;
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
+  pointer-events: all;
 }
 
 .native-edit-rotate-line {
   stroke: #2563eb;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+  pointer-events: none;
 }
 
 .native-edit-rotate-handle {
@@ -71,6 +74,7 @@
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
   cursor: grab;
+  pointer-events: all;
 }
 
 .native-edit-inline-text {

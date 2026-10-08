@@ -95,8 +95,6 @@ export function NativeEditSelectionLayer({
           <polygon
             className={`native-edit-selection${nativeEditObjectIsEditable(selected) ? "" : " readonly"}`}
             points={pointsAttribute(displayGeometry, selected.pageWidth, selected.pageHeight, width, height)}
-            onPointerDown={(event) => onObjectPointerDown(event, selected)}
-            onDoubleClick={(event) => onObjectDoubleClick(event, selected)}
             data-opdf-canvas-selection={selected.id}
             data-opdf-object-kind={selected.kind}
           />

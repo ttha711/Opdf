@@ -79,8 +79,6 @@ export function NativeEditPdfViewer({
         withAnnotations: true,
       }),
       createPluginRegistration(ZoomPluginPackage, {
-        // EmbedPDF 2.x keeps the scroller gated when initial zoom is numeric.
-        // Use a resolved zoom mode so editable pages render before external scale sync.
         defaultZoomLevel: ZoomMode.Automatic,
         minZoom: 0.05,
         maxZoom: 5,
@@ -104,7 +102,7 @@ export function NativeEditPdfViewer({
   return (
     <EmbedPDF engine={engine} plugins={plugins}>
       {({ activeDocumentId }) => (
-        <>
+        <div className="native-edit-surface">
           <NativeEditDocumentRevisionBridge
             baseDocumentId={EDIT_DOCUMENT_ID}
             initialRevisionKey={initialSourceUrl}
@@ -136,7 +134,7 @@ export function NativeEditPdfViewer({
               }}
             </DocumentContent>
           ) : <div className="native-edit-loading">Opening PDF…</div>}
-        </>
+        </div>
       )}
     </EmbedPDF>
   );

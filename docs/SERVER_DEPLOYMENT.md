@@ -375,7 +375,7 @@ $env:OPDF_LOGIN_RATE_MAX_ATTEMPTS="10"
 $env:OPDF_LOGIN_RATE_WINDOW_MS="900000"
 ```
 
-Only set `OPDF_TRUST_PROXY=1` when direct access to the OPDF origin is blocked and the trusted proxy is the component setting `X-Forwarded-For`. Otherwise a client could spoof its source address and weaken login throttling.
+For HTTPS deployments, setting `OPDF_PUBLIC_ORIGIN=https://...` now enables HSTS by default (unless `OPDF_HSTS=0`). The Cloudflare edge must forward the header or supply an equivalent header. If Cloudflare Web Analytics is enabled, set `OPDF_CLOUDFLARE_INSIGHTS=1` on the origin to allow its exact script host; otherwise disable Cloudflare Analytics injection. Check the live URL with `node scripts/audit-production-headers.mjs https://pdf.example.com/`.\n\nOnly set `OPDF_TRUST_PROXY=1` when direct access to the OPDF origin is blocked and the trusted proxy is the component setting `X-Forwarded-For`. Otherwise a client could spoof its source address and weaken login throttling.
 
 OPDF rejects browser mutation requests that declare a cross-site `Sec-Fetch-Site`, and when an `Origin` header is present it must match `OPDF_PUBLIC_ORIGIN` (or the request Host when no public origin is configured). Responses include frame-embedding, content-type, referrer, permissions, and optional HSTS guards.
 

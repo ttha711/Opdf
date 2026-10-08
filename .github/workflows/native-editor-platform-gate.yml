@@ -12,6 +12,7 @@ on:
       - "tests/server-e2e/native-editor-adversarial.spec.ts"
       - "tests/server-e2e/native-adversarial-fixtures.ts"
       - "tests/server-e2e/native-editor-production-gate.spec.ts"
+      - "tests/server-e2e/native-editor-large-pdf.spec.ts"
       - ".github/workflows/native-editor-platform-gate.yml"
 
 concurrency:
@@ -57,6 +58,7 @@ jobs:
           -c playwright.server.config.ts
           tests/server-e2e/native-editor-adversarial.spec.ts
           tests/server-e2e/native-editor-production-gate.spec.ts
+          tests/server-e2e/native-editor-large-pdf.spec.ts
           --project=chromium
         env:
           CI: true
@@ -66,6 +68,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: native-editor-platform-${{ matrix.os }}
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
           if-no-files-found: ignore
           retention-days: 7

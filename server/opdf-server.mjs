@@ -622,8 +622,10 @@ async function serveWeb(req, res, pathname) {
   setBaseHeaders(res);
   if (filePath.endsWith("index.html")) {
     let html = await readFile(filePath, "utf8");
-    const runtimeScript = '<script src="/opdf-runtime.js"></script>';
-    html = html.includes("</head>") ? html.replace("</head>", runtimeScript + "</head>") : runtimeScript + html;
+    // Encode runtime as document metadata, not a parser-blocking script.
+    // main.tsx reads these attributes before React mounts.
+    const runtimeMeta = '<meta name="opdf-runtime" content="server"><meta name="opdf-server-base" content="/api/opdf">';
+    html = html.includes("</head>") ? html.replace("</head>", runtimeMeta + "</head>") : runtimeMeta + html;
     res.statusCode = 200;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache");

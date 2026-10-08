@@ -13,6 +13,7 @@ on:
       - "tests/server-e2e/native-adversarial-fixtures.ts"
       - "tests/server-e2e/native-editor-production-gate.spec.ts"
       - "tests/server-e2e/native-editor-large-pdf.spec.ts"
+      - "tests/server-e2e/native-inline-editor-ux.spec.ts"
       - ".github/workflows/native-editor-platform-gate.yml"
 
 concurrency:
@@ -59,6 +60,7 @@ jobs:
           tests/server-e2e/native-editor-adversarial.spec.ts
           tests/server-e2e/native-editor-production-gate.spec.ts
           tests/server-e2e/native-editor-large-pdf.spec.ts
+          tests/server-e2e/native-inline-editor-ux.spec.ts
           --project=chromium
         env:
           CI: true

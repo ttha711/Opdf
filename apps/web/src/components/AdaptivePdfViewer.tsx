@@ -2,14 +2,24 @@ import type { PdfViewerProps } from "./PdfViewer.types";
 import { PdfViewer } from "./PdfViewer";
 import { NativeEditPdfViewer } from "./NativeEditPdfViewer";
 
+// Preserve the reader's scroll/zoom DOM on edit entry and exit. Native editing
+// remains lazy, so opening a PDF does not initialize its second PDFium view.
 export function AdaptivePdfViewer(props: PdfViewerProps) {
-  if (props.activeTool === "edit-content") {
-    return <NativeEditPdfViewer {...props} />;
-  }
-
-  // Keep one viewer engine for both local and persisted server PDFs. PdfViewer
-  // already consumes server:// sources through the range-capable document URL,
-  // so a second PDF.js preview only adds a handoff where the page can appear
-  // before the EmbedPDF toolbar and editing plugins are ready.
-  return <PdfViewer {...props} />;
+  const isEditing = props.activeTool === "edit-content";
+  return (
+    <div className="relative h-full w-full">
+      <div
+        className="absolute inset-0"
+        style={{ visibility: isEditing ? "hidden" : "visible", pointerEvents: isEditing ? "none" : "auto" }}
+        aria-hidden={isEditing}
+      >
+        <PdfViewer {...props} />
+      </div>
+      {isEditing ? (
+        <div className="absolute inset-0">
+          <NativeEditPdfViewer {...props} />
+        </div>
+      ) : null}
+    </div>
+  );
 }

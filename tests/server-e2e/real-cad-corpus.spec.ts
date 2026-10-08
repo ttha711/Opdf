@@ -26,6 +26,7 @@ async function logFailureState(page: import('@playwright/test').Page, fixture: s
       pages: document.querySelectorAll('.native-edit-page').length,
       overlayObjects: document.querySelectorAll('polygon.native-edit-object').length,
       rasterCount: images.length,
+      fallbackStage: document.querySelector('[data-opdf-pdfjs-fallback]')?.getAttribute('data-opdf-fallback-stage') ?? null,
       paintedRasters: images.filter((image) => image instanceof HTMLImageElement
         ? image.complete && image.naturalWidth > 0 : image.width > 0 && image.height > 0).length,
       viewportSize: bounds ? [Math.round(bounds.width), Math.round(bounds.height)] : null,

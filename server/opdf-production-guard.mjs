@@ -107,6 +107,10 @@ export function assertSafeMutationRequest(req, env = process.env) {
 }
 
 export function applyProductionSecurityHeaders(res, env = process.env) {
+  // Only opt in if Cloudflare Web Analytics auto-injection is intentionally enabled.
+  const insightsScript = env.OPDF_CLOUDFLARE_INSIGHTS === "1"
+    ? " https://static.cloudflareinsights.com/beacon.min.js"
+    : "";
   const csp = [
     "default-src 'self'",
     "base-uri 'self'",
@@ -116,7 +120,7 @@ export function applyProductionSecurityHeaders(res, env = process.env) {
     "img-src 'self' data: blob:",
     "font-src 'self' data: https://fonts.gstatic.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "script-src 'self' 'wasm-unsafe-eval'",
+    `script-src 'self' 'wasm-unsafe-eval'${insightsScript}`,
     "worker-src 'self' blob:",
     "connect-src 'self' https: wss: blob:",
     "frame-src 'self' https:",
@@ -127,7 +131,13 @@ export function applyProductionSecurityHeaders(res, env = process.env) {
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Content-Security-Policy", csp);
   res.setHeader("Permissions-Policy", "camera=(), geolocation=(), microphone=()");
-  if (env.OPDF_HSTS === "1") {
+  // The HTTPS public origin signals a TLS-terminated deployment; allow an
+  // explicit OPDF_HSTS=0 opt-out for deployments that manage HSTS at the edge.
+  let isHttpsDeployment = false;
+  try {
+    isHttpsDeployment = new URL(String(env.OPDF_PUBLIC_ORIGIN || "")).protocol === "https:";
+  } catch {}
+  if (env.OPDF_HSTS === "1" || (env.OPDF_HSTS !== "0" && isHttpsDeployment)) {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
 }

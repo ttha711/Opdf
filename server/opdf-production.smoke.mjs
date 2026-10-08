@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import "./opdf-security-headers.smoke.mjs";
 
 const port = 22787;
 const dataDir = await mkdtemp(join(tmpdir(), "opdf-production-smoke-"));
@@ -39,7 +40,9 @@ try {
       OPDF_BOOTSTRAP_PASSWORD: "admin-production-2026",
       OPDF_LOGIN_RATE_MAX_ATTEMPTS: "3",
       OPDF_LOGIN_RATE_WINDOW_MS: "60000",
-      OPDF_HSTS: "1",
+      OPDF_PUBLIC_ORIGIN: "https://pdf.example.com",
+      OPDF_HSTS: "",
+      OPDF_CLOUDFLARE_INSIGHTS: "",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -60,7 +63,7 @@ try {
   }
   assert(
     (live.headers.get("strict-transport-security") || "").includes("max-age="),
-    "HSTS header missing when enabled",
+    "HSTS header missing for an HTTPS public origin",
   );
   assert(live.headers.get("x-request-id"), "request id header missing");
 

@@ -78,6 +78,10 @@ jobs:
             --video-dir opdf-cli-artifacts/video \
             --json 2>&1 | tee opdf-cli-artifacts/console.log
 
+      - name: Verify deployed HTTPS security headers
+        if: success()
+        run: node scripts/verify-production-headers.mjs "$TARGET_URL"
+
       - name: Upload production E2E evidence
         if: always()
         uses: actions/upload-artifact@v4

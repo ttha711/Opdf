@@ -89,8 +89,8 @@
   color: #111827;
   padding: 2px 4px;
   outline: none;
-  transform-origin: center;
   white-space: pre-wrap;
+  box-sizing: border-box;
   caret-color: #2563eb;
 }
 
@@ -101,4 +101,14 @@
   place-items: center;
   color: var(--text-secondary, #6b7280);
   font-size: 13px;
+}
+
+.native-edit-paint-shield {
+  position: absolute;
+  inset: 0;
+  display: none;
+  z-index: 12;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--viewer-bg, #e8eaed);
 }

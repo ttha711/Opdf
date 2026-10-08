@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { PdfContentObject } from "@opdf/core";
-import { pdfPointToDom, type NativeObjectGeometry } from "../../lib/nativeEditGeometry";
+import type { NativeObjectGeometry } from "../../lib/nativeEditGeometry";
+import { nativeInlineTextLayout } from "./nativeInlineTextLayout";
 
 type Props = {
   object: PdfContentObject;
@@ -26,10 +27,7 @@ export function NativeInlineTextEditor({
   onError,
 }: Props) {
   const cancelRef = useRef(false);
-  const center = pdfPointToDom(geometry.center, object.pageWidth, object.pageHeight, width, height);
-  const boxWidth = Math.max(80, geometry.width * width / object.pageWidth);
-  const boxHeight = Math.max(30, geometry.height * height / object.pageHeight);
-  const angle = -Math.atan2(geometry.u.y, geometry.u.x) * 180 / Math.PI;
+  const layout = nativeInlineTextLayout(object, geometry, width, height, value);
 
   return (
     <textarea
@@ -48,6 +46,8 @@ export function NativeInlineTextEditor({
       }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
           cancelRef.current = true;
           onCancel();
           return;
@@ -59,15 +59,14 @@ export function NativeInlineTextEditor({
         }
       }}
       style={{
-        left: center.x - boxWidth / 2,
-        top: center.y - boxHeight / 2,
-        width: boxWidth,
-        minHeight: boxHeight,
-        transform: `rotate(${angle}deg)`,
+        left: layout.left,
+        top: layout.top,
+        width: layout.width,
+        height: layout.height,
         fontFamily: object.fontFamily || undefined,
-        fontSize: Math.max(11, (object.fontSize ?? 12) * width / object.pageWidth),
-        lineHeight: 1.15,
-        color: object.fillColor || "#111827",
+        fontSize: layout.fontSize,
+        lineHeight: 1.35,
+        color: "#111827",
       }}
       data-opdf-inline-text-editor="true"
     />

@@ -70,7 +70,7 @@ export function AppWorkspace({
     setIsDraggingRight,
   } = sidebars;
 
-  const [selectedTextForEdit, setSelectedTextForEdit] = useState<{ text: string; page: number; tabId: string } | null>(null);
+  const [selectedTextForEdit, setSelectedTextForEdit] = useState<{ text: string; page: number; tabId: string; documentKey: string } | null>(null);
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
   const getNativeEditBytes = useNativeEditBytes(state);
   const rightAvailable = state.hasDocument || Boolean(state.activeDashboardTool) ||
@@ -107,7 +107,7 @@ export function AppWorkspace({
             if (!text || !anchor || !focus || !event.currentTarget.contains(anchor) || !event.currentTarget.contains(focus)) {
               setSelectedTextForEdit(null); return;
             }
-            setSelectedTextForEdit({ text, page: state.page, tabId: activeTab.id });
+            setSelectedTextForEdit({ text, page: state.page, tabId: activeTab.id, documentKey: state.sourceIdentity });
           }}
           onDoubleClick={() => {
             if (state.activeTool !== "select") return;
@@ -122,7 +122,7 @@ export function AppWorkspace({
           <ViewerErrorBoundary>
             <AdaptivePdfViewer {...viewerProps} getDocumentBytes={getNativeEditBytes} />
           </ViewerErrorBoundary>
-          {state.activeTool === "select" && selectedTextForEdit?.tabId === activeTab.id ? (
+          {state.activeTool === "select" && selectedTextForEdit?.tabId === activeTab.id && selectedTextForEdit.documentKey === state.sourceIdentity ? (
             <button
               type="button"
               data-opdf-action="edit-selected-text"
@@ -131,7 +131,7 @@ export function AppWorkspace({
               className="absolute right-4 top-4 z-30 rounded-md border border-[var(--acrobat-blue)] bg-white px-3 py-2 text-sm font-semibold text-[var(--acrobat-blue)] shadow-md"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
-                requestNativeInlineTextEdit(selectedTextForEdit.page - 1, selectedTextForEdit.text);
+                if (selectedTextForEdit.documentKey !== state.sourceIdentity) return; requestNativeInlineTextEdit(selectedTextForEdit.page - 1, selectedTextForEdit.text);
                 setSelectedTextForEdit(null); state.setActiveTool("edit-content");
               }}
             >

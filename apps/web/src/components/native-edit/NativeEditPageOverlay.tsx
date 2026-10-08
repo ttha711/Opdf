@@ -83,8 +83,7 @@ export function NativeEditPageOverlay({
     setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
   };
 
-  const selected = useMemo(() => objects.find((object) => object.id === selectedId) ?? null, [objects, selectedId]);
-  const baseGeometry = useMemo(() => selected ? geometryForObject(selected) : null, [selected]);
+  const selected = useMemo(() => objects.find((object) => object.id === selectedId) ?? null, [objects, selectedId]); const baseGeometry = useMemo(() => selected ? geometryForObject(selected) : null, [selected]);
   const displayGeometry = useMemo(() =>
     baseGeometry && previewMatrix ? transformGeometry(baseGeometry, previewMatrix) : baseGeometry,
   [baseGeometry, previewMatrix]);
@@ -99,7 +98,6 @@ export function NativeEditPageOverlay({
       state.pageHeight,
     );
   };
-
 
   useEffect(() => {
     if (!drag) return;

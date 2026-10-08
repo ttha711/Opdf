@@ -177,9 +177,8 @@ export function NativeEditPageOverlay({
       setPreviewMatrix(null);
     };
     if (editingText !== null) {
-      void commitInlineText().then(beginMove).catch((reason) =>
+      void commitInlineText().catch((reason) =>
         setError(reason instanceof Error ? reason.message : String(reason)));
-      return;
     }
     beginMove();
   };
@@ -197,11 +196,7 @@ export function NativeEditPageOverlay({
       geometry: baseGeometry,
     });
     if (editingText !== null) {
-      void commitInlineText().then(() => {
-        beginResize();
-        setPreviewMatrix(null);
-      }).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
-      return;
+      void commitInlineText().catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
     }
     beginResize();
     setPreviewMatrix(null);
@@ -222,11 +217,7 @@ export function NativeEditPageOverlay({
       geometry: baseGeometry,
     });
     if (editingText !== null) {
-      void commitInlineText().then(() => {
-        beginRotate();
-        setPreviewMatrix(null);
-      }).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
-      return;
+      void commitInlineText().catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
     }
     beginRotate();
     setPreviewMatrix(null);

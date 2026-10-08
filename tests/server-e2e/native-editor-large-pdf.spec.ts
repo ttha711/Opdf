@@ -27,39 +27,18 @@ async function openNativeEditor(page: Page) {
   return editor;
 }
 
-async function goToPage(page: Page, target: number, totalPages: number) {
-  // EmbedPDF virtualizes page DOM nodes. Scroll the viewport, not an off-screen page.
-  const viewport = page.locator(".native-edit-viewport");
-  const status = page.locator('[data-opdf-region="status-bar"]');
-  await expect(viewport).toBeVisible({ timeout: 15_000 });
-  const history: Array<{ before: number; after: number; top: number; range: number }> = [];
-  for (let attempt = 0; attempt < 12; attempt++) {
-    const before = Number(await status.getAttribute("data-opdf-page"));
-    if (before === target) return;
-    const result = await viewport.evaluate((root, args) => {
-      const candidates = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))]
-        .filter((element) => element.clientHeight > 50 &&
-          element.scrollHeight - element.clientHeight > 100);
-      // The virtualized Scroller occupies a large scrollable layout inside Viewport.
-      const scrolling = candidates.sort((a, b) =>
-        (b.scrollHeight - b.clientHeight) - (a.scrollHeight - a.clientHeight))[0];
-      if (!scrolling) {
-        throw new Error("Native PDF viewport has no scrollable content.");
-      }
-      const range = scrolling.scrollHeight - scrolling.clientHeight;
-      const pageStride = scrolling.scrollHeight / args.totalPages;
-      const top = Math.max(0, Math.min(range,
-        scrolling.scrollTop + (args.target - args.before) * pageStride));
-      scrolling.scrollTo({ top, behavior: "instant" });
-      return { top, range };
-    }, { target, totalPages, before });
-    await page.waitForTimeout(250);
-    const after = Number(await status.getAttribute("data-opdf-page"));
-    history.push({ before, after, ...result });
-    if (after === target) return;
-    if (after === before && attempt >= 3) break;
-  }
-  throw new Error(`Could not reach page ${target}; scroll history: ${JSON.stringify(history)}`);
+async function goToPage(page: Page, target: number) {
+  // The desktop Pages trigger is CSS-hidden, but its handler uses the real
+  // viewer goToPage API. Dispatch a DOM click to exercise that API without
+  // assuming virtualized page DOM nodes or scroll container internals.
+  const trigger = page.locator('[data-opdf-action="toggle-page-filmstrip"]');
+  await expect(trigger).toBeAttached({ timeout: 10_000 });
+  await trigger.evaluate((element: HTMLElement) => element.click());
+  const option = page.locator(`[data-opdf-page-thumb="${target}"]`);
+  await expect(option).toBeAttached({ timeout: 10_000 });
+  await option.evaluate((element: HTMLElement) => element.click());
+  await expect(page.locator('[data-opdf-region="status-bar"]'))
+    .toHaveAttribute("data-opdf-page", String(target), { timeout: 20_000 });
 }
 
 test("90-page native text replacement persists after save and reload", async ({ page, request }) => {
@@ -137,7 +116,7 @@ test("90-page virtualized navigation remains responsive without fetch flooding",
 
   const heapSamples: number[] = [];
   for (const target of [45, 90, 2, 1]) {
-    await goToPage(page, target, 90);
+    await goToPage(page, target);
     const heap = await page.evaluate(() =>
       (performance as Performance & { memory?: { usedJSHeapSize: number } })
         .memory?.usedJSHeapSize ?? null);

@@ -204,6 +204,7 @@ function normalizeWatermarkOptions(args: Record<string, unknown>): WatermarkOpti
 function openPanel(toolId: string, actions: AgentActionContext["actions"]) {
   actions.setShowDashboard?.(false);
   actions.setActiveDashboardTool?.(toolId);
+  actions.openRightSidebar?.();
 }
 
 function clampPage(rawPage: number, totalPages: number) {

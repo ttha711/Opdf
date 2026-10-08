@@ -20,6 +20,7 @@ let activeProvider: ViewerBytesProvider | null = null;
 let activeProviderSource: unknown = null;
 let activePageImageProvider: ViewerPageImageProvider | null = null;
 let activeControls: ActiveViewerControls | null = null;
+const viewerControlsStack: ActiveViewerControls[] = [];
 
 export function registerViewerBytesProvider(provider: ViewerBytesProvider, source: unknown = null) {
   activeProvider = provider;
@@ -38,9 +39,12 @@ export async function getViewerDocumentBytes(expectedSource?: unknown) {
 }
 
 export function registerViewerControls(controls: ActiveViewerControls) {
+  viewerControlsStack.push(controls);
   activeControls = controls;
   return () => {
-    if (activeControls === controls) activeControls = null;
+    const index = viewerControlsStack.lastIndexOf(controls);
+    if (index >= 0) viewerControlsStack.splice(index, 1);
+    activeControls = viewerControlsStack.at(-1) ?? null;
   };
 }
 

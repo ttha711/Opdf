@@ -9,7 +9,7 @@ type Props = {
   refresh: () => Promise<void>;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
-  apply: (patches: PdfContentPatch[], success: string) => Promise<void>;
+  apply: (patches: PdfContentPatch[], success: string) => Promise<unknown>;
 };
 
 export function NativeContentToolbar({

@@ -12,6 +12,7 @@ import {
   consumeNativeInlineTextEdit,
   emitNativeEditSelection,
   registerNativeEditSelectionListener,
+  registerNativeInlineCommitter,
 } from "../../lib/nativeEditRuntime";
 import { NativeEditSelectionLayer, nativeEditObjectIsEditable } from "./NativeEditSelectionLayer";
 import { NativeInlineTextEditor } from "./NativeInlineTextEditor";
@@ -239,12 +240,8 @@ export function NativeEditPageOverlay({
     onPersistedBytes: refreshObjectsFromBytes,
   });
 
-  const commitInlineText = useNativeInlineCommit({
-    selected,
-    editingText,
-    setEditingText,
-    refreshObjectsFromBytes,
-  });
+  const commitInlineText = useNativeInlineCommit({ selected, editingText, setEditingText, refreshObjectsFromBytes });
+  useEffect(() => registerNativeInlineCommitter(commitInlineText), [commitInlineText]);
 
   return (
     <>
@@ -272,10 +269,12 @@ export function NativeEditPageOverlay({
         onObjectPointerDown={startMove}
         onObjectDoubleClick={(event, object) => {
           event.stopPropagation();
-          selectObject(object);
-          if (object.kind === "text" && nativeEditObjectIsEditable(object)) {
-            setEditingText(object.text ?? "");
-          }
+          const beginEdit = () => {
+            selectObject(object);
+            if (object.kind === "text" && nativeEditObjectIsEditable(object)) setEditingText(object.text ?? "");
+          };
+          if (editingText !== null && selected?.id !== object.id) void commitInlineText().then(beginEdit);
+          else beginEdit();
         }}
         onResizePointerDown={startResize}
         onRotatePointerDown={startRotate}

@@ -63,6 +63,7 @@ export function NativeEditPageOverlay({
   const [drag, setDrag] = useState<DragState | null>(null);
   const [previewMatrix, setPreviewMatrix] = useState<PdfMatrix | null>(null);
   const [editingText, setEditingText] = useState<string | null>(null);
+  const commitPromiseRef = useRef<Promise<void> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -95,6 +96,12 @@ export function NativeEditPageOverlay({
     if (selection.pageIndex === pageIndex) setSelectedId(selection.objectId);
     else if (selection.objectId) setSelectedId(null);
   }), [pageIndex]);
+
+  const refreshObjectsFromBytes = async (bytes: Uint8Array) => {
+    const next = await pdfiumContentEditingEngine.inspectPage(bytes, pageIndex);
+    setObjects(next);
+    setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
+  };
 
   const selected = useMemo(() => objects.find((object) => object.id === selectedId) ?? null, [objects, selectedId]);
   const baseGeometry = useMemo(() => selected ? geometryForObject(selected) : null, [selected]);
@@ -139,7 +146,6 @@ export function NativeEditPageOverlay({
       const mode = drag.mode;
       const objectId = drag.objectId;
       setDrag(null);
-      setPreviewMatrix(null);
       const clickDistance = drag.startClientX === undefined || drag.startClientY === undefined
         ? Number.POSITIVE_INFINITY
         : Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
@@ -147,14 +153,23 @@ export function NativeEditPageOverlay({
         if (drag.clickText !== undefined) setEditingText(drag.clickText);
         return;
       }
-      if (!matrix || matrixIsIdentity(matrix)) return;
+      if (!matrix || matrixIsIdentity(matrix)) {
+        setPreviewMatrix(null);
+        return;
+      }
       const message = mode === "move" ? "Object moved on page." :
         mode === "resize" ? "Object resized on page." :
         "Object rotated on page.";
       void applyNativeEditPatches(
         [{ type: "relative-transform", objectId, matrix }],
         message,
-      ).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+      ).then(async (bytes) => {
+        if (bytes) await refreshObjectsFromBytes(bytes);
+        setPreviewMatrix(null);
+      }).catch((reason) => {
+        setPreviewMatrix(null);
+        setError(reason instanceof Error ? reason.message : String(reason));
+      });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -170,33 +185,44 @@ export function NativeEditPageOverlay({
   };
 
   const startMove = (event: React.PointerEvent, object: PdfContentObject) => {
-    selectObject(object);
-    if (!nativeEditObjectIsEditable(object) || event.button !== 0) return;
+    if (!nativeEditObjectIsEditable(object) || event.button !== 0) {
+      selectObject(object);
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
-
-    const point = clientToPdf(object, event.clientX, event.clientY);
-    if (!point) return;
-    setEditingText(null);
-    setDrag({
+    const clientX = event.clientX;
+    const clientY = event.clientY;
+    const beginMove = () => {
+      selectObject(object);
+      const point = clientToPdf(object, clientX, clientY);
+      if (!point) return;
+      setDrag({
       mode: "move",
       objectId: object.id,
       pageWidth: object.pageWidth,
       pageHeight: object.pageHeight,
       start: point,
       geometry: geometryForObject(object),
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      clickText: object.kind === "text" ? object.text ?? "" : undefined,
-    });
-    setPreviewMatrix(null);
+        startClientX: clientX,
+        startClientY: clientY,
+        clickText: object.kind === "text" ? object.text ?? "" : undefined,
+      });
+      setPreviewMatrix(null);
+    };
+    if (editingText !== null) {
+      void commitInlineText().then(beginMove).catch((reason) =>
+        setError(reason instanceof Error ? reason.message : String(reason)));
+      return;
+    }
+    beginMove();
   };
 
   const startResize = (event: React.PointerEvent, handle: NativeResizeHandle) => {
     if (!baseGeometry || !selected || !nativeEditObjectIsEditable(selected)) return;
     event.preventDefault();
     event.stopPropagation();
-    setDrag({
+    const beginResize = () => setDrag({
       mode: "resize",
       objectId: selected.id,
       pageWidth: selected.pageWidth,
@@ -204,6 +230,14 @@ export function NativeEditPageOverlay({
       handle,
       geometry: baseGeometry,
     });
+    if (editingText !== null) {
+      void commitInlineText().then(() => {
+        beginResize();
+        setPreviewMatrix(null);
+      }).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+      return;
+    }
+    beginResize();
     setPreviewMatrix(null);
   };
 
@@ -213,7 +247,7 @@ export function NativeEditPageOverlay({
     if (!point) return;
     event.preventDefault();
     event.stopPropagation();
-    setDrag({
+    const beginRotate = () => setDrag({
       mode: "rotate",
       objectId: selected.id,
       pageWidth: selected.pageWidth,
@@ -221,6 +255,14 @@ export function NativeEditPageOverlay({
       startAngle: Math.atan2(point.y - baseGeometry.center.y, point.x - baseGeometry.center.x),
       geometry: baseGeometry,
     });
+    if (editingText !== null) {
+      void commitInlineText().then(() => {
+        beginRotate();
+        setPreviewMatrix(null);
+      }).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+      return;
+    }
+    beginRotate();
     setPreviewMatrix(null);
   };
 
@@ -229,28 +271,40 @@ export function NativeEditPageOverlay({
     enabled: Boolean(selected && nativeEditObjectIsEditable(selected) && editingText === null && !drag),
     setPreviewMatrix,
     setError,
+    onPersistedBytes: refreshObjectsFromBytes,
   });
 
   const commitInlineText = async () => {
+    if (commitPromiseRef.current) return commitPromiseRef.current;
     if (!selected || selected.kind !== "text" || editingText === null) return;
     const nextText = editingText;
-    setEditingText(null);
-    if (nextText === (selected.text ?? "")) return;
-    const unicodeFallback = /[^ -]/.test(nextText);
-    const patches: PdfContentPatch[] = [];
-    if (unicodeFallback) {
-      patches.push({
-        type: "style-text",
-        objectId: selected.id,
-        fontFamily: "__opdf_unicode__",
-        fontSize: selected.fontSize,
-      });
+    const selectedObject = selected;
+    const commit = (async () => {
+      setEditingText(null);
+      if (nextText === (selectedObject.text ?? "")) return;
+      const unicodeFallback = /[^\x00-\x7F]/.test(nextText);
+      const patches: PdfContentPatch[] = [];
+      if (unicodeFallback) {
+        patches.push({
+          type: "style-text",
+          objectId: selectedObject.id,
+          fontFamily: "__opdf_unicode__",
+          fontSize: selectedObject.fontSize,
+        });
+      }
+      patches.push({ type: "replace-text", objectId: selectedObject.id, text: nextText });
+      const bytes = await applyNativeEditPatches(
+        patches,
+        unicodeFallback ? "Inline text updated with Unicode fallback." : "Inline text updated.",
+      );
+      if (bytes) await refreshObjectsFromBytes(bytes);
+    })();
+    commitPromiseRef.current = commit;
+    try {
+      await commit;
+    } finally {
+      if (commitPromiseRef.current === commit) commitPromiseRef.current = null;
     }
-    patches.push({ type: "replace-text", objectId: selected.id, text: nextText });
-    await applyNativeEditPatches(
-      patches,
-      unicodeFallback ? "Inline text updated with Unicode fallback." : "Inline text updated.",
-    );
   };
 
   return (
@@ -265,9 +319,16 @@ export function NativeEditPageOverlay({
         displayGeometry={displayGeometry}
         geometryFor={geometryForObject}
         onEmptyPointerDown={() => {
-          setSelectedId(null);
-          setEditingText(null);
-          emitNativeEditSelection({ pageIndex, objectId: null });
+          const deselect = () => {
+            setSelectedId(null);
+            emitNativeEditSelection({ pageIndex, objectId: null });
+          };
+          if (editingText !== null) {
+            void commitInlineText().then(deselect).catch((reason) =>
+              setError(reason instanceof Error ? reason.message : String(reason)));
+            return;
+          }
+          deselect();
         }}
         onObjectPointerDown={startMove}
         onObjectDoubleClick={(event, object) => {

@@ -9,6 +9,8 @@ on:
       - "apps/web/src/components/native-edit/**"
       - "apps/web/src/lib/viewer-runtime.ts"
       - "tests/e2e/smoke.spec.ts"
+      - "tests/e2e/web-save-pdf.spec.ts"
+      - "apps/web/src/hooks/document-actions/useExportAction.ts"
       - ".github/workflows/direct-pdf-edit-e2e.yml"
   workflow_dispatch:
 
@@ -29,7 +31,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install chromium --with-deps
       - name: Direct editing and reader-retention smoke
-        run: npx playwright test tests/e2e/smoke.spec.ts --project=chromium -g "native PDF text editing|entering and leaving Edit PDF|double-clicking selectable PDF text"
+        run: npx playwright test tests/e2e/smoke.spec.ts tests/e2e/web-save-pdf.spec.ts --project=chromium -g "native PDF text editing|entering and leaving Edit PDF|double-clicking a PDF page|web Save downloads"
         env:
           CI: true
       - uses: actions/upload-artifact@v4

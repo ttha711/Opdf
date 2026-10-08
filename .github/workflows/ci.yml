@@ -21,19 +21,37 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci
-      - run: npm run typecheck
+      - name: Typecheck web (PR)
+        if: github.event_name == 'pull_request'
+        run: npm run build -w @opdf/core && npm run typecheck -w @opdf/web
+      - name: Typecheck all (main)
+        if: github.event_name == 'push'
+        run: npm run typecheck
       - run: npm run check:english-ui
       - run: npm run check:file-size
-      - run: npm run test:cli
+      - if: github.event_name == 'push'
+        run: npm run test:cli
       - run: npm run test -w @opdf/web
-      - run: npm run build
-      - run: npm run server-smoke
-      - run: npm run server-auth-smoke
-      - run: npm run server-s3-smoke
-      - run: npm run server-production-smoke
-      - run: npm run server-reliability
-      - run: npm run backup-smoke
-      - run: node apps/desktop/dist/main/pdf-signature.smoke.js
+      - name: Build web (PR)
+        if: github.event_name == 'pull_request'
+        run: npm run build -w @opdf/web
+      - name: Build all (main)
+        if: github.event_name == 'push'
+        run: npm run build
+      - if: github.event_name == 'push'
+        run: npm run server-smoke
+      - if: github.event_name == 'push'
+        run: npm run server-auth-smoke
+      - if: github.event_name == 'push'
+        run: npm run server-s3-smoke
+      - if: github.event_name == 'push'
+        run: npm run server-production-smoke
+      - if: github.event_name == 'push'
+        run: npm run server-reliability
+      - if: github.event_name == 'push'
+        run: npm run backup-smoke
+      - if: github.event_name == 'push'
+        run: node apps/desktop/dist/main/pdf-signature.smoke.js
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist
@@ -41,6 +59,7 @@ jobs:
           retention-days: 7
 
   office-conversion:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: verify
     timeout-minutes: 15
@@ -62,6 +81,7 @@ jobs:
       - run: node scripts/office-conversion-smoke.mjs
 
   server-tools-e2e:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: verify
     timeout-minutes: 30
@@ -93,6 +113,7 @@ jobs:
             test-results/
 
   windows-desktop:
+    if: github.event_name == 'push'
     runs-on: windows-latest
     needs: verify
     timeout-minutes: 45
@@ -158,6 +179,7 @@ jobs:
             test-results/
 
   e2e:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: verify
     timeout-minutes: 20
@@ -187,6 +209,7 @@ jobs:
 
 
   browser-compat:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: verify
     timeout-minutes: 15

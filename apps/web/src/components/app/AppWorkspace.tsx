@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AdaptivePdfViewer } from "../AdaptivePdfViewer";
 import { AiAssistantPanel } from "../AiAssistantPanel";
 import { DocumentMarkupPanel } from "../DocumentMarkupPanel";
@@ -69,6 +70,7 @@ export function AppWorkspace({
     setIsDraggingRight,
   } = sidebars;
 
+  const [selectedTextForEdit, setSelectedTextForEdit] = useState<{ text: string; page: number; tabId: string } | null>(null);
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
   const getNativeEditBytes = useNativeEditBytes(state);
   const rightAvailable = state.hasDocument || Boolean(state.activeDashboardTool) ||
@@ -98,12 +100,21 @@ export function AppWorkspace({
           onWheel={onViewerWheel}
           onDragOver={onDragOver}
           onDrop={onDrop}
+          onMouseUp={(event) => {
+            if (state.activeTool !== "select") return;
+            const selection = window.getSelection(), text = selection?.toString().trim() ?? "";
+            const anchor = selection?.anchorNode, focus = selection?.focusNode;
+            if (!text || !anchor || !focus || !event.currentTarget.contains(anchor) || !event.currentTarget.contains(focus)) {
+              setSelectedTextForEdit(null); return;
+            }
+            setSelectedTextForEdit({ text, page: state.page, tabId: activeTab.id });
+          }}
           onDoubleClick={() => {
             if (state.activeTool !== "select") return;
             const text = window.getSelection()?.toString().trim() ?? "";
             if (!text) return;
-            requestNativeInlineTextEdit(state.page - 1, text);
-            state.setActiveTool("edit-content");
+            setSelectedTextForEdit(null);
+            requestNativeInlineTextEdit(state.page - 1, text); state.setActiveTool("edit-content");
           }}
           aria-label="PDF viewer area"
           style={{ gridColumn: 1 }}
@@ -111,6 +122,22 @@ export function AppWorkspace({
           <ViewerErrorBoundary>
             <AdaptivePdfViewer {...viewerProps} getDocumentBytes={getNativeEditBytes} />
           </ViewerErrorBoundary>
+          {state.activeTool === "select" && selectedTextForEdit?.tabId === activeTab.id ? (
+            <button
+              type="button"
+              data-opdf-action="edit-selected-text"
+              aria-label="Edit selected PDF text"
+              title="Edit selected PDF text"
+              className="absolute right-4 top-4 z-30 rounded-md border border-[var(--acrobat-blue)] bg-white px-3 py-2 text-sm font-semibold text-[var(--acrobat-blue)] shadow-md"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                requestNativeInlineTextEdit(selectedTextForEdit.page - 1, selectedTextForEdit.text);
+                setSelectedTextForEdit(null); state.setActiveTool("edit-content");
+              }}
+            >
+              Edit selected text
+            </button>
+          ) : null}
         </section>
       ) : null}
 

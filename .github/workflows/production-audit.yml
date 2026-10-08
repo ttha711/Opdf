@@ -78,6 +78,9 @@ jobs:
             --video-dir opdf-cli-artifacts/video \
             --json 2>&1 | tee opdf-cli-artifacts/console.log
 
+      - name: Audit live HTTPS security headers
+        run: node scripts/audit-production-headers.mjs "$TARGET_URL"
+
       - name: Upload production E2E evidence
         if: always()
         uses: actions/upload-artifact@v4

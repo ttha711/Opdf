@@ -114,8 +114,7 @@ export function AppWorkspace({
             const text = window.getSelection()?.toString().trim() ?? "";
             if (!text) return;
             setSelectedTextForEdit(null);
-            requestNativeInlineTextEdit(state.page - 1, text);
-            state.setActiveTool("edit-content");
+            requestNativeInlineTextEdit(state.page - 1, text); state.setActiveTool("edit-content");
           }}
           aria-label="PDF viewer area"
           style={{ gridColumn: 1 }}

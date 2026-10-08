@@ -211,6 +211,7 @@ export function AppHeader(props: AppHeaderProps) {
 
         <button
           className="opdf-theme-btn"
+          aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
           data-opdf-action="toggle-theme"
           onClick={toggleTheme}
           title={theme === "light" ? "Switch to Dark Mode (Ctrl+Shift+L)" : "Switch to Light Mode (Ctrl+Shift+L)"}
@@ -268,6 +269,8 @@ export function AppHeader(props: AppHeaderProps) {
           {!hasDesktopBridge ? (
             <input
               ref={fileInputRef}
+              id="opdf-header-pdf-picker"
+              aria-label="Choose PDF file to open"
               className="hidden-file-input"
               type="file"
               accept="application/pdf"
@@ -277,6 +280,8 @@ export function AppHeader(props: AppHeaderProps) {
           ) : null}
           <button
             data-opdf-action="open-pdf"
+            aria-controls={!hasDesktopBridge ? "opdf-header-pdf-picker" : undefined}
+            aria-label="Open PDF document"
             className="opdf-open-btn"
             onClick={openFile}
             title="Open PDF"

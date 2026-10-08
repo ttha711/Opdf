@@ -370,10 +370,21 @@ For an Internet-facing deployment behind Cloudflare Tunnel or another reverse pr
 ```powershell
 $env:OPDF_PUBLIC_ORIGIN="https://pdf.example.com"
 $env:OPDF_TRUST_PROXY="1"
-$env:OPDF_HSTS="1"
 $env:OPDF_LOGIN_RATE_MAX_ATTEMPTS="10"
 $env:OPDF_LOGIN_RATE_WINDOW_MS="900000"
 ```
+
+When `OPDF_PUBLIC_ORIGIN` uses HTTPS, OPDF sends `Strict-Transport-Security: max-age=31536000; includeSubDomains` automatically. `OPDF_HSTS=1` also enables it explicitly. Set `OPDF_HSTS=0` only if HSTS is deliberately handled upstream (for example, at Cloudflare) or the HTTPS rollout is incomplete. Check that all subdomains below your OPDF hostname support HTTPS before enabling `includeSubDomains`. Browsers ignore HSTS on plain HTTP responses.
+
+If Cloudflare Web Analytics is **intentionally enabled** using automatic script injection, set `OPDF_CLOUDFLARE_INSIGHTS=1`. This permits only `https://static.cloudflareinsights.com/beacon.min.js` in `script-src`; the beacon posts to the same-origin `/cdn-cgi/rum` endpoint and `connect-src 'self'` already covers it. Otherwise leave the flag unset, and disable **Web Analytics automatic injection** in the Cloudflare dashboard to avoid blocked-script CSP errors. Do not add `unsafe-inline`, `*`, or a generic `https:` to `script-src`.
+
+After deployment, verify client-visible headers (not only the origin's headers):
+
+```powershell
+npm run audit:headers -- https://pdf.example.com/
+```
+
+See [Cloudflare's Web Analytics CSP guidance](https://developers.cloudflare.com/web-analytics/faq/) for the exact beacon policy.
 
 Only set `OPDF_TRUST_PROXY=1` when direct access to the OPDF origin is blocked and the trusted proxy is the component setting `X-Forwarded-For`. Otherwise a client could spoof its source address and weaken login throttling.
 

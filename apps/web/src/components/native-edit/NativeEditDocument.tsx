@@ -87,6 +87,7 @@ export function NativeEditDocument({
             <RenderLayer documentId={documentId} pageIndex={pageIndex} />
             <NativeEditPageOverlay
               pageIndex={pageIndex}
+              enabled={pageIndex + 1 === (scrollState.currentPage || page)}
               width={width}
               height={height}
               revisionKey={revisionKey}

@@ -92,17 +92,30 @@ export function useExportAction({
       }
 
       await saveWebState({ fileName, annotations, page: 1 });
-      markDocumentSaved({
-        fileName,
-        docBytes,
-        documentIdentity: sourceIdentity,
-        annotations,
-      });
-      setSaveState("saved");
-      if (!options.silent) {
-        setViewerError("Review state saved locally. Reopen the same PDF to restore annotations; use Export PDF to embed them.");
-        setTimeout(() => setViewerError(null), 5000);
+      // Browsers cannot overwrite an uploaded File without its writable handle.
+      // Keep silent autosave limited to review state; it must not falsely mark
+      // unsaved PDF byte edits as durably written to disk.
+      if (options.silent) {
+        setSaveState("idle");
+        return false;
       }
+      if (!bytes) throw new Error("Document bytes are unavailable.");
+      const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
+      const finalName = baseName.toLowerCase().endsWith(".pdf") ? baseName : `${baseName}.pdf`;
+      const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = finalName;
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      markDocumentSaved({ fileName, docBytes: bytes, documentIdentity: sourceIdentity, annotations });
+      setSaveState("saved");
+      setViewerError("Edited PDF downloaded. Replace the original file manually if needed; annotations need Export PDF to embed.");
+      setTimeout(() => setViewerError(null), 5000);
       return true;
     } catch (err) {
       console.error(err);

@@ -133,6 +133,7 @@ export interface AgentActionContext {
     setActiveTool?: (tool: ActiveTool) => void;
     setShowDashboard?: (show: boolean) => void;
     setActiveDashboardTool?: (toolId: string | null) => void;
+    openRightSidebar?: () => void;
     setViewerError?: (message: string | null) => void;
     replaceText?: (args: Record<string, unknown>) => Promise<{ message?: string } | void>;
     runHeadlessConversion?: (

@@ -55,7 +55,7 @@ export function NativeEditFallbackRaster({
           const target = Math.min(
             viewWidth / Math.max(1, original.width),
             viewHeight / Math.max(1, original.height),
-            Math.sqrt(4_000_000 / Math.max(1, original.width * original.height)),
+            Math.sqrt(500_000 / Math.max(1, original.width * original.height)),
           );
           const viewport = page.getViewport({ scale: Math.max(0.001, target) });
           canvas.width = Math.max(1, Math.ceil(viewport.width));

@@ -153,6 +153,10 @@ test.describe('public real-world CAD reference PDFs', () => {
           .toBeVisible({ timeout: 60_000 });
         await page.getByTitle('Edit PDF Content').click();
         await page.locator('[data-opdf-action="expand-right-panel"]').click();
+        // The object sidebar intentionally virtualizes large CAD lists to
+        // 200 rows. Search the full inspected PDF object list after reload.
+        const search = page.getByRole('searchbox', { name: 'Find PDF object' });
+        if (await search.count()) await search.fill(replacement);
         const reopened = page.locator('.native-content-editor__objects button[data-opdf-object-kind="text"]');
         await expect(reopened.filter({ hasText: replacement })).toHaveCount(1, { timeout: 90_000 });
       }

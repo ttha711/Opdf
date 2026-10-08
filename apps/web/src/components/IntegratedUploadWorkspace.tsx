@@ -109,7 +109,9 @@ export function IntegratedUploadWorkspace({
   return (
     <div className="upload-workspace flex-1 flex flex-col justify-center items-center p-8 bg-[var(--bg-app)] select-none">
       <input
+        id={`opdf-tool-upload-${activeToolId}`}
         type="file"
+        aria-label={`Choose ${fileSpec.label} to upload`}
         ref={fileInputRef}
         onChange={handleChange}
         accept={fileSpec.accept}
@@ -152,6 +154,7 @@ export function IntegratedUploadWorkspace({
         {/* Premium Select Button */}
         <button
           type="button"
+          aria-controls={`opdf-tool-upload-${activeToolId}`}
           onClick={(e) => {
             e.stopPropagation();
             triggerPicker();

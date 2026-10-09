@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { PdfContentPatch } from "@opdf/core";
-import { editedTextPages, withUnicodeGlyphFallback } from "./nativeEditPatchVerification";
+import { editedTextPages, retainedPdfText, withUnicodeGlyphFallback } from "./nativeEditPatchVerification";
 
 describe("native CAD text fallback", () => {
+  it("accepts only PDFium's extra trailing separator after an exact edit", () => {
+    const wanted = "OPDF CAD TEST va-floor-finish";
+    expect(retainedPdfText(wanted, wanted)).toBe(true);
+    expect(retainedPdfText(wanted + " ", wanted)).toBe(true);
+    expect(retainedPdfText(wanted + "   ", wanted)).toBe(true);
+    expect(retainedPdfText("OPDF CAD TEST va-floor-finis", wanted)).toBe(false);
+    expect(retainedPdfText("OPDF CAD TEST va-floor-finishX", wanted)).toBe(false);
+    expect(retainedPdfText(wanted, wanted + " ")).toBe(false);
+    expect(retainedPdfText(" "+wanted, wanted)).toBe(false);
+    expect(retainedPdfText(undefined, wanted)).toBe(false);
+  });
+
   it("validates replacements on their actual PDF pages, not the sidebar page", () => {
     const patches: PdfContentPatch[] = [
       { type: "replace-text", objectId: "p1-o32", text: "KITCHEN" },

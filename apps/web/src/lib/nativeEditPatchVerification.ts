@@ -23,6 +23,18 @@ export function editedTextPages(patches: PdfContentPatch[]): number[] {
   ).map((patch) => parseContentObjectId(patch.objectId).pageIndex)));
 }
 
+/**
+ * PDFium's text-page extraction can append a word-separator space to CAD
+ * labels. Compare all requested characters exactly; tolerate ONLY extra
+ * trailing whitespace in the extracted value, never a missing/substituted
+ * glyph or missing user-entered whitespace.
+ */
+export function retainedPdfText(actual: string | undefined, expected: string): boolean {
+  return typeof actual === "string" &&
+    actual.startsWith(expected) &&
+    actual.slice(expected.length).trim().length === 0;
+}
+
 async function inspectReplacements(
   bytes: Uint8Array,
   patches: PdfContentPatch[],
@@ -35,7 +47,7 @@ async function inspectReplacements(
   }
   const missing = patches.some((patch) => patch.type === "replace-text" &&
     !pages.get(parseContentObjectId(patch.objectId).pageIndex)?.some((item) =>
-      item.kind === "text" && item.text === patch.text));
+      item.kind === "text" && retainedPdfText(item.text, patch.text)));
   // A direct inline edit might be on another page than the right-side panel.
   // Return that edited page's objects so the visible update is not rejected.
   return { missing, next: pages.get(editedPages[0] ?? panelPageIndex) ?? [] };

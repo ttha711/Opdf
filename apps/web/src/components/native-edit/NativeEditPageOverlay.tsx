@@ -16,6 +16,7 @@ import {
 import { NativeEditSelectionLayer, nativeEditObjectIsEditable } from "./NativeEditSelectionLayer";
 import { getNativeEditOverlayObjects } from "./nativeEditOverlayObjects";
 import { NativeInlineTextEditor } from "./NativeInlineTextEditor";
+import { useNativeTextClickDelay } from "./useNativeTextClickDelay";
 import { useNativeEditKeyboardMove } from "./useNativeEditKeyboardMove";
 import { useNativeInlineCommit } from "./useNativeInlineCommit";
 import { useNativeEditSelectionSync } from "./useNativeEditSelectionSync";
@@ -24,7 +25,6 @@ import {
   matrixIsIdentity,
   type NativeEditDragState,
 } from "./nativeEditPointerTransform";
-
 type Props = {
   pageIndex: number;
   enabled: boolean;
@@ -33,7 +33,6 @@ type Props = {
   revisionKey: string;
   getDocumentBytes: () => Promise<Uint8Array | null>;
 };
-
 export function NativeEditPageOverlay({
   pageIndex,
   enabled,
@@ -48,6 +47,7 @@ export function NativeEditPageOverlay({
   const [drag, setDrag] = useState<NativeEditDragState | null>(null);
   const [previewMatrix, setPreviewMatrix] = useState<PdfMatrix | null>(null);
   const [editingText, setEditingText] = useState<string | null>(null);
+  const { schedule: scheduleClick, cancel: cancelClick } = useNativeTextClickDelay(setEditingText);
   const [isApplyingText, setIsApplyingText] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -79,7 +79,6 @@ export function NativeEditPageOverlay({
       });
     return () => { cancelled = true; };
   }, [enabled, getDocumentBytes, pageIndex, revisionKey]);
-
   const refreshObjectsFromBytes = useCallback(async (bytes: Uint8Array) => {
     const next = await pdfiumContentEditingEngine.inspectPage(bytes, pageIndex);
     setObjects(next);
@@ -90,7 +89,6 @@ export function NativeEditPageOverlay({
   const displayGeometry = useMemo(() =>
     baseGeometry && previewMatrix ? transformGeometry(baseGeometry, previewMatrix) : baseGeometry,
   [baseGeometry, previewMatrix]);
-
   const clientToPdf = (state: NativeEditDragState | PdfContentObject, clientX: number, clientY: number) => {
     if (!overlayRef.current) return null;
     return pdfPointFromClient(
@@ -101,7 +99,6 @@ export function NativeEditPageOverlay({
       state.pageHeight,
     );
   };
-
   useEffect(() => {
     if (!drag) return;
     const onMove = (event: PointerEvent) => {
@@ -117,8 +114,8 @@ export function NativeEditPageOverlay({
       const clickDistance = drag.startClientX === undefined || drag.startClientY === undefined
         ? Number.POSITIVE_INFINITY
         : Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
-      // Single click selects; only a double-click opens the text box.
       if (mode === "move" && clickDistance < 4) {
+        if (drag.clickText !== undefined) scheduleClick(drag.clickText);
         setPreviewMatrix(null);
         return;
       }
@@ -160,6 +157,7 @@ export function NativeEditPageOverlay({
     }
     event.preventDefault();
     event.stopPropagation();
+    cancelClick();
     const clientX = event.clientX;
     const clientY = event.clientY;
     const beginMove = () => {
@@ -175,6 +173,7 @@ export function NativeEditPageOverlay({
       geometry: geometryForObject(object),
         startClientX: clientX,
         startClientY: clientY,
+        clickText: object.kind === "text" ? object.text ?? "" : undefined,
       });
       setPreviewMatrix(null);
     };
@@ -266,6 +265,7 @@ export function NativeEditPageOverlay({
         onObjectPointerDown={startMove}
         onObjectDoubleClick={(event, object) => {
           event.stopPropagation();
+          cancelClick();
           const beginEdit = () => {
             selectObject(object);
             if (object.kind === "text" && nativeEditObjectIsEditable(object)) setEditingText(object.text ?? "");

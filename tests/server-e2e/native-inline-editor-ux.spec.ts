@@ -55,7 +55,7 @@ test("inline text editor stays compact and keeps a raster through commit", async
   await expect(page.locator(".native-content-editor__objects").getByText("43 edited")).toBeVisible({ timeout: 45000 });
 });
 
-test("single click selects text and double-click opens inline editing", async ({ page, request }) => {
+test("single click defers editor while double-click opens immediately", async ({ page, request }) => {
   const pdf = await PDFDocument.create();
   const sheet = pdf.addPage([520, 720]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -73,11 +73,13 @@ test("single click selects text and double-click opens inline editing", async ({
   const target = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").first();
   await expect(target).toBeVisible({ timeout: 30_000 });
   const input = page.getByRole("textbox", { name: "Edit PDF text" });
-  await target.click();
-  await expect(input).toHaveCount(0);
-  await expect(target).toHaveAttribute("data-opdf-canvas-selection", /p0-o/);
   await target.dblclick();
   await expect(input).toBeVisible({ timeout: 20_000 });
+  await expect(input).toHaveValue("DOUBLE CLICK LABEL");
+  await input.press("Escape");
+  await expect(input).toHaveCount(0);
+  await target.click();
+  await expect(input).toBeVisible({ timeout: 3000 });
   await expect(input).toHaveValue("DOUBLE CLICK LABEL");
 });
 

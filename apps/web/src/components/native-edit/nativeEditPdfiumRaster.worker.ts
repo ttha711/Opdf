@@ -74,6 +74,6 @@ self.onmessage = async (event: MessageEvent<Request>) => {
   const response = await render(event.data).catch((error): Response => ({
     ok: false, error: error instanceof Error ? error.message : String(error),
   }));
-  if (response.ok) self.postMessage(response, [response.rgba]);
+  if (response.ok) self.postMessage(response, { transfer: [response.rgba] });
   else self.postMessage(response);
 };

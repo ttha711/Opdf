@@ -55,7 +55,9 @@ export function NativeEditFallbackRaster({
       if (!canvas || !ctx) return;
       canvas.width = w;
       canvas.height = h;
-      ctx.putImageData(new ImageData(rgba, w, h), 0, 0);
+      const image = ctx.createImageData(w, h);
+      image.data.set(rgba);
+      ctx.putImageData(image, 0, 0);
       finished = true;
       setPainted(true);
       setStage("ready");

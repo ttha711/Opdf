@@ -63,7 +63,7 @@ export async function applyVerifiedNativePatches(
       const after = await pdfiumContentEditingEngine.inspectPage(edited, index);
       const originalObject = before.find((item) => item.id === target.objectId);
       const updatedObject = after.find((item) => item.id === target.objectId);
-      console.error("[opdf:verify] PDF text persistence diagnostics", {
+      console.error("[opdf:verify] " + JSON.stringify({
         objectId: target.objectId,
         pageIndex: index,
         objectsBefore: before.length,
@@ -76,10 +76,16 @@ export async function applyVerifiedNativePatches(
         updatedRenderMode: updatedObject?.textRenderMode,
         originalTextLength: originalObject?.text?.length,
         afterTextLength: updatedObject?.text?.length,
+        originalTextPreview: originalObject?.text?.slice(0, 50),
+        updatedTextPreview: updatedObject?.text?.slice(0, 50),
+        expectedTextPreview: target.text.slice(0, 50),
+        expectedAnywhere: after.some((object) => object.text?.includes(target.text)),
+        textNearIndex: after.filter((item) => item.kind === "text")
+          .slice(-8).map((item) => item.text?.slice(0, 30)),
         candidateLengths: after.filter((item) => item.kind === "text")
           .map((item) => item.text?.length ?? 0).filter((length) =>
             length >= target.text.length - 3 && length <= target.text.length + 5).slice(0, 8),
-      });
+      }));
     }
     throw new Error("Unable to preserve edited CAD text, including Unicode fallback.");
   }

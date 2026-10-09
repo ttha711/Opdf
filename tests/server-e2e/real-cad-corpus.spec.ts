@@ -66,6 +66,21 @@ test.describe('public real-world CAD reference PDFs', () => {
       expect(upload.status()).toBe(201);
       const stored = await upload.json();
       const pageErrors: string[] = [];
+      const saveRequests: string[] = [];
+      page.on('request', (req) => {
+        if (req.method() === 'PUT' && /\/api\/opdf\/documents\/[^/]+$/.test(new URL(req.url()).pathname)) {
+          saveRequests.push('PUT requested; content-bytes=' + (req.postDataBuffer()?.byteLength ?? 'unknown'));
+        }
+      });
+      page.on('response', (response) => {
+        if (response.request().method() === 'PUT' &&
+          /\/api\/opdf\/documents\/[^/]+$/.test(new URL(response.url()).pathname)) {
+          saveRequests.push('PUT response ' + response.status());
+        }
+      });
+      page.on('requestfailed', (request) => {
+        if (request.method() === 'PUT') saveRequests.push('PUT failed: ' + request.failure()?.errorText);
+      });
       page.on('pageerror', (error) => pageErrors.push(error.message));
       page.on('console', (message) => {
         if (message.type() !== 'error' && message.type() !== 'warning') return;
@@ -125,7 +140,7 @@ test.describe('public real-world CAD reference PDFs', () => {
           await saveServerDocumentAndWait(page);
         } catch (error) {
           await logFailureState(page, fixture.id, 'save');
-          console.log(JSON.stringify({ fixture: fixture.id, browserErrors: pageErrors }));
+          console.log(JSON.stringify({ fixture: fixture.id, saveRequests, browserErrors: pageErrors }));
           throw error;
         }
         await page.reload();

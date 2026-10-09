@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { saveServerDocumentAndWait } from '../helpers/save';
+import { findClickableCadText } from './cad-text-hit-target';
 
 type Fixture = {
   id: string;
@@ -98,28 +99,7 @@ test.describe('public real-world CAD reference PDFs', () => {
       console.log(JSON.stringify({ fixture: fixture.id, loadMs: Date.now() - started, svgTargets: mounted }));
 
       if (fixture.editable) {
-        const targets = page.locator(
-          '.native-edit-page polygon[data-opdf-object-kind="text"]:is([data-opdf-object-depth="0"], [data-opdf-object-depth="1"])',
-        );
-        await expect(targets.first()).toBeVisible({ timeout: 60_000 });
-        // CAD generators often split a label into 1-2 px text fragments.
-        // A user cannot realistically double-click those at fit-to-page zoom.
-        // Select a physically clickable, unobstructed label in the viewport.
-        const targetIndex = await targets.evaluateAll((nodes) => {
-          const viewport = document.querySelector('.native-edit-viewport')?.getBoundingClientRect();
-          if (!viewport) return -1;
-          return nodes.findIndex((node) => {
-            const rect = node.getBoundingClientRect();
-            if (rect.width < 16 || rect.height < 7) return false;
-            const x = rect.left + rect.width / 2;
-            const y = rect.top + rect.height / 2;
-            if (x < viewport.left + 8 || x > viewport.right - 8 ||
-                y < viewport.top + 8 || y > viewport.bottom - 8) return false;
-            return document.elementFromPoint(x, y) === node;
-          });
-        });
-        expect(targetIndex, 'A clickable CAD text label must exist in the viewport').toBeGreaterThanOrEqual(0);
-        const target = targets.nth(targetIndex);
+        const target = await findClickableCadText(page);
         await target.dblclick({ timeout: 15_000 });
         const input = page.getByRole('textbox', { name: 'Edit PDF text' });
         await expect(input).toBeVisible({ timeout: 20_000 });

@@ -1,70 +1,56 @@
 import { expect, type Page } from "@playwright/test";
 
-type Hit = { id: string; x: number; y: number; area: number };
-const selector = '.native-edit-page polygon[data-opdf-object-kind="text"]' +
-  ':is([data-opdf-object-depth="0"], [data-opdf-object-depth="1"])';
+const selector = '.native-edit-page polygon[data-opdf-object-kind="text"]';
 
-async function getVisibleHits(page: Page, minW: number, minH: number): Promise<Hit[]> {
-  return page.locator(selector).evaluateAll((nodes, min: { w: number; h: number }) => {
-    const v = document.querySelector(".native-edit-viewport")?.getBoundingClientRect();
-    if (!v) return [];
-    const hits: Hit[] = [];
-    for (const node of nodes) {
-      const r = node.getBoundingClientRect();
-      if (r.width < min.w || r.height < min.h) continue;
-      const x0 = Math.max(v.left + 8, r.left + 1), x1 = Math.min(v.right - 8, r.right - 1);
-      const y0 = Math.max(v.top + 8, r.top + 1), y1 = Math.min(v.bottom - 8, r.bottom - 1);
-      if (x1 <= x0 || y1 <= y0) continue;
-      for (const fx of [0.5, 0.2, 0.8, 0.35, 0.65]) {
-        if (hits.some(hit => hit.id === node.getAttribute("data-opdf-canvas-object"))) break;
-        for (const fy of [0.5, 0.25, 0.75, 0.1, 0.9]) {
-          const x = x0 + (x1 - x0) * fx, y = y0 + (y1 - y0) * fy;
-          if (document.elementFromPoint(x, y) !== node) continue;
-          hits.push({
-            id: node.getAttribute("data-opdf-canvas-object") ?? "",
-            x, y, area: Math.min(20000, r.width * r.height),
-          });
-          break;
-        }
+type Hit = { x: number; y: number };
+
+async function realHitPoint(page: Page, objectId: string): Promise<Hit | null> {
+  return page.locator(selector + '[data-opdf-canvas-object="' + objectId + '"]').evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const view = document.querySelector(".native-edit-viewport")?.getBoundingClientRect();
+    if (!view || rect.width < 2 || rect.height < 2) return null;
+    const x0 = Math.max(rect.left + 0.5, view.left + 8);
+    const x1 = Math.min(rect.right - 0.5, view.right - 8);
+    const y0 = Math.max(rect.top + 0.5, view.top + 8);
+    const y1 = Math.min(rect.bottom - 0.5, view.bottom - 8);
+    if (x0 >= x1 || y0 >= y1) return null;
+    for (const fx of [0.5, 0.25, 0.75, 0.1, 0.9]) {
+      for (const fy of [0.5, 0.25, 0.75, 0.1, 0.9]) {
+        const x = x0 + (x1 - x0) * fx, y = y0 + (y1 - y0) * fy;
+        if (document.elementFromPoint(x, y) === node) return { x, y };
       }
     }
-    return hits.sort((a, b) => b.area - a.area).slice(0, 8);
-  }, { w: minW, h: minH });
+    return null;
+  });
 }
 
-/** Exercise actual double-clicks at verified visible CAD text hit coordinates. */
-export async function openClickableCadText(page: Page): Promise<string> {
-  const viewport = page.locator(".native-edit-viewport");
+/** Click an unchanged, pinned CAD label using physical mouse coordinates. */
+export async function openClickableCadText(page: Page, objectId: string): Promise<void> {
+  const target = page.locator(selector + '[data-opdf-canvas-object="' + objectId + '"]');
+  await expect(target, "Pinned CAD text must be present in the native SVG overlay").toHaveCount(1, {
+    timeout: 45_000,
+  });
   const input = page.getByRole("textbox", { name: "Edit PDF text" });
-  for (let round = 0; round < 3; round++) {
-    for (let step = 0; step < 14; step++) {
-      const candidates = await getVisibleHits(page, round === 0 ? 12 : 4, round === 0 ? 6 : 2);
-      for (const hit of candidates) {
-        const current = await page.evaluate(
-          ({ x, y, id }) => document.elementFromPoint(x, y)?.getAttribute("data-opdf-canvas-object") === id,
-          hit,
-        );
-        if (!current) continue;
-        await page.mouse.dblclick(hit.x, hit.y, { delay: 45 });
-        if (await input.isVisible().catch(() => false)) {
-          await expect(input).toBeVisible();
-          return hit.id;
-        }
-      }
-      const box = await viewport.boundingBox();
-      if (!box) break;
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await page.mouse.wheel(0, Math.max(250, Math.round(box.height * 0.6)));
-      await page.waitForTimeout(200);
+  await target.scrollIntoViewIfNeeded({ timeout: 15000 });
+  for (let attempt = 0; attempt < 8; attempt++) {
+    await page.waitForTimeout(160);
+    const point = await realHitPoint(page, objectId);
+    if (point) {
+      // No Playwright auto-scrolling/re-centering between hit test and click.
+      await page.mouse.dblclick(point.x, point.y, { delay: 45 });
+      if (await input.isVisible().catch(() => false)) return;
     }
-    const box = await viewport.boundingBox();
+    const box = await page.locator(".native-edit-viewport").boundingBox();
     if (!box) break;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.wheel(0, -15000);
-    await page.keyboard.down("Control");
-    await page.mouse.wheel(0, -400);
-    await page.keyboard.up("Control");
-    await page.waitForTimeout(450);
+    if (attempt === 2 || attempt === 5) {
+      await page.keyboard.down("Control");
+      await page.mouse.wheel(0, -450);
+      await page.keyboard.up("Control");
+    } else {
+      await page.mouse.wheel(0, attempt % 2 === 0 ? 250 : -250);
+    }
+    await target.scrollIntoViewIfNeeded({ timeout: 15000 });
   }
-  throw new Error("No CAD text could be double-clicked after real scrolling and zooming.");
+  throw new Error("Pinned CAD text could not be double-clicked at a real viewport hit point: " + objectId);
 }

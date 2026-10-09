@@ -9,6 +9,8 @@ type Fixture = {
   size: number;
   editable: boolean;
   description: string;
+  textObjectId?: string;
+  textSample?: string;
 };
 
 const fixtureDir = process.env.OPDF_REAL_CAD_FIXTURES_DIR;
@@ -114,9 +116,12 @@ test.describe('public real-world CAD reference PDFs', () => {
       console.log(JSON.stringify({ fixture: fixture.id, loadMs: Date.now() - started, svgTargets: mounted }));
 
       if (fixture.editable) {
-        const pickedTextObject = await openClickableCadText(page);
+        expect(fixture.textObjectId, 'Editable reference needs a pinned text object').toBeTruthy();
+        await openClickableCadText(page, fixture.textObjectId!);
+        const pickedTextObject = fixture.textObjectId!;
         const input = page.getByRole('textbox', { name: 'Edit PDF text' });
         await expect(input).toBeVisible({ timeout: 20_000 });
+        if (fixture.textSample) expect(await input.inputValue()).toContain(fixture.textSample);
         console.log(JSON.stringify({
           fixture: fixture.id,
           pickedTextObject,

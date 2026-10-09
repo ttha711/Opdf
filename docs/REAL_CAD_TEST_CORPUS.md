@@ -21,7 +21,7 @@ Node.js 22 or later. From the OPDF repository root:
 
 On Windows PowerShell, set `$env:OPDF_REAL_CAD_FIXTURES_DIR='.opdf-cad-fixtures'` separately before running Playwright.
 
-The fixture manifest pins the upstream Git commit, each PDF byte count and git blob SHA-1. The fetch script checks all three and the PDF magic bytes; a changed or inaccessible source **fails** instead of silently testing different bytes.
+The fixture manifest pins the upstream Git commit, each PDF byte count and git blob SHA-1. Editable VA cases also pin an existing PDF text object and its expected original label, so every CI repeat double-clicks the same real on-page text rather than accidentally selecting a large unrelated note. The fetch script checks all three and the PDF magic bytes; a changed or inaccessible source **fails** instead of silently testing different bytes.
 
 Downloaded PDFs are stored under `.opdf-cad-fixtures/` and ignored by git. The GitHub Actions workflow `Public CAD PDF Corpus` runs when these tests change, manually, and weekly. Playwright traces stay on ephemeral runners and are not uploaded: trace archives can contain PDF request/response bytes. GitHub Actions logs still report test failures and load timings. The CI gate runs all three PDFs **twice with zero retries**, including when the native editing, renderer, or Save code changes, to expose intermittent behavior.
 

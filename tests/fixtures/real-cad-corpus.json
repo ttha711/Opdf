@@ -19,7 +19,9 @@
     "size": 1176246,
     "blobSha": "ac3824e7db9d67d968a6b339b8c870eb1124a486",
     "licenseNote": "Original U.S. VA solicitation drawings; upstream software Apache-2.0 does not license third-party drawing authorship",
-    "editable": true
+    "editable": true,
+    "textObjectId": "p0-o51000",
+    "textSample": "ARCHITECT/ENGINEER OF RECORD"
   },
   {
     "id": "va-site-utilities",
@@ -30,6 +32,8 @@
     "size": 4791252,
     "blobSha": "6d520f0a52b0d94af41b23df9510a69255af9e30",
     "licenseNote": "Publicly posted VA sheet; upstream software Apache-2.0 does not license third-party drawing authorship",
-    "editable": true
+    "editable": true,
+    "textObjectId": "p0-o470",
+    "textSample": "VETERANS WAY"
   }
 ]

@@ -75,56 +75,33 @@ async function targetState(page: Page, objectId: string): Promise<TargetState> {
   }, { selector, objectId });
 }
 
-/** Double-click a pinned real CAD label at a verified, physical hit point. */
+/** Double-click the exact CAD object at a verified, physical hit point. */
 export async function openClickableCadText(page: Page, objectId: string): Promise<void> {
   const input = page.getByRole("textbox", { name: "Edit PDF text" });
   const target = page.locator(selector + '[data-opdf-canvas-object="' + objectId + '"]');
   await target.waitFor({ state: "attached", timeout: 45_000 });
-  await bringPinnedTextIntoView(page, objectId);
 
-  for (let attempt = 0; attempt < 10; attempt++) {
+  const search = page.getByRole("searchbox", { name: "Find PDF object" });
+  for (let attempt = 0; attempt < 6; attempt++) {
+    // Selection must precede the physical double-click. Otherwise the first
+    // click changes the topmost SVG target and the second hits another node.
+    if (await search.isVisible().catch(() => false)) {
+      await search.fill(objectId);
+      await page.locator('[data-opdf-object-id="' + objectId + '"]').click();
+      await page.locator('[data-opdf-canvas-selection="' + objectId + '"]')
+        .waitFor({ state: "attached", timeout: 15_000 });
+    }
+    // Avoid speculative wheel events: they can virtualize the page away.
+    await bringPinnedTextIntoView(page, objectId);
     await page.waitForTimeout(200);
     const point = await realHitPoint(page, objectId);
-    if (point) {
-      // Only an actual polygon hit may open the inline editor.
-      await page.mouse.dblclick(point.x, point.y, { delay: 45 });
-      if (await input.isVisible().catch(() => false)) {
-        // A dense CAD sheet can dispatch the double-click to a neighboring
-        // label. Opening *some* textarea is not proof we picked this label.
-        const actualObject = await input.getAttribute("data-opdf-inline-object-id");
-        if (actualObject === objectId) return;
-        await input.press("Escape");
-        await input.waitFor({ state: "detached", timeout: 5000 });
-      }
-    }
-
-    if (attempt === 3) {
-      // Dense drawings can fully overlap labels. Selecting the pinned object
-      // from the real object sidebar raises its SVG hit target above neighbors.
-      // The edit itself must still be opened by an actual canvas double-click.
-      const search = page.getByRole("searchbox", { name: "Find PDF object" });
-      if (await search.isVisible().catch(() => false)) {
-        await search.fill(objectId);
-        await page.locator('[data-opdf-object-id="' + objectId + '"]').click();
-        await page.locator('[data-opdf-canvas-selection="' + objectId + '"]')
-          .waitFor({ state: "attached", timeout: 15000 });
-        await bringPinnedTextIntoView(page, objectId);
-      }
-    }
-    const box = await page.locator(".native-edit-viewport").boundingBox();
-    if (!box) break;
-    // Reacquire the node after virtualization instead of scrolling a stale
-    // locator. Keep exploratory zoom, needed for tiny engineering labels.
-    if (attempt === 2 || attempt === 6) {
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await page.keyboard.down("Control");
-      await page.mouse.wheel(0, -450);
-      await page.keyboard.up("Control");
-    } else if (attempt === 4 || attempt === 8) {
-      await bringPinnedTextIntoView(page, objectId);
-    } else {
-      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await page.mouse.wheel(0, attempt % 2 === 0 ? 250 : -250);
+    if (!point) continue;
+    await page.mouse.dblclick(point.x, point.y, { delay: 45 });
+    if (await input.isVisible().catch(() => false)) {
+      const actualObject = await input.getAttribute("data-opdf-inline-object-id");
+      if (actualObject === objectId) return;
+      await input.press("Escape");
+      await input.waitFor({ state: "detached", timeout: 5000 });
     }
   }
   const state = await targetState(page, objectId);

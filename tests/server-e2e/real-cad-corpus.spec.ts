@@ -131,7 +131,12 @@ test.describe('public real-world CAD reference PDFs', () => {
         await input.fill(replacement);
         await input.press('Enter');
         try {
-          await expect(input).toHaveCount(0, { timeout: 35_000 });
+          // On dense CAD sheets PDFium may finish applying after the input's
+          // initial transition. Await the actual success acknowledgement,
+          // then require the editor to disappear and verify saved PDF bytes.
+          await expect(editor.locator('.native-content-editor__message'))
+            .toContainText('Inline text updated.', { timeout: 90_000 });
+          await expect(input).toHaveCount(0, { timeout: 10_000 });
         } catch (error) {
           await logFailureState(page, fixture.id, 'inline-apply');
           console.log(JSON.stringify({ fixture: fixture.id, browserErrors: pageErrors }));

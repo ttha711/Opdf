@@ -44,7 +44,18 @@ jobs:
           OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures
       - run: npx playwright install chromium --with-deps
       - name: Test native PDF editor on real vector engineering plans
-        run: npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium --repeat-each=2
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Each fixture/attempt needs a fresh browser and viewer instance.
+          # Keep all three PDF fixtures and both repetitions.
+          for fixture in a0-vector-poster va-floor-finish va-site-utilities; do
+            for repeat in 1 2; do
+              echo "::group::CAD ${fixture} attempt ${repeat}"
+              npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium --grep "${fixture}" --workers=1
+              echo "::endgroup::"
+            done
+          done
         env:
           CI: 'true'
           OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures

@@ -89,14 +89,7 @@ export function NativeEditSelectionLayer({
   onRotatePointerDown,
 }: Props) {
   const rotateOffset = selected ? 28 * selected.pageHeight / Math.max(1, height) : 0;
-  // CAD plans frequently contain overlapping labels. The object explicitly
-  // selected in the sidebar must remain reachable on the canvas.
-  const selectedIndex = selected ? objects.findIndex((object) => object.id === selected.id) : -1;
-  const layeredObjects = selectedIndex < 0 ? objects : [
-    ...objects.slice(0, selectedIndex),
-    ...objects.slice(selectedIndex + 1),
-    objects[selectedIndex],
-  ];
+  // Keep the stable PDF object order; hit affordances must not reshuffle selectors.
 
   return (
     <svg
@@ -109,7 +102,7 @@ export function NativeEditSelectionLayer({
       }}
       data-opdf-native-edit-page={pageIndex + 1}
     >
-      {layeredObjects.map((object) => {
+      {objects.map((object) => {
         const isSelected = selected?.id === object.id;
         const geometry = isSelected && displayGeometry ? displayGeometry : geometryFor(object);
         const editable = nativeEditObjectIsEditable(object);
@@ -131,6 +124,21 @@ export function NativeEditSelectionLayer({
           />
         );
       })}
+
+      {selected?.kind === "text" && displayGeometry && nativeEditObjectIsEditable(selected) &&
+        displayGeometry.height * height / Math.max(1, selected.pageHeight) < 6 ? (
+        <polygon
+          className="native-edit-cad-foreground"
+          points={pointsAttribute(
+            editableTextHitGeometry(displayGeometry, selected, width, height),
+            selected.pageWidth, selected.pageHeight, width, height,
+          )}
+          style={{ fill: "transparent", stroke: "transparent", pointerEvents: "all", cursor: "text" }}
+          data-opdf-foreground-hit-target={selected.id}
+          onPointerDown={(event) => onObjectPointerDown(event, selected)}
+          onDoubleClick={(event) => onObjectDoubleClick(event, selected)}
+        />
+      ) : null}
 
       {selected && displayGeometry && nativeEditObjectIsEditable(selected) ? HANDLES.map((handle) => {
         const dom = pdfPointToDom(

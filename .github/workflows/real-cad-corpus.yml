@@ -10,6 +10,14 @@ on:
       - 'scripts/fixtures/fetch-real-cad-pdfs.mjs'
       - 'tests/fixtures/real-cad-corpus.json'
       - 'tests/server-e2e/real-cad-corpus.spec.ts'
+      - 'tests/server-e2e/cad-text-hit-target.ts'
+      - 'apps/web/src/components/native-edit/**'
+      - 'apps/web/src/components/NativeContentEditorPanel.tsx'
+      - 'apps/web/src/components/NativeEditPdfViewer.tsx'
+      - 'apps/web/src/lib/pdfiumContentEngine.ts'
+      - 'apps/web/src/lib/pdfiumObjectTree.ts'
+      - 'apps/web/src/lib/nativeEditPatchVerification.ts'
+      - 'apps/web/src/hooks/document-actions/useExportAction.ts'
       - '.github/workflows/real-cad-corpus.yml'
 
 permissions:
@@ -36,7 +44,7 @@ jobs:
           OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures
       - run: npx playwright install chromium --with-deps
       - name: Test native PDF editor on real vector engineering plans
-        run: npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium
+        run: npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium --repeat-each=2
         env:
           CI: 'true'
           OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures

@@ -23,7 +23,7 @@ On Windows PowerShell, set `$env:OPDF_REAL_CAD_FIXTURES_DIR='.opdf-cad-fixtures'
 
 The fixture manifest pins the upstream Git commit, each PDF byte count and git blob SHA-1. The fetch script checks all three and the PDF magic bytes; a changed or inaccessible source **fails** instead of silently testing different bytes.
 
-Downloaded PDFs are stored under `.opdf-cad-fixtures/` and ignored by git. The GitHub Actions workflow `Public CAD PDF Corpus` runs when these tests change, manually, and weekly. Playwright traces stay on ephemeral runners and are not uploaded: trace archives can contain PDF request/response bytes. GitHub Actions logs still report test failures and load timings.
+Downloaded PDFs are stored under `.opdf-cad-fixtures/` and ignored by git. The GitHub Actions workflow `Public CAD PDF Corpus` runs when these tests change, manually, and weekly. Playwright traces stay on ephemeral runners and are not uploaded: trace archives can contain PDF request/response bytes. GitHub Actions logs still report test failures and load timings. The CI gate runs all three PDFs **twice with zero retries**, including when the native editing, renderer, or Save code changes, to expose intermittent behavior.
 
 ## Coverage and limitations
 

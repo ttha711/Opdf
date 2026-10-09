@@ -96,6 +96,7 @@ export function NativeInlineTextEditor({
         color: "#111827",
       }}
       data-opdf-inline-text-editor="true"
+      data-opdf-inline-object-id={object.id}
     />
     {isApplying ? (
       <div className="native-edit-inline-feedback" role="status" style={{ left: layout.left, top: layout.top + layout.height + 4 }}>

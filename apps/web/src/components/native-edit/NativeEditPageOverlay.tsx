@@ -121,19 +121,16 @@ export function NativeEditPageOverlay({
         setPreviewMatrix(null);
         return;
       }
-      const message = mode === "move" ? "Object moved on page." :
-        mode === "resize" ? "Object resized on page." :
-        "Object rotated on page.";
-      void applyNativeEditPatches(
-        [{ type: "relative-transform", objectId, matrix }],
-        message,
-      ).then(async (bytes) => {
-        if (bytes) await refreshObjectsFromBytes(bytes);
-        setPreviewMatrix(null);
-      }).catch((reason) => {
-        setPreviewMatrix(null);
-        setError(reason instanceof Error ? reason.message : String(reason));
-      });
+      const message = mode === "move" ? "Object moved on page."
+        : mode === "resize" ? "Object resized on page." : "Object rotated on page.";
+      void applyNativeEditPatches([{ type: "relative-transform", objectId, matrix }], message)
+        .then(async (bytes) => {
+          if (bytes) await refreshObjectsFromBytes(bytes);
+          setPreviewMatrix(null);
+        }).catch((reason) => {
+          setPreviewMatrix(null);
+          setError(reason instanceof Error ? reason.message : String(reason));
+        });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -186,12 +183,9 @@ export function NativeEditPageOverlay({
     event.preventDefault();
     event.stopPropagation();
     const beginResize = () => setDrag({
-      mode: "resize",
-      objectId: selected.id,
-      pageWidth: selected.pageWidth,
-      pageHeight: selected.pageHeight,
-      handle,
-      geometry: baseGeometry,
+      mode: "resize", objectId: selected.id,
+      pageWidth: selected.pageWidth, pageHeight: selected.pageHeight,
+      handle, geometry: baseGeometry,
     });
     if (editingText !== null) {
       // Do not start a pointer gesture after its pointer-up has already fired.

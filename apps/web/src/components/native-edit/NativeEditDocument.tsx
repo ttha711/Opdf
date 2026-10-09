@@ -123,14 +123,14 @@ export function NativeEditDocument({
             <NativeEditFallbackRaster
               pageIndex={pageIndex}
               revisionKey={revisionKey}
-              enabled={pageIndex + 1 === (scrollState.currentPage || page)}
+              enabled={pageIndex + 1 === page || pageIndex + 1 === scrollState.currentPage}
               width={width}
               height={height}
               getDocumentBytes={getDocumentBytes}
             />
             <NativeEditPageOverlay
               pageIndex={pageIndex}
-              enabled={pageIndex + 1 === (scrollState.currentPage || page)}
+              enabled={pageIndex + 1 === page || pageIndex + 1 === scrollState.currentPage}
               width={width}
               height={height}
               revisionKey={revisionKey}

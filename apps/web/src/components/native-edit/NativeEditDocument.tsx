@@ -36,6 +36,7 @@ export function NativeEditDocument({
   // leave EmbedPDF 2.x waiting for a viewport layout and paint no page.
   const previousExternalScale = useRef(scale);
   const pendingPageRef = useRef<number | null>(null);
+  const lastExternalPageRef = useRef<{ documentId: string; page: number } | null>(null);
 
   useEffect(() => registerViewerControls({
     zoomIn: () => zoom?.zoomIn(),
@@ -69,13 +70,19 @@ export function NativeEditDocument({
 
   useEffect(() => {
     if (!scroll || page < 1 || scrollState.totalPages <= 0) return;
+    // This effect can run when useScroll changes its scope identity while the
+    // user is already navigating. A stale parent page must not snap the canvas
+    // back to that page; only a genuinely new parent page request may scroll.
+    if (lastExternalPageRef.current?.documentId === documentId &&
+        lastExternalPageRef.current.page === page) return;
+    lastExternalPageRef.current = { documentId, page };
     if (page === scrollState.currentPage) {
-      pendingPageRef.current = null;
+      if (pendingPageRef.current === page) pendingPageRef.current = null;
       return;
     }
     pendingPageRef.current = page;
     scroll.scrollToPage({ pageNumber: page, behavior: "instant" });
-  }, [page, scroll, scrollState.totalPages]);
+  }, [documentId, page, scroll, scrollState.totalPages]);
 
   useEffect(() => {
     const current = scrollState.currentPage;

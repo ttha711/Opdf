@@ -81,6 +81,17 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
   const target = page.locator(selector + '[data-opdf-canvas-object="' + objectId + '"]');
   await target.waitFor({ state: "attached", timeout: 45_000 });
   await bringPinnedTextIntoView(page, objectId);
+  // Start from an explicit object selection: first-click selection can change
+  // which polygon is on top before the second click of a double-click.
+  // This also makes overlapping CAD labels physically clickable.
+  const search = page.getByRole("searchbox", { name: "Find PDF object" });
+  if (await search.isVisible().catch(() => false)) {
+    await search.fill(objectId);
+    await page.locator('[data-opdf-object-id="' + objectId + '"]').click();
+    await page.locator('[data-opdf-canvas-selection="' + objectId + '"]')
+      .waitFor({ state: "attached", timeout: 15000 });
+    await bringPinnedTextIntoView(page, objectId);
+  }
 
   for (let attempt = 0; attempt < 10; attempt++) {
     await page.waitForTimeout(200);
@@ -98,19 +109,6 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
       }
     }
 
-    if (attempt === 3) {
-      // Dense drawings can fully overlap labels. Selecting the pinned object
-      // from the real object sidebar raises its SVG hit target above neighbors.
-      // The edit itself must still be opened by an actual canvas double-click.
-      const search = page.getByRole("searchbox", { name: "Find PDF object" });
-      if (await search.isVisible().catch(() => false)) {
-        await search.fill(objectId);
-        await page.locator('[data-opdf-object-id="' + objectId + '"]').click();
-        await page.locator('[data-opdf-canvas-selection="' + objectId + '"]')
-          .waitFor({ state: "attached", timeout: 15000 });
-        await bringPinnedTextIntoView(page, objectId);
-      }
-    }
     const box = await page.locator(".native-edit-viewport").boundingBox();
     if (!box) break;
     // Reacquire the node after virtualization instead of scrolling a stale

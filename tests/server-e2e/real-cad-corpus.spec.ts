@@ -137,6 +137,10 @@ test.describe('public real-world CAD reference PDFs', () => {
           console.log(JSON.stringify({ fixture: fixture.id, browserErrors: pageErrors }));
           throw error;
         }
+        // Search the full inspected list; large CAD sidebars virtualize to 200
+        // rows and may still be filtered to the pinned source object ID.
+        const editedSearch = page.getByRole('searchbox', { name: 'Find PDF object' });
+        if (await editedSearch.count()) await editedSearch.fill(replacement);
         await expect(editor.locator('.native-content-editor__objects button[data-opdf-object-kind="text"]')
           .filter({ hasText: replacement })).toHaveCount(1, { timeout: 90_000 });
         try {

@@ -32,7 +32,10 @@ async function realHitPoint(page: Page, objectId: string): Promise<Hit | null> {
       for (const fy of [0.5, 0.25, 0.75, 0.1, 0.9]) {
         const x = x0 + (x1 - x0) * fx;
         const y = y0 + (y1 - y0) * fy;
-        if (document.elementFromPoint(x, y) === node) return { x, y };
+        const hit = document.elementFromPoint(x, y);
+        if (hit === node || hit?.getAttribute("data-opdf-foreground-hit-target") === objectId) {
+          return { x, y };
+        }
       }
     }
     return null;
@@ -85,7 +88,14 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
     if (point) {
       // Only an actual polygon hit may open the inline editor.
       await page.mouse.dblclick(point.x, point.y, { delay: 45 });
-      if (await input.isVisible().catch(() => false)) return;
+      if (await input.isVisible().catch(() => false)) {
+        // A dense CAD sheet can dispatch the double-click to a neighboring
+        // label. Opening *some* textarea is not proof we picked this label.
+        const actualObject = await input.getAttribute("data-opdf-inline-object-id");
+        if (actualObject === objectId) return;
+        await input.press("Escape");
+        await input.waitFor({ state: "detached", timeout: 5000 });
+      }
     }
 
     if (attempt === 3) {

@@ -85,18 +85,12 @@ export function NativeEditPageOverlay({
   }, [pageIndex]);
   const visibleObjects = useMemo(() => getNativeEditOverlayObjects(objects, selectedId), [objects, selectedId]);
   const selected = useMemo(() => objects.find((object) => object.id === selectedId) ?? null, [objects, selectedId]); const baseGeometry = useMemo(() => selected ? geometryForObject(selected) : null, [selected]);
-  const displayGeometry = useMemo(() =>
-    baseGeometry && previewMatrix ? transformGeometry(baseGeometry, previewMatrix) : baseGeometry,
-  [baseGeometry, previewMatrix]);
+  const displayGeometry = useMemo(() => baseGeometry && previewMatrix
+    ? transformGeometry(baseGeometry, previewMatrix) : baseGeometry, [baseGeometry, previewMatrix]);
   const clientToPdf = (state: NativeEditDragState | PdfContentObject, clientX: number, clientY: number) => {
     if (!overlayRef.current) return null;
-    return pdfPointFromClient(
-      clientX,
-      clientY,
-      overlayRef.current.getBoundingClientRect(),
-      state.pageWidth,
-      state.pageHeight,
-    );
+    return pdfPointFromClient(clientX, clientY,
+      overlayRef.current.getBoundingClientRect(), state.pageWidth, state.pageHeight);
   };
   useEffect(() => {
     if (!drag) return;

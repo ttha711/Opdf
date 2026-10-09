@@ -10,16 +10,20 @@ type Props = {
   getDocumentBytes: () => Promise<Uint8Array | null>;
 };
 
-function hasPageBitmap(page: HTMLElement) {
+type WorkerResult =
+  | { ok: true; width: number; height: number; rgba: ArrayBuffer }
+  | { ok: false; error: string };
+
+function nativeBitmapReady(page: HTMLElement) {
   return Array.from(page.querySelectorAll<HTMLImageElement>("img"))
     .some((image) => image.complete && image.naturalWidth > 0);
 }
 
-/** PDF.js paints a fallback only if the native renderer never supplies a bitmap. */
+/** Off-thread PDFium raster fallback, with PDF.js as the second independent renderer. */
 export function NativeEditFallbackRaster({
   pageIndex, revisionKey, enabled, width, height, getDocumentBytes,
 }: Props) {
-  const ref = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const bytesProvider = useRef(getDocumentBytes);
   const dimensions = useRef({ width, height });
   bytesProvider.current = getDocumentBytes;
@@ -30,46 +34,96 @@ export function NativeEditFallbackRaster({
 
   useEffect(() => {
     setPainted(false);
-    setError(null);
     setStage("waiting");
+    setError(null);
     if (!enabled || width <= 0 || height <= 0) return;
     let cancelled = false;
+    let finished = false;
+    let worker: Worker | null = null;
     let disposePdf: (() => void) | undefined;
     let cancelRender: (() => void) | undefined;
-    const timer = window.setTimeout(() => {
-      const canvas = ref.current;
-      const pageNode = canvas?.closest<HTMLElement>(".native-edit-page");
-      if (!canvas || !pageNode || hasPageBitmap(pageNode)) return;
-      setStage("loading");
+    let fallbackStarted = false;
+
+    const shouldStop = () => {
+      const pageNode = canvasRef.current?.closest<HTMLElement>(".native-edit-page");
+      return cancelled || finished || !pageNode || nativeBitmapReady(pageNode);
+    };
+    const paint = (rgba: Uint8ClampedArray, w: number, h: number) => {
+      if (shouldStop()) return;
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext("2d", { alpha: false });
+      if (!canvas || !ctx) return;
+      canvas.width = w;
+      canvas.height = h;
+      ctx.putImageData(new ImageData(rgba, w, h), 0, 0);
+      finished = true;
+      setPainted(true);
+      setStage("ready");
+      worker?.terminate();
+      cancelRender?.();
+      disposePdf?.();
+    };
+
+    const renderWithPdfJs = async (bytes: Uint8Array) => {
+      if (fallbackStarted || shouldStop()) return;
+      fallbackStarted = true;
+      setStage("pdfjs-rendering");
+      try {
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+        const loading = pdfjs.getDocument({ data: bytes.slice(), useSystemFonts: true });
+        disposePdf = () => { void loading.destroy(); };
+        const doc = await loading.promise;
+        const pdfPage = await doc.getPage(pageIndex + 1);
+        const viewport1 = pdfPage.getViewport({ scale: 1 });
+        const view = dimensions.current;
+        const target = Math.min(
+          view.width / Math.max(1, viewport1.width),
+          view.height / Math.max(1, viewport1.height),
+          Math.sqrt(650_000 / Math.max(1, viewport1.width * viewport1.height)),
+        );
+        const viewport = pdfPage.getViewport({ scale: Math.max(0.001, target) });
+        const scratch = document.createElement("canvas");
+        scratch.width = Math.max(1, Math.ceil(viewport.width));
+        scratch.height = Math.max(1, Math.ceil(viewport.height));
+        const ctx = scratch.getContext("2d", { alpha: false });
+        if (!ctx) throw new Error("PDF.js fallback canvas unavailable.");
+        const rendering = pdfPage.render({ canvasContext: ctx, viewport });
+        cancelRender = () => rendering.cancel();
+        await rendering.promise;
+        if (!shouldStop()) {
+          const rgba = ctx.getImageData(0, 0, scratch.width, scratch.height);
+          paint(rgba.data, scratch.width, scratch.height);
+        }
+      } catch (reason) {
+        if (!cancelled && !finished) {
+          setError(reason instanceof Error ? reason.message : String(reason));
+          setStage("error");
+        }
+      }
+    };
+
+    const start = window.setTimeout(() => {
+      if (shouldStop()) return;
+      setStage("pdfium-rendering");
       void (async () => {
         try {
-          const [pdfjs, bytes] = await Promise.all([import("pdfjs-dist"), bytesProvider.current()]);
-          if (!bytes || cancelled) return;
-          pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-          const loading = pdfjs.getDocument({ data: bytes.slice(), useSystemFonts: true });
-          disposePdf = () => { void loading.destroy(); };
-          const doc = await loading.promise;
-          const page = await doc.getPage(pageIndex + 1);
-          const original = page.getViewport({ scale: 1 });
-          const { width: viewWidth, height: viewHeight } = dimensions.current;
-          const target = Math.min(
-            viewWidth / Math.max(1, original.width),
-            viewHeight / Math.max(1, original.height),
-            Math.sqrt(500_000 / Math.max(1, original.width * original.height)),
-          );
-          const viewport = page.getViewport({ scale: Math.max(0.001, target) });
-          canvas.width = Math.max(1, Math.ceil(viewport.width));
-          canvas.height = Math.max(1, Math.ceil(viewport.height));
-          const context = canvas.getContext("2d", { alpha: false });
-          if (!context) throw new Error("PDF fallback canvas unavailable.");
-          setStage("rendering");
-          const rendering = page.render({ canvasContext: context, viewport });
-          cancelRender = () => rendering.cancel();
-          await rendering.promise;
-          if (!cancelled && !hasPageBitmap(pageNode)) {
-            setPainted(true);
-            setStage("ready");
-          }
+          const bytes = await bytesProvider.current();
+          if (!bytes || shouldStop()) return;
+          const copy = bytes.slice();
+          worker = new Worker(new URL("./nativeEditPdfiumRaster.worker.ts", import.meta.url), { type: "module" });
+          worker.onmessage = (event: MessageEvent<WorkerResult>) => {
+            if (shouldStop()) return;
+            const result = event.data;
+            if (result.ok) paint(new Uint8ClampedArray(result.rgba), result.width, result.height);
+            else void renderWithPdfJs(bytes);
+          };
+          worker.onerror = () => { void renderWithPdfJs(bytes); };
+          worker.postMessage({
+            pdf: copy.buffer, pageIndex,
+            maxWidth: dimensions.current.width, maxHeight: dimensions.current.height,
+          }, [copy.buffer]);
+          rescue = window.setTimeout(() => { void renderWithPdfJs(bytes); }, 12000);
         } catch (reason) {
           if (!cancelled) {
             setError(reason instanceof Error ? reason.message : String(reason));
@@ -77,23 +131,24 @@ export function NativeEditFallbackRaster({
           }
         }
       })();
-    }, 5000);
+    }, 1200);
+
+    let rescue: number | undefined;
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
+      window.clearTimeout(start);
+      if (rescue !== undefined) window.clearTimeout(rescue);
+      worker?.terminate();
       cancelRender?.();
       disposePdf?.();
     };
-    // Function identities and zoom dimensions can change during an in-flight
-    // render. Only document/page activation should cancel that work.
   }, [enabled, pageIndex, revisionKey]);
 
   return (
     <>
-      <canvas ref={ref} data-opdf-pdfjs-fallback="true" data-opdf-fallback-stage={stage} style={{
-        display: painted ? "block" : "none", position: "absolute", inset: 0,
-        width: "100%", height: "100%", pointerEvents: "none",
-      }} />
+      <canvas ref={canvasRef} data-opdf-pdfjs-fallback="true" data-opdf-fallback-stage={stage}
+        style={{ display: painted ? "block" : "none", position: "absolute", inset: 0,
+          width: "100%", height: "100%", pointerEvents: "none" }} />
       {error && <div role="status" className="native-edit-error">
         Unable to display PDF page: {error}
       </div>}

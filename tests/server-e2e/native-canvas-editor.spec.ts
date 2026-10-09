@@ -61,13 +61,13 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
   await expect(page.locator("[data-opdf-resize-handle]")).toHaveCount(8);
   await expect(page.locator("[data-opdf-rotate-handle='true']")).toHaveCount(1);
   await expect(editor.locator(".native-content-editor__objects button.active")).toContainText("Canvas native text");
-  await refreshedSelection.click();
+  await refreshedSelection.dblclick();
   const inlineEditor = page.locator("[data-opdf-inline-text-editor='true']");
   await expect(inlineEditor).toBeVisible({ timeout: 10_000 });
   await inlineEditor.fill("Chỉnh sửa tiếng Việt");
   await inlineEditor.press(process.platform === "darwin" ? "Meta+Enter" : "Control+Enter");
 
-  await expect(editor.getByText("Inline text updated with Unicode fallback.")).toBeVisible({ timeout: 20_000 });
+  await expect(editor.getByText("Text applied. Check the Save status in the toolbar.")).toBeVisible({ timeout: 20_000 });
   await expect(inlineEditor).toHaveCount(0);
 
   const beforeKeyboard = await page.locator("[data-opdf-canvas-selection]").boundingBox();
@@ -94,9 +94,8 @@ test("canvas selection stays synchronized with the right-side object list", asyn
   expect(id).toBeTruthy();
   await expect(page.locator(`[data-opdf-canvas-selection="${id}"]`)).toBeVisible();
 
-  await page.keyboard.press("Control+c");
-  await page.keyboard.press("Control+v");
-  await expect(editor.getByText("Object pasted.")).toBeVisible({ timeout: 20_000 });
+  await editor.getByRole("button", { name: "Duplicate" }).click();
+  await expect(editor.getByText("Object duplicated.")).toBeVisible({ timeout: 20_000 });
   await expect(editor).toBeVisible();
   await expect(editor.locator("[data-opdf-object-kind='text']")).toHaveCount(3, { timeout: 20_000 });
 

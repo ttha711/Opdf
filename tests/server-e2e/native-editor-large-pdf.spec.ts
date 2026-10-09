@@ -65,13 +65,18 @@ test("90-page native text replacement persists after save and reload", async ({ 
   let editor = await openNativeEditor(page);
   await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "90");
 
-  const original = editor.locator("[data-opdf-object-kind='text']")
+  const original = editor.locator(".native-content-editor__objects [data-opdf-object-kind='text']")
     .filter({ hasText: "Large PDF original text" }).first();
   await expect(original).toBeVisible({ timeout: 30_000 });
-  await original.click();
-  await editor.locator("textarea").fill("Large PDF edited text");
-  await editor.getByRole("button", { name: "Apply text" }).click();
-  await expect(editor.getByText("Native PDF text updated.")).toBeVisible({ timeout: 30_000 });
+  const objectId = await original.getAttribute("data-opdf-object-id");
+  expect(objectId).toBeTruthy();
+  const canvasText = page.locator(`[data-opdf-canvas-object="${objectId}"]`);
+  await canvasText.dblclick();
+  const inlineEditor = page.getByRole("textbox", { name: "Edit PDF text" });
+  await inlineEditor.fill("Large PDF edited text");
+  await inlineEditor.press("Enter");
+  await expect(inlineEditor).toHaveCount(0, { timeout: 30_000 });
+  await expect(editor.getByText("Text applied. Check the Save status in the toolbar.")).toBeVisible({ timeout: 30_000 });
 
   // Saving is independent of navigation; verify it even if navigation later regresses.
   expect(fetches).toBeLessThan(15);
@@ -80,7 +85,7 @@ test("90-page native text replacement persists after save and reload", async ({ 
   await saveServerDocumentAndWait(page);
   await page.reload();
   editor = await openNativeEditor(page);
-  const persisted = editor.locator("[data-opdf-object-kind='text']")
+  const persisted = editor.locator(".native-content-editor__objects [data-opdf-object-kind='text']")
     .filter({ hasText: "Large PDF edited text" }).first();
   await expect(persisted).toBeVisible({ timeout: 30_000 });
   await expect(editor.getByText("Large PDF original text")).toHaveCount(0);

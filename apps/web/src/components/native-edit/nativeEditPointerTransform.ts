@@ -20,7 +20,6 @@ export type NativeEditDragState = {
   startAngle?: number;
   startClientX?: number;
   startClientY?: number;
-  clickText?: string;
 };
 
 export function matrixIsIdentity(matrix: PdfMatrix) {

@@ -7,7 +7,7 @@ type Props = {
   selectedId: string | null;
   editingText: string | null;
   setSelectedId: Dispatch<SetStateAction<string | null>>;
-  commitInlineText: () => Promise<void>;
+  commitInlineText: () => Promise<Uint8Array | null>;
   setError: Dispatch<SetStateAction<string | null>>;
 };
 

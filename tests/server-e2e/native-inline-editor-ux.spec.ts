@@ -55,7 +55,7 @@ test("inline text editor stays compact and keeps a raster through commit", async
   await expect(page.locator(".native-content-editor__objects").getByText("43 edited")).toBeVisible({ timeout: 45000 });
 });
 
-test("single click defers editor while double-click opens immediately", async ({ page, request }) => {
+test("single click selects; double-click opens the text editor", async ({ page, request }) => {
   const pdf = await PDFDocument.create();
   const sheet = pdf.addPage([520, 720]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -79,11 +79,13 @@ test("single click defers editor while double-click opens immediately", async ({
   await input.press("Escape");
   await expect(input).toHaveCount(0);
   await target.click();
+  await expect(input).toHaveCount(0);
+  await target.dblclick();
   await expect(input).toBeVisible({ timeout: 3000 });
   await expect(input).toHaveValue("DOUBLE CLICK LABEL");
 });
 
-test("inline blur persists edits through Save and reopen", async ({ page, request }) => {
+test("Save commits focused inline text and persists it on reopen", async ({ page, request }) => {
   const doc = await PDFDocument.create();
   const sheet = doc.addPage([500, 700]);
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -109,13 +111,12 @@ test("inline blur persists edits through Save and reopen", async ({ page, reques
   const draft = page.getByRole("textbox", { name: "Edit PDF text" });
   await expect(draft).toBeVisible();
   await draft.fill("Saved after blur 85");
-  await page.locator(".native-edit-overlay").first().click({ position: { x: 5, y: 5 } });
+  await saveServerDocumentAndWait(page);
   await expect(draft).toHaveCount(0, { timeout: 45000 });
   await expect(editor.locator(".native-content-editor__objects button")
     .filter({ hasText: "Saved after blur 85" })).toBeVisible({ timeout: 45000 });
   await expect(page.locator(".native-edit-paint-shield")).toBeHidden({ timeout: 30000 });
 
-  await saveServerDocumentAndWait(page);
   await page.reload();
   await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30000 });
   await page.getByTitle("Edit PDF Content").click();

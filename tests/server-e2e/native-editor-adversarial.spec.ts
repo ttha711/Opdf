@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { saveServerDocumentAndWait } from "../helpers/save";
+import { replaceNativeTextFromCanvas } from "../helpers/editNativeText";
 import {
   buildDigitsOnlySubsetPdf,
   buildEncryptedPdf,
@@ -95,14 +96,8 @@ test("real embedded subset font can be replaced and survives save/reload", async
     .filter({ hasText: "Subset font source 01" })
     .first();
   await expect(original).toBeVisible({ timeout: 20_000 });
-  await original.click();
-
   const replacement = "Subset edited: Kỹ thuật Việt Nam – kết cấu A1";
-  await editor.locator("textarea").fill(replacement);
-  await editor.getByRole("button", { name: "Apply text" }).click();
-  await expect(editor.getByText("Native PDF text updated.")).toBeVisible({
-    timeout: 20_000,
-  });
+  await replaceNativeTextFromCanvas(page, editor, original, replacement);
 
   await saveServerDocumentAndWait(page);
   await page.reload();

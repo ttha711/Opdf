@@ -135,7 +135,7 @@ test.describe('public real-world CAD reference PDFs', () => {
           // initial transition. Await the actual success acknowledgement,
           // then require the editor to disappear and verify saved PDF bytes.
           await expect(editor.locator('.native-content-editor__message'))
-            .toContainText('Inline text updated.', { timeout: 90_000 });
+            .toContainText('Text applied. Check the Save status in the toolbar.', { timeout: 90_000 });
           await expect(input).toHaveCount(0, { timeout: 10_000 });
         } catch (error) {
           await logFailureState(page, fixture.id, 'inline-apply');

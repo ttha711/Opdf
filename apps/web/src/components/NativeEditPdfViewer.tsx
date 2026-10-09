@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPluginRegistration } from "@embedpdf/core";
 import { EmbedPDF } from "@embedpdf/core/react";
 import { usePdfiumEngine } from "@embedpdf/engines/react";
+import { pdfiumRuntimeFontFallback, pdfiumRuntimeWasmUrl } from "../lib/pdfiumRuntimeAssets";
 import {
   DocumentContent,
   DocumentManagerPluginPackage,
@@ -31,7 +32,10 @@ export function NativeEditPdfViewer({
   onActivePageChange,
   onViewerScaleChange,
 }: PdfViewerProps) {
-  const { engine, isLoading, error: engineError } = usePdfiumEngine();
+  const { engine, isLoading, error: engineError } = usePdfiumEngine({
+    wasmUrl: pdfiumRuntimeWasmUrl,
+    fontFallback: pdfiumRuntimeFontFallback,
+  });
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const initialSourceUrlRef = useRef<string | null>(null);
   const serverUrl = useMemo(

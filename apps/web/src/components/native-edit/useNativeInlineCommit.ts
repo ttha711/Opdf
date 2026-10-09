@@ -16,14 +16,14 @@ export function useNativeInlineCommit({
   setEditingText,
   setIsApplying,
 }: Props) {
-  const commitPromiseRef = useRef<Promise<void> | null>(null);
+  const commitPromiseRef = useRef<Promise<Uint8Array | null> | null>(null);
   const latestRef = useRef({ selected, editingText });
   latestRef.current = { selected, editingText };
 
   return useCallback(async () => {
     if (commitPromiseRef.current) return commitPromiseRef.current;
     const latest = latestRef.current;
-    if (!latest.selected || latest.selected.kind !== "text" || latest.editingText === null) return;
+    if (!latest.selected || latest.selected.kind !== "text" || latest.editingText === null) return null;
     const nextText = latest.editingText;
     const selectedObject = latest.selected;
     const commit = (async () => {
@@ -31,7 +31,7 @@ export function useNativeInlineCommit({
       try {
       if (nextText === (selectedObject.text ?? "")) {
         setEditingText(null);
-        return;
+        return null;
       }
       const unicodeFallback = /[^\x00-\x7F]/.test(nextText);
       const patches: PdfContentPatch[] = [];
@@ -48,7 +48,7 @@ export function useNativeInlineCommit({
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const bytes = await applyNativeEditPatches(
         patches,
-        unicodeFallback ? "Inline text updated with Unicode fallback." : "Inline text updated.",
+        "Text applied. Check the Save status in the toolbar.",
       );
       // Preserve the draft when the editing engine reports failure.
       if (!bytes) throw new Error("Unable to apply PDF text; your draft is still available.");
@@ -56,13 +56,14 @@ export function useNativeInlineCommit({
       // document revision reloads the selection overlay automatically.
       latestRef.current.editingText = null;
       setEditingText(null);
+      return bytes;
       } finally {
         setIsApplying(false);
       }
     })();
     commitPromiseRef.current = commit;
     try {
-      await commit;
+      return await commit;
     } finally {
       if (commitPromiseRef.current === commit) commitPromiseRef.current = null;
     }

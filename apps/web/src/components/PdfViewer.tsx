@@ -21,6 +21,7 @@ import { MeasurementCalibrationDialog } from "./MeasurementCalibrationDialog";
 import { resolvePdfiumPageCount } from "../lib/pdfiumDocumentState";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import { installAnnotationThumbnailSync } from "../lib/embedPdfAnnotationThumbnails";
+import { pdfiumRuntimeFontFallback, pdfiumRuntimeWasmUrl } from "../lib/pdfiumRuntimeAssets";
 import {
   calibrateMmPerPdfPoint,
   formatMillimeters,
@@ -184,6 +185,12 @@ export function PdfViewer({
   const config = useMemo(() => {
     if (!sourceUrl) return null;
     return {
+      // Keep the renderer on the same-origin build asset instead of the
+      // EmbedPDF CDN default. This makes the viewer work behind restricted
+      // egress and avoids a TLS-dependent cold start for large documents.
+      wasmUrl: pdfiumRuntimeWasmUrl,
+      fontFallback: pdfiumRuntimeFontFallback,
+      fonts: { ui: null, signature: null },
       documentManager: {
         initialDocuments: [
           {

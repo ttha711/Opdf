@@ -1,0 +1,40 @@
+name: CAD Floor-Only Debug
+on:
+  push:
+    branches:
+      - debug/pr150-cad-floor-only
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cad-floor-only
+  cancel-in-progress: true
+jobs:
+  va-floor-finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Fetch verified CAD fixtures
+        run: node scripts/fixtures/fetch-real-cad-pdfs.mjs
+        env:
+          OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures
+      - run: npx playwright install chromium --with-deps
+      - name: Test only failing VA floor finish (twice)
+        run: npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium --grep 'va-floor-finish' --repeat-each=2 --workers=1
+        env:
+          CI: 'true'
+          OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cad-floor-debug-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 3

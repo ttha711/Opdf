@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { saveServerDocumentAndWait } from '../helpers/save';
-import { findClickableCadText } from './cad-text-hit-target';
+import { openClickableCadText } from './cad-text-hit-target';
 
 type Fixture = {
   id: string;
@@ -114,14 +114,12 @@ test.describe('public real-world CAD reference PDFs', () => {
       console.log(JSON.stringify({ fixture: fixture.id, loadMs: Date.now() - started, svgTargets: mounted }));
 
       if (fixture.editable) {
-        const target = await findClickableCadText(page);
-        await target.dblclick({ timeout: 15_000 });
+        const pickedTextObject = await openClickableCadText(page);
         const input = page.getByRole('textbox', { name: 'Edit PDF text' });
         await expect(input).toBeVisible({ timeout: 20_000 });
         console.log(JSON.stringify({
           fixture: fixture.id,
-          pickedTextObject: await target.getAttribute('data-opdf-canvas-object'),
-          pickedDepth: await target.getAttribute('data-opdf-object-depth'),
+          pickedTextObject,
           originalText: (await input.inputValue()).slice(0, 90),
         }));
         const replacement = 'OPDF CAD TEST ' + fixture.id;

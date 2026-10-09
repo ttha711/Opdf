@@ -117,8 +117,9 @@ export function NativeEditPageOverlay({
       const clickDistance = drag.startClientX === undefined || drag.startClientY === undefined
         ? Number.POSITIVE_INFINITY
         : Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
+      // Single click selects; only a double-click opens the text box.
       if (mode === "move" && clickDistance < 4) {
-        if (drag.clickText !== undefined) setEditingText(drag.clickText);
+        setPreviewMatrix(null);
         return;
       }
       if (!matrix || matrixIsIdentity(matrix)) {
@@ -174,7 +175,6 @@ export function NativeEditPageOverlay({
       geometry: geometryForObject(object),
         startClientX: clientX,
         startClientY: clientY,
-        clickText: object.kind === "text" ? object.text ?? "" : undefined,
       });
       setPreviewMatrix(null);
     };

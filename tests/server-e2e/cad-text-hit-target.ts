@@ -53,7 +53,7 @@ async function bringPinnedTextIntoView(page: Page, objectId: string): Promise<bo
       selector + '[data-opdf-canvas-object="' + objectId + '"]',
     );
     if (!node) return false;
-    node.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+    node.scrollIntoView({ block: "end", inline: "nearest", behavior: "instant" });
     return true;
   }, { selector, objectId });
 }

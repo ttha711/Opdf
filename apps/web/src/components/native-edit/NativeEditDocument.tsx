@@ -58,16 +58,31 @@ export function NativeEditDocument({
     if (scrollState.totalPages > 0) onDocumentLoaded?.(scrollState.totalPages);
   }, [onDocumentLoaded, scrollState.totalPages]);
 
-  useEffect(() => {
-    if (scrollState.currentPage > 0 && scrollState.currentPage !== page) {
-      onActivePageChange?.(scrollState.currentPage);
-    }
-  }, [onActivePageChange, page, scrollState.currentPage]);
+  // A programmatic jump can report intermediate virtualized pages before
+  // EmbedPDF reaches its destination. Do not feed those transient positions
+  // back to the parent: that would issue another jump and oscillate forever.
+  const pendingPageRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!scroll || page < 1 || page === scrollState.currentPage) return;
+    if (!scroll || page < 1 || scrollState.totalPages <= 0) return;
+    if (page === scrollState.currentPage) {
+      pendingPageRef.current = null;
+      return;
+    }
+    pendingPageRef.current = page;
     scroll.scrollToPage({ pageNumber: page, behavior: "instant" });
-  }, [page, scroll, scrollState.currentPage]);
+  }, [page, scroll, scrollState.totalPages]);
+
+  useEffect(() => {
+    const current = scrollState.currentPage;
+    if (current <= 0) return;
+    const pending = pendingPageRef.current;
+    if (pending !== null) {
+      if (current !== pending) return;
+      pendingPageRef.current = null;
+    }
+    if (current !== page) onActivePageChange?.(current);
+  }, [onActivePageChange, page, scrollState.currentPage]);
 
   useEffect(() => {
     // Only apply actual external zoom changes after the initial document layout.

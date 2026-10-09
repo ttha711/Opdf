@@ -238,7 +238,8 @@ export function PdfViewer({
       const rotateScope = rotateApi?.forDocument?.(DOCUMENT_ID) ?? rotateApi;
       const historyScope = historyApi?.forDocument?.(DOCUMENT_ID) ?? historyApi;
       const commandScope = commandsApi?.forDocument?.(DOCUMENT_ID) ?? commandsApi;
-      const unregisterControls = registerViewerControls({
+      // Only the visible viewer may handle toolbar navigation while editing.
+      const unregisterControls = activeTool !== "edit-content" ? registerViewerControls({
         zoomIn: () => zoomScope?.zoomIn?.(),
         zoomOut: () => zoomScope?.zoomOut?.(),
         resetZoom: () => zoomScope?.requestZoom?.(1),
@@ -260,8 +261,8 @@ export function PdfViewer({
         executeCommand: async (commandId) => {
           await commandScope?.execute?.(commandId, "api");
         },
-      });
-      unsubscribers.push(unregisterControls);
+      }) : null;
+      if (unregisterControls) unsubscribers.push(unregisterControls);
 
       const thumbnailScope = thumbnailApi?.forDocument?.(DOCUMENT_ID) ?? thumbnailApi;
       if (thumbnailScope?.renderThumb) {
@@ -427,7 +428,7 @@ export function PdfViewer({
 
       if (scroll?.onPageChange) {
         const off = scroll.onPageChange((event: any) => {
-          if (event.documentId !== DOCUMENT_ID) return;
+          if (event.documentId !== DOCUMENT_ID || activeToolRef.current === "edit-content") return;
           suppressExternalPageRef.current = true;
           lastPageRef.current = event.pageNumber;
           onActivePageChange?.(event.pageNumber);

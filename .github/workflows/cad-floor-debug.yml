@@ -29,8 +29,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium --grep 'va-floor-finish' --repeat-each=2 --workers=1
-          npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium --grep 'va-site-utilities' --repeat-each=2 --workers=1
+          for fixture in va-floor-finish va-site-utilities; do
+            for repeat in 1 2; do
+              echo "Running $fixture / attempt $repeat in a clean Playwright process"
+              npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium --grep "$fixture" --workers=1
+            done
+          done
         env:
           CI: 'true'
           OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures

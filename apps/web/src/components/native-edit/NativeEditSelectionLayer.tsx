@@ -22,6 +22,30 @@ function pointsAttribute(
     .join(" ");
 }
 
+/**
+ * PDF exporters can emit very flat glyph boxes (1-2 CSS pixels at fit zoom).
+ * Keep the actual PDF geometry untouched, but give editable text a minimum
+ * 6x8 CSS pixel hit region so pointer selection works without extreme zoom.
+ */
+function editableTextHitGeometry(
+  geometry: NativeObjectGeometry,
+  object: PdfContentObject,
+  width: number,
+  height: number,
+): NativeObjectGeometry {
+  if (object.kind !== "text" || !nativeEditObjectIsEditable(object)) return geometry;
+  const halfWidth = Math.max(geometry.width / 2, 3 * object.pageWidth / Math.max(1, width));
+  const halfHeight = Math.max(geometry.height / 2, 4 * object.pageHeight / Math.max(1, height));
+  const corner = (uSign: number, vSign: number) => ({
+    x: geometry.center.x + geometry.u.x * uSign * halfWidth + geometry.v.x * vSign * halfHeight,
+    y: geometry.center.y + geometry.u.y * uSign * halfWidth + geometry.v.y * vSign * halfHeight,
+  });
+  return {
+    ...geometry,
+    corners: [corner(-1, 1), corner(1, 1), corner(1, -1), corner(-1, -1)],
+  };
+}
+
 function handleCursor(handle: NativeResizeHandle) {
   if (handle === "n" || handle === "s") return "ns-resize";
   if (handle === "e" || handle === "w") return "ew-resize";
@@ -65,6 +89,7 @@ export function NativeEditSelectionLayer({
   onRotatePointerDown,
 }: Props) {
   const rotateOffset = selected ? 28 * selected.pageHeight / Math.max(1, height) : 0;
+  // Keep the stable PDF object order; hit affordances must not reshuffle selectors.
 
   return (
     <svg
@@ -89,7 +114,7 @@ export function NativeEditSelectionLayer({
               isSelected ? "native-edit-selection" : "",
               isSelected && !editable ? "readonly" : "",
             ].filter(Boolean).join(" ")}
-            points={pointsAttribute(geometry, object.pageWidth, object.pageHeight, width, height)}
+            points={pointsAttribute(editableTextHitGeometry(geometry, object, width, height), object.pageWidth, object.pageHeight, width, height)}
             onPointerDown={(event) => onObjectPointerDown(event, object)}
             onDoubleClick={(event) => onObjectDoubleClick(event, object)}
             data-opdf-canvas-object={object.id}
@@ -99,6 +124,21 @@ export function NativeEditSelectionLayer({
           />
         );
       })}
+
+      {selected?.kind === "text" && displayGeometry && nativeEditObjectIsEditable(selected) &&
+        displayGeometry.height * height / Math.max(1, selected.pageHeight) < 6 ? (
+        <polygon
+          className="native-edit-cad-foreground"
+          points={pointsAttribute(
+            editableTextHitGeometry(displayGeometry, selected, width, height),
+            selected.pageWidth, selected.pageHeight, width, height,
+          )}
+          style={{ fill: "transparent", stroke: "transparent", pointerEvents: "all", cursor: "text" }}
+          data-opdf-foreground-hit-target={selected.id}
+          onPointerDown={(event) => onObjectPointerDown(event, selected)}
+          onDoubleClick={(event) => onObjectDoubleClick(event, selected)}
+        />
+      ) : null}
 
       {selected && displayGeometry && nativeEditObjectIsEditable(selected) ? HANDLES.map((handle) => {
         const dom = pdfPointToDom(

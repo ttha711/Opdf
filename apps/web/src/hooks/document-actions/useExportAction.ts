@@ -49,9 +49,14 @@ export function useExportAction({
     try {
       setSaveState("saving");
 
-      let bytes = (await getDocumentBytes()) ?? docBytes;
       let storageKey = sourceIdentity;
       const isServerDocument = sourceIdentity.startsWith("server://");
+      // Native Edit PDF publishes authoritative working bytes before the
+      // revised viewer document is ready. Save those bytes immediately:
+      // re-materializing the old/reloading viewer can hang or return stale PDF.
+      let bytes = (isServerDocument && docBytes)
+        ? docBytes
+        : (await getDocumentBytes()) ?? docBytes;
 
       if (hasDesktopBridge) {
         bytes = (await getDocumentBytes()) ?? bytes;
@@ -62,7 +67,6 @@ export function useExportAction({
           await bridge.replaceAnnotations(fileName, annotations);
         }
       } else if (isServerDocument) {
-        bytes = (await getDocumentBytes()) ?? bytes;
         if (!bytes) throw new Error("Document bytes are unavailable.");
         await bridge.saveDocument(sourceIdentity, bytes);
         if (bridge.replaceAnnotations) {

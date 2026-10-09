@@ -7,6 +7,7 @@ import {
   registerViewerControls,
 } from "../../lib/viewer-runtime";
 import { NativeEditPageOverlay } from "./NativeEditPageOverlay";
+import { NativeEditFallbackRaster } from "./NativeEditFallbackRaster";
 
 type Props = {
   documentId: string;
@@ -34,6 +35,8 @@ export function NativeEditDocument({
   // Keep Automatic zoom during first layout. An early numeric request can
   // leave EmbedPDF 2.x waiting for a viewport layout and paint no page.
   const previousExternalScale = useRef(scale);
+  const pendingPageRef = useRef<number | null>(null);
+  const lastExternalPageRef = useRef<{ documentId: string; page: number } | null>(null);
 
   useEffect(() => registerViewerControls({
     zoomIn: () => zoom?.zoomIn(),
@@ -47,26 +50,50 @@ export function NativeEditDocument({
     redo: () => {},
     canUndo: () => false,
     canRedo: () => false,
-    goToPage: (pageNumber) => scroll?.scrollToPage({
-      pageNumber: Math.max(1, pageNumber),
-      behavior: "instant",
-    }),
+    goToPage: (pageNumber) => {
+      if (!scroll) return;
+      const destination = Math.max(1, pageNumber);
+      // The filmstrip calls this viewer API directly, before the parent page
+      // prop changes. Ignore interim virtualized scroll positions until arrival.
+      pendingPageRef.current = destination;
+      scroll.scrollToPage({ pageNumber: destination, behavior: "instant" });
+    },
   }), [scroll, zoom]);
 
   useEffect(() => {
     if (scrollState.totalPages > 0) onDocumentLoaded?.(scrollState.totalPages);
   }, [onDocumentLoaded, scrollState.totalPages]);
 
-  useEffect(() => {
-    if (scrollState.currentPage > 0 && scrollState.currentPage !== page) {
-      onActivePageChange?.(scrollState.currentPage);
-    }
-  }, [onActivePageChange, page, scrollState.currentPage]);
+  // A programmatic jump can report intermediate virtualized pages before
+  // EmbedPDF reaches its destination. Do not feed those transient positions
+  // back to the parent: that would issue another jump and oscillate forever.
 
   useEffect(() => {
-    if (!scroll || page < 1 || page === scrollState.currentPage) return;
+    if (!scroll || page < 1 || scrollState.totalPages <= 0) return;
+    // This effect can run when useScroll changes its scope identity while the
+    // user is already navigating. A stale parent page must not snap the canvas
+    // back to that page; only a genuinely new parent page request may scroll.
+    if (lastExternalPageRef.current?.documentId === documentId &&
+        lastExternalPageRef.current.page === page) return;
+    lastExternalPageRef.current = { documentId, page };
+    if (page === scrollState.currentPage) {
+      if (pendingPageRef.current === page) pendingPageRef.current = null;
+      return;
+    }
+    pendingPageRef.current = page;
     scroll.scrollToPage({ pageNumber: page, behavior: "instant" });
-  }, [page, scroll, scrollState.currentPage]);
+  }, [documentId, page, scroll, scrollState.totalPages]);
+
+  useEffect(() => {
+    const current = scrollState.currentPage;
+    if (current <= 0) return;
+    const pending = pendingPageRef.current;
+    if (pending !== null) {
+      if (current !== pending) return;
+      pendingPageRef.current = null;
+    }
+    if (current !== page) onActivePageChange?.(current);
+  }, [onActivePageChange, page, scrollState.currentPage]);
 
   useEffect(() => {
     // Only apply actual external zoom changes after the initial document layout.
@@ -93,6 +120,14 @@ export function NativeEditDocument({
         renderPage={({ width, height, pageIndex }) => (
           <div className="native-edit-page" style={{ width, height }}>
             <RenderLayer documentId={documentId} pageIndex={pageIndex} />
+            <NativeEditFallbackRaster
+              pageIndex={pageIndex}
+              revisionKey={revisionKey}
+              enabled={pageIndex + 1 === (scrollState.currentPage || page)}
+              width={width}
+              height={height}
+              getDocumentBytes={getDocumentBytes}
+            />
             <NativeEditPageOverlay
               pageIndex={pageIndex}
               enabled={pageIndex + 1 === (scrollState.currentPage || page)}

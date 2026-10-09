@@ -35,4 +35,31 @@ describe("native edit SVG overlay budget", () => {
     expect(actual).toHaveLength(NATIVE_EDIT_OVERLAY_LIMIT);
     expect(actual.at(-1)?.id).toBe("selected-path");
   });
+  it("prioritizes a readable label after hundreds of tiny CAD fragments", () => {
+    const tiny = Array.from({ length: 900 }, (_, i) => ({
+      ...object(`glyph-${i}`, "text"),
+      bounds: { x: 5 + i % 20, y: 5, width: 0.2, height: 0.3 },
+    }));
+    const legible = {
+      ...object("room-label", "text"),
+      bounds: { x: 90, y: 520, width: 130, height: 24 },
+      text: "ROOM 43",
+    };
+    const selected = getNativeEditOverlayObjects([...tiny, legible], null);
+    expect(selected).toHaveLength(NATIVE_EDIT_OVERLAY_LIMIT);
+    expect(selected.some((item) => item.id === legible.id)).toBe(true);
+  });
+
+  it("distributes CAD hit targets across sheet regions", () => {
+    const concentrated = Array.from({ length: 1000 }, (_, i) => ({
+      ...object(`dense-${i}`, "text"),
+      bounds: { x: 10 + i % 2, y: 15, width: 40, height: 9 },
+    }));
+    const far = {
+      ...object("far-label", "text"),
+      bounds: { x: 450, y: 690, width: 36, height: 9 },
+    };
+    const selected = getNativeEditOverlayObjects([...concentrated, far], null);
+    expect(selected.some((item) => item.id === "far-label")).toBe(true);
+  });
 });

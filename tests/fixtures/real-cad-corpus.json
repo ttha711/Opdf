@@ -1,0 +1,39 @@
+[
+  {
+    "id": "a0-vector-poster",
+    "description": "Synthetic large-format A0 vector plan; page loading and SVG overlay smoke",
+    "repo": "nftomczain/GhostPoster",
+    "commit": "edfd7baaaca78949b41462bbb042333bc03563c8",
+    "path": "examples/plan_A0_poster.pdf",
+    "size": 4436,
+    "blobSha": "8a0e42974975c0e93370a8ea2002b889786eccc3",
+    "licenseNote": "Upstream GhostPoster project is MIT; generated test example",
+    "editable": false
+  },
+  {
+    "id": "va-floor-finish",
+    "description": "Real two-sheet VA floor finish plan and schedule; embedded engineering labels",
+    "repo": "Kentucky-ai/opentakeoff",
+    "commit": "0d502f4bac8cd473a819392a5a646d4ccd135b94",
+    "path": "demo/sample-finish-plan.pdf",
+    "size": 1176246,
+    "blobSha": "ac3824e7db9d67d968a6b339b8c870eb1124a486",
+    "licenseNote": "Original U.S. VA solicitation drawings; upstream software Apache-2.0 does not license third-party drawing authorship",
+    "editable": true,
+    "textObjectId": "p0-o51000",
+    "textSample": "ARCHITECT/ENGINEER OF RECORD"
+  },
+  {
+    "id": "va-site-utilities",
+    "description": "Real VA civil/site utility plan C-300 with dense linework and dimensions",
+    "repo": "Kentucky-ai/opentakeoff",
+    "commit": "0d502f4bac8cd473a819392a5a646d4ccd135b94",
+    "path": "evals/four-asks-2026-09-02/sheets/va-shreveport-fisher-house-site-utility-C300.pdf",
+    "size": 4791252,
+    "blobSha": "6d520f0a52b0d94af41b23df9510a69255af9e30",
+    "licenseNote": "Publicly posted VA sheet; upstream software Apache-2.0 does not license third-party drawing authorship",
+    "editable": true,
+    "textObjectId": "p0-o470",
+    "textSample": "VETERANS WAY"
+  }
+]

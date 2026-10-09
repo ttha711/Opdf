@@ -1,0 +1,61 @@
+name: Public CAD PDF Corpus
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '25 3 * * 1'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/fixtures/fetch-real-cad-pdfs.mjs'
+      - 'tests/fixtures/real-cad-corpus.json'
+      - 'tests/server-e2e/real-cad-corpus.spec.ts'
+      - 'tests/server-e2e/cad-text-hit-target.ts'
+      - 'apps/web/src/components/native-edit/**'
+      - 'apps/web/src/components/NativeContentEditorPanel.tsx'
+      - 'apps/web/src/components/NativeEditPdfViewer.tsx'
+      - 'apps/web/src/lib/pdfiumContentEngine.ts'
+      - 'apps/web/src/lib/pdfiumObjectTree.ts'
+      - 'apps/web/src/lib/nativeEditPatchVerification.ts'
+      - 'apps/web/src/hooks/document-actions/useExportAction.ts'
+      - '.github/workflows/real-cad-corpus.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: real-cad-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reference-pdf-editor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Fetch and verify pinned PDFs from original sources
+        run: node scripts/fixtures/fetch-real-cad-pdfs.mjs
+        env:
+          OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures
+      - run: npx playwright install chromium --with-deps
+      - name: Test native PDF editor on real vector engineering plans
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Each fixture/attempt needs a fresh browser and viewer instance.
+          # Keep all three PDF fixtures and both repetitions.
+          for fixture in a0-vector-poster va-floor-finish va-site-utilities; do
+            for repeat in 1 2; do
+              echo "::group::CAD ${fixture} attempt ${repeat}"
+              npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium --grep "${fixture}" --workers=1
+              echo "::endgroup::"
+            done
+          done
+        env:
+          CI: 'true'
+          OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures

@@ -55,6 +55,34 @@ test("inline text editor stays compact and keeps a raster through commit", async
   await expect(page.locator(".native-content-editor__objects").getByText("43 edited")).toBeVisible({ timeout: 45000 });
 });
 
+test("single click defers editor while double-click opens immediately", async ({ page, request }) => {
+  const pdf = await PDFDocument.create();
+  const sheet = pdf.addPage([520, 720]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  sheet.drawText("DOUBLE CLICK LABEL", { x: 78, y: 525, font, size: 20 });
+  const response = await request.post("/api/opdf/documents?name=doubleclick-native.pdf", {
+    headers: { "Content-Type": "application/pdf" },
+    data: Buffer.from(await pdf.save({ useObjectStreams: false })),
+  });
+  expect(response.status()).toBe(201);
+  const stored = await response.json();
+  await page.goto("/?open=" + encodeURIComponent(stored.filePath));
+  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await page.getByTitle("Edit PDF Content").click();
+  await page.locator('[data-opdf-action="expand-right-panel"]').click();
+  const target = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").first();
+  await expect(target).toBeVisible({ timeout: 30_000 });
+  const input = page.getByRole("textbox", { name: "Edit PDF text" });
+  await target.dblclick();
+  await expect(input).toBeVisible({ timeout: 20_000 });
+  await expect(input).toHaveValue("DOUBLE CLICK LABEL");
+  await input.press("Escape");
+  await expect(input).toHaveCount(0);
+  await target.click();
+  await expect(input).toBeVisible({ timeout: 3000 });
+  await expect(input).toHaveValue("DOUBLE CLICK LABEL");
+});
+
 test("inline blur persists edits through Save and reopen", async ({ page, request }) => {
   const doc = await PDFDocument.create();
   const sheet = doc.addPage([500, 700]);

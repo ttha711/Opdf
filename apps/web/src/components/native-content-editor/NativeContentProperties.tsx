@@ -2,7 +2,6 @@ import type { PdfBlendMode, PdfContentObject, PdfContentPatch } from "@opdf/core
 import { PathGeometryEditor } from "../PathGeometryEditor";
 
 export type NativeContentDraft = {
-  text: string;
   size: string;
   color: string;
   font: string;
@@ -21,7 +20,8 @@ type Props = {
   setDraft: (patch: Partial<NativeContentDraft>) => void;
   loading: boolean;
   deepFormReadOnly: boolean;
-  saveText: () => void;
+  saveTextStyle: () => void;
+  editSelectedText: () => void;
   move: (dx: number, dy: number) => void;
   scale: (factor: number) => void;
   rotate: (degrees: number) => void;
@@ -40,7 +40,8 @@ export function NativeContentProperties({
   setDraft,
   loading,
   deepFormReadOnly,
-  saveText,
+  saveTextStyle,
+  editSelectedText,
   move,
   scale,
   rotate,
@@ -66,10 +67,9 @@ export function NativeContentProperties({
 
       {selected.kind === "text" ? (
         <>
-          <label>
-            Text
-            <textarea value={draft.text} onChange={(event) => setDraft({ text: event.target.value })} rows={5} />
-          </label>
+          <button type="button" onClick={editSelectedText} disabled={loading || deepFormReadOnly}>
+            Edit selected text
+          </button>
           <div className="native-content-editor__row">
             <label>
               Font size
@@ -113,7 +113,7 @@ export function NativeContentProperties({
               <input type="color" value={draft.stroke} onChange={(event) => setDraft({ stroke: event.target.value })} />
             </label>
           </div>
-          <button type="button" className="primary" onClick={saveText} disabled={loading}>Apply text</button>
+          <button type="button" className="primary" onClick={saveTextStyle} disabled={loading}>Apply text style</button>
         </>
       ) : null}
 

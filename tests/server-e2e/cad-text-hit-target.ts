@@ -75,7 +75,7 @@ async function targetState(page: Page, objectId: string): Promise<TargetState> {
   }, { selector, objectId });
 }
 
-/** Double-click the exact CAD object at a verified, physical hit point. */
+/** Double-click the exact CAD object, then fall back to the selected-object action. */
 export async function openClickableCadText(page: Page, objectId: string): Promise<void> {
   const input = page.getByRole("textbox", { name: "Edit PDF text" });
   const target = page.locator(selector + '[data-opdf-canvas-object="' + objectId + '"]');
@@ -104,6 +104,22 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
       await input.waitFor({ state: "detached", timeout: 5000 });
     }
   }
+
+  // Dense CAD linework can cover every physical hit point on the text bounds.
+  // Selecting the exact object in the inspector opens the same inline editor,
+  // so the user still gets one edit/commit flow without requiring pixel hunting.
+  if (await search.isVisible().catch(() => false)) {
+    await search.fill(objectId);
+    const row = page.locator('[data-opdf-object-id="' + objectId + '"]');
+    await row.click();
+    await page.locator('[data-opdf-canvas-selection="' + objectId + '"]')
+      .waitFor({ state: "attached", timeout: 15_000 });
+    await page.getByRole("button", { name: "Edit selected text", exact: true }).click();
+    await input.waitFor({ state: "visible", timeout: 15_000 });
+    if (await input.getAttribute("data-opdf-inline-object-id") === objectId) return;
+    await input.press("Escape");
+  }
+
   const state = await targetState(page, objectId);
   throw new Error(
     "Pinned CAD text could not be double-clicked at a real viewport hit point: " +

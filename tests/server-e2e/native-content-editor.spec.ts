@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { saveServerDocumentAndWait } from "../helpers/save";
+import { replaceNativeTextFromCanvas } from "../helpers/editNativeText";
 import { buildFormPdf, buildObjectPdf, buildRotatedTextPdf, buildTextPdf } from "./native-content-fixtures";
 
 test.setTimeout(90_000);
@@ -29,11 +30,8 @@ test("native Edit PDF changes existing text and survives save/reload", async ({ 
   const originalObject = editor.locator(".native-content-editor__objects button").filter({ hasText: "Original OPDF text" }).first();
   await expect(originalObject).toBeVisible({ timeout: 20_000 });
 
-  await originalObject.click();
-  const textarea = editor.locator("textarea");
-  await textarea.fill("Edited OPDF native text");
-  await editor.getByRole("button", { name: "Apply text" }).click();
-  await expect(editor.getByText("Native PDF text updated.")).toBeVisible({ timeout: 20_000 });
+  await expect(editor.locator("textarea")).toHaveCount(0);
+  await replaceNativeTextFromCanvas(page, editor, originalObject, "Edited OPDF native text");
 
   await editor.getByRole("button", { name: "Undo" }).click();
   await expect(editor.locator(".native-content-editor__objects button").filter({ hasText: "Original OPDF text" }).first()).toBeVisible({ timeout: 20_000 });
@@ -165,9 +163,7 @@ test("native Edit PDF deep-edits Form XObject text, path and image and persists 
   await expect(editor.getByText("Nested in p0-o0", { exact: false })).toBeVisible();
   await expect(editor.getByText("Persistent Form edit")).toBeVisible();
   await expect(editor.getByLabel("Font size")).toBeEnabled();
-  await editor.locator("textarea").fill("Edited inside Form");
-  await editor.getByRole("button", { name: "Apply text" }).click();
-  await expect(editor.getByText("Native PDF text updated.")).toBeVisible({ timeout: 20_000 });
+  await replaceNativeTextFromCanvas(page, editor, nestedText, "Edited inside Form");
   const promotedText = editor.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='text']").filter({ hasText: "Edited inside Form" }).first();
   await expect(promotedText).toBeVisible({ timeout: 20_000 });
 

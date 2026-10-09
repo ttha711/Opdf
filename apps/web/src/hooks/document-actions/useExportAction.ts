@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { useOpdfBridge } from "../useOpdfBridge";
 import { saveWebState, computeFileHash, saveAnnotationsByHash } from "../../lib/web-storage";
+import { commitPendingNativeInlineEdit } from "../../lib/nativeEditRuntime";
 
 export function useExportAction({
   bridge,
@@ -47,6 +48,7 @@ export function useExportAction({
   async function savePdf(options: { silent?: boolean } = {}) {
     if (!hasDocument || !fileName) return false;
     try {
+      const inlineEditBytes = options.silent ? null : await commitPendingNativeInlineEdit();
       setSaveState("saving");
 
       let storageKey = sourceIdentity;
@@ -54,12 +56,12 @@ export function useExportAction({
       // Native Edit PDF publishes authoritative working bytes before the
       // revised viewer document is ready. Save those bytes immediately:
       // re-materializing the old/reloading viewer can hang or return stale PDF.
-      let bytes = (isServerDocument && docBytes)
+      let bytes = inlineEditBytes ?? ((isServerDocument && docBytes)
         ? docBytes
-        : (await getDocumentBytes()) ?? docBytes;
+        : (await getDocumentBytes()) ?? docBytes);
 
       if (hasDesktopBridge) {
-        bytes = (await getDocumentBytes()) ?? bytes;
+        if (!inlineEditBytes) bytes = (await getDocumentBytes()) ?? bytes;
         if (!bytes) throw new Error("Document bytes are unavailable.");
         storageKey = await computeFileHash(bytes);
         await bridge.saveDocument(fileName, bytes);
@@ -137,8 +139,9 @@ export function useExportAction({
   async function savePdfAs() {
     if (!hasDocument || !fileName) return;
     try {
+      const inlineEditBytes = await commitPendingNativeInlineEdit();
       setSaveState("saving");
-      const bytes = (await getDocumentBytes()) ?? docBytes;
+      const bytes = inlineEditBytes ?? (await getDocumentBytes()) ?? docBytes;
       if (!bytes) throw new Error("Document bytes are unavailable.");
 
       if (hasDesktopBridge) {

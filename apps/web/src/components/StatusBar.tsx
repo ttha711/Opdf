@@ -71,7 +71,7 @@ export function StatusBar({
             <span className="text-[11px] text-[var(--ui-error-text)]">{viewerError}</span>
           ) : hasDocument ? (
             <span className={`text-[11px] font-semibold ${saveState === "saving" ? "text-amber-600" : saveState === "saved" ? "text-emerald-600" : autosaveStatus === "offline" ? "text-amber-600" : "text-rose-600"}`}>
-              {saveState === "saving"
+              {activeTool === "edit-content" ? "Double-click text to edit · Enter applies · Esc cancels" : saveState === "saving"
                 ? "Saving..."
                 : saveState === "saved"
                   ? "Saved"

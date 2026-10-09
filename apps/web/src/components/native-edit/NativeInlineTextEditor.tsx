@@ -10,7 +10,7 @@ type Props = {
   height: number;
   value: string;
   onChange: (value: string) => void;
-  onCommit: () => Promise<void>;
+  onCommit: () => Promise<Uint8Array | null>;
   isApplying: boolean;
   externalError: string | null;
   onCancel: () => void;

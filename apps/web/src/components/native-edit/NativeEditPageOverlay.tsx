@@ -12,11 +12,11 @@ import {
   consumeNativeInlineTextEdit,
   emitNativeEditSelection,
   registerNativeInlineCommitter,
+  registerNativeInlineTextEditRequestListener,
 } from "../../lib/nativeEditRuntime";
 import { NativeEditSelectionLayer, nativeEditObjectIsEditable } from "./NativeEditSelectionLayer";
 import { getNativeEditOverlayObjects } from "./nativeEditOverlayObjects";
 import { NativeInlineTextEditor } from "./NativeInlineTextEditor";
-import { useNativeTextClickDelay } from "./useNativeTextClickDelay";
 import { useNativeEditKeyboardMove } from "./useNativeEditKeyboardMove";
 import { useNativeInlineCommit } from "./useNativeInlineCommit";
 import { useNativeEditSelectionSync } from "./useNativeEditSelectionSync";
@@ -47,7 +47,6 @@ export function NativeEditPageOverlay({
   const [drag, setDrag] = useState<NativeEditDragState | null>(null);
   const [previewMatrix, setPreviewMatrix] = useState<PdfMatrix | null>(null);
   const [editingText, setEditingText] = useState<string | null>(null);
-  const { schedule: scheduleClick, cancel: cancelClick } = useNativeTextClickDelay(setEditingText);
   const [isApplyingText, setIsApplyingText] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -115,7 +114,6 @@ export function NativeEditPageOverlay({
         ? Number.POSITIVE_INFINITY
         : Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
       if (mode === "move" && clickDistance < 4) {
-        if (drag.clickText !== undefined) scheduleClick(drag.clickText);
         setPreviewMatrix(null);
         return;
       }
@@ -157,7 +155,6 @@ export function NativeEditPageOverlay({
     }
     event.preventDefault();
     event.stopPropagation();
-    cancelClick();
     const clientX = event.clientX;
     const clientY = event.clientY;
     const beginMove = () => {
@@ -165,15 +162,14 @@ export function NativeEditPageOverlay({
       const point = clientToPdf(object, clientX, clientY);
       if (!point) return;
       setDrag({
-      mode: "move",
-      objectId: object.id,
-      pageWidth: object.pageWidth,
-      pageHeight: object.pageHeight,
-      start: point,
-      geometry: geometryForObject(object),
+        mode: "move",
+        objectId: object.id,
+        pageWidth: object.pageWidth,
+        pageHeight: object.pageHeight,
+        start: point,
+        geometry: geometryForObject(object),
         startClientX: clientX,
         startClientY: clientY,
-        clickText: object.kind === "text" ? object.text ?? "" : undefined,
       });
       setPreviewMatrix(null);
     };
@@ -236,6 +232,20 @@ export function NativeEditPageOverlay({
 
   const commitInlineText = useNativeInlineCommit({ selected, editingText, setEditingText, setIsApplying: setIsApplyingText });
   useEffect(() => registerNativeInlineCommitter(commitInlineText), [commitInlineText]);
+  useEffect(() => registerNativeInlineTextEditRequestListener((request) => {
+    if (request.pageIndex !== pageIndex) return;
+    const object = objects.find((item) => item.id === request.objectId);
+    if (!object || object.kind !== "text" || !nativeEditObjectIsEditable(object)) return;
+    const beginEdit = () => {
+      setSelectedId(object.id);
+      emitNativeEditSelection({ pageIndex, objectId: object.id });
+      setEditingText(object.text ?? "");
+    };
+    if (editingText !== null) {
+      void commitInlineText().then(beginEdit).catch((reason) =>
+        setError(reason instanceof Error ? reason.message : String(reason)));
+    } else beginEdit();
+  }), [commitInlineText, editingText, objects, pageIndex]);
   useNativeEditSelectionSync({
     pageIndex, selectedId, editingText, setSelectedId, commitInlineText, setError,
   });
@@ -265,7 +275,6 @@ export function NativeEditPageOverlay({
         onObjectPointerDown={startMove}
         onObjectDoubleClick={(event, object) => {
           event.stopPropagation();
-          cancelClick();
           const beginEdit = () => {
             selectObject(object);
             if (object.kind === "text" && nativeEditObjectIsEditable(object)) setEditingText(object.text ?? "");

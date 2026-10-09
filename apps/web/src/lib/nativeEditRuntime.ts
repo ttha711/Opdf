@@ -4,12 +4,18 @@ export type NativeEditSelection = {
   pageIndex: number;
   objectId: string | null;
 };
+export type NativeInlineTextEditRequest = {
+  pageIndex: number;
+  objectId: string;
+};
 
 type SelectionListener = (selection: NativeEditSelection) => void;
+type InlineTextEditRequestListener = (request: NativeInlineTextEditRequest) => void;
 type PatchApplier = (patches: PdfContentPatch[], successMessage: string) => Promise<Uint8Array | null>;
-type InlineCommitter = () => Promise<void>;
+type InlineCommitter = () => Promise<Uint8Array | null>;
 
 const selectionListeners = new Set<SelectionListener>();
+const inlineTextEditRequestListeners = new Set<InlineTextEditRequestListener>();
 let currentSelection: NativeEditSelection | null = null;
 let patchApplier: PatchApplier | null = null;
 let inlineCommitter: InlineCommitter | null = null;
@@ -22,6 +28,15 @@ export function emitNativeEditSelection(selection: NativeEditSelection) {
 
 export function getNativeEditSelection() {
   return currentSelection;
+}
+
+export function requestNativeInlineTextEditById(request: NativeInlineTextEditRequest) {
+  inlineTextEditRequestListeners.forEach((listener) => listener(request));
+}
+
+export function registerNativeInlineTextEditRequestListener(listener: InlineTextEditRequestListener) {
+  inlineTextEditRequestListeners.add(listener);
+  return () => { inlineTextEditRequestListeners.delete(listener); };
 }
 
 export function registerNativeEditSelectionListener(listener: SelectionListener) {
@@ -62,11 +77,12 @@ export function registerNativeInlineCommitter(committer: InlineCommitter) {
 }
 
 export async function commitPendingNativeInlineEdit() {
-  await inlineCommitter?.();
+  return (await inlineCommitter?.()) ?? null;
 }
 
 export function clearNativeEditRuntime() {
   currentSelection = null;
+  inlineTextEditRequestListeners.clear();
   patchApplier = null;
   inlineCommitter = null;
   pendingInlineText = null;

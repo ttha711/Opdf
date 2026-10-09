@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { PDFDocument, StandardFonts, degrees } from "pdf-lib";
 import { saveServerDocumentAndWait } from "../helpers/save";
+import { replaceNativeTextFromCanvas } from "../helpers/editNativeText";
 
 test.setTimeout(90_000);
 
@@ -96,11 +97,7 @@ test("Unicode replacement preserves rotated native text after save and reload", 
   await rotated.click();
 
   const replacement = "Kỹ thuật Việt Nam – bản vẽ số 01";
-  await editor.locator("textarea").fill(replacement);
-  await editor.getByRole("button", { name: "Apply text" }).click();
-  await expect(editor.getByText("Native PDF text updated.")).toBeVisible({
-    timeout: 20_000,
-  });
+  await replaceNativeTextFromCanvas(page, editor, rotated, replacement);
 
   await saveServerDocumentAndWait(page);
   const reopened = await reopenEditor(page);

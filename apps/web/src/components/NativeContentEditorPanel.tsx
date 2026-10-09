@@ -9,6 +9,7 @@ import {
   emitNativeEditSelection,
   registerNativeEditPatchApplier,
   registerNativeEditSelectionListener,
+  requestNativeInlineTextEditById,
 } from "../lib/nativeEditRuntime";
 import { NativeContentObjectList } from "./native-content-editor/NativeContentObjectList";
 import { NativeContentProperties, type NativeContentDraft } from "./native-content-editor/NativeContentProperties";
@@ -42,7 +43,6 @@ function createSerialMutationQueue() {
 }
 
 const DEFAULT_DRAFT: NativeContentDraft = {
-  text: "",
   size: "12",
   color: "#000000",
   font: "",
@@ -111,7 +111,6 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   useEffect(() => {
     if (!selected) return;
     setDraftState({
-      text: selected.text ?? "",
       size: String(Math.round((selected.fontSize ?? 12) * 100) / 100),
       color: selected.fillColor ?? "#000000",
       font: "",
@@ -244,26 +243,21 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     redo,
   });
 
-  const saveText = useCallback(() => {
+  const saveTextStyle = useCallback(() => {
     if (!selected || selected.kind !== "text") return;
     const size = Number(draft.size);
-    const unicodeFallback = /[^\x00-\x7F]/.test(draft.text);
-    const fontFamily = !deepFormReadOnly
-      ? unicodeFallback ? "__opdf_unicode__" : draft.font || undefined
-      : undefined;
     void apply([
       {
         type: "style-text",
         objectId: selected.id,
         fontSize: !deepFormReadOnly && Number.isFinite(size) && size > 0 ? size : undefined,
         fillColor: draft.color,
-        fontFamily,
+        fontFamily: !deepFormReadOnly ? draft.font || undefined : undefined,
         strokeColor: draft.stroke,
         strokeWidth: Number.isFinite(Number(draft.strokeWidth)) ? Number(draft.strokeWidth) : undefined,
         renderMode: draft.renderMode,
       },
-      { type: "replace-text", objectId: selected.id, text: draft.text },
-    ], "Native PDF text updated.");
+    ], "Text style updated. Save the document to keep this change.");
   }, [apply, deepFormReadOnly, draft, selected]);
 
   const selectFromPanel = useCallback((id: string) => {
@@ -272,6 +266,10 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       emitNativeEditSelection({ pageIndex: page - 1, objectId: id });
     });
   }, [page]);
+  const editSelectedText = useCallback(() => {
+    if (selected?.kind !== "text" || deepFormReadOnly) return;
+    requestNativeInlineTextEditById({ pageIndex: page - 1, objectId: selected.id });
+  }, [deepFormReadOnly, page, selected]);
 
   return (
     <aside className="native-content-editor" data-opdf-native-editor="true">
@@ -285,7 +283,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       <NativeContentToolbar page={page} loading={loading} message={message} canUndo={undoStack.length > 0} canRedo={redoStack.length > 0} refresh={refresh} undo={undo} redo={redo} apply={apply} />
       <NativeContentObjectList objects={objects} selectedId={selectedId} loading={loading} onSelect={selectFromPanel} />
       {selected ? (
-        <NativeContentProperties selected={selected} draft={draft} setDraft={setDraft} loading={loading} deepFormReadOnly={deepFormReadOnly} saveText={saveText} move={move} scale={scale} rotate={rotate} apply={apply} />
+        <NativeContentProperties selected={selected} draft={draft} setDraft={setDraft} loading={loading} deepFormReadOnly={deepFormReadOnly} saveTextStyle={saveTextStyle} editSelectedText={editSelectedText} move={move} scale={scale} rotate={rotate} apply={apply} />
       ) : null}
     </aside>
   );

@@ -35,6 +35,7 @@ export function NativeEditDocument({
   // Keep Automatic zoom during first layout. An early numeric request can
   // leave EmbedPDF 2.x waiting for a viewport layout and paint no page.
   const previousExternalScale = useRef(scale);
+  const pendingPageRef = useRef<number | null>(null);
 
   useEffect(() => registerViewerControls({
     zoomIn: () => zoom?.zoomIn(),
@@ -48,10 +49,14 @@ export function NativeEditDocument({
     redo: () => {},
     canUndo: () => false,
     canRedo: () => false,
-    goToPage: (pageNumber) => scroll?.scrollToPage({
-      pageNumber: Math.max(1, pageNumber),
-      behavior: "instant",
-    }),
+    goToPage: (pageNumber) => {
+      if (!scroll) return;
+      const destination = Math.max(1, pageNumber);
+      // The filmstrip calls this viewer API directly, before the parent page
+      // prop changes. Ignore interim virtualized scroll positions until arrival.
+      pendingPageRef.current = destination;
+      scroll.scrollToPage({ pageNumber: destination, behavior: "instant" });
+    },
   }), [scroll, zoom]);
 
   useEffect(() => {
@@ -61,7 +66,6 @@ export function NativeEditDocument({
   // A programmatic jump can report intermediate virtualized pages before
   // EmbedPDF reaches its destination. Do not feed those transient positions
   // back to the parent: that would issue another jump and oscillate forever.
-  const pendingPageRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!scroll || page < 1 || scrollState.totalPages <= 0) return;

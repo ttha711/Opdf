@@ -17,6 +17,7 @@ import { resolvePdfSource } from "./lib/documentSource";
 import { hasFullWebAccess } from "./lib/runtimeAccess";
 import { AiRewriteEditorWindow, AllToolsDashboard, LiveHtmlEditor, AppDocumentDialogs, AppWorkspace } from "./components/app/AppLazyModules";
 import "./types/opdf";
+import { printViewerDocument } from "./lib/viewer-runtime";
 
 export function App() {
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
@@ -237,6 +238,11 @@ export function App() {
           onTriggerAdditionalTool={(toolId) => {
             state.setShowDashboard(false);
             switch (toolId) {
+              case "print-pdf": {
+                try { printViewerDocument(); }
+                catch (error) { state.setViewerError(error instanceof Error ? error.message : String(error)); }
+                break;
+              }
               case "insert-pdf": state.setShowInsertModal(true); break;
               case "header":
               case "footer":

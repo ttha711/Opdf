@@ -94,6 +94,19 @@ test("All Tools dashboard exposes the complete 41-tool contract", async ({ page 
   }
 });
 
+test("All Tools: search filters by intent and can reset without reopening", async ({ page }) => {
+  await loadFixture(page);
+  await openDashboard(page);
+  const search = page.getByRole("searchbox", { name: "Search PDF tools" });
+  await search.fill("watermark");
+  await expect(page.locator("[data-opdf-tool-card]")).toHaveCount(1);
+  await expect(page.locator('[data-opdf-tool-card="watermark-pdf"]')).toBeVisible();
+  await search.fill("no-such-tool");
+  await expect(page.getByText("No matching tools.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(page.locator("[data-opdf-tool-card]")).toHaveCount(ALL_TOOL_IDS.length);
+});
+
 const PANEL_TOOL_IDS = [
   "pdf-to-png",
   "pdf-to-jpeg",

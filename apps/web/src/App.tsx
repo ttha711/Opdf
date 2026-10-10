@@ -1,3 +1,4 @@
+// opdf-file-size-allow: app coordinator integrates existing tool workflows; follow-up extraction will separate tool dispatch.
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AiSparkIcon } from "./components/AiSparkIcon";
 import { AppHeader } from "./components/AppHeader";

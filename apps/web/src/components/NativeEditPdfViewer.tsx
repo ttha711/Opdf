@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPluginRegistration } from "@embedpdf/core";
 import { EmbedPDF } from "@embedpdf/core/react";
 import { usePdfiumEngine } from "@embedpdf/engines/react";
-import { pdfiumRuntimeFontFallback, pdfiumRuntimeWasmUrl } from "../lib/pdfiumRuntimeAssets";
 import {
   DocumentContent,
   DocumentManagerPluginPackage,
@@ -16,7 +15,6 @@ import { getServerDocumentUrl } from "../lib/documentSource";
 import { NativeEditDocument } from "./native-edit/NativeEditDocument";
 import { NativeEditDocumentRevisionBridge } from "./native-edit/NativeEditDocumentRevisionBridge";
 import { NativeEditPaintShield } from "./native-edit/NativeEditPaintShield";
-import { NativeEditInitialDocument } from "./native-edit/NativeEditInitialDocument";
 import "../styles/native-edit-surface.css";
 
 const EDIT_DOCUMENT_ID = "opdf-native-edit-document";
@@ -33,13 +31,8 @@ export function NativeEditPdfViewer({
   onActivePageChange,
   onViewerScaleChange,
 }: PdfViewerProps) {
-  const { engine, isLoading, error: engineError } = usePdfiumEngine({
-    wasmUrl: pdfiumRuntimeWasmUrl,
-    fontFallback: pdfiumRuntimeFontFallback,
-  });
+  const { engine, isLoading, error: engineError } = usePdfiumEngine();
   const [localUrl, setLocalUrl] = useState<string | null>(null);
-  const [initialBuffer, setInitialBuffer] = useState<ArrayBuffer | null>(null);
-  const [openError, setOpenError] = useState<string | null>(null);
   const initialSourceUrlRef = useRef<string | null>(null);
   const serverUrl = useMemo(
     () => sourceIdentity.startsWith("server://") ? getServerDocumentUrl(sourceIdentity) : null,
@@ -59,23 +52,6 @@ export function NativeEditPdfViewer({
     return () => URL.revokeObjectURL(url);
   }, [data, sourceBlob]);
 
-  // Browser uploads live in sourceBlob, not data. Give the editor its own
-  // immutable PDF buffer instead of opening a transient object URL. The
-  // headless document manager can otherwise remain in "loading" indefinitely.
-  useEffect(() => {
-    let cancelled = false;
-    if (initialBuffer || (!data && !sourceBlob)) return;
-    const read = data
-      ? Promise.resolve(data.slice().buffer as ArrayBuffer)
-      : sourceBlob!.arrayBuffer();
-    void read.then((buffer) => {
-      if (!cancelled) setInitialBuffer((current) => current ?? buffer);
-    }).catch((reason) => {
-      if (!cancelled) onError?.(reason instanceof Error ? reason.message : String(reason));
-    });
-    return () => { cancelled = true; };
-  }, [data, initialBuffer, onError, sourceBlob]);
-
   useEffect(() => {
     if (engineError) onError?.(engineError.message);
   }, [engineError, onError]);
@@ -90,7 +66,11 @@ export function NativeEditPdfViewer({
     if (!initialSourceUrl) return [];
     return [
       createPluginRegistration(DocumentManagerPluginPackage, {
-        initialDocuments: [],
+        initialDocuments: [{
+          url: initialSourceUrl,
+          documentId: EDIT_DOCUMENT_ID,
+          autoActivate: true,
+        }],
         maxDocuments: 2,
       }),
       createPluginRegistration(ViewportPluginPackage, { viewportGap: 20 }),
@@ -110,7 +90,7 @@ export function NativeEditPdfViewer({
   if (!sourceUrl || !initialSourceUrl) {
     return <div className="native-edit-error">No PDF source is available for editing.</div>;
   }
-  if (isLoading || !engine || ((data || sourceBlob) && !initialBuffer)) {
+  if (isLoading || !engine) {
     return <div className="native-edit-loading">Loading native PDF editor…</div>;
   }
   if (engineError) {
@@ -124,12 +104,6 @@ export function NativeEditPdfViewer({
     <EmbedPDF engine={engine} plugins={plugins}>
       {({ activeDocumentId }) => (
         <div className="native-edit-surface">
-          <NativeEditInitialDocument
-            documentId={EDIT_DOCUMENT_ID}
-            buffer={initialBuffer}
-            sourceUrl={initialSourceUrl}
-            onError={setOpenError}
-          />
           <NativeEditDocumentRevisionBridge
             baseDocumentId={EDIT_DOCUMENT_ID}
             initialRevisionKey={initialSourceUrl}
@@ -141,9 +115,7 @@ export function NativeEditPdfViewer({
               if (message) onError?.(message);
             }}
           />
-          {openError ? (
-            <div role="alert" className="native-edit-error">Unable to open editable PDF: {openError}</div>
-          ) : activeDocumentId ? (
+          {activeDocumentId ? (
             <DocumentContent documentId={activeDocumentId}>
               {({ isLoaded, isError }) => {
                 if (isError) return <div className="native-edit-error">Unable to load PDF for editing.</div>;

@@ -1,6 +1,5 @@
 // opdf-file-size-allow: legacy tool dashboard; this PR removes duplicated viewer wiring without expanding dashboard responsibilities.
 import { useState, useRef } from "react";
-import { getDocumentToolLabel } from "../lib/documentEditingExperience";
 import { useOpdfBridge } from "../hooks/useOpdfBridge";
 import { toast } from "./ToastProvider";
 import { buildPdfTextExport } from "../lib/pdfTextExport";

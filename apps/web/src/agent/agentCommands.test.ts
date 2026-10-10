@@ -41,8 +41,9 @@ function createContext(overrides: Partial<Parameters<typeof executeAgentCommand>
 
 describe("agent command registry", () => {
   it("describes the broad app tool surface for LLM function calling", () => {
-    expect(AGENT_TOOL_DEFINITIONS.length).toBeGreaterThanOrEqual(45);
+    expect(AGENT_TOOL_DEFINITIONS.length).toBeGreaterThanOrEqual(59);
     expect(getAgentToolDefinition("compress-pdf")?.risk).toBe("safe");
+    expect(getAgentToolDefinition("normalize")?.documentTool).toBe("normalize");
     expect(getAgentToolDefinition("delete-pages")?.risk).toBe("destructive");
     expect(getAgentToolDefinition("watermark-pdf")?.requiredArgs).toContain("text");
   });

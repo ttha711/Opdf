@@ -14,6 +14,7 @@ import {
   registerViewerContentPickStarter,
   registerViewerControls,
   registerViewerPageImageProvider,
+  registerViewerPrint,
 } from "../lib/viewer-runtime";
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
 import { AiPatchDialog } from "./AiPatchDialog";
@@ -227,7 +228,17 @@ export function PdfViewer({
 
     const unsubscribers: Array<() => void> = [];
     const registry = activeRegistry;
-
+      const printApi = registry.getPlugin?.("print")?.provides?.() as any;
+      const printScope = printApi?.forDocument?.(DOCUMENT_ID) ?? printApi;
+      if (documentReadySource === sourceUrl) {
+        unsubscribers.push(registerViewerPrint(() => {
+          if (!printScope?.print) throw new Error("EmbedPDF print plugin is unavailable.");
+          printScope.print({ includeAnnotations: true }).wait(
+            () => {},
+            (error: unknown) => onError?.(error instanceof Error ? error.message : String(error)),
+          );
+        }));
+      }
       const scroll = registry.getPlugin?.("scroll")?.provides?.() as any;
       const documentManager = registry.getPlugin?.("document-manager")?.provides?.() as any;
       const exportApi = registry.getPlugin?.("export")?.provides?.() as any;
@@ -512,6 +523,7 @@ export function PdfViewer({
   }, [
     sourceUrl,
     activeRegistry,
+    documentReadySource,
     activeTool,
     calibratedMmPerPdfPoint,
     drawingScale,

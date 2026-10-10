@@ -113,3 +113,28 @@ export function registerViewerContentAreaListener(listener: (area: ViewerContent
 export function emitViewerContentArea(area: ViewerContentArea) {
   activeContentAreaListener?.(area);
 }
+
+// Print capability is registered only after the active PDF document is loaded.
+// The dashboard unmounts the viewer, so consumers must wait for re-registration
+// instead of calling the plugin synchronously during the dashboard transition.
+let activePdfPrint: (() => void) | null = null;
+const printReadyListeners = new Set<() => void>();
+
+export function registerViewerPrint(print: () => void) {
+  activePdfPrint = print;
+  for (const listener of [...printReadyListeners]) listener();
+  return () => {
+    if (activePdfPrint === print) activePdfPrint = null;
+  };
+}
+
+export function subscribeViewerPrintReady(listener: () => void) {
+  printReadyListeners.add(listener);
+  if (activePdfPrint) listener();
+  return () => { printReadyListeners.delete(listener); };
+}
+
+export function printViewerDocument() {
+  if (!activePdfPrint) throw new Error("The PDF print engine is not ready.");
+  activePdfPrint();
+}

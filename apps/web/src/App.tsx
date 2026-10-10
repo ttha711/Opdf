@@ -1,3 +1,4 @@
+// opdf-file-size-allow: app coordinator integrates existing tool workflows; follow-up extraction will separate tool dispatch.
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AiSparkIcon } from "./components/AiSparkIcon";
 import { AppHeader } from "./components/AppHeader";
@@ -16,6 +17,7 @@ import { resolvePdfSource } from "./lib/documentSource";
 import { hasFullWebAccess } from "./lib/runtimeAccess";
 import { AiRewriteEditorWindow, AllToolsDashboard, LiveHtmlEditor, AppDocumentDialogs, AppWorkspace } from "./components/app/AppLazyModules";
 import "./types/opdf";
+import { printViewerDocument, subscribeViewerPrintReady } from "./lib/viewer-runtime";
 
 export function App() {
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
@@ -36,6 +38,7 @@ export function App() {
   const [showSearchRedact, setShowSearchRedact] = useState(false);
   const [showAdvancedPdf, setShowAdvancedPdf] = useState(false);
   const [showDigitalSignature, setShowDigitalSignature] = useState(false);
+  const [pendingPrint, setPendingPrint] = useState(false);
   const [showHome, setShowHome] = useState(false);
   const [bridgeRecents, setBridgeRecents] = useState<Array<{ filePath: string; openedAt: number }>>([]);
   const sidebars = useResizableSidebars();
@@ -133,7 +136,19 @@ export function App() {
     }
     return <Suspense fallback={<div role="status">Loading AI editor…</div>}><AiRewriteEditorWindow /></Suspense>;
   }
-  const showWorkspace = state.hasDocument || Boolean(state.activeDashboardTool);
+  useEffect(() => {
+    if (!pendingPrint || state.showDashboard || !state.hasDocument) return;
+    return subscribeViewerPrintReady(() => {
+      try {
+        printViewerDocument();
+      } catch (error) {
+        state.setViewerError(error instanceof Error ? error.message : String(error));
+      } finally {
+        setPendingPrint(false);
+      }
+    });
+  }, [pendingPrint, state.showDashboard, state.hasDocument, state.setViewerError]);
+    const showWorkspace = state.hasDocument || Boolean(state.activeDashboardTool);
   return (
     <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}`}>
       <AppUpdateBanner updateInfo={updateInfo} />
@@ -223,6 +238,7 @@ export function App() {
             replaceDocumentBytes(bytes, 1, { preserveSourceIdentity: false, resetDocumentMetadata: true });
           }}
           onClose={() => state.setShowDashboard(false)}
+          onOpenPdf={() => { state.setShowDashboard(false); headerProps.openFile(); }}
           onTriggerCompress={() => openSidebarTool("compress-pdf")}
           onTriggerMerge={() => openSidebarTool("merge-pdf")}
           onTriggerSplit={() => openSidebarTool("split-pdf")}
@@ -233,6 +249,30 @@ export function App() {
           onTriggerCompare={() => setShowRevisionCompare(true)}
           onTriggerRedact={() => setShowSearchRedact(true)}
           onTriggerSign={() => setShowDigitalSignature(true)}
+          onTriggerAdditionalTool={(toolId) => {
+            state.setShowDashboard(false);
+            switch (toolId) {
+              case "print-pdf": setPendingPrint(true); break;
+              case "insert-pdf": state.setShowInsertModal(true); break;
+              case "header":
+              case "footer":
+              case "bates": openMarkupSidebar(toolId); break;
+              case "measure-drawing": state.setActiveTool("measure"); break;
+              case "edit-content":
+              case "ai-content-editor": state.setActiveTool("edit-content"); break;
+              case "advanced-pdf": setShowAdvancedPdf(true); break;
+              case "normalize": {
+                if (bridge.capabilities?.pdfA !== true) {
+                  state.setViewerError("PDF/A conversion is not available in this runtime.");
+                  break;
+                }
+                void controllers.runConfiguredDocumentTool("normalize", {}).catch((error) => {
+                  state.setViewerError(error instanceof Error ? error.message : String(error));
+                });
+                break;
+              }
+            }
+          }}
           onSelectTool={(toolId) => {
             state.setActiveDashboardTool(toolId);
             state.setShowDashboard(false);

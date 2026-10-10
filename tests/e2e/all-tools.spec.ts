@@ -31,6 +31,18 @@ const ALL_TOOL_IDS = [
   "redact-pdf",
   "compare-pdf",
   "sign-pdf",
+  "pdf-to-html",
+  "pdf-to-rtf",
+  "rtf-to-pdf",
+  "insert-pdf",
+  "header",
+  "footer",
+  "bates",
+  "normalize",
+  "measure-drawing",
+  "edit-content",
+  "advanced-pdf",
+  "ai-content-editor",
 ] as const;
 
 const BROWSER_UNAVAILABLE = new Set([
@@ -44,6 +56,8 @@ const BROWSER_UNAVAILABLE = new Set([
   "protect-pdf",
   "unlock-pdf",
   "sign-pdf",
+  "rtf-to-pdf",
+  "normalize",
 ]);
 
 async function samplePdf() {
@@ -95,7 +109,7 @@ async function closeWorkingSurface(page: Page) {
   }
 }
 
-test("All Tools dashboard exposes the complete 28-tool contract", async ({ page }) => {
+test("All Tools dashboard exposes the complete 40-tool contract", async ({ page }) => {
   await loadFixture(page);
   await openDashboard(page);
 

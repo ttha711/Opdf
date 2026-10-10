@@ -18,7 +18,7 @@ describe("canonical PDF tool catalogue", () => {
   });
 
   it("connects UI tools with the agent catalogue unless explicitly UI only", () => {
-    const agentIds = new Set(AGENT_TOOL_DEFINITIONS.map((tool) => tool.id));
+    const agentIds: Set<string> = new Set(AGENT_TOOL_DEFINITIONS.map((tool) => tool.id));
     for (const item of ALL_TOOLS_CATALOG) {
       if (!uiOnlyTools.has(item.id)) {
         expect(agentIds.has(item.id), item.id + " is missing from agent definitions").toBe(true);

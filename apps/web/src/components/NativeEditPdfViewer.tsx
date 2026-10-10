@@ -16,6 +16,7 @@ import { getServerDocumentUrl } from "../lib/documentSource";
 import { NativeEditDocument } from "./native-edit/NativeEditDocument";
 import { NativeEditDocumentRevisionBridge } from "./native-edit/NativeEditDocumentRevisionBridge";
 import { NativeEditPaintShield } from "./native-edit/NativeEditPaintShield";
+import { NativeEditInitialDocument } from "./native-edit/NativeEditInitialDocument";
 import "../styles/native-edit-surface.css";
 
 const EDIT_DOCUMENT_ID = "opdf-native-edit-document";
@@ -38,6 +39,7 @@ export function NativeEditPdfViewer({
   });
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const [initialBuffer, setInitialBuffer] = useState<ArrayBuffer | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
   const initialSourceUrlRef = useRef<string | null>(null);
   const serverUrl = useMemo(
     () => sourceIdentity.startsWith("server://") ? getServerDocumentUrl(sourceIdentity) : null,
@@ -88,18 +90,7 @@ export function NativeEditPdfViewer({
     if (!initialSourceUrl) return [];
     return [
       createPluginRegistration(DocumentManagerPluginPackage, {
-        initialDocuments: [initialBuffer
-          ? {
-              buffer: initialBuffer,
-              name: "editable.pdf",
-              documentId: EDIT_DOCUMENT_ID,
-              autoActivate: true,
-            }
-          : {
-              url: initialSourceUrl,
-              documentId: EDIT_DOCUMENT_ID,
-              autoActivate: true,
-            }],
+        initialDocuments: [],
         maxDocuments: 2,
       }),
       createPluginRegistration(ViewportPluginPackage, { viewportGap: 20 }),
@@ -114,7 +105,7 @@ export function NativeEditPdfViewer({
         maxZoom: 5,
       }),
     ];
-  }, [initialBuffer, initialSourceUrl]);
+  }, [initialSourceUrl]);
 
   if (!sourceUrl || !initialSourceUrl) {
     return <div className="native-edit-error">No PDF source is available for editing.</div>;
@@ -133,6 +124,12 @@ export function NativeEditPdfViewer({
     <EmbedPDF engine={engine} plugins={plugins}>
       {({ activeDocumentId }) => (
         <div className="native-edit-surface">
+          <NativeEditInitialDocument
+            documentId={EDIT_DOCUMENT_ID}
+            buffer={initialBuffer}
+            sourceUrl={initialSourceUrl}
+            onError={setOpenError}
+          />
           <NativeEditDocumentRevisionBridge
             baseDocumentId={EDIT_DOCUMENT_ID}
             initialRevisionKey={initialSourceUrl}
@@ -144,7 +141,9 @@ export function NativeEditPdfViewer({
               if (message) onError?.(message);
             }}
           />
-          {activeDocumentId ? (
+          {openError ? (
+            <div role="alert" className="native-edit-error">Unable to open editable PDF: {openError}</div>
+          ) : activeDocumentId ? (
             <DocumentContent documentId={activeDocumentId}>
               {({ isLoaded, isError }) => {
                 if (isError) return <div className="native-edit-error">Unable to load PDF for editing.</div>;

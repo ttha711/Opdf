@@ -238,6 +238,7 @@ export function App() {
             replaceDocumentBytes(bytes, 1, { preserveSourceIdentity: false, resetDocumentMetadata: true });
           }}
           onClose={() => state.setShowDashboard(false)}
+          onOpenPdf={() => { state.setShowDashboard(false); headerProps.openFile(); }}
           onTriggerCompress={() => openSidebarTool("compress-pdf")}
           onTriggerMerge={() => openSidebarTool("merge-pdf")}
           onTriggerSplit={() => openSidebarTool("split-pdf")}

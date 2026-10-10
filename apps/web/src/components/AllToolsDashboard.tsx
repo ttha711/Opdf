@@ -13,6 +13,7 @@ interface AllToolsDashboardProps {
   getDocumentBytes: () => Promise<Uint8Array | null>;
   onLoadConvertedPdf: (bytes: Uint8Array, fileName: string) => void;
   onClose: () => void;
+  onOpenPdf: () => void;
   onTriggerCompress: () => void;
   onTriggerMerge: () => void;
   onTriggerSplit: () => void;
@@ -48,6 +49,7 @@ export function AllToolsDashboard({
   getDocumentBytes,
   onLoadConvertedPdf,
   onClose,
+  onOpenPdf,
   onTriggerCompress,
   onTriggerMerge,
   onTriggerSplit,
@@ -68,6 +70,7 @@ export function AllToolsDashboard({
   const canOfficeToPdf = Boolean(bridge.convertOfficeToPdf);
   const canPdfToOffice = Boolean(bridge.convertPdfOffice);
   const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [toolSearch, setToolSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeAction, setActiveAction] = useState<string | null>(null);
 
@@ -326,6 +329,11 @@ export function AllToolsDashboard({
     }
   };
 
+  const filteredTools = getFilteredTools().filter((tool) => {
+    const query = toolSearch.trim().toLocaleLowerCase();
+    return !query || (tool.name + " " + tool.id).toLocaleLowerCase().includes(query);
+  });
+
   return (
     <div className="all-tools-dashboard flex flex-col h-full bg-[var(--bg-toolbar)] text-[var(--text-primary)] transition-colors p-6 overflow-y-auto">
       {/* Hidden file input */}
@@ -348,6 +356,34 @@ export function AllToolsDashboard({
         >
           <span className="inline-flex items-center gap-1.5"><OpdfIcon name="close" size={14} />Close Tools</span>
         </button>
+      </div>
+
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-semibold">
+          Find a PDF tool
+          <input
+            type="search"
+            aria-label="Search PDF tools"
+            value={toolSearch}
+            onChange={(event) => setToolSearch(event.target.value)}
+            placeholder="Search by name or action (e.g. merge, OCR)"
+            className="h-10 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-toolbar)] px-3 text-sm font-normal"
+          />
+        </label>
+        {!hasDocument ? (
+          <button
+            type="button"
+            onClick={onOpenPdf}
+            data-opdf-action="open-pdf-from-tools"
+            className="h-10 rounded-lg bg-[var(--acrobat-blue)] px-4 text-sm font-bold text-white hover:bg-[var(--acrobat-blue-hover)]"
+          >
+            Open PDF to use document tools
+          </button>
+        ) : (
+          <span className="min-w-0 truncate text-xs text-[var(--text-secondary)]" title={fileName}>
+            Working on: {fileName}
+          </span>
+        )}
       </div>
 
       {/* Tabs Menu */}
@@ -382,7 +418,7 @@ export function AllToolsDashboard({
 
       {/* Tools Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-        {getFilteredTools().map((tool) => (
+        {filteredTools.map((tool) => (
           <button
             key={tool.id}
             data-opdf-tool-card={tool.id}
@@ -420,12 +456,22 @@ export function AllToolsDashboard({
             <span className="text-[13px] font-semibold text-[var(--text-primary)] group-hover:text-red-500 transition-colors">
               {tool.name}
             </span>
+            {!tool.unavailableReason && !hasDocument && tool.requiresDocument ? (
+              <span className="mt-1 text-[10px] text-[var(--text-secondary)]">PDF required</span>
+            ) : null}
             {tool.unavailableReason ? (
               <span className="mt-1 text-[10px] font-medium text-[var(--text-secondary)]">Not available here</span>
             ) : null}
           </button>
         ))}
       </div>
+
+      {filteredTools.length === 0 ? (
+        <div role="status" className="py-10 text-center text-sm text-[var(--text-secondary)]">
+          No matching tools. Try another term or choose All Tools.
+          <button type="button" onClick={() => { setToolSearch(""); setActiveTab("all"); }} className="ml-2 underline">Clear filters</button>
+        </div>
+      ) : null}
 
       {/* Bottom helper */}
       <div className="mt-12 p-4 rounded-xl bg-[var(--ui-muted-bg)] border border-[var(--border-color)] text-xs text-[var(--text-secondary)] flex items-center gap-3">

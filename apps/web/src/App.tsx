@@ -233,6 +233,29 @@ export function App() {
           onTriggerCompare={() => setShowRevisionCompare(true)}
           onTriggerRedact={() => setShowSearchRedact(true)}
           onTriggerSign={() => setShowDigitalSignature(true)}
+          onTriggerAdditionalTool={(toolId) => {
+            state.setShowDashboard(false);
+            switch (toolId) {
+              case "insert-pdf": state.setShowInsertModal(true); break;
+              case "header":
+              case "footer":
+              case "bates": openMarkupSidebar(toolId); break;
+              case "measure-drawing": state.setActiveTool("measure"); break;
+              case "edit-content":
+              case "ai-content-editor": state.setActiveTool("edit-content"); break;
+              case "advanced-pdf": setShowAdvancedPdf(true); break;
+              case "normalize": {
+                if (bridge.capabilities?.pdfA !== true) {
+                  state.setViewerError("PDF/A conversion is not available in this runtime.");
+                  break;
+                }
+                void controllers.runConfiguredDocumentTool("normalize", {}).catch((error) => {
+                  state.setViewerError(error instanceof Error ? error.message : String(error));
+                });
+                break;
+              }
+            }
+          }}
           onSelectTool={(toolId) => {
             state.setActiveDashboardTool(toolId);
             state.setShowDashboard(false);

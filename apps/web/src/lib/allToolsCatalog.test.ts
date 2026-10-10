@@ -5,12 +5,12 @@ import { ALL_TOOLS_CATALOG, isDashboardToolId } from "./allToolsCatalog";
 const uiOnlyTools = new Set([
   "rotate-pdf", "extract-pages", "crop-pdf", "ocr-pdf", "protect-pdf",
   "unlock-pdf", "redact-pdf", "compare-pdf", "sign-pdf",
-  "measure-drawing", "edit-content", "advanced-pdf",
+  "measure-drawing", "edit-content", "advanced-pdf", "print-pdf",
 ]);
 
 describe("canonical PDF tool catalogue", () => {
   it("exposes unique, navigable tools and prevents silent dashboard losses", () => {
-    expect(ALL_TOOLS_CATALOG).toHaveLength(40);
+    expect(ALL_TOOLS_CATALOG).toHaveLength(41);
     const ids = ALL_TOOLS_CATALOG.map((item) => item.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(isDashboardToolId(id)).toBe(true);

@@ -1,49 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { ALL_TOOLS_CATALOG } from "../../apps/web/src/lib/allToolsCatalog";
 import { clickApplicationMenuItem, getApplicationMenuItem } from "../helpers/app-menu";
 
-const ALL_TOOL_IDS = [
-  "pdf-to-word",
-  "pdf-to-excel",
-  "pdf-to-ppt",
-  "pdf-to-png",
-  "pdf-to-jpeg",
-  "pdf-to-txt",
-  "pdf-to-xml",
-  "image-to-pdf",
-  "txt-to-pdf",
-  "word-to-pdf",
-  "excel-to-pdf",
-  "ppt-to-pdf",
-  "compress-pdf",
-  "merge-pdf",
-  "split-pdf",
-  "rotate-pdf",
-  "delete-pages",
-  "extract-pages",
-  "crop-pdf",
-  "watermark-pdf",
-  "page-numbers",
-  "ocr-pdf",
-  "fill-form",
-  "protect-pdf",
-  "unlock-pdf",
-  "redact-pdf",
-  "compare-pdf",
-  "sign-pdf",
-  "pdf-to-html",
-  "pdf-to-rtf",
-  "rtf-to-pdf",
-  "insert-pdf",
-  "header",
-  "footer",
-  "bates",
-  "normalize",
-  "measure-drawing",
-  "edit-content",
-  "advanced-pdf",
-  "ai-content-editor",
-] as const;
+const ALL_TOOL_IDS = ALL_TOOLS_CATALOG.map((tool) => tool.id);
 
 const BROWSER_UNAVAILABLE = new Set([
   "pdf-to-word",

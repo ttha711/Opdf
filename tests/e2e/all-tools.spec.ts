@@ -69,7 +69,7 @@ async function closeWorkingSurface(page: Page) {
   }
 }
 
-test("All Tools dashboard exposes the complete 40-tool contract", async ({ page }) => {
+test("All Tools dashboard exposes the complete 41-tool contract", async ({ page }) => {
   await loadFixture(page);
   await openDashboard(page);
 

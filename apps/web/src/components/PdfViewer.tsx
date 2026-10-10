@@ -14,6 +14,7 @@ import {
   registerViewerContentPickStarter,
   registerViewerControls,
   registerViewerPageImageProvider,
+  registerViewerPrint,
 } from "../lib/viewer-runtime";
 import { PdfMeasurementToolbar } from "./PdfMeasurementToolbar";
 import { AiPatchDialog } from "./AiPatchDialog";
@@ -228,7 +229,17 @@ export function PdfViewer({
     const unsubscribers: Array<() => void> = [];
     const registry = activeRegistry;
 
-      const scroll = registry.getPlugin?.("scroll")?.provides?.() as any;
+      const printApi = registry.getPlugin?.("print")?.provides?.() as any;
+       const printScope = printApi?.forDocument?.(DOCUMENT_ID) ?? printApi;
+       if (printScope?.print) {
+         unsubscribers.push(registerViewerPrint(() => {
+           const task = printScope.print({ includeAnnotations: true });
+           task?.wait?.(() => {}, (error: unknown) => {
+             onError?.(error instanceof Error ? error.message : String(error));
+           });
+         }));
+       }
+       const scroll = registry.getPlugin?.("scroll")?.provides?.() as any;
       const documentManager = registry.getPlugin?.("document-manager")?.provides?.() as any;
       const exportApi = registry.getPlugin?.("export")?.provides?.() as any;
       const annotationApi = registry.getPlugin?.("annotation")?.provides?.() as any;

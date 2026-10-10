@@ -19,7 +19,7 @@ test("web Save downloads the actual native-edited PDF", async ({ page }) => {
   await page.locator('[data-opdf-action="edit-content"]').click();
   const object = page.locator('[data-opdf-canvas-object][data-opdf-object-kind="text"]').first();
   await expect(object).toBeVisible({ timeout: 30_000 });
-  await object.click();
+  await object.dblclick();
   const editor = page.locator('[data-opdf-inline-text-editor="true"]');
   await expect(editor).toBeVisible();
   await editor.fill("AFTER NATIVE EDIT");

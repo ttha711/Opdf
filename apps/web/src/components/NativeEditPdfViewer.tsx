@@ -37,6 +37,7 @@ export function NativeEditPdfViewer({
     fontFallback: pdfiumRuntimeFontFallback,
   });
   const [localUrl, setLocalUrl] = useState<string | null>(null);
+  const [initialBuffer, setInitialBuffer] = useState<ArrayBuffer | null>(null);
   const initialSourceUrlRef = useRef<string | null>(null);
   const serverUrl = useMemo(
     () => sourceIdentity.startsWith("server://") ? getServerDocumentUrl(sourceIdentity) : null,
@@ -56,6 +57,23 @@ export function NativeEditPdfViewer({
     return () => URL.revokeObjectURL(url);
   }, [data, sourceBlob]);
 
+  // Browser uploads live in sourceBlob, not data. Give the editor its own
+  // immutable PDF buffer instead of opening a transient object URL. The
+  // headless document manager can otherwise remain in "loading" indefinitely.
+  useEffect(() => {
+    let cancelled = false;
+    if (initialBuffer || (!data && !sourceBlob)) return;
+    const read = data
+      ? Promise.resolve(data.slice().buffer as ArrayBuffer)
+      : sourceBlob!.arrayBuffer();
+    void read.then((buffer) => {
+      if (!cancelled) setInitialBuffer((current) => current ?? buffer);
+    }).catch((reason) => {
+      if (!cancelled) onError?.(reason instanceof Error ? reason.message : String(reason));
+    });
+    return () => { cancelled = true; };
+  }, [data, initialBuffer, onError, sourceBlob]);
+
   useEffect(() => {
     if (engineError) onError?.(engineError.message);
   }, [engineError, onError]);
@@ -70,11 +88,18 @@ export function NativeEditPdfViewer({
     if (!initialSourceUrl) return [];
     return [
       createPluginRegistration(DocumentManagerPluginPackage, {
-        initialDocuments: [{
-          url: initialSourceUrl,
-          documentId: EDIT_DOCUMENT_ID,
-          autoActivate: true,
-        }],
+        initialDocuments: [initialBuffer
+          ? {
+              buffer: initialBuffer,
+              name: "editable.pdf",
+              documentId: EDIT_DOCUMENT_ID,
+              autoActivate: true,
+            }
+          : {
+              url: initialSourceUrl,
+              documentId: EDIT_DOCUMENT_ID,
+              autoActivate: true,
+            }],
         maxDocuments: 2,
       }),
       createPluginRegistration(ViewportPluginPackage, { viewportGap: 20 }),
@@ -89,12 +114,12 @@ export function NativeEditPdfViewer({
         maxZoom: 5,
       }),
     ];
-  }, [initialSourceUrl]);
+  }, [initialBuffer, initialSourceUrl]);
 
   if (!sourceUrl || !initialSourceUrl) {
     return <div className="native-edit-error">No PDF source is available for editing.</div>;
   }
-  if (isLoading || !engine) {
+  if (isLoading || !engine || ((data || sourceBlob) && !initialBuffer)) {
     return <div className="native-edit-loading">Loading native PDF editor…</div>;
   }
   if (engineError) {

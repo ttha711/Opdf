@@ -4,7 +4,8 @@ import { getDocumentToolLabel } from "../lib/documentEditingExperience";
 import { useOpdfBridge } from "../hooks/useOpdfBridge";
 import { toast } from "./ToastProvider";
 import { buildPdfTextExport } from "../lib/pdfTextExport";
-import { OpdfIcon, type OpdfIconName } from "./OpdfIcon";
+import { OpdfIcon } from "./OpdfIcon";
+import { ALL_TOOLS_CATALOG, type ToolCatalogEntry } from "../lib/allToolsCatalog";
 
 interface AllToolsDashboardProps {
   hasDocument: boolean;
@@ -24,14 +25,15 @@ interface AllToolsDashboardProps {
   onTriggerRedact: () => void;
   onTriggerSign: () => void;
   onSelectTool?: (toolId: string) => void;
+  onTriggerAdditionalTool?: (toolId: string) => void;
 }
 
-type TabType = "all" | "hot" | "from_pdf" | "to_pdf" | "merge_split";
+type TabType = "all" | "hot" | "from_pdf" | "to_pdf" | "merge_split" | "edit_review";
 
 interface ToolDef {
   id: string;
   name: string;
-  icon: OpdfIconName;
+  icon: ToolCatalogEntry["icon"];
   color: string;
   bgColor: string;
   borderColor: string;
@@ -58,6 +60,7 @@ export function AllToolsDashboard({
   onTriggerRedact,
   onTriggerSign,
   onSelectTool,
+  onTriggerAdditionalTool,
 }: AllToolsDashboardProps) {
   const bridge = useOpdfBridge();
   const canCompress = bridge.capabilities?.compress !== false;
@@ -255,40 +258,54 @@ export function AllToolsDashboard({
   // Tool catalog follows the naming and task grouping users already know
   // from mainstream PDF products. Every item either performs a real action or
   // routes to a real configured panel/modal.
-  const tools: ToolDef[] = [
-    { id: "pdf-to-word", name: "PDF to Word", icon: "file-text", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => onSelectTool?.("pdf-to-word"), requiresDocument: true, unavailableReason: canPdfToOffice ? undefined : "PDF to Word requires OPDF Server or Desktop converter." },
-    { id: "pdf-to-excel", name: "PDF to Excel", icon: "file-text", color: "#198754", bgColor: "#e8f7ee", borderColor: "#b7e4c7", action: () => onSelectTool?.("pdf-to-excel"), requiresDocument: true, unavailableReason: canPdfToOffice ? undefined : "PDF to Excel requires OPDF Server or Desktop converter." },
-    { id: "pdf-to-ppt", name: "PDF to PowerPoint", icon: "file-text", color: "#d9480f", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => onSelectTool?.("pdf-to-ppt"), requiresDocument: true, unavailableReason: canPdfToOffice ? undefined : "PDF to PowerPoint requires OPDF Server or Desktop converter." },
-    { id: "pdf-to-png", name: "PDF to PNG", icon: "image", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => convertPdfToImages(true) },
-    { id: "pdf-to-jpeg", name: "PDF to JPEG", icon: "image", color: "#862e9c", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => convertPdfToImages(false) },
-    { id: "pdf-to-txt", name: getDocumentToolLabel("pdf-to-txt"), icon: "file-text", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: convertPdfToTxt },
-    { id: "pdf-to-xml", name: getDocumentToolLabel("pdf-to-xml"), icon: "file-text", color: "#0ca678", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: convertPdfToXml },
+  const toolAction = (id: string) => {
+    switch (id) {
+      case "pdf-to-txt": return convertPdfToTxt;
+      case "pdf-to-xml": return convertPdfToXml;
+      case "pdf-to-png": return () => convertPdfToImages(true);
+      case "pdf-to-jpeg": return () => convertPdfToImages(false);
+      case "image-to-pdf": return () => triggerFileInput(id);
+      case "txt-to-pdf": return () => triggerFileInput(id);
+      case "compress-pdf": return onTriggerCompress;
+      case "merge-pdf": return onTriggerMerge;
+      case "split-pdf": return onTriggerSplit;
+      case "watermark-pdf": return onTriggerWatermark;
+      case "page-numbers": return onTriggerPageNumbers;
+      case "ocr-pdf": return onTriggerOcr;
+      case "fill-form": return onTriggerFillForm;
+      case "redact-pdf": return onTriggerRedact;
+      case "compare-pdf": return onTriggerCompare;
+      case "sign-pdf": return onTriggerSign;
+      case "insert-pdf":
+      case "header":
+      case "footer":
+      case "bates":
+      case "normalize":
+      case "measure-drawing":
+      case "edit-content":
+      case "advanced-pdf":
+      case "ai-content-editor":
+        return () => onTriggerAdditionalTool?.(id);
+      default: return () => onSelectTool?.(id);
+    }
+  };
 
-    { id: "image-to-pdf", name: "Image to PDF", icon: "image", color: "#7048e8", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => triggerFileInput("image-to-pdf") },
-    { id: "txt-to-pdf", name: "TXT to PDF", icon: "file-text", color: "#f59f00", bgColor: "#fff9db", borderColor: "#ffe066", action: () => triggerFileInput("txt-to-pdf") },
-    { id: "word-to-pdf", name: "Word to PDF", icon: "file-text", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", action: () => onSelectTool?.("word-to-pdf"), unavailableReason: canOfficeToPdf ? undefined : "Requires OPDF Server with LibreOffice." },
-    { id: "excel-to-pdf", name: "Excel to PDF", icon: "file-text", color: "#198754", bgColor: "#e8f7ee", borderColor: "#b7e4c7", action: () => onSelectTool?.("excel-to-pdf"), unavailableReason: canOfficeToPdf ? undefined : "Requires OPDF Server with LibreOffice." },
-    { id: "ppt-to-pdf", name: "PowerPoint to PDF", icon: "file-text", color: "#d9480f", bgColor: "#fff4e6", borderColor: "#ffd8a8", action: () => onSelectTool?.("ppt-to-pdf"), unavailableReason: canOfficeToPdf ? undefined : "Requires OPDF Server with LibreOffice." },
-
-    { id: "compress-pdf", name: "Compress PDF", icon: "compress", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerCompress, unavailableReason: canCompress ? undefined : "Compression requires OPDF Server or Desktop." },
-    { id: "merge-pdf", name: "Merge PDF", icon: "merge", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerMerge },
-    { id: "split-pdf", name: "Split PDF", icon: "split", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerSplit },
-    { id: "rotate-pdf", name: "Rotate PDF", icon: "rotate-right", color: "#5f3dc4", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => onSelectTool?.("rotate-pdf") },
-    { id: "delete-pages", name: "Delete Pages", icon: "trash", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: () => onSelectTool?.("delete-pages") },
-    { id: "extract-pages", name: "Extract Pages", icon: "page", color: "#0b7285", bgColor: "#e3fafc", borderColor: "#99e9f2", action: () => onSelectTool?.("extract-pages") },
-    { id: "crop-pdf", name: "Crop PDF", icon: "crop", color: "#5c7cfa", bgColor: "#edf2ff", borderColor: "#bac8ff", action: () => onSelectTool?.("crop-pdf") },
-
-    { id: "watermark-pdf", name: "Watermark", icon: "watermark", color: "#1864ab", bgColor: "#e7f5ff", borderColor: "#a5d8ff", action: onTriggerWatermark, requiresDocument: true },
-    { id: "page-numbers", name: "Page Numbers", icon: "hash", color: "#495057", bgColor: "#f1f3f5", borderColor: "#ced4da", action: onTriggerPageNumbers, requiresDocument: true },
-    { id: "ocr-pdf", name: "OCR PDF", icon: "ocr", color: "#087f5b", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: onTriggerOcr, requiresDocument: true },
-    { id: "fill-form", name: "Fill Form", icon: "form", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerFillForm, requiresDocument: true },
-
-    { id: "protect-pdf", name: "Protect PDF", icon: "lock", color: "#9c36b5", bgColor: "#f8f0fc", borderColor: "#e5dbff", action: () => onSelectTool?.("protect-pdf"), unavailableReason: canEncrypt ? undefined : "Password protection requires OPDF Server or Desktop." },
-    { id: "unlock-pdf", name: "Unlock PDF", icon: "unlock", color: "#2f9e44", bgColor: "#ebfbee", borderColor: "#b2f2bb", action: () => onSelectTool?.("unlock-pdf"), unavailableReason: canEncrypt ? undefined : "Unlock requires OPDF Server or Desktop." },
-    { id: "redact-pdf", name: "Redact PDF", icon: "redact", color: "#212529", bgColor: "#f1f3f5", borderColor: "#ced4da", action: onTriggerRedact, requiresDocument: true },
-    { id: "compare-pdf", name: "Compare PDF", icon: "compare", color: "#364fc7", bgColor: "#edf2ff", borderColor: "#bac8ff", action: onTriggerCompare, requiresDocument: true },
-    { id: "sign-pdf", name: "Sign PDF", icon: "signature", color: "#a61e4d", bgColor: "#fff0f6", borderColor: "#fcc2d7", action: onTriggerSign, requiresDocument: true, unavailableReason: canDigitalSign ? undefined : "Digital signing requires OPDF Desktop." },
-  ];
+  // UI and AI share the same canonical catalogue, with runtime availability
+  // evaluated per capability instead of hardcoding a separate list of cards.
+  const tools: ToolDef[] = ALL_TOOLS_CATALOG.map((item) => {
+    const unavailableReason = (() => {
+      switch (item.capability) {
+        case "pdf-to-office": return canPdfToOffice ? undefined : "PDF to Office requires OPDF Server or Desktop converter.";
+        case "office-to-pdf": return canOfficeToPdf ? undefined : "Office conversion requires OPDF Server or Desktop converter.";
+        case "compress": return canCompress ? undefined : "Compression requires OPDF Server or Desktop.";
+        case "encrypt": return canEncrypt ? undefined : "Password security requires OPDF Server or Desktop.";
+        case "digital-signature": return canDigitalSign ? undefined : "Digital signing requires OPDF Desktop or a configured signing service.";
+        case "pdf-a": return bridge.capabilities?.pdfA === true ? undefined : "PDF/A conversion is unavailable in this runtime.";
+        default: return undefined;
+      }
+    })();
+    return { ...item, action: toolAction(item.id), unavailableReason };
+  });
 
   // Filter tools based on active tab
   const getFilteredTools = () => {
@@ -296,11 +313,13 @@ export function AllToolsDashboard({
       case "hot":
         return tools.filter(t => ["pdf-to-word", "image-to-pdf", "merge-pdf", "split-pdf", "compress-pdf", "fill-form"].includes(t.id));
       case "from_pdf":
-        return tools.filter(t => t.id.startsWith("pdf-to"));
+        return tools.filter(t => ALL_TOOLS_CATALOG.find(item => item.id === t.id)?.category === "from_pdf");
       case "to_pdf":
-        return tools.filter(t => t.id.endsWith("-to-pdf"));
+        return tools.filter(t => ALL_TOOLS_CATALOG.find(item => item.id === t.id)?.category === "to_pdf");
       case "merge_split":
-        return tools.filter(t => ["compress-pdf", "merge-pdf", "split-pdf", "rotate-pdf", "delete-pages", "extract-pages", "crop-pdf"].includes(t.id));
+        return tools.filter(t => ALL_TOOLS_CATALOG.find(item => item.id === t.id)?.category === "merge_split");
+      case "edit_review":
+        return tools.filter(t => ALL_TOOLS_CATALOG.find(item => item.id === t.id)?.category === "edit_review");
       case "all":
       default:
         return tools;
@@ -333,7 +352,7 @@ export function AllToolsDashboard({
 
       {/* Tabs Menu */}
       <div className="relative z-10 flex shrink-0 border-b border-[var(--border-color)] mb-8 overflow-x-auto whitespace-nowrap scrollbar-none overscroll-x-contain touch-pan-x">
-        {(["hot", "from_pdf", "to_pdf", "merge_split", "all"] as TabType[]).map((tab) => (
+        {(["hot", "from_pdf", "to_pdf", "merge_split", "edit_review", "all"] as TabType[]).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -356,7 +375,7 @@ export function AllToolsDashboard({
               ? "Convert from PDF"
               : tab === "to_pdf"
               ? "Convert to PDF"
-              : "Merge & Split"}
+              : tab === "merge_split" ? "Pages & Files" : "Edit & Review"}
           </button>
         ))}
       </div>
@@ -379,13 +398,7 @@ export function AllToolsDashboard({
                 toast.info("Open a PDF first to use this tool.");
                 return;
               }
-              if (hasDocument) {
-                void tool.action();
-              } else if (onSelectTool) {
-                onSelectTool(tool.id);
-              } else {
-                void tool.action();
-              }
+              void tool.action();
             }}
             style={{
               borderColor: tool.borderColor,

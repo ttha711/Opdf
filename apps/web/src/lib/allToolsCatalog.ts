@@ -19,6 +19,7 @@ export interface ToolCatalogEntry {
 }
 
 export const ALL_TOOLS_CATALOG: readonly ToolCatalogEntry[] = [
+  { id: "print-pdf", name: "Print PDF", icon: "file-pdf", color: "#1864ab", bgColor: "#e7f5ff", borderColor: "#a5d8ff", category: "edit_review", requiresDocument: true },
   { id: "pdf-to-word", name: "PDF to Word", icon: "file-text", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", category: "from_pdf", requiresDocument: true, capability: "pdf-to-office" },
   { id: "pdf-to-excel", name: "PDF to Excel", icon: "file-text", color: "#198754", bgColor: "#e8f7ee", borderColor: "#b7e4c7", category: "from_pdf", requiresDocument: true, capability: "pdf-to-office" },
   { id: "pdf-to-ppt", name: "PDF to PowerPoint", icon: "file-text", color: "#d9480f", bgColor: "#fff4e6", borderColor: "#ffd8a8", category: "from_pdf", requiresDocument: true, capability: "pdf-to-office" },

@@ -113,3 +113,14 @@ export function registerViewerContentAreaListener(listener: (area: ViewerContent
 export function emitViewerContentArea(area: ViewerContentArea) {
   activeContentAreaListener?.(area);
 }
+
+// Document-scoped EmbedPDF printing, never window.print() of OPDF chrome.
+let activePdfPrint: (() => void) | null = null;
+export function registerViewerPrint(print: () => void) {
+  activePdfPrint = print;
+  return () => { if (activePdfPrint === print) activePdfPrint = null; };
+}
+export function printViewerDocument() {
+  if (!activePdfPrint) throw new Error("The PDF print engine is not ready.");
+  activePdfPrint();
+}

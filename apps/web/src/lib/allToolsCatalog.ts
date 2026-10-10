@@ -18,7 +18,7 @@ export interface ToolCatalogEntry {
   capability?: ToolCapability;
 }
 
-export const ALL_TOOLS_CATALOG = [
+export const ALL_TOOLS_CATALOG: readonly ToolCatalogEntry[] = [
   { id: "pdf-to-word", name: "PDF to Word", icon: "file-text", color: "#1b6ec2", bgColor: "#e7f1ff", borderColor: "#b8d9ff", category: "from_pdf", requiresDocument: true, capability: "pdf-to-office" },
   { id: "pdf-to-excel", name: "PDF to Excel", icon: "file-text", color: "#198754", bgColor: "#e8f7ee", borderColor: "#b7e4c7", category: "from_pdf", requiresDocument: true, capability: "pdf-to-office" },
   { id: "pdf-to-ppt", name: "PDF to PowerPoint", icon: "file-text", color: "#d9480f", bgColor: "#fff4e6", borderColor: "#ffd8a8", category: "from_pdf", requiresDocument: true, capability: "pdf-to-office" },
@@ -59,9 +59,9 @@ export const ALL_TOOLS_CATALOG = [
   { id: "edit-content", name: "Edit PDF Content", icon: "edit", color: "#1864ab", bgColor: "#e7f5ff", borderColor: "#a5d8ff", category: "edit_review", requiresDocument: true },
   { id: "advanced-pdf", name: "Advanced PDF (Forms, Links, Bookmarks)", icon: "tools", color: "#1864ab", bgColor: "#e7f5ff", borderColor: "#a5d8ff", category: "edit_review", requiresDocument: true },
   { id: "ai-content-editor", name: "AI Edit", icon: "edit", color: "#1864ab", bgColor: "#e7f5ff", borderColor: "#a5d8ff", category: "edit_review", requiresDocument: true },
-] as const satisfies readonly ToolCatalogEntry[];
+];
 
-export type DashboardToolId = (typeof ALL_TOOLS_CATALOG)[number]["id"];
+export type DashboardToolId = string;
 
 export function isDashboardToolId(value: string): value is DashboardToolId {
   return ALL_TOOLS_CATALOG.some((tool) => tool.id === value);

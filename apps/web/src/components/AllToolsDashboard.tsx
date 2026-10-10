@@ -265,6 +265,7 @@ export function AllToolsDashboard({
       case "pdf-to-jpeg": return () => convertPdfToImages(false);
       case "image-to-pdf": return () => triggerFileInput(id);
       case "txt-to-pdf": return () => triggerFileInput(id);
+      case "print-pdf": return () => onTriggerAdditionalTool?.(id);
       case "compress-pdf": return onTriggerCompress;
       case "merge-pdf": return onTriggerMerge;
       case "split-pdf": return onTriggerSplit;

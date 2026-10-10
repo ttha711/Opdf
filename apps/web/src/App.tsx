@@ -17,7 +17,7 @@ import { resolvePdfSource } from "./lib/documentSource";
 import { hasFullWebAccess } from "./lib/runtimeAccess";
 import { AiRewriteEditorWindow, AllToolsDashboard, LiveHtmlEditor, AppDocumentDialogs, AppWorkspace } from "./components/app/AppLazyModules";
 import "./types/opdf";
-import { printViewerDocument } from "./lib/viewer-runtime";
+import { printViewerDocument, subscribeViewerPrintReady } from "./lib/viewer-runtime";
 
 export function App() {
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
@@ -38,6 +38,7 @@ export function App() {
   const [showSearchRedact, setShowSearchRedact] = useState(false);
   const [showAdvancedPdf, setShowAdvancedPdf] = useState(false);
   const [showDigitalSignature, setShowDigitalSignature] = useState(false);
+  const [pendingPrint, setPendingPrint] = useState(false);
   const [showHome, setShowHome] = useState(false);
   const [bridgeRecents, setBridgeRecents] = useState<Array<{ filePath: string; openedAt: number }>>([]);
   const sidebars = useResizableSidebars();
@@ -135,7 +136,19 @@ export function App() {
     }
     return <Suspense fallback={<div role="status">Loading AI editor…</div>}><AiRewriteEditorWindow /></Suspense>;
   }
-  const showWorkspace = state.hasDocument || Boolean(state.activeDashboardTool);
+  useEffect(() => {
+    if (!pendingPrint || state.showDashboard || !state.hasDocument) return;
+    return subscribeViewerPrintReady(() => {
+      try {
+        printViewerDocument();
+      } catch (error) {
+        state.setViewerError(error instanceof Error ? error.message : String(error));
+      } finally {
+        setPendingPrint(false);
+      }
+    });
+  }, [pendingPrint, state.showDashboard, state.hasDocument, state.setViewerError]);
+    const showWorkspace = state.hasDocument || Boolean(state.activeDashboardTool);
   return (
     <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}`}>
       <AppUpdateBanner updateInfo={updateInfo} />
@@ -238,11 +251,7 @@ export function App() {
           onTriggerAdditionalTool={(toolId) => {
             state.setShowDashboard(false);
             switch (toolId) {
-              case "print-pdf": {
-                try { printViewerDocument(); }
-                catch (error) { state.setViewerError(error instanceof Error ? error.message : String(error)); }
-                break;
-              }
+              case "print-pdf": setPendingPrint(true); break;
               case "insert-pdf": state.setShowInsertModal(true); break;
               case "header":
               case "footer":

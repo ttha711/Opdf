@@ -79,7 +79,7 @@ test("native PDF text editing is inline and advanced settings are opt-in", async
 
   const textObject = page.locator('[data-opdf-canvas-object][data-opdf-object-kind="text"]').first();
   await expect(textObject).toBeVisible({ timeout: 20_000 });
-  await textObject.click();
+  await textObject.dblclick();
 
   const inlineEditor = page.locator('[data-opdf-inline-text-editor="true"]');
   await expect(inlineEditor).toBeVisible();

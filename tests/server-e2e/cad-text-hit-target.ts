@@ -87,9 +87,15 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
     // click changes the topmost SVG target and the second hits another node.
     if (await search.isVisible().catch(() => false)) {
       await search.fill(objectId);
-      await page.locator('[data-opdf-object-id="' + objectId + '"]').click();
-      await page.locator('[data-opdf-canvas-selection="' + objectId + '"]')
-        .waitFor({ state: "attached", timeout: 15_000 });
+      // The inspector row is virtualized and can be replaced during Playwright's
+      // click stability check. Dispatch its normal DOM click directly only if
+      // the target isn't already selected, then verify the canvas selection.
+      const selection = page.locator('[data-opdf-canvas-selection="' + objectId + '"]');
+      if (await selection.count() === 0) {
+        await page.locator('[data-opdf-object-id="' + objectId + '"]')
+          .evaluate((node: HTMLElement) => node.click());
+        await selection.waitFor({ state: "attached", timeout: 15_000 });
+      }
     }
     // Avoid speculative wheel events: they can virtualize the page away.
     await bringPinnedTextIntoView(page, objectId);
@@ -111,9 +117,11 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
   if (await search.isVisible().catch(() => false)) {
     await search.fill(objectId);
     const row = page.locator('[data-opdf-object-id="' + objectId + '"]');
-    await row.click();
-    await page.locator('[data-opdf-canvas-selection="' + objectId + '"]')
-      .waitFor({ state: "attached", timeout: 15_000 });
+    const selection = page.locator('[data-opdf-canvas-selection="' + objectId + '"]');
+    if (await selection.count() === 0) {
+      await row.evaluate((node: HTMLElement) => node.click());
+      await selection.waitFor({ state: "attached", timeout: 15_000 });
+    }
     await page.getByRole("button", { name: "Edit selected text", exact: true }).click();
     await input.waitFor({ state: "visible", timeout: 15_000 });
     if (await input.getAttribute("data-opdf-inline-object-id") === objectId) return;

@@ -219,12 +219,9 @@ export function NativeEditPageOverlay({
   });
 
   const commitInlineText = useNativeInlineCommit({ selected, editingText, setEditingText, setIsApplying: setIsApplyingText });
-  // Only the active page may own the global inline-commit hook. Otherwise an
-  // offscreen page can overwrite it and silently discard the visible draft.
-  useEffect(() => {
-    if (!enabled) return;
-    return registerNativeInlineCommitter(commitInlineText);
-  }, [commitInlineText, enabled]);
+  // Offscreen pages must not overwrite the active page's commit callback.
+  useEffect(() => enabled ? registerNativeInlineCommitter(commitInlineText) : undefined,
+    [commitInlineText, enabled]);
   useEffect(() => registerNativeInlineTextEditRequestListener((request) => {
     if (request.pageIndex !== pageIndex) return;
     const object = objects.find((item) => item.id === request.objectId);

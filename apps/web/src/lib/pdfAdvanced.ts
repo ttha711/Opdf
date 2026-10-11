@@ -2,6 +2,7 @@ import {
   PDFArray,
   PDFCheckBox,
   PDFDocument,
+  PDFHexString,
   PDFDropdown,
   PDFName,
   PDFNumber,
@@ -273,7 +274,7 @@ export async function addPdfBookmarks(
     const ownChildren = children.get(index) ?? [];
     const destination = context.obj([pages[bookmark.page - 1].ref, PDFName.of("Fit")]);
     const item = context.obj({
-      Title: PDFString.of(bookmark.title),
+      Title: PDFHexString.fromText(bookmark.title),
       Parent: bookmark.parent === undefined ? outlinesRef : itemRefs[bookmark.parent],
       Dest: destination,
       ...(siblingIndex > 0 ? { Prev: itemRefs[siblings[siblingIndex - 1]] } : {}),

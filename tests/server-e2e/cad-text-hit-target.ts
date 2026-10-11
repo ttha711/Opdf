@@ -127,7 +127,11 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
         '[data-opdf-object-id="' + id + '"]',
       )?.classList.contains("active"), objectId, { timeout: 15_000 });
     }
-    await page.getByRole("button", { name: "Edit selected text", exact: true }).click();
+    // The properties panel can remount its button while CAD inspection
+    // refreshes. Dispatch its native click without Playwright's stability
+    // wait, then verify the editor actually opens for the pinned object.
+    await page.getByRole("button", { name: "Edit selected text", exact: true })
+      .evaluate((button: HTMLElement) => button.click());
     await input.waitFor({ state: "visible", timeout: 15_000 });
     if (await input.getAttribute("data-opdf-inline-object-id") === objectId) return;
     await input.press("Escape");

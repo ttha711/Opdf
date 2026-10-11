@@ -55,6 +55,11 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+3/i, { timeout: 30_000 });
 
+  const mobileSave = page.locator('[data-opdf-action="mobile-save"]');
+  await expect(mobileSave).toBeVisible();
+  const saveBox = await mobileSave.boundingBox();
+  expect(saveBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+
   // Regression: annotation tools must be reachable on a real touch viewport.
   const mobileTools = page.locator('[data-opdf-mobile-edit-toolbar="true"]');
   await expect(mobileTools).toBeVisible();
@@ -80,6 +85,11 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await filmstrip.getByRole("button", { name: "Go to page 2" }).click();
   await expect(filmstrip).toHaveCount(0);
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+2\s+of\s+3/i, { timeout: 10_000 });
+  await pagePreviewButton.click();
+  await filmstrip.getByRole("spinbutton", { name: "Jump to page" }).fill("3");
+  await filmstrip.getByRole("button", { name: "Go to page", exact: true }).click();
+  await expect(page.getByTestId("page-status")).toContainText(/Page\s+3\s+of\s+3/i, { timeout: 10_000 });
+
 
   await expect(page.locator(".opdf-topbar .tab-bar-container")).toBeVisible();
   await page.locator('[data-opdf-action="home"]').click();
@@ -88,6 +98,11 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(preservedTab).toBeVisible();
   await preservedTab.click();
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+
+  await page.setViewportSize({ width: 320, height: 700 });
+  const headerSaveRect = await mobileSave.boundingBox();
+  expect((headerSaveRect?.x ?? -1) + (headerSaveRect?.width ?? 1)).toBeLessThanOrEqual(320);
+  await expect(mobileSave).toBeVisible();
 
   const documentOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(documentOverflow).toBeLessThanOrEqual(1);

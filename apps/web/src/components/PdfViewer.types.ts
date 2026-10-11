@@ -7,6 +7,7 @@ export interface PdfViewerProps {
   page: number;
   scale: number;
   activeTool?: ActiveTool;
+  hasUnsavedChanges?: boolean;
   onActiveToolChange?: (tool: ActiveTool) => void;
   onDocumentLoaded?: (pages: number) => void;
   onError?: (message: string | null) => void;

@@ -133,7 +133,7 @@ test("double-clicking a PDF page enters editing without Edit PDF", async ({ page
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   // Double-click near the painted text to edit in the reader, without
   // mounting the separate native-edit viewer or changing the active tool.
-  const canvas = page.locator(".viewer-shell canvas").filter({ visible: true }).first();
+  const canvas = page.locator(".viewer-shell img, .viewer-shell canvas").filter({ visible: true }).first();
   await expect(canvas).toBeVisible({ timeout: 30_000 });
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Reader canvas has no visible bounds.");

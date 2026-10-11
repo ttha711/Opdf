@@ -33,7 +33,7 @@ export function useNativeContentPanelText({ selected, objects, readOnly, apply }
               fontFamily: "__opdf_unicode__", fontSize: editingObject.fontSize,
             });
           }
-          patches.push({ type: "replace-text", objectId: selected.id, text });
+          patches.push({ type: "replace-text", objectId: editingObject.id, text });
           return Boolean(await apply(patches, "Text applied. Check the Save status in the toolbar."));
         }} />
     : null;

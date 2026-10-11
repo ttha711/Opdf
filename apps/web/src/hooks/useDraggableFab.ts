@@ -55,6 +55,7 @@ export function useDraggableFab({
     const handleTouchMove = (e: TouchEvent) => {
       if (dragInputRef.current === "touch" && e.touches.length > 0) {
         moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+        if (hasMovedRef.current && e.cancelable) e.preventDefault();
       }
     };
 
@@ -62,10 +63,10 @@ export function useDraggableFab({
       const deltaX = clientX - dragStartMouse.current.x;
       const deltaY = clientY - dragStartMouse.current.y;
       
-      if (Math.sqrt(deltaX * deltaX + deltaY * deltaY) > 5) {
-        hasMovedRef.current = true;
-      }
-      
+      const threshold = dragInputRef.current === "touch" ? 14 : 8;
+      if (!hasMovedRef.current && Math.hypot(deltaX, deltaY) < threshold) return;
+      hasMovedRef.current = true;
+
       let newX = clientX - dragStartOffset.current.x;
       let newY = clientY - dragStartOffset.current.y;
 
@@ -110,7 +111,7 @@ export function useDraggableFab({
     };
 
     window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
     window.addEventListener("mouseup", handleMouseUp);
     window.addEventListener("touchend", handleTouchEnd);
 

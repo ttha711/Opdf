@@ -10,6 +10,7 @@ import { DocumentService } from "@opdf/core";
 import { createOpdfStorage, assertDocumentId, sanitizeFileName } from "./opdf-storage.mjs";
 import { createChunkUploadApi } from "./opdf-upload.mjs";
 import { createRemoteRenderService } from "./opdf-remote-render.mjs";
+import { createPdfcraftDiagnostics } from "./opdf-pdfcraft-adapter.mjs";
 import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
 import { createCertificateStore } from "./opdf-certificate-store.mjs";
 import { createSigningApi } from "./opdf-signing-api.mjs";
@@ -68,6 +69,7 @@ const certificateStore = tenantRuntime.certificateStore;
 const ocrQueue = tenantRuntime.ocrQueue;
 const documentService = new DocumentService();
 const remoteRenderer = createRemoteRenderService();
+const pdfcraftDiagnostics = createPdfcraftDiagnostics();
 const pythonPath = process.env.OPDF_PYTHON_PATH || (process.platform === "win32" ? "python" : "python3");
 const officeConverterScript = resolve(
   process.env.OPDF_OFFICE_CONVERTER_SCRIPT ||
@@ -902,6 +904,7 @@ async function handleApi(req, res, url) {
         storedMutations: true,
         rangePreview: false,
         remoteRendering: remoteRenderer.enabled,
+        documentHealth: pdfcraftDiagnostics.enabled,
         resumableUpload: true,
         localFirstUpload: true,
         ocrQueue: true,
@@ -971,6 +974,20 @@ async function handleApi(req, res, url) {
   if (url.pathname.includes("/render/")) {
     const handled = await remoteRenderer.handle(req, res, url, { storage, sendJson, sendError, setBaseHeaders });
     if (handled !== false) return;
+  }
+
+  // Diagnostics use the current tenant's stored file, never a user-supplied path.
+  const healthMatch = url.pathname.match(/^\/api\/opdf\/documents\/([^/]+)\/health$/);
+  if (healthMatch) {
+    if (req.method !== "GET") return sendError(res, 405, "Method not allowed.");
+    if (!pdfcraftDiagnostics.enabled) return sendError(res, 503, "Document Health is disabled.");
+    const id = assertDocumentId(healthMatch[1]);
+    const record = await storage.getDocument(id);
+    if (!record) return sendError(res, 404, "Document not found.");
+    if (storage.ensureDocumentFile && !await storage.ensureDocumentFile(id)) {
+      return sendError(res, 404, "Document file not found.");
+    }
+    return sendJson(res, 200, await pdfcraftDiagnostics.diagnose(record.pdfPath));
   }
 
   const route = parseDocumentRoute(url.pathname);

@@ -13,10 +13,10 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   const serverSource = (props.sourceIdentity || "").startsWith("server://");
   const [available, setAvailable] = useState(false);
   const [finishingEdit, setFinishingEdit] = useState(false);
-  const [preference, setPreference] = useState<"auto" | "full" | "remote">(() => {
-    const value = window.localStorage.getItem("opdf-render-mode");
-    return value === "full" || value === "remote" ? value : "auto";
-  });
+  // View-only mode is temporary and document-scoped. Persisting "remote" in
+  // localStorage can unexpectedly disable tools for the next opened PDF.
+  const [preference, setPreference] = useState<"full" | "remote">("full");
+  useEffect(() => { setPreference("full"); }, [props.sourceIdentity]);
 
   useEffect(() => {
     if (!serverSource || window.__OPDF_RUNTIME__ !== "server") {
@@ -41,13 +41,11 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   useEffect(() => {
     if (!needsEditor || preference !== "remote") return;
     setPreference("full");
-    window.localStorage.setItem("opdf-render-mode", "full");
   }, [needsEditor, preference]);
 
   const switchMode = () => {
     const next = remote ? "full" : "remote";
     setPreference(next);
-    window.localStorage.setItem("opdf-render-mode", next);
   };
 
   return (

@@ -73,6 +73,11 @@ export async function loadTabsList(): Promise<OpdfTab[] | null> {
     return new Promise((resolve) => {
       req.onsuccess = () => {
       const value = req.result as OpdfTab[] | undefined;
+      // An intentionally empty saved session must not restore an older draft.
+      if (Array.isArray(value) && value.length === 0) {
+        resolve([]);
+        return;
+      }
       // Server-backed tabs are restorable from their durable sourceIdentity,
       // even though autosave intentionally omits the potentially huge PDF bytes.
       const restorable = value?.filter((tab) =>

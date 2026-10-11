@@ -36,6 +36,8 @@ export function NativeContentObjectList({ objects, selectedId, loading, onSelect
     });
   }, [objects, query, kind]);
   const shown = filtered.slice(0, limit);
+  const selected = filtered.find(object => object.id === selectedId);
+  if (selected && !shown.some(object => object.id === selected.id)) shown.push(selected);
   const hiddenSelection = Boolean(selectedId && !filtered.some(object => object.id === selectedId));
 
   return (
@@ -64,10 +66,10 @@ export function NativeContentObjectList({ objects, selectedId, loading, onSelect
         ))}
       </div>
       {hiddenSelection && (
-        <button type="button" className="text-left text-[11px] text-[var(--acrobat-blue)] underline"
+        <div><button type="button" className="text-left text-[11px] text-[var(--acrobat-blue)] underline"
           onClick={() => { setQuery(""); setKind("all"); setLimit(BATCH_SIZE); }}>
           Selected object is hidden by this filter. Show all.
-        </button>
+        </button></div>
       )}
       {shown.map(object => (
         <button

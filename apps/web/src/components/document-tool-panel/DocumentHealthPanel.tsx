@@ -24,6 +24,7 @@ export function DocumentHealthPanel({ sourceIdentity }: { sourceIdentity?: strin
   useEffect(() => {
     setReport(null);
     setError("");
+    setBusy(false);
     return () => { inFlight.current?.abort(); inFlight.current = null; };
   }, [savedUrl]);
 

@@ -3,6 +3,8 @@ import type { PdfViewerProps } from "./PdfViewer.types";
 import { PdfViewer } from "./PdfViewer";
 import { NativeEditPdfViewer } from "./NativeEditPdfViewer";
 import { RemotePdfViewer } from "./RemotePdfViewer";
+import { ViewerQuickTools } from "./ViewerQuickTools";
+import { OpdfIcon } from "./OpdfIcon";
 
 // Keep the existing fast local PDFium viewer untouched on desktop.
 export function AdaptivePdfViewer(props: PdfViewerProps) {
@@ -56,6 +58,16 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
           {isEditing ? <div className="absolute inset-0"><NativeEditPdfViewer {...props} /></div> : null}
         </>
       )}
+      {props.onActiveToolChange && !remote ? (
+        <div className="opdf-mobile-edit-toolbar" data-opdf-mobile-edit-toolbar="true">
+          <ViewerQuickTools activeTool={props.activeTool ?? "select"} onActiveToolChange={props.onActiveToolChange} />
+          <button type="button" className="opdf-mobile-edit-select" data-opdf-action="mobile-select"
+            aria-label="Move and select PDF" aria-pressed={!props.activeTool || props.activeTool === "select"}
+            onClick={() => props.onActiveToolChange?.("select")}>
+            <OpdfIcon name="view" size={19} />
+          </button>
+        </div>
+      ) : null}
       {serverSource && available && !needsEditor ? (
         <button type="button" data-opdf-action="toggle-remote-render"
           aria-label={remote ? "Use full PDF editor" : "Use lightweight remote rendering"}

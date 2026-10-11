@@ -30,7 +30,7 @@ export function nativeInlineTextLayout(
   const fontSize = clamp(Math.min(
     (object.fontSize ?? 12) * pageWidth / Math.max(1, object.pageWidth),
     visualHeight * 0.95,
-  ), 11, 20);
+  ), 15, 24);
   const measure = (line: string) => measureText?.(line, fontSize)
     ?? Array.from(line).reduce((sum, char) =>
       sum + fontSize * (/\s/.test(char) ? 0.35 : /[^\x00-\xff]/.test(char) ? 0.95 : 0.57), 0);
@@ -38,11 +38,11 @@ export function nativeInlineTextLayout(
   const originalLines = (object.text ?? "").split(/\r?\n/);
   const longest = Math.max(0, ...[...lines, ...originalLines].map(measure));
   const width = Math.min(Math.max(1, pageWidth - 16),
-    Math.max(36, Math.min(320, Math.ceil(longest + 20))));
+    Math.max(124, Math.min(360, Math.ceil(longest + 28))));
   const rows = lines.reduce((sum, line) =>
     sum + Math.max(1, Math.ceil(measure(line) / Math.max(1, width - 16))), 0);
   const height = Math.min(Math.max(1, pageHeight - 16),
-    Math.max(26, Math.min(160, Math.ceil(rows * fontSize * 1.35 + 12))));
+    Math.max(42, Math.min(180, Math.ceil(rows * Math.max(fontSize, 15) * 1.35 + 16))));
   return {
     left: clamp(center.x - width / 2, 8, Math.max(8, pageWidth - width - 8)),
     top: clamp(center.y - height / 2, 8, Math.max(8, pageHeight - height - 8)),

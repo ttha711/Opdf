@@ -243,6 +243,11 @@ export function AppHeader(props: AppHeaderProps) {
         <div className="opdf-header-actions">
           {hasDocument ? (
             <>
+              <button type="button" className="opdf-mobile-header-save"
+                data-opdf-action="mobile-save" aria-label="Save PDF" title="Save PDF"
+                onClick={savePdf} disabled={saveState === "saving"}>
+                <OpdfIcon name="save" size={20} />
+              </button>
               <UndoButton onClick={undo} />
               <RedoButton onClick={redo} />
               <SaveControl saveState={saveState} onSave={savePdf} autosaveEnabled={autosaveEnabled} autosaveStatus={autosaveStatus} />

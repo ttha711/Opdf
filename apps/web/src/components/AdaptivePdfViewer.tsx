@@ -13,6 +13,15 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   const serverSource = (props.sourceIdentity || "").startsWith("server://");
   const [available, setAvailable] = useState(false);
   const [finishingEdit, setFinishingEdit] = useState(false);
+  const [mobileLayout, setMobileLayout] = useState(() =>
+    window.matchMedia("(max-width: 900px)").matches);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 900px)");
+    const onChange = () => setMobileLayout(media.matches);
+    media.addEventListener("change", onChange);
+    onChange();
+    return () => media.removeEventListener("change", onChange);
+  }, []);
   // View-only mode is temporary and document-scoped. Persisting "remote" in
   // localStorage can unexpectedly disable tools for the next opened PDF.
   const [preference, setPreference] = useState<"full" | "remote">("full");
@@ -60,7 +69,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
           {isEditing ? <div className="absolute inset-0"><NativeEditPdfViewer {...props} /></div> : null}
         </>
       )}
-      {props.onActiveToolChange && !remote ? (
+      {mobileLayout && props.onActiveToolChange && !remote ? (
         <div className="opdf-mobile-edit-toolbar" data-opdf-mobile-edit-toolbar="true">
           {isEditing ? (
             <button type="button" className="opdf-mobile-done-edit" data-opdf-action="mobile-done-edit"

@@ -7,7 +7,7 @@ import {
 } from "@embedpdf/react-pdf-viewer";
 import type { PdfViewerProps } from "./PdfViewer.types";
 import type { ActiveTool } from "../lib/app-types";
-import { isEmbedPdfReplaceTextTool, mapActiveToolToEmbedPdfAnnotation } from "../lib/annotationToolMapping";
+import { isEmbedPdfReplaceTextTool, mapActiveToolToEmbedPdfAnnotation, mapEmbedPdfToolToActiveTool } from "../lib/annotationToolMapping";
 import {
   emitViewerContentArea,
   registerViewerBytesProvider,
@@ -377,28 +377,16 @@ export function PdfViewer({
             onActiveToolChange("edit-content");
             return;
           }
-          if (activeTool !== "measure") return;
           const expectedMeasureTool =
             measurementMode === "area" ? "polygon" :
-            measurementMode === "perimeter" ? "polyline" :
-            "line";
-          if (rawTool === expectedMeasureTool || rawTool.endsWith(":" + expectedMeasureTool)) return;
-
-          let nextTool: ActiveTool = "select";
-          if (rawTool.includes("highlight")) nextTool = "highlight";
-          else if (rawTool.includes("ink") || rawTool.includes("draw")) nextTool = "draw";
-          else if (rawTool.includes("freetext") || rawTool.includes("free-text")) nextTool = "text";
-          else if (rawTool.includes("note")) nextTool = "note";
-          else if (
-            rawTool.includes("square") ||
-            rawTool.includes("rectangle") ||
-            rawTool.includes("circle") ||
-            rawTool.includes("arrow") ||
-            rawTool.includes("polygon") ||
-            rawTool.includes("polyline") ||
-            rawTool === "line"
-          ) nextTool = "shape";
-
+            measurementMode === "perimeter" ? "polyline" : "line";
+          if (activeToolRef.current === "measure" &&
+              (rawTool === expectedMeasureTool || rawTool.endsWith(":" + expectedMeasureTool))) return;
+          // Changing a non-annotation tool may temporarily clear the native
+          // annotation tool. That must not cancel Redact or Native Edit.
+          if (!rawTool && ["redact", "ai-patch", "edit-content"].includes(activeToolRef.current)) return;
+          const nextTool = mapEmbedPdfToolToActiveTool(rawTool);
+          if (!nextTool || nextTool === activeToolRef.current) return;
           preserveNativeToolRef.current = true;
           onActiveToolChange(nextTool);
         });

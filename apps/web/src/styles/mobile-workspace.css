@@ -174,3 +174,67 @@
     font-weight: 800;
   }
 }
+
+
+/* Mobile PDF controls must stay outside the zoomed document canvas. */
+.opdf-mobile-edit-toolbar { display: none; }
+@media (max-width: 900px) {
+  .opdf-mobile-edit-toolbar {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    z-index: 45;
+    pointer-events: none;
+    gap: 5px;
+    min-width: 0;
+  }
+  .opdf-mobile-edit-toolbar .viewer-quick-tools {
+    position: static;
+    transform: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    touch-action: pan-x;
+    pointer-events: auto;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+  }
+  .opdf-mobile-edit-toolbar .viewer-quick-tools::-webkit-scrollbar { display: none; }
+  .opdf-mobile-edit-toolbar .viewer-quick-tool {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+  }
+  .opdf-mobile-edit-select {
+    pointer-events: auto;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 52px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-toolbar);
+    color: var(--text-primary);
+    box-shadow: 0 6px 20px rgb(0 0 0 / 15%);
+  }
+  .opdf-mobile-edit-select[aria-pressed="true"] {
+    color: var(--acrobat-blue);
+    background: var(--ui-accent-bg);
+  }
+  .viewer-area { min-width: 0; touch-action: pan-x pan-y; }
+  .opdf-mobile-filmstrip { bottom: max(44px, env(safe-area-inset-bottom)); }
+  .ai-float-toggle-btn:not(.dragging) {
+    right: 12px;
+    bottom: max(166px, calc(env(safe-area-inset-bottom) + 154px));
+  }
+}

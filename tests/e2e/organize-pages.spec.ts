@@ -1,13 +1,15 @@
 import { expect, test } from "@playwright/test";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 
 test("organize pages uses existing page operations and changes the PDF only after Apply", async ({ page }) => {
   test.setTimeout(90_000);
   await page.goto("/");
   const pdf = await PDFDocument.create();
-  pdf.addPage([300, 400]);
-  pdf.addPage([400, 500]);
-  pdf.addPage([500, 600]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  for (let i = 1; i <= 3; i++) {
+    const sheet = pdf.addPage([612, 792]);
+    sheet.drawText(`ORGANIZER SHEET ${i}`, { x: 72, y: 700, size: 22, font });
+  }
   await page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles({
     name: "organize-fixture.pdf", mimeType: "application/pdf", buffer: Buffer.from(await pdf.save()),
   });

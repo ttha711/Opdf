@@ -34,9 +34,17 @@ async function goToPage(page: Page, target: number) {
   const trigger = page.locator('[data-opdf-action="toggle-page-filmstrip"]');
   await expect(trigger).toBeAttached({ timeout: 10_000 });
   await trigger.evaluate((element: HTMLElement) => element.click());
-  const option = page.locator(`[data-opdf-page-thumb="${target}"]`);
-  await expect(option).toBeAttached({ timeout: 10_000 });
-  await option.evaluate((element: HTMLElement) => element.click());
+  // Thumbnail rendering is intentionally windowed around the current page.
+  // Use the direct jump input for distant pages instead of requiring all 90
+  // thumbnails to be mounted, while still exercising the actual UI handler.
+  const form = page.locator(".opdf-mobile-page-jump");
+  await expect(form).toBeAttached({ timeout: 10_000 });
+  await form.locator('input[aria-label="Jump to page"]').evaluate((input: HTMLInputElement, value) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, String(value));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }, target);
+  await form.evaluate((element: HTMLFormElement) => element.requestSubmit());
   await expect(page.locator('[data-opdf-region="status-bar"]'))
     .toHaveAttribute("data-opdf-page", String(target), { timeout: 20_000 });
 }

@@ -48,8 +48,8 @@ export function useExportAction({
   async function savePdf(options: { silent?: boolean } = {}) {
     if (!hasDocument || !fileName) return false;
     try {
-      const inlineEditBytes = options.silent ? null : await commitPendingNativeInlineEdit();
       setSaveState("saving");
+      const inlineEditBytes = options.silent ? null : await commitPendingNativeInlineEdit();
 
       let storageKey = sourceIdentity;
       const isServerDocument = sourceIdentity.startsWith("server://");
@@ -140,8 +140,8 @@ export function useExportAction({
   async function savePdfAs() {
     if (!hasDocument || !fileName) return;
     try {
-      const inlineEditBytes = await commitPendingNativeInlineEdit();
       setSaveState("saving");
+      const inlineEditBytes = await commitPendingNativeInlineEdit();
       const bytes = inlineEditBytes ?? (await getDocumentBytes()) ?? docBytes;
       if (!bytes) throw new Error("Document bytes are unavailable.");
 

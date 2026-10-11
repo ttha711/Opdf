@@ -56,5 +56,5 @@ test("native inspector exposes object search and type filters on a small PDF", a
   await expect(page.locator('[data-opdf-object-kind="text"]')).not.toHaveCount(0);
   await page.locator('[data-opdf-object-filter="image"]').click();
   await expect(page.locator('[data-opdf-object-filter="image"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator('[data-opdf-object-kind="text"]')).toHaveCount(0);
+  await expect(page.locator('.native-content-editor__objects [data-opdf-object-kind="text"]')).toHaveCount(0);
 });

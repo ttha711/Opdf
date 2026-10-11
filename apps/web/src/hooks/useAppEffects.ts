@@ -84,7 +84,7 @@ export function useAppEffects(args: AppEffectsArgs) {
 
         const groupFilter = urlParams.get("group") || null;
 
-        if (loadedTabs && loadedTabs.length > 0) {
+        if (loadedTabs !== null) {
           setTabs(loadedTabs);
 
           let targetTab = loadedTabs.find(t => t.id === loadedActiveId);

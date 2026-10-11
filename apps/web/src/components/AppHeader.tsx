@@ -7,7 +7,7 @@ import { redoNativeContentEdit, undoNativeContentEdit } from "../lib/nativeConte
 import { useOpdfBridge } from "../hooks/useOpdfBridge";
 import { AiSparkIcon } from "./AiSparkIcon";
 import { OpdfIcon } from "./OpdfIcon";
-import { SaveControl, RedoButton, UndoButton } from "./AppHeaderControls";
+import { SaveControl, RedoButton, UndoButton, MobileSaveButton } from "./AppHeaderControls";
 import {
   buildCompactToolsMenuItems,
   buildGlobalMenuItems,
@@ -243,11 +243,7 @@ export function AppHeader(props: AppHeaderProps) {
         <div className="opdf-header-actions">
           {hasDocument ? (
             <>
-              <button type="button" className="opdf-mobile-header-save"
-                data-opdf-action="mobile-save" aria-label="Save PDF" title="Save PDF"
-                onClick={savePdf} disabled={saveState === "saving"}>
-                <OpdfIcon name="save" size={20} />
-              </button>
+              <MobileSaveButton onSave={savePdf} saving={saveState === "saving"} />
               <UndoButton onClick={undo} />
               <RedoButton onClick={redo} />
               <SaveControl saveState={saveState} onSave={savePdf} autosaveEnabled={autosaveEnabled} autosaveStatus={autosaveStatus} />

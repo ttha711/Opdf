@@ -13,6 +13,7 @@ type Props = {
 const range = (count: number) => Array.from({ length: count }, (_, index) => index + 1);
 
 export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, replaceDocumentBytes, onClose }: Props) {
+  const [pageCount, setPageCount] = useState(totalPages);
   const [order, setOrder] = useState(() => range(totalPages));
   const [selected, setSelected] = useState<number[]>([]);
   const [removed, setRemoved] = useState<number[]>([]);
@@ -21,6 +22,7 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const pageCountRef = useRef(totalPages);
+  const [loadingCount, setLoadingCount] = useState(totalPages < 1);
   const anchor = useRef<number | null>(null);
   const drag = useRef<number | null>(null);
   const modal = useRef<HTMLDivElement>(null);
@@ -29,12 +31,36 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
     Object.values(rotations).some(deg => deg % 360 !== 0);
   const live = order.filter(page => !removed.includes(page));
   const active = selected.filter(page => !removed.includes(page));
-  const safe = dirty && acknowledged && !working && live.length > 0;
+  const safe = dirty && acknowledged && !working && live.length > 0 && !loadingCount;
   useEffect(() => {
-    if (pageCountRef.current === totalPages) return;
-    pageCountRef.current = totalPages;
-    setOrder(range(totalPages)); setSelected([]); setRemoved([]); setRotations({}); setAcknowledged(false);
-  }, [totalPages]);
+    let cancelled = false;
+    const recoverPageCount = async () => {
+      if (totalPages > 0) {
+        setPageCount(totalPages);
+        setLoadingCount(false);
+        return;
+      }
+      setLoadingCount(true);
+      try {
+        const bytes = await getDocumentBytes();
+        if (!bytes) throw new Error("PDF has not finished loading.");
+        if (bytes.byteLength > 64 * 1024 * 1024) throw new Error("Large PDF is still loading in the viewer. Try again when pages appear.");
+        const { PDFDocument } = await import("pdf-lib");
+        const doc = await PDFDocument.load(bytes);
+        if (!cancelled) setPageCount(doc.getPageCount());
+      } catch (cause) {
+        if (!cancelled) setError(cause instanceof Error ? cause.message : "Unable to read PDF page count.");
+      } finally { if (!cancelled) setLoadingCount(false); }
+    };
+    void recoverPageCount();
+    return () => { cancelled = true; };
+  }, [totalPages, getDocumentBytes]);
+
+  useEffect(() => {
+    if (pageCountRef.current === pageCount) return;
+    pageCountRef.current = pageCount;
+    setOrder(range(pageCount)); setSelected([]); setRemoved([]); setRotations({}); setAcknowledged(false);
+  }, [pageCount]);
 
   useEffect(() => {
     modal.current?.focus();
@@ -104,13 +130,13 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
           <div>
             <h2 className="text-lg font-bold">Organize pages</h2>
             <p className="max-w-lg truncate text-xs text-[var(--text-secondary)]" title={fileName}>
-              {fileName || "PDF"} · {live.length} of {totalPages} pages retained
+              {fileName || "PDF"} · {live.length} of {pageCount} pages retained
             </p>
           </div>
           <button type="button" aria-label="Close organizer" onClick={close} disabled={working} className="rounded border border-[var(--border-color)] px-3 py-2">Close</button>
         </header>
         <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-color)] p-3 text-xs">
-          <button type="button" onClick={() => setSelected(live)} disabled={working}>Select all</button>
+          <button type="button" onClick={() => setSelected(live)} disabled={working || loadingCount}>Select all</button>
           <button type="button" onClick={() => setSelected([])} disabled={working}>Clear selection</button>
           <span className="mr-2 text-[var(--text-secondary)]">{active.length} selected</span>
           <button type="button" data-opdf-action="organizer-move-left" onClick={() => move(-1)} disabled={!active.length || working}>← Earlier</button>
@@ -118,12 +144,13 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
           <button type="button" data-opdf-action="organizer-rotate-left" onClick={() => rotate(-90)} disabled={!active.length || working}>↶ Rotate left</button>
           <button type="button" data-opdf-action="organizer-rotate-right" onClick={() => rotate(90)} disabled={!active.length || working}>↷ Rotate right</button>
           <button type="button" data-opdf-action="organizer-delete" onClick={() => setRemoved(current => [...new Set([...current, ...active])])} disabled={!active.length || working || live.length <= active.length}>Remove</button>
-          <button type="button" onClick={() => { setOrder(range(totalPages)); setRemoved([]); setRotations({}); setSelected([]); setAcknowledged(false); }} disabled={working}>Reset</button>
+          <button type="button" onClick={() => { setOrder(range(pageCount)); setRemoved([]); setRotations({}); setSelected([]); setAcknowledged(false); }} disabled={working}>Reset</button>
         </div>
         <p className="px-4 pt-3 text-xs text-[var(--text-secondary)]">
           Drag thumbnails to reorder, or use Earlier/Later. Click, Ctrl/⌘-click, or Shift-click to select.
           Removed pages remain crossed out until you Apply. No changes are made before Apply.
         </p>
+        {loadingCount ? <p role="status" className="p-3 text-xs">Reading PDF page count…</p> : null}
         <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-auto p-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6">
           {order.map((page, index) => {
             const gone = removed.includes(page), isSelected = selected.includes(page);

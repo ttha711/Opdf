@@ -13,6 +13,7 @@ import {
 import { useDialogClose } from "../hooks/useDialogClose";
 import { inspectPdfBookmarks } from "../lib/pdfOutlineInspector";
 import { BookmarkEditorPanel } from "./document-tool-panel/BookmarkEditorPanel";
+import { AdvancedLinkEditorPanel } from "./document-tool-panel/AdvancedLinkEditorPanel";
 
 type Tab = "forms" | "bookmarks" | "links";
 
@@ -272,47 +273,13 @@ export function AdvancedPdfModal({
             </div>
           ) : null}
 
-          {tab === "links" ? (
-            <div className="space-y-3">
-              <div className="rounded border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
-                Coordinates are percentages of the page, measured from the top-left. The link area itself is invisible in the exported PDF.
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block text-xs font-semibold">Link type
-                  <select value={linkMode} onChange={(event) => setLinkMode(event.target.value as "external" | "internal")} className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal">
-                    <option value="external">External URL</option>
-                    <option value="internal">Internal page</option>
-                  </select>
-                </label>
-                <label className="block text-xs font-semibold">Source page
-                  <input type="number" min={1} max={Math.max(1, totalPages)} value={linkPage} onChange={(event) => setLinkPage(Number(event.target.value) || 1)} className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
-                </label>
-              </div>
-              {linkMode === "external" ? (
-                <label className="block text-xs font-semibold">URL
-                  <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
-                </label>
-              ) : (
-                <label className="block text-xs font-semibold">Destination page
-                  <input type="number" min={1} max={Math.max(1, totalPages)} value={destinationPage} onChange={(event) => setDestinationPage(Number(event.target.value) || 1)} className="mt-1 w-32 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
-                </label>
-              )}
-              <div className="grid grid-cols-4 gap-2">
-                {(["x", "y", "width", "height"] as const).map((key) => (
-                  <label key={key} className="text-xs font-semibold capitalize">{key} %
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={linkRect[key]}
-                      onChange={(event) => setLinkRect((current) => ({ ...current, [key]: Number(event.target.value) || 0 }))}
-                      className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-2 text-sm font-normal"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          {tab === "links" ? <AdvancedLinkEditorPanel
+            linkMode={linkMode} setLinkMode={setLinkMode}
+            linkPage={linkPage} setLinkPage={setLinkPage}
+            destinationPage={destinationPage} setDestinationPage={setDestinationPage}
+            linkUrl={linkUrl} setLinkUrl={setLinkUrl}
+            linkRect={linkRect} setLinkRect={setLinkRect}
+            totalPages={totalPages} /> : null}
         </div>
 
         <div className="premium-modal-footer">

@@ -90,11 +90,15 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
       // The inspector row is virtualized and can be replaced during Playwright's
       // click stability check. Dispatch its normal DOM click directly only if
       // the target isn't already selected, then verify the canvas selection.
-      const selection = page.locator('[data-opdf-canvas-selection="' + objectId + '"]');
-      if (await selection.count() === 0) {
-        await page.locator('[data-opdf-object-id="' + objectId + '"]')
-          .evaluate((node: HTMLElement) => node.click());
-        await selection.waitFor({ state: "attached", timeout: 15_000 });
+      const row = page.locator('[data-opdf-object-id="' + objectId + '"]');
+      if (!await row.evaluate((node) => node.classList.contains("active"))) {
+        await row.evaluate((node: HTMLElement) => node.click());
+        // On very dense CAD pages the inspector selection is authoritative,
+        // while the SVG overlay may be virtualized away before it can paint.
+        await page.waitForFunction((id) => {
+          const row = document.querySelector('[data-opdf-object-id="' + id + '"]');
+          return row?.classList.contains("active");
+        }, objectId, { timeout: 15_000 });
       }
     }
     // Avoid speculative wheel events: they can virtualize the page away.
@@ -117,10 +121,11 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
   if (await search.isVisible().catch(() => false)) {
     await search.fill(objectId);
     const row = page.locator('[data-opdf-object-id="' + objectId + '"]');
-    const selection = page.locator('[data-opdf-canvas-selection="' + objectId + '"]');
-    if (await selection.count() === 0) {
+    if (!await row.evaluate((node) => node.classList.contains("active"))) {
       await row.evaluate((node: HTMLElement) => node.click());
-      await selection.waitFor({ state: "attached", timeout: 15_000 });
+      await page.waitForFunction((id) => document.querySelector(
+        '[data-opdf-object-id="' + id + '"]',
+      )?.classList.contains("active"), objectId, { timeout: 15_000 });
     }
     await page.getByRole("button", { name: "Edit selected text", exact: true }).click();
     await input.waitFor({ state: "visible", timeout: 15_000 });

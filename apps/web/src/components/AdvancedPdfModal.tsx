@@ -62,7 +62,7 @@ export function AdvancedPdfModal({
     setStatus("");
     setError(null);
     setUnsupportedBookmarks(0);
-  }, [isOpen, currentPage, initialBookmarks, totalPages]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || tab !== "forms" || !source) return;

@@ -8,9 +8,10 @@ type Props = {
   selectedId: string | null;
   loading: boolean;
   onSelect: (id: string) => void;
+  onEditText?: (id: string) => void;
 };
 
-export function NativeContentObjectList({ objects, selectedId, loading, onSelect }: Props) {
+export function NativeContentObjectList({ objects, selectedId, loading, onSelect, onEditText }: Props) {
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(BATCH_SIZE);
   const filtered = useMemo(() => {
@@ -43,6 +44,7 @@ export function NativeContentObjectList({ objects, selectedId, loading, onSelect
           key={object.id}
           className={object.id === selectedId ? "active" : ""}
           onClick={() => onSelect(object.id)}
+          onDoubleClick={() => { if (object.kind === "text") onEditText?.(object.id); }}
           data-opdf-object-id={object.id}
           data-opdf-object-kind={object.kind}
           data-opdf-object-depth={object.depth ?? 0}

@@ -277,8 +277,8 @@ export function App() {
           onMouseDown={fab.handleMouseDown}
           onTouchStart={fab.handleTouchStart}
           onTouchEnd={(event) => { if (!fab.hasMovedRef.current) { event.preventDefault(); event.currentTarget.click(); } }}
-          onClick={() => {
-            if (fab.hasMovedRef.current) return;
+          onClick={(event) => {
+            if (fab.shouldSuppressClick(event.clientX, event.clientY, event.detail)) return;
             setIsAiPanelOpen(true);
             sidebars.setIsRightCollapsed(false);
             if (sidebars.rightWidth < 340) sidebars.setRightWidth(340);

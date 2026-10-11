@@ -129,7 +129,11 @@ test.describe('public real-world CAD reference PDFs', () => {
         }));
         const replacement = 'OPDF CAD TEST ' + fixture.id;
         await input.fill(replacement);
-        await input.press('Enter');
+        // Dense CAD documents can commit on blur while the textarea is
+        // resizing/re-rendering. Do not re-resolve an already removed input:
+        // Enter is dispatched to the current focus, and persistence below is
+        // the authoritative assertion for both Enter and blur commits.
+        await page.keyboard.press('Enter');
         try {
           // On dense CAD sheets PDFium may finish applying after the input's
           // initial transition. Await the actual success acknowledgement,

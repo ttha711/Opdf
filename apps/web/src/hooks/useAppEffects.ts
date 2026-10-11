@@ -181,7 +181,7 @@ export function useAppEffects(args: AppEffectsArgs) {
 
   // 2. Tabs Auto-Save effect
   useEffect(() => {
-    if (hasDesktopBridge || !hasRestoredTabs || tabs.length === 0) return;
+    if (hasDesktopBridge || !hasRestoredTabs) return;
     const timeout = setTimeout(() => {
       void (async () => {
         const savedTabs = await saveTabsList(tabs);

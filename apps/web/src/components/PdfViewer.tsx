@@ -58,8 +58,7 @@ export function PdfViewer({
   onActiveToolChange,
   onViewerReady,
 }: PdfViewerProps) {
-  const [readyViewer, setReadyViewer] = useState<{ sourceUrl: string; worker: boolean; registry: any } | null>(null);
-  const [workerEnabled, setWorkerEnabled] = useState(true);
+  const [readyViewer, setReadyViewer] = useState<{ sourceUrl: string; registry: any } | null>(null);
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const viewerRootRef = useRef<HTMLDivElement>(null);
   const viewerReadySourceRef = useRef<string | null>(null);
@@ -117,15 +116,7 @@ export function PdfViewer({
   // unsaved structural edits visible while sourceIdentity still points at the
   // server document that Save should update.
   const sourceUrl = localUrl ?? serverUrl;
-  const activeRegistry = readyViewer?.sourceUrl === sourceUrl && readyViewer.worker === workerEnabled
-    ? readyViewer.registry : null;
-  // Some browsers never finish initializing the EmbedPDF worker plugins.
-  // Retry once with the direct engine only when the page remains unready.
-  useEffect(() => {
-    if (!sourceUrl || documentReadySource === sourceUrl || !workerEnabled) return;
-    const timer = window.setTimeout(() => setWorkerEnabled(false), 12000);
-    return () => window.clearTimeout(timer);
-  }, [documentReadySource, sourceUrl, workerEnabled]);
+  const activeRegistry = readyViewer?.sourceUrl === sourceUrl ? readyViewer.registry : null;
   // Capture the original reader viewport when an edit commits new PDF bytes.
   // The PDF component may reinitialize for that revision, but its scroll
   // coordinates should survive rather than falling back to the page top.
@@ -198,7 +189,6 @@ export function PdfViewer({
       // EmbedPDF CDN default. This makes the viewer work behind restricted
       // egress and avoids a TLS-dependent cold start for large documents.
       wasmUrl: pdfiumRuntimeWasmUrl,
-      worker: workerEnabled,
       fontFallback: pdfiumRuntimeFontFallback,
       fonts: { ui: null, signature: null },
       documentManager: {
@@ -230,7 +220,7 @@ export function PdfViewer({
         defaultPageGap: 16,
       },
     };
-  }, [sourceUrl, workerEnabled]);
+  }, [sourceUrl]);
 
   useEffect(() => {
     if (!sourceUrl || !activeRegistry) return;
@@ -727,9 +717,9 @@ export function PdfViewer({
         />
       ) : null}
       <EmbedPdfViewer
-        key={sourceUrl + ":" + String(workerEnabled)}
+        key={sourceUrl}
         config={config as any}
-        onReady={(registry: any) => setReadyViewer({ sourceUrl, worker: workerEnabled, registry })}
+        onReady={(registry: any) => setReadyViewer({ sourceUrl, registry })}
         style={{ width: "100%", height: "100%", display: "block" }}
       />
     </div>

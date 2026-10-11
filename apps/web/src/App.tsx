@@ -276,6 +276,7 @@ export function App() {
           style={fab.position ? { left: fab.position.x, top: fab.position.y, right: "auto", bottom: "auto" } : undefined}
           onMouseDown={fab.handleMouseDown}
           onTouchStart={fab.handleTouchStart}
+          onTouchEnd={(event) => { if (!fab.hasMovedRef.current) { event.preventDefault(); event.currentTarget.click(); } }}
           onClick={() => {
             if (fab.hasMovedRef.current) return;
             setIsAiPanelOpen(true);

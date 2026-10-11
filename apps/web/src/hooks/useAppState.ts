@@ -185,7 +185,7 @@ export function useAppState() {
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
 
   // Tab operations
-  const switchTab = useCallback((tabId: string) => {
+  const applySwitchTab = useCallback((tabId: string) => {
     const targetTab = tabsRef.current.find(t => t.id === tabId);
     if (!targetTab) return;
 
@@ -211,13 +211,29 @@ export function useAppState() {
     // render carrying the new activeTabId has committed (no arbitrary timeout).
   }, [markDocumentSaved]);
 
+  // EmbedPDF annotations are not guaranteed to be mirrored into tab state.
+  // Switching documents must not silently unmount an unsaved viewer.
+  const switchTab = useCallback((tabId: string) => {
+    if (tabId === activeTabId) return;
+    if (hasDocument && saveState === "idle") {
+      void confirm({
+        title: "Switch document",
+        message: `"${fileName}" has unsaved changes. Switch without saving them?`,
+        confirmLabel: "Switch without saving",
+        danger: true,
+      }).then((approved) => { if (approved) applySwitchTab(tabId); });
+      return;
+    }
+    applySwitchTab(tabId);
+  }, [activeTabId, applySwitchTab, confirm, fileName, hasDocument, saveState]);
+
   const closeTab = useCallback(async (tabId: string) => {
     const prevTabs = tabsRef.current;
     const tabToClose = prevTabs.find(t => t.id === tabId);
     if (!tabToClose) return;
 
     // Guard: closing the active tab while it has unsaved changes requires confirmation.
-    if (activeTabId === tabId && (docBytes || sourceBlob) && saveState === "idle") {
+    if (activeTabId === tabId && (docBytes || sourceBlob || sourceIdentity.startsWith("server://")) && saveState === "idle") {
       const ok = await confirm({
         title: "Close tab",
         message: `"${tabToClose.fileName || fileName}" has unsaved changes. Do you still want to close this tab?`,
@@ -244,7 +260,7 @@ export function useAppState() {
 
     if (activeTabId === tabId) {
       if (remainingTabs.length > 0) {
-        switchTab(remainingTabs[0].id);
+        applySwitchTab(remainingTabs[0].id);
       } else {
         isSwitchingRef.current = true;
         pendingSwitchTabIdRef.current = null;
@@ -260,7 +276,7 @@ export function useAppState() {
         clearDocumentSaveTracking();
       }
     }
-  }, [activeTabId, switchTab, clearDocumentSaveTracking, confirm, toast, docBytes, sourceBlob, saveState, fileName, hasDesktopBridge]);
+  }, [activeTabId, applySwitchTab, clearDocumentSaveTracking, confirm, toast, docBytes, sourceBlob, sourceIdentity, saveState, fileName, hasDesktopBridge]);
 
   const addTabToGroup = useCallback((tabId: string, groupName: string, groupColor?: string) => {
     const colors = ["#ff5a5f", "#e03e2d", "#10b981", "#0061d5", "#8b5cf6", "#f59e0b"];

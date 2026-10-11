@@ -20,6 +20,7 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
   const [acknowledged, setAcknowledged] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
+  const pageCountRef = useRef(totalPages);
   const anchor = useRef<number | null>(null);
   const drag = useRef<number | null>(null);
   const modal = useRef<HTMLDivElement>(null);
@@ -29,6 +30,11 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
   const live = order.filter(page => !removed.includes(page));
   const active = selected.filter(page => !removed.includes(page));
   const safe = dirty && acknowledged && !working && live.length > 0;
+  useEffect(() => {
+    if (pageCountRef.current === totalPages) return;
+    pageCountRef.current = totalPages;
+    setOrder(range(totalPages)); setSelected([]); setRemoved([]); setRotations({}); setAcknowledged(false);
+  }, [totalPages]);
 
   useEffect(() => {
     modal.current?.focus();

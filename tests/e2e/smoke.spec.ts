@@ -138,7 +138,26 @@ test("double-clicking a PDF page enters editing without Edit PDF", async ({ page
   const sheet = page.locator(
     'embedpdf-container div[style*="position: relative"][style*="width:"][style*="height:"]',
   ).filter({ visible: true }).last();
-  await expect(sheet).toBeVisible({ timeout: 30_000 });
+  try {
+    await expect(sheet).toBeVisible({ timeout: 10_000 });
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => {
+      const shell = document.querySelector(".viewer-shell");
+      const elements = [...document.querySelectorAll("embedpdf-container")];
+      return {
+        shell: Boolean(shell), html: shell?.innerHTML.slice(0, 800),
+        components: elements.length,
+        shadow: elements.map((el) => ({
+          children: el.shadowRoot?.childElementCount ?? -1,
+          snippets: el.shadowRoot?.innerHTML.slice(0, 2500),
+          images: el.shadowRoot?.querySelectorAll("img").length ?? -1,
+          pageRects: el.shadowRoot?.querySelectorAll('div[style*="width:"][style*="height:"]').length ?? -1,
+        })),
+      };
+    });
+    console.log("DIRECT_EDIT_SHEET_DIAGNOSTIC", JSON.stringify(diagnostic));
+    throw error;
+  }
   const box = await sheet.boundingBox();
   if (!box) throw new Error("Reader sheet has no visible bounds.");
   const x = box.x + box.width * (125 / 612);

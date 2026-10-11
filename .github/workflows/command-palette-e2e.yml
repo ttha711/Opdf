@@ -1,0 +1,43 @@
+name: Command Palette UX E2E
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/web/src/App.tsx"
+      - "apps/web/src/components/AppHeader.tsx"
+      - "apps/web/src/components/CommandPalette.tsx"
+      - "apps/web/src/components/native-content-editor/NativeContentObjectList.tsx"
+      - "apps/web/src/lib/commandPalette.ts"
+      - "tests/e2e/command-palette.spec.ts"
+      - "tests/e2e/organize-pages.spec.ts"
+      - "apps/web/src/components/document-tool-panel/PageOrganizer.tsx"
+      - "apps/web/src/lib/pageOrganizer.ts"
+      - ".github/workflows/command-palette-e2e.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  command-palette:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - name: Search, keyboard and native object inspector
+        run: npx playwright test tests/e2e/command-palette.spec.ts tests/e2e/organize-pages.spec.ts --project=chromium --workers=1
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: command-palette-playwright-report
+          path: |
+            playwright-report/
+            test-results/

@@ -14,6 +14,7 @@ import { useAgentBridge, createAgentStateSnapshot } from "./useAgentBridge";
 import type { MarkupTool } from "./useDocumentActions";
 import { toast } from "../components/ToastProvider";
 import { buildPdfTextExport } from "../lib/pdfTextExport";
+import { getServerDocumentUrl } from "../lib/documentSource";
 
 import { useDocumentAutosave } from "./useDocumentAutosave";
 
@@ -519,6 +520,30 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
     state.totalPages,
   ]);
 
+  const analyzeDocumentHealth = useCallback(async () => {
+    const url = getServerDocumentUrl(state.sourceIdentity)?.split("?")[0];
+    if (!url) throw new Error("Document Health requires a document saved to OPDF Server.");
+    const response = await fetch(url + "/health", { credentials: "same-origin", cache: "no-store" });
+    const report = await response.json() as {
+      error?: string;
+      documentSha256?: string;
+      summary?: { document?: { pages?: number } };
+      accessibility?: { passed?: number; failed?: number; manual?: number };
+      pdfa?: { issues?: unknown[] };
+    };
+    if (!response.ok) throw new Error(report.error || "Document Health analysis failed.");
+    const a11y = report.accessibility;
+    const parts = [
+      "Saved PDF analysis complete (read-only).",
+      `${report.summary?.document?.pages ?? "Unknown"} pages`,
+      `Accessibility: ${a11y?.passed ?? 0} passed, ${a11y?.failed ?? 0} failed, ${a11y?.manual ?? 0} manual`,
+      `PDF/A-2b preliminary issues: ${report.pdfa?.issues?.length ?? 0}`,
+      `SHA-256: ${report.documentSha256 || "unavailable"}`,
+      "Not a PDF/A certification. Unsaved browser edits are not included.",
+    ];
+    return { message: parts.join("; ") };
+  }, [state.sourceIdentity]);
+
   useAgentBridge({
     state: createAgentStateSnapshot({
       hasDocument: state.hasDocument,
@@ -538,6 +563,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
       savePdf,
       compressDocument,
       runOcr,
+      analyzeDocumentHealth,
       convertToImages,
       goPrevPage,
       goNextPage,

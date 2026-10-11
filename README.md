@@ -71,7 +71,7 @@ Default address: `http://127.0.0.1:8787`.
 
 Server mode streams PDF uploads to disk, supports HTTP Range reads for large PDFs, serves WebAssembly with the correct MIME type, persists recents/session metadata, and sends Ctrl+S saves back to server storage. Persisted server PDFs stay URL-backed in the browser until an editing/conversion action explicitly needs complete document bytes. Keep the server on loopback behind Cloudflare Tunnel/Access or another authenticated reverse proxy for remote use.
 
-See `docs/SERVER_DEPLOYMENT.md` for Windows Server, data-directory, Cloudflare Tunnel, upload-limit, and production guidance.
+See `docs/SERVER_DEPLOYMENT.md` for Windows Server, data-directory, Cloudflare Tunnel, upload-limit, and production guidance. Optional read-only PDF diagnostics through PdfCraft are documented in `docs/DOCUMENT_HEALTH.md` (disabled by default).
 
 ## Development
 

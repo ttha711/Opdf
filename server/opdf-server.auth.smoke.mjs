@@ -109,11 +109,23 @@ try {
   assert(upload.status === 201, `admin upload failed: ${upload.status}`);
   const document = await upload.json();
 
+  const anonymousHealth = await fetch(`${base}/api/opdf/documents/${document.id}/health`);
+  assert(anonymousHealth.status === 401, "anonymous user accessed Document Health");
+  const adminHealth = await fetch(`${base}/api/opdf/documents/${document.id}/health`, {
+    headers: { Cookie: adminCookie },
+  });
+  assert(adminHealth.status === 503, "disabled Document Health did not fail closed");
+
   const readerCookie = await login("reader@opdf.test", "reader-password-2026");
   const crossUser = await fetch(`${base}/api/opdf/documents/${document.id}`, {
     headers: { Cookie: readerCookie },
   });
   assert(crossUser.status === 404, "second user accessed another user's document by UUID");
+
+  const crossUserHealth = await fetch(`${base}/api/opdf/documents/${document.id}/health`, {
+    headers: { Cookie: readerCookie },
+  });
+  assert(crossUserHealth.status === 404, "Document Health leaked another user's PDF");
 
   const crossProject = await fetch(`${base}/api/opdf/documents/${document.id}`, {
     headers: {

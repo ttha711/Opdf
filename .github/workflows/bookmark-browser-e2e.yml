@@ -1,0 +1,36 @@
+name: Bookmark Browser E2E
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/web/src/components/AdvancedPdfModal.tsx"
+      - "apps/web/src/components/document-tool-panel/BookmarkEditorPanel.tsx"
+      - "apps/web/src/lib/pdfOutlineInspector.ts"
+      - "apps/web/src/lib/pdfAdvanced.ts"
+      - "tests/e2e/bookmark-browser.spec.ts"
+      - ".github/workflows/bookmark-browser-e2e.yml"
+permissions:
+  contents: read
+jobs:
+  browser-bookmarks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - name: Verify existing bookmarks and Unicode in Chrome
+        run: npx playwright test tests/e2e/bookmark-browser.spec.ts --project=chromium --workers=1
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: bookmark-browser-trace
+          path: |
+            playwright-report/
+            test-results/

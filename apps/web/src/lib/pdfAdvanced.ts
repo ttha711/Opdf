@@ -2,6 +2,7 @@ import {
   PDFArray,
   PDFCheckBox,
   PDFDocument,
+  PDFHexString,
   PDFDropdown,
   PDFName,
   PDFNumber,
@@ -11,22 +12,18 @@ import {
   PDFString,
   PDFTextField,
 } from "pdf-lib";
-
 export type FormFieldDescriptor = {
   name: string;
   type: "text" | "checkbox" | "dropdown" | "option-list" | "radio" | "unsupported";
   value: string | boolean | string[];
   options?: string[];
 };
-
 export type FormFieldValue = string | boolean | string[];
-
 export type PdfBookmarkInput = {
   title: string;
   page: number;
   parent?: number;
 };
-
 export type PdfLinkRect = {
   page: number;
   x: number;
@@ -34,15 +31,12 @@ export type PdfLinkRect = {
   width: number;
   height: number;
 };
-
 export type PdfLinkInput = PdfLinkRect & {
   url: string;
 };
-
 export type PdfInternalLinkInput = PdfLinkRect & {
   destinationPage: number;
 };
-
 export async function inspectFormFields(bytes: Uint8Array): Promise<FormFieldDescriptor[]> {
   const doc = await PDFDocument.load(bytes);
   const form = doc.getForm();
@@ -273,7 +267,7 @@ export async function addPdfBookmarks(
     const ownChildren = children.get(index) ?? [];
     const destination = context.obj([pages[bookmark.page - 1].ref, PDFName.of("Fit")]);
     const item = context.obj({
-      Title: PDFString.of(bookmark.title),
+      Title: PDFHexString.fromText(bookmark.title),
       Parent: bookmark.parent === undefined ? outlinesRef : itemRefs[bookmark.parent],
       Dest: destination,
       ...(siblingIndex > 0 ? { Prev: itemRefs[siblings[siblingIndex - 1]] } : {}),

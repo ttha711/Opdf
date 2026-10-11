@@ -110,6 +110,10 @@ async function runAgentAction(
     }
     case "compress-pdf": return actions.compressDocument?.();
     case "run-ocr": return actions.runOcr?.();
+    case "analyze-document-health": {
+      if (!actions.analyzeDocumentHealth) return { status: "input_required", message: "Document Health requires OPDF Server." };
+      return actions.analyzeDocumentHealth();
+    }
     case "convert-to-images": return actions.convertToImages?.();
     case "go-prev-page": return actions.goPrevPage?.();
     case "go-next-page": return actions.goNextPage?.();

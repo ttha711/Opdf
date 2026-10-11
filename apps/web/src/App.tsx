@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AiSparkIcon } from "./components/AiSparkIcon";
 import { AppHeader } from "./components/AppHeader";
+import { CommandPalette } from "./components/CommandPalette";
 import { HomeScreen } from "./components/HomeScreen";
 import { StatusBar } from "./components/StatusBar";
 import { ServerUploadBanner } from "./components/ServerUploadBanner";
@@ -138,6 +139,7 @@ export function App() {
     <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}`}>
       <AppUpdateBanner updateInfo={updateInfo} />
       <ServerUploadBanner />
+      <CommandPalette hasDocument={state.hasDocument} isPublic={isPublic} onOpenFile={() => { setShowHome(false); headerProps.openFile(); }} onNavigate={() => setShowHome(false)} />
       <AppHeader
         {...headerProps}
         autosaveStatus={controllers.autosaveStatus}

@@ -56,9 +56,10 @@ export function useExportAction({
       // Native Edit PDF publishes authoritative working bytes before the
       // revised viewer document is ready. Save those bytes immediately:
       // re-materializing the old/reloading viewer can hang or return stale PDF.
-      let bytes = inlineEditBytes ?? ((isServerDocument && docBytes)
-        ? docBytes
-        : (await getDocumentBytes()) ?? docBytes);
+      // Embedded annotation edits live in the viewer until export. Reusing
+      // docBytes merely because the source is server-backed silently drops them.
+      // Inline native edits take priority to avoid reading a stale hidden reader.
+      const bytes = inlineEditBytes ?? (await getDocumentBytes()) ?? docBytes;
 
       if (hasDesktopBridge) {
         if (!inlineEditBytes) bytes = (await getDocumentBytes()) ?? bytes;

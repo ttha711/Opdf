@@ -12,22 +12,18 @@ import {
   PDFString,
   PDFTextField,
 } from "pdf-lib";
-
 export type FormFieldDescriptor = {
   name: string;
   type: "text" | "checkbox" | "dropdown" | "option-list" | "radio" | "unsupported";
   value: string | boolean | string[];
   options?: string[];
 };
-
 export type FormFieldValue = string | boolean | string[];
-
 export type PdfBookmarkInput = {
   title: string;
   page: number;
   parent?: number;
 };
-
 export type PdfLinkRect = {
   page: number;
   x: number;
@@ -35,15 +31,12 @@ export type PdfLinkRect = {
   width: number;
   height: number;
 };
-
 export type PdfLinkInput = PdfLinkRect & {
   url: string;
 };
-
 export type PdfInternalLinkInput = PdfLinkRect & {
   destinationPage: number;
 };
-
 export async function inspectFormFields(bytes: Uint8Array): Promise<FormFieldDescriptor[]> {
   const doc = await PDFDocument.load(bytes);
   const form = doc.getForm();

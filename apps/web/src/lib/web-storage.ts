@@ -201,14 +201,16 @@ export async function savePdfBytes(bytes: Uint8Array) {
   }
 }
 
-export async function saveWebState(state: WebState) {
+export async function saveWebState(state: WebState): Promise<boolean> {
   try {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(state, STATE_KEY);
     await awaitTransaction(tx);
+    return true;
   } catch (err) {
     console.error("Failed to save web state:", err);
+    return false;
   }
 }
 

@@ -23,6 +23,15 @@ export function RemotePdfViewer(props: PdfViewerProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const touch = useRef<{ x: number; y: number; distance: number; zoom: number } | null>(null);
   const page = Math.max(1, Math.min(pages.length || 1, props.page));
+  // A different sheet may have a smaller viewport. Stale scroll offsets would
+  // otherwise request tiles outside its bounds and display an empty sheet.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    el.scrollLeft = 0;
+    el.scrollTop = 0;
+    setPosition({ x: 0, y: 0 });
+  }, [page]);
   useEffect(() => {
     if (!base) return;
     const ctrl = new AbortController();
@@ -78,9 +87,9 @@ export function RemotePdfViewer(props: PdfViewerProps) {
   if (!base) return <div role="status">Open a stored server document to use lightweight viewing.</div>;
   return <div className="h-full w-full" style={{ display: "flex", flexDirection: "column", minHeight: 0 }} data-opdf-remote-viewer="true">
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, padding: 6, background: "#f1f5f9", color: "#0f172a" }}>
-      <button style={toolStyle} onClick={() => props.onActivePageChange?.(Math.max(1, page - 1))} aria-label="Previous sheet">‹</button>
+      <button style={toolStyle} onClick={() => props.onActivePageChange?.(Math.max(1, page - 1))} disabled={!pages.length || page <= 1} aria-label="Previous sheet">‹</button>
       <span style={{ fontSize: 13 }}>Sheet {page}/{pages.length || "…"}</span>
-      <button style={toolStyle} onClick={() => props.onActivePageChange?.(Math.min(pages.length, page + 1))} aria-label="Next sheet">›</button>
+      <button style={toolStyle} onClick={() => props.onActivePageChange?.(Math.min(pages.length, page + 1))} disabled={!pages.length || page >= pages.length} aria-label="Next sheet">›</button>
       <button style={toolStyle} onClick={() => changeZoom(zoom / 1.5)} aria-label="Zoom out">−</button>
       <span style={{ fontSize: 12 }}>{Math.round(zoom * 100)}%</span>
       <button style={toolStyle} onClick={() => changeZoom(zoom * 1.5)} aria-label="Zoom in">+</button>

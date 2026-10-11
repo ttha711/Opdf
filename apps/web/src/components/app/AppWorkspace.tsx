@@ -235,6 +235,7 @@ export function AppWorkspace({
           <DocumentToolPanel
             activeToolId={state.activeDashboardTool}
             fileName={state.fileName}
+            sourceIdentity={state.sourceIdentity}
             docBytes={state.docBytes}
             sourceBlob={state.sourceBlob}
             getDocumentBytes={materializeDocumentBytes}

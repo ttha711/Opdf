@@ -55,6 +55,18 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+3/i, { timeout: 30_000 });
 
+  // Regression: annotation tools must be reachable on a real touch viewport.
+  const mobileTools = page.locator('[data-opdf-mobile-edit-toolbar="true"]');
+  await expect(mobileTools).toBeVisible();
+  const highlight = mobileTools.getByRole("button", { name: "Highlight" });
+  const highlightBox = await highlight.boundingBox();
+  expect(highlightBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await highlight.click();
+  await expect(highlight).toHaveAttribute("aria-pressed", "true");
+  const move = mobileTools.getByRole("button", { name: "Move and select PDF" });
+  await move.click();
+  await expect(move).toHaveAttribute("aria-pressed", "true");
+
   const pagePreviewButton = page.locator('[data-opdf-action="toggle-page-filmstrip"]');
   await expect(pagePreviewButton).toBeVisible();
   const pagePreviewButtonBox = await pagePreviewButton.boundingBox();

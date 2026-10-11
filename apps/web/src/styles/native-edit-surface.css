@@ -130,3 +130,15 @@
 }
 .native-edit-inline-feedback.is-error { border-color: #dc2626; color: #991b1b; }
 .native-edit-inline-feedback button { padding: 3px 5px; border: 1px solid currentColor; border-radius: 3px; }
+
+/* Keep editing controls available even when the PDF canvas is deeply zoomed. */
+.native-edit-zoom-tools {
+  position: absolute; z-index: 20; right: 16px; bottom: 16px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px; border-radius: 9px; background: #fff;
+  border: 1px solid #cbd5e1; box-shadow: 0 2px 10px #0002;
+}
+.native-edit-zoom-tools button { min-width: 34px; min-height: 34px; padding: 5px 9px; border-radius: 5px; color: #0f172a; }
+.native-edit-zoom-tools button:hover { background: #e2e8f0; }
+.native-edit-zoom-tools output { min-width: 48px; text-align: center; color: #0f172a; font-size: 13px; font-variant-numeric: tabular-nums; }
+.native-edit-inline-text { min-width: 0; line-height: 1.35; }

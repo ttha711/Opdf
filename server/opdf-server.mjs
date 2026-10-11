@@ -980,10 +980,10 @@ async function handleApi(req, res, url) {
   const healthMatch = url.pathname.match(/^\/api\/opdf\/documents\/([^/]+)\/health$/);
   if (healthMatch) {
     if (req.method !== "GET") return sendError(res, 405, "Method not allowed.");
-    if (!pdfcraftDiagnostics.enabled) return sendError(res, 503, "Document Health is disabled.");
     const id = assertDocumentId(healthMatch[1]);
     const record = await storage.getDocument(id);
     if (!record) return sendError(res, 404, "Document not found.");
+    if (!pdfcraftDiagnostics.enabled) return sendError(res, 503, "Document Health is disabled.");
     if (storage.ensureDocumentFile && !await storage.ensureDocumentFile(id)) {
       return sendError(res, 404, "Document file not found.");
     }

@@ -215,6 +215,10 @@ export function useAppState() {
   // Switching documents must not silently unmount an unsaved viewer.
   const switchTab = useCallback((tabId: string) => {
     if (tabId === activeTabId) return;
+    if (saveState === "saving") {
+      toast.info("Wait for the current PDF to finish saving before switching.");
+      return;
+    }
     if (hasDocument && saveState === "idle") {
       void confirm({
         title: "Switch document",
@@ -225,12 +229,16 @@ export function useAppState() {
       return;
     }
     applySwitchTab(tabId);
-  }, [activeTabId, applySwitchTab, confirm, fileName, hasDocument, saveState]);
+  }, [activeTabId, applySwitchTab, confirm, fileName, hasDocument, saveState, toast]);
 
   const closeTab = useCallback(async (tabId: string) => {
     const prevTabs = tabsRef.current;
     const tabToClose = prevTabs.find(t => t.id === tabId);
     if (!tabToClose) return;
+    if (activeTabId === tabId && saveState === "saving") {
+      toast.info("Wait for the PDF to finish saving before closing it.");
+      return;
+    }
 
     // Guard: closing the active tab while it has unsaved changes requires confirmation.
     if (activeTabId === tabId && (docBytes || sourceBlob || sourceIdentity.startsWith("server://")) && saveState === "idle") {
@@ -347,6 +355,10 @@ export function useAppState() {
     const closing = currentTabs.filter((tab) => tab.group === groupName);
     if (!closing.length) return;
     const activeInGroup = closing.some((tab) => tab.id === activeTabId);
+    if (activeInGroup && saveState === "saving") {
+      toast.info("Wait for the PDF to finish saving before closing its group.");
+      return;
+    }
     if (activeInGroup && saveState === "idle") {
       const approved = await confirm({
         title: "Close tab group",
@@ -377,7 +389,7 @@ export function useAppState() {
     setAnnotations([]);
     setShowDashboard(false);
     clearDocumentSaveTracking();
-  }, [activeTabId, applySwitchTab, clearDocumentSaveTracking, confirm, fileName, saveState]);
+  }, [activeTabId, applySwitchTab, clearDocumentSaveTracking, confirm, fileName, saveState, toast]);
 
   const ungroupGroup = useCallback((groupName: string) => {
     setTabs(prevTabs => {

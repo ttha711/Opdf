@@ -94,7 +94,9 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
       if (await selection.count() === 0) {
         await page.locator('[data-opdf-object-id="' + objectId + '"]')
           .evaluate((node: HTMLElement) => node.click());
-        await selection.waitFor({ state: "attached", timeout: 15_000 });
+        // CAD overlays keep at most 500 polygons; the selected object can be
+        // edited from the inspector even if its geometry is not mounted.
+        await page.waitForTimeout(100);
       }
     }
     // Avoid speculative wheel events: they can virtualize the page away.
@@ -120,7 +122,7 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
     const selection = page.locator('[data-opdf-canvas-selection="' + objectId + '"]');
     if (await selection.count() === 0) {
       await row.evaluate((node: HTMLElement) => node.click());
-      await selection.waitFor({ state: "attached", timeout: 15_000 });
+      await page.waitForTimeout(100);
     }
     await page.getByRole("button", { name: "Edit selected text", exact: true }).click();
     await input.waitFor({ state: "visible", timeout: 15_000 });

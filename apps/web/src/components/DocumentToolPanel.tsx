@@ -311,7 +311,7 @@ export function DocumentToolPanel({
           />
         ) : null}
 
-        {activeToolId === "organize-pages" && <button type="button" data-opdf-action="open-page-organizer" onClick={() => setOrganizerOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open page grid</button>}
+        {activeToolId === "organize-pages" && <button type="button" data-opdf-action="open-page-organizer" disabled={totalPages < 1} title={totalPages ? "Organize all pages" : "Waiting for PDF page count"} onClick={() => setOrganizerOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open page grid</button>}
         {activeToolId === "fill-form" && <FillFormPanel />}
         {activeToolId === "document-health" && <DocumentHealthPanel sourceIdentity={sourceIdentity} />}
       </div>

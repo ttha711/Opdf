@@ -133,7 +133,12 @@ test("double-clicking a PDF page enters editing without Edit PDF", async ({ page
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   // Double-click near the painted text to edit in the reader, without
   // mounting the separate native-edit viewer or changing the active tool.
-  const sheet = page.locator("embedpdf-container").locator("img").first();
+  // EmbedPDF may draw in tiles rather than exposing an image. Its
+  // virtualized Scroller creates a dimensioned page wrapper in shadow DOM.
+  await expect(page.getByTestId("page-status")).toContainText("Page 1 of 1");
+  const sheet = page.locator(
+    'embedpdf-container div[style*="position: relative"][style*="width:"][style*="height:"]',
+  ).filter({ visible: true }).last();
   await expect(sheet).toBeVisible({ timeout: 30_000 });
   const box = await sheet.boundingBox();
   if (!box) throw new Error("Reader sheet has no visible bounds.");

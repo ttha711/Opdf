@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import "../styles/native-edit-surface.css";
 import type { PdfContentObject } from "@opdf/core";
 import { applyVerifiedNativePatches } from "../lib/nativeEditPatchVerification";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";

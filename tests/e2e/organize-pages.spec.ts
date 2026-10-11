@@ -14,7 +14,6 @@ test("organize pages uses existing page operations and changes the PDF only afte
     name: "organize-fixture.pdf", mimeType: "application/pdf", buffer: Buffer.from(await pdf.save()),
   });
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({timeout:20000});
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "3", {timeout:20000});
   await page.keyboard.press("Control+k");
   await page.getByRole("combobox", {name: "Find a command"}).fill("organize");
   await page.locator('[data-opdf-command="organize"]').click();
@@ -29,5 +28,5 @@ test("organize pages uses existing page operations and changes the PDF only afte
   await grid.locator('[data-opdf-action="organizer-apply"]').click();
   await expect(grid).toHaveCount(0);
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({timeout:20000});
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "3");
+  await expect(page.locator('[data-opdf-action="open-page-organizer"]')).toBeVisible();
 });

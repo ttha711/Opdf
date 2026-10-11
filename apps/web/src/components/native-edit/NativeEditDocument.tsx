@@ -35,6 +35,27 @@ export function NativeEditDocument({
   // Keep Automatic zoom during first layout. An early numeric request can
   // leave EmbedPDF 2.x waiting for a viewport layout and paint no page.
   const previousExternalScale = useRef(scale);
+  const initializedZoomDocumentRef = useRef<string | null>(null);
+  // Let the automatic first layout paint before inheriting the reader's zoom.
+  // Requesting numeric zoom too early can leave the native PDFium page blank.
+  useEffect(() => {
+    if (!zoom || !scrollState.totalPages ||
+        initializedZoomDocumentRef.current === documentId ||
+        !Number.isFinite(zoomState.currentZoomLevel) || zoomState.currentZoomLevel <= 0) return;
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        initializedZoomDocumentRef.current = documentId;
+        previousExternalScale.current = scale;
+        if (Number.isFinite(scale) && scale > 0 &&
+            Math.abs(zoomState.currentZoomLevel - scale) >= 0.001) zoom.requestZoom(scale);
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [documentId, scale, scrollState.totalPages, zoom, zoomState.currentZoomLevel]);
   const pendingPageRef = useRef<number | null>(null);
   const lastExternalPageRef = useRef<{ documentId: string; page: number } | null>(null);
 
@@ -98,22 +119,24 @@ export function NativeEditDocument({
   useEffect(() => {
     // Only apply actual external zoom changes after the initial document layout.
     // Zoom changes reported by the viewer already match currentZoomLevel.
-    if (!zoom || !scrollState.totalPages) return;
+    if (!zoom || !scrollState.totalPages || initializedZoomDocumentRef.current !== documentId) return;
     if (previousExternalScale.current === scale) return;
     previousExternalScale.current = scale;
     if (!Number.isFinite(scale) || scale <= 0) return;
     if (Math.abs(zoomState.currentZoomLevel - scale) < 0.001) return;
     zoom.requestZoom(scale);
-  }, [scale, scrollState.totalPages, zoom, zoomState.currentZoomLevel]);
+  }, [documentId, scale, scrollState.totalPages, zoom, zoomState.currentZoomLevel]);
 
   useEffect(() => {
+    if (initializedZoomDocumentRef.current !== documentId) return;
     const next = zoomState.currentZoomLevel;
     if (Number.isFinite(next) && next > 0 && Math.abs(next - scale) >= 0.001) {
       onViewerScaleChange?.(next);
     }
-  }, [onViewerScaleChange, scale, zoomState.currentZoomLevel]);
+  }, [documentId, onViewerScaleChange, scale, zoomState.currentZoomLevel]);
 
   return (
+    <>
     <Viewport documentId={documentId} className="native-edit-viewport">
       <Scroller
         documentId={documentId}
@@ -140,5 +163,13 @@ export function NativeEditDocument({
         )}
       />
     </Viewport>
+    <div className="native-edit-zoom-tools" role="group" aria-label="PDF editor zoom controls">
+      <button type="button" data-opdf-action="edit-zoom-out" aria-label="Zoom out in PDF editor" onClick={() => zoom?.zoomOut()}>−</button>
+      <output aria-label="PDF editor zoom level">{Math.round(zoomState.currentZoomLevel * 100)}%</output>
+      <button type="button" data-opdf-action="edit-zoom-in" aria-label="Zoom in PDF editor" onClick={() => zoom?.zoomIn()}>+</button>
+      <button type="button" data-opdf-action="edit-fit-width" onClick={() => zoom?.requestZoom(ZoomMode.FitWidth)}>Fit width</button>
+      <button type="button" data-opdf-action="edit-fit-page" onClick={() => zoom?.requestZoom(ZoomMode.FitPage)}>Fit page</button>
+    </div>
+    </>
   );
 }

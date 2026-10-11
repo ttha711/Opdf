@@ -133,9 +133,12 @@ export function createPdfcraftDiagnostics(env = process.env) {
       if (!values[0] || !Number.isInteger(values[0].doc) || values[0].doc !== 1) {
         throw fail(502, 'PdfCraft returned an invalid document handle.');
       }
+      // PdfCraft doc_info includes its temporary working path. Never disclose it.
+      const summary = { ...values[1], document: { ...values[1]?.document } };
+      delete summary.document.path;
       return {
         ok: true, engine: 'PdfCraft', pdfaLevel: '2b', documentSha256: hash,
-        summary: values[1], revisions: values[2], accessibility: values[3], pdfa: values[4],
+        summary, revisions: values[2], accessibility: values[3], pdfa: values[4],
         elapsedMs: Date.now() - started,
         warnings: ['Diagnostic only; PDF/A results are not an independent conformance certification.'],
       };

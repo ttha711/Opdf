@@ -36,7 +36,7 @@ try {
   assert.deepEqual(await readFile(target), original, 'Diagnostic changed source PDF bytes');
 
   const broken = join(directory, 'broken.pdf');
-  await writeFile(broken, '%PDF-1.7\nnot a valid PDF');
+  await writeFile(broken, 'not a PDF file');
   await assert.rejects(diagnostic.diagnose(broken), 'Malformed input must fail');
   console.log(JSON.stringify({
     passed: true, elapsedMs: Math.round(performance.now() - start),

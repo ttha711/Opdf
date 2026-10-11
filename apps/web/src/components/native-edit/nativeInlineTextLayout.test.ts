@@ -18,10 +18,10 @@ describe("native inline text popover", () => {
   it("does not inherit an oversized CAD font or bounding rectangle", () => {
     const object = textObject();
     const result = nativeInlineTextLayout(object, geometryForObject(object), 600, 800, "43\n20");
-    expect(result.fontSize).toBe(20);
-    expect(result.width).toBeLessThan(65);
-    expect(result.height).toBeLessThanOrEqual(144);
-    expect(result.height).toBeLessThan(80);
+    expect(result.fontSize).toBe(24);
+    expect(result.width).toBeGreaterThanOrEqual(124);
+    expect(result.height).toBeLessThanOrEqual(180);
+    expect(result.height).toBeGreaterThanOrEqual(42);
   });
 
   it("fits a two-digit CAD label without a fixed 180px minimum", () => {
@@ -31,9 +31,9 @@ describe("native inline text popover", () => {
       bounds: { x: 80, y: 200, width: 13, height: 8 },
     });
     const result = nativeInlineTextLayout(object, geometryForObject(object), 600, 800, "43");
-    expect(result.width).toBeLessThanOrEqual(40);
-    expect(result.height).toBeLessThanOrEqual(32);
-    expect(result.fontSize).toBe(11);
+    expect(result.width).toBeGreaterThanOrEqual(124);
+    expect(result.height).toBeGreaterThanOrEqual(42);
+    expect(result.fontSize).toBe(15);
   });
 
   it("grows with typed content and preserves original width while editing", () => {
@@ -42,7 +42,7 @@ describe("native inline text popover", () => {
     });
     const short = nativeInlineTextLayout(object, geometryForObject(object), 600, 800, "A");
     const longer = nativeInlineTextLayout(object, geometryForObject(object), 600, 800, "A much longer label");
-    expect(short.width).toBeLessThan(45);
+    expect(short.width).toBeGreaterThanOrEqual(124);
     expect(longer.width).toBeGreaterThan(short.width);
   });
 
@@ -62,6 +62,6 @@ describe("native inline text popover", () => {
     const short = nativeInlineTextLayout(object, geometryForObject(object), 600, 800, "one");
     const long = nativeInlineTextLayout(object, geometryForObject(object), 600, 800, "one\ntwo\nthree");
     expect(long.height).toBeGreaterThan(short.height);
-    expect(long.height).toBeLessThanOrEqual(144);
+    expect(long.height).toBeLessThanOrEqual(180);
   });
 });

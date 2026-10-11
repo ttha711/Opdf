@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { DirectPdfTextEditor, type DirectTextRequest } from "../DirectPdfTextEditor";
-import { findPageCanvasRect } from "../../lib/directPdfTextHit";
+import { DirectPdfTextEditor } from "../DirectPdfTextEditor";
+import { useQuickPdfTextEdit } from "../../hooks/useQuickPdfTextEdit";
 import { AdaptivePdfViewer } from "../AdaptivePdfViewer";
 import { AiAssistantPanel } from "../AiAssistantPanel";
 import { DocumentMarkupPanel } from "../DocumentMarkupPanel";
@@ -73,18 +72,17 @@ export function AppWorkspace({
   } = sidebars;
 
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
-  const [quickEdit, setQuickEdit] = useState<DirectTextRequest | null>(null);
-  const openQuickEdit = (clientX: number, clientY: number, text = "") => {
-    const root = viewerAreaRef.current;
-    if (!root) return;
-    const rect = findPageCanvasRect(root, clientX, clientY);
-    if (!rect) return;
-    setQuickEdit({
-      id: Date.now(), pageIndex: Math.max(0, state.page - 1),
-      clientX, clientY, anchorX: clientX + 12, anchorY: clientY + 12,
-      rect, selectedText: text,
-    });
-  };
+  const quickEdit = useQuickPdfTextEdit({
+    revision: {
+      tabId: activeTab?.id ?? null, identity: state.sourceIdentity,
+      bytes: state.docBytes, blob: state.sourceBlob,
+      page: state.page, activeTool: state.activeTool,
+    },
+    viewerAreaRef,
+    applyBytes: (bytes, pageNumber) => replaceDocumentBytes(bytes, pageNumber, {
+      preserveAnnotations: true, preservePageCount: true,
+    }),
+  });
   const getNativeEditBytes = useNativeEditBytes(state);
   const rightAvailable = state.hasDocument || Boolean(state.activeDashboardTool) ||
     Boolean(activeMarkupTool) || isAiPanelOpen;
@@ -116,7 +114,7 @@ export function AppWorkspace({
           onDoubleClick={(event) => {
             if (state.activeTool !== "select" || (event.target instanceof Element && event.target.closest("button,a,input,textarea,[role='button']"))) return;
             const text = window.getSelection()?.toString().trim() ?? "";
-            openQuickEdit(event.clientX, event.clientY, text);
+            quickEdit.open(event.clientX, event.clientY, text);
           }}
           aria-label="PDF viewer area"
           style={{ gridColumn: 1 }}
@@ -124,15 +122,13 @@ export function AppWorkspace({
           <ViewerErrorBoundary>
             <AdaptivePdfViewer {...viewerProps} getDocumentBytes={getNativeEditBytes} />
           </ViewerErrorBoundary>
-          {state.activeTool === "select" && quickEdit && activeTab.id === state.activeTabId ? (
+          {state.activeTool === "select" && quickEdit.session && activeTab.id === state.activeTabId ? (
             <DirectPdfTextEditor
-              key={quickEdit.id}
-              request={quickEdit}
+              key={quickEdit.session.request.id}
+              request={quickEdit.session.request}
               getDocumentBytes={getNativeEditBytes}
-              onApplyBytes={(bytes, pageNumber) => replaceDocumentBytes(bytes, pageNumber, {
-                preserveAnnotations: true, preservePageCount: true,
-              })}
-              onClose={() => setQuickEdit(null)}
+              onApplyBytes={(bytes, pageNumber) => quickEdit.apply(quickEdit.session!.request.id, bytes, pageNumber)}
+              onClose={() => quickEdit.close(quickEdit.session!.request.id)}
             />
           ) : null}
         </section>

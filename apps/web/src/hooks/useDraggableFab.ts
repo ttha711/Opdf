@@ -12,10 +12,11 @@ export function useDraggableFab({
   const dragStartOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const dragStartMouse = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hasMovedRef = useRef(false);
+  const dragInputRef = useRef<"mouse" | "touch" | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [panelAlign, setPanelAlign] = useState<"left" | "right">("right");
 
-  const startDrag = useCallback((clientX: number, clientY: number) => {
+  const startDrag = useCallback((clientX: number, clientY: number, input: "mouse" | "touch") => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
     const currentX = position ? position.x : rect.left;
@@ -26,19 +27,20 @@ export function useDraggableFab({
       y: clientY - currentY,
     };
     dragStartMouse.current = { x: clientX, y: clientY };
+    dragInputRef.current = input;
     setIsDragging(true);
     hasMovedRef.current = false;
   }, [position]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return; // Only left click
-    startDrag(e.clientX, e.clientY);
+    startDrag(e.clientX, e.clientY, "mouse");
   }, [startDrag]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLButtonElement>) => {
     if (e.touches.length > 0) {
       const touch = e.touches[0];
-      startDrag(touch.clientX, touch.clientY);
+      startDrag(touch.clientX, touch.clientY, "touch");
     }
   }, [startDrag]);
 
@@ -46,11 +48,12 @@ export function useDraggableFab({
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (dragInputRef.current !== "mouse") return;
       moveDrag(e.clientX, e.clientY);
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) {
+      if (dragInputRef.current === "touch" && e.touches.length > 0) {
         moveDrag(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
@@ -83,6 +86,7 @@ export function useDraggableFab({
     };
 
     const endDrag = () => {
+      dragInputRef.current = null;
       setIsDragging(false);
       if (!position) return;
 

@@ -23,7 +23,7 @@ export function PageOrganizerThumbnail({ page, deleted, rotation }: {
     const observer = typeof IntersectionObserver !== "undefined" ?
       new IntersectionObserver(entries => {
         if (!entries.some(entry => entry.isIntersecting)) return;
-        observer.disconnect();
+        observer?.disconnect();
         void load();
       }, { rootMargin: "250px" }) : null;
     if (observer) observer.observe(target);

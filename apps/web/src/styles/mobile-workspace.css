@@ -283,3 +283,23 @@
     flex: 0 0 44px;
   }
 }
+
+@media (max-width: 900px) {
+  .opdf-mobile-page-jump {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto;
+  }
+  .opdf-mobile-page-jump input {
+    width: 50px;
+    min-height: 44px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-toolbar);
+    color: var(--text-primary);
+    text-align: center;
+  }
+  .opdf-mobile-page-jump button { min-width: 44px; min-height: 44px; }
+  .opdf-mobile-filmstrip__header > button { margin-left: 0; }
+}

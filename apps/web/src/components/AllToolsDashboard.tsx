@@ -273,6 +273,7 @@ export function AllToolsDashboard({
     { id: "compress-pdf", name: "Compress PDF", icon: "compress", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerCompress, unavailableReason: canCompress ? undefined : "Compression requires OPDF Server or Desktop." },
     { id: "merge-pdf", name: "Merge PDF", icon: "merge", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerMerge },
     { id: "split-pdf", name: "Split PDF", icon: "split", color: "#e03131", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerSplit },
+    { id: "organize-pages", name: "Organize Pages", icon: "page", color: "#0b7285", bgColor: "#e3fafc", borderColor: "#99e9f2", action: () => onSelectTool?.("organize-pages"), requiresDocument: true },
     { id: "rotate-pdf", name: "Rotate PDF", icon: "rotate-right", color: "#5f3dc4", bgColor: "#f3f0ff", borderColor: "#d0bfff", action: () => onSelectTool?.("rotate-pdf") },
     { id: "delete-pages", name: "Delete Pages", icon: "trash", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: () => onSelectTool?.("delete-pages") },
     { id: "extract-pages", name: "Extract Pages", icon: "page", color: "#0b7285", bgColor: "#e3fafc", borderColor: "#99e9f2", action: () => onSelectTool?.("extract-pages") },

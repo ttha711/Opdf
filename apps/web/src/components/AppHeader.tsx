@@ -241,7 +241,7 @@ export function AppHeader(props: AppHeaderProps) {
         </div>
 
         <div className="opdf-header-actions">
-          <button type="button" data-opdf-action="search-commands" className="opdf-header-icon-btn" title="Search commands (Ctrl/⌘ K)" aria-label="Search commands" onClick={() => window.dispatchEvent(new Event("opdf:open-command-palette"))}><OpdfIcon name="search" size={18} /></button>
+          <button type="button" data-opdf-action="search-commands" className="opdf-header-icon-btn opdf-palette-trigger" title="Search commands (Ctrl/⌘ K)" aria-label="Search commands" onClick={() => window.dispatchEvent(new Event("opdf:open-command-palette"))}><OpdfIcon name="search" size={18} /></button>
           {hasDocument ? (
             <>
               <UndoButton onClick={undo} />

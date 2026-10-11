@@ -99,7 +99,7 @@ export function PdfViewer({
   );
 
   useEffect(() => {
-    const blob = sourceBlob ?? (data ? new Blob([data as unknown as BlobPart], { type: "application/pdf" }) : null);
+    const blob = data ? new Blob([data as unknown as BlobPart], { type: "application/pdf" }) : sourceBlob;
     if (!blob) {
       localSourceKeyRef.current = null;
       setLocalUrl(null);
@@ -107,7 +107,7 @@ export function PdfViewer({
     }
 
     const url = URL.createObjectURL(blob);
-    localSourceKeyRef.current = sourceBlob ?? data ?? null;
+    localSourceKeyRef.current = data ?? sourceBlob ?? null;
     setLocalUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [data, sourceBlob]);

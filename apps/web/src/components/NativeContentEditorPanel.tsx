@@ -269,8 +269,8 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       .then(() => emitNativeEditSelection({ pageIndex: page - 1, objectId: id }))
       .catch((error) => setMessage(error instanceof Error ? error.message : String(error)));
   }, [page]);
-  const { editSelectedText, panelTextEditor } = useNativeContentPanelText({
-    selected, readOnly: deepFormReadOnly, apply,
+  const { editSelectedText, editObjectById, panelTextEditor } = useNativeContentPanelText({
+    selected, objects, readOnly: deepFormReadOnly, apply,
   });
 
   return (
@@ -283,7 +283,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
         <button type="button" onClick={onClose} aria-label="Close Edit PDF">×</button>
       </div>
       <NativeContentToolbar page={page} loading={loading} message={message} canUndo={undoStack.length > 0} canRedo={redoStack.length > 0} refresh={refresh} undo={undo} redo={redo} apply={apply} />
-      <NativeContentObjectList objects={objects} selectedId={selectedId} loading={loading} onSelect={selectFromPanel} />
+      <NativeContentObjectList objects={objects} selectedId={selectedId} loading={loading} onSelect={selectFromPanel} onEditText={editObjectById} />
       {panelTextEditor}
       {selected ? (
         <NativeContentProperties selected={selected} draft={draft} setDraft={setDraft} loading={loading} deepFormReadOnly={deepFormReadOnly} saveTextStyle={saveTextStyle} editSelectedText={editSelectedText} move={move} scale={scale} rotate={rotate} apply={apply} />

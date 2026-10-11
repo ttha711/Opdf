@@ -231,10 +231,55 @@
     color: var(--acrobat-blue);
     background: var(--ui-accent-bg);
   }
-  .viewer-area { min-width: 0; touch-action: pan-x pan-y; }
+  .viewer-area { min-width: 0; }
   .opdf-mobile-filmstrip { bottom: max(44px, env(safe-area-inset-bottom)); }
   .ai-float-toggle-btn:not(.dragging) {
     right: 12px;
     bottom: max(166px, calc(env(safe-area-inset-bottom) + 154px));
+  }
+}
+
+/* Browser chrome changes the usable viewport height on Android/iOS. */
+@supports (height: 100dvh) {
+  @media (max-width: 900px) {
+    .app { height: 100dvh; max-height: 100dvh; }
+  }
+}
+
+.opdf-mobile-header-save { display: none; }
+@media (max-width: 900px) {
+  .opdf-mobile-header-save {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--ui-hover-bg);
+    color: var(--acrobat-blue);
+  }
+  .opdf-mobile-header-save:disabled { opacity: .4; }
+  .opdf-mobile-done-edit {
+    pointer-events: auto;
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 16px;
+    border: 1px solid var(--acrobat-blue);
+    border-radius: 12px;
+    background: var(--acrobat-blue);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .opdf-mobile-done-edit:disabled { opacity: .6; }
+  .opdf-render-mode-toggle {
+    bottom: max(82px, calc(env(safe-area-inset-bottom) + 82px)) !important;
+  }
+  .opdf-mobile-filmstrip__header button {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
   }
 }

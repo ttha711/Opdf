@@ -50,12 +50,8 @@ export function findDirectTextObject(
   matched.sort((a, b) =>
     (Number(b.selectedMatch) - Number(a.selectedMatch)) ||
     a.distance - b.distance || a.area - b.area);
-  // A selected DOM text fragment can identify text where the PDF canvas has
-  // no matching raster geometry, but never guess among duplicate labels.
-  if (matched[0]) return matched[0].object;
-  if (needle) {
-    const exact = hits.filter((hit) => hit.selectedMatch);
-    if (exact.length === 1) return exact[0].object;
-  }
-  return null;
+  // Never fall back to a matching label elsewhere on the sheet.
+  // CAD drawings often repeat the same dimension, e.g. "1200", hundreds of times.
+  // The pointer must actually be over the intended object.
+  return matched[0]?.object ?? null;
 }

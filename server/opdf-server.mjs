@@ -9,6 +9,7 @@ import http from "node:http";
 import { DocumentService } from "@opdf/core";
 import { createOpdfStorage, assertDocumentId, sanitizeFileName } from "./opdf-storage.mjs";
 import { createChunkUploadApi } from "./opdf-upload.mjs";
+import { createRemoteRenderService } from "./opdf-remote-render.mjs";
 import { createOcrJobQueue } from "./opdf-ocr-queue.mjs";
 import { createCertificateStore } from "./opdf-certificate-store.mjs";
 import { createSigningApi } from "./opdf-signing-api.mjs";
@@ -66,6 +67,7 @@ const storage = tenantRuntime.storage;
 const certificateStore = tenantRuntime.certificateStore;
 const ocrQueue = tenantRuntime.ocrQueue;
 const documentService = new DocumentService();
+const remoteRenderer = createRemoteRenderService();
 const pythonPath = process.env.OPDF_PYTHON_PATH || (process.platform === "win32" ? "python" : "python3");
 const officeConverterScript = resolve(
   process.env.OPDF_OFFICE_CONVERTER_SCRIPT ||
@@ -899,6 +901,7 @@ async function handleApi(req, res, url) {
         officeToPdf: true,
         storedMutations: true,
         rangePreview: false,
+        remoteRendering: remoteRenderer.enabled,
         resumableUpload: true,
         localFirstUpload: true,
         ocrQueue: true,
@@ -963,6 +966,11 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/opdf/session") {
     if (req.method === "GET") return sendJson(res, 200, await storage.getSession());
     if (req.method === "PUT") return sendJson(res, 200, await storage.putSession(await readJsonBody(req)));
+  }
+
+  if (url.pathname.includes("/render/")) {
+    const handled = await remoteRenderer.handle(req, res, url, { storage, sendJson, sendError, setBaseHeaders });
+    if (handled !== false) return;
   }
 
   const route = parseDocumentRoute(url.pathname);
@@ -1093,6 +1101,7 @@ function beginShutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   clearInterval(maintenanceTimer);
+  remoteRenderer.close();
   console.log(`OPDF Server received ${signal}; draining connections.`);
   server.close(async (error) => {
     await requestLogger.flush();

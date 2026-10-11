@@ -261,10 +261,13 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   }, [apply, deepFormReadOnly, draft, selected]);
 
   const selectFromPanel = useCallback((id: string) => {
-    void commitPendingNativeInlineEdit().then(() => {
-      setSelectedId(id);
-      emitNativeEditSelection({ pageIndex: page - 1, objectId: id });
-    });
+    // Keep the inspector responsive on large CAD sheets while committing the
+    // previous inline edit. The overlay receives the selection only after
+    // the previous draft has been safely committed.
+    setSelectedId(id);
+    void commitPendingNativeInlineEdit()
+      .then(() => emitNativeEditSelection({ pageIndex: page - 1, objectId: id }))
+      .catch((error) => setMessage(error instanceof Error ? error.message : String(error)));
   }, [page]);
   const editSelectedText = useCallback(() => {
     if (selected?.kind !== "text" || deepFormReadOnly) return;

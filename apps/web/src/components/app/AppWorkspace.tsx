@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { DirectPdfTextEditor, type DirectTextRequest } from "../DirectPdfTextEditor";
+import { findPageCanvasRect } from "../../lib/directPdfTextHit";
 import { AdaptivePdfViewer } from "../AdaptivePdfViewer";
 import { AiAssistantPanel } from "../AiAssistantPanel";
 import { DocumentMarkupPanel } from "../DocumentMarkupPanel";
@@ -12,7 +14,7 @@ import { MergeModal } from "../MergeModal";
 import { SplitModal } from "../SplitModal";
 import type { MarkupTool } from "../../hooks/useDocumentActions";
 import { useNativeEditBytes } from "../../hooks/useNativeEditBytes";
-import { commitPendingNativeInlineEdit, requestNativeInlineTextEdit } from "../../lib/nativeEditRuntime";
+import { commitPendingNativeInlineEdit } from "../../lib/nativeEditRuntime";
 
 type Controllers = ReturnType<typeof import("../../hooks/useAppControllers").useAppControllers>;
 type Sidebars = ReturnType<typeof import("../../hooks/useResizableSidebars").useResizableSidebars>;
@@ -72,6 +74,18 @@ export function AppWorkspace({
 
   const [selectedTextForEdit, setSelectedTextForEdit] = useState<{ text: string; page: number; tabId: string; documentKey: string } | null>(null);
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
+  const [quickEdit, setQuickEdit] = useState<DirectTextRequest | null>(null);
+  const openQuickEdit = (clientX: number, clientY: number, text = "") => {
+    const root = viewerAreaRef.current;
+    if (!root) return;
+    const rect = findPageCanvasRect(root, clientX, clientY);
+    if (!rect) return;
+    setQuickEdit({
+      id: Date.now(), pageIndex: Math.max(0, state.page - 1),
+      clientX, clientY, anchorX: clientX + 12, anchorY: clientY + 12,
+      rect, selectedText: text,
+    });
+  };
   const getNativeEditBytes = useNativeEditBytes(state);
   const rightAvailable = state.hasDocument || Boolean(state.activeDashboardTool) ||
     Boolean(activeMarkupTool) || isAiPanelOpen;
@@ -112,8 +126,8 @@ export function AppWorkspace({
           onDoubleClick={(event) => {
             if (state.activeTool !== "select" || (event.target instanceof Element && event.target.closest("button,a,input,textarea,[role='button']"))) return;
             const text = window.getSelection()?.toString().trim() ?? "";
-            if (text) requestNativeInlineTextEdit(state.page - 1, text);
-            setSelectedTextForEdit(null); state.setActiveTool("edit-content");
+            setSelectedTextForEdit(null);
+            openQuickEdit(event.clientX, event.clientY, text);
           }}
           aria-label="PDF viewer area"
           style={{ gridColumn: 1 }}
@@ -121,6 +135,17 @@ export function AppWorkspace({
           <ViewerErrorBoundary>
             <AdaptivePdfViewer {...viewerProps} getDocumentBytes={getNativeEditBytes} />
           </ViewerErrorBoundary>
+          {state.activeTool === "select" && quickEdit && activeTab.id === state.activeTabId ? (
+            <DirectPdfTextEditor
+              key={quickEdit.id}
+              request={quickEdit}
+              getDocumentBytes={getNativeEditBytes}
+              onApplyBytes={(bytes, pageNumber) => replaceDocumentBytes(bytes, pageNumber, {
+                preserveAnnotations: true, preservePageCount: true,
+              })}
+              onClose={() => setQuickEdit(null)}
+            />
+          ) : null}
           {state.activeTool === "select" && selectedTextForEdit?.tabId === activeTab.id && selectedTextForEdit.documentKey === state.sourceIdentity ? (
             <button
               type="button"
@@ -130,8 +155,10 @@ export function AppWorkspace({
               className="absolute right-4 top-4 z-30 rounded-md border border-[var(--acrobat-blue)] bg-white px-3 py-2 text-sm font-semibold text-[var(--acrobat-blue)] shadow-md"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
-                if (selectedTextForEdit.documentKey !== state.sourceIdentity) return; requestNativeInlineTextEdit(selectedTextForEdit.page - 1, selectedTextForEdit.text);
-                setSelectedTextForEdit(null); state.setActiveTool("edit-content");
+                if (selectedTextForEdit.documentKey !== state.sourceIdentity) return;
+                const root = viewerAreaRef.current?.getBoundingClientRect();
+                if (root) openQuickEdit(root.left + root.width / 2, root.top + root.height / 2, selectedTextForEdit.text);
+                setSelectedTextForEdit(null);
               }}
             >
               Edit selected text

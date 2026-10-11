@@ -4,7 +4,7 @@ import { saveServerDocumentAndWait } from "../helpers/save";
 
 test.setTimeout(120_000);
 
-test("inline text editor stays compact and keeps a raster through commit", async ({ page, request }) => {
+test("inline text editor stays readable and keeps a raster through commit", async ({ page, request }) => {
   const doc = await PDFDocument.create();
   const sheet = doc.addPage([600, 800]);
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -32,9 +32,9 @@ test("inline text editor stays compact and keeps a raster through commit", async
     const box = node.getBoundingClientRect();
     return { width: box.width, height: box.height, fontSize: parseFloat(getComputedStyle(node).fontSize) };
   });
-  expect(layout.width).toBeLessThan(65);
-  expect(layout.height).toBeLessThan(52);
-  expect(layout.fontSize).toBeLessThanOrEqual(20);
+  expect(layout.width).toBeGreaterThanOrEqual(124);
+  expect(layout.height).toBeGreaterThanOrEqual(42);
+  expect(layout.fontSize).toBeGreaterThanOrEqual(15);
 
   await page.evaluate(() => {
     const shield = document.querySelector(".native-edit-paint-shield") as HTMLElement;

@@ -31,6 +31,7 @@ export function useAppState() {
   const [showInsertModal, setShowInsertModal] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [viewerEditRevision, setViewerEditRevision] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("continuous");
   const [documentTool, setDocumentTool] = useState<DocumentTool>("delete-pages");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -59,6 +60,10 @@ export function useAppState() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const lastWheelFlipAtRef = useRef(0);
   const savedFingerprintRef = useRef<string>("");
+  const markViewerDirty = useCallback(() => {
+    setViewerEditRevision((revision) => revision + 1);
+    setSaveState("idle");
+  }, []);
   
   const isSwitchingRef = useRef(false);
   // Tab id (or null for "no tab") of the in-flight switch. `undefined` = no switch pending.
@@ -77,6 +82,7 @@ export function useAppState() {
       docBytes,
       documentIdentity: sourceIdentity,
       annotations,
+      viewerRevision: viewerEditRevision,
     });
 
     if (!currentFingerprint) {
@@ -108,7 +114,7 @@ export function useAppState() {
     } else if (saveState !== "idle") {
       setSaveState("idle");
     }
-  }, [annotations, docBytes, fileName, saveState, sourceIdentity]);
+  }, [annotations, docBytes, fileName, saveState, sourceIdentity, viewerEditRevision]);
 
   const markDocumentSaved = useCallback((snapshot?: {
     fileName?: string;
@@ -121,10 +127,11 @@ export function useAppState() {
       docBytes: snapshot?.docBytes ?? docBytes,
       documentIdentity: snapshot?.documentIdentity ?? sourceIdentity,
       annotations: snapshot?.annotations ?? annotations,
+      viewerRevision: viewerEditRevision,
     });
     savedFingerprintRef.current = fingerprint;
     setSaveState(fingerprint ? "saved" : "idle");
-  }, [annotations, docBytes, fileName, sourceIdentity]);
+  }, [annotations, docBytes, fileName, sourceIdentity, viewerEditRevision]);
 
   const clearDocumentSaveTracking = useCallback(() => {
     savedFingerprintRef.current = "";
@@ -439,7 +446,7 @@ export function useAppState() {
     fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale,
     annotations, setAnnotations, ocrJobs, setOcrJobs, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
-    saveState, setSaveState,
+    saveState, setSaveState, markViewerDirty,
     openMenu, setOpenMenu,
     theme, setTheme, fileInputRef, lastWheelFlipAtRef, hasDocument, hasDesktopBridge,
     showDashboard, setShowDashboard, activeDashboardTool, setActiveDashboardTool,

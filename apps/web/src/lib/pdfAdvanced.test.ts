@@ -42,16 +42,16 @@ describe("advanced PDF tools", () => {
     doc.addPage([300, 400]);
     doc.addPage([300, 400]);
     const bytes = await addPdfBookmarks(await doc.save(), [
-      { title: "Bản vẽ kiến trúc", page: 1 },
-      { title: "Cấu tạo móng", page: 2, parent: 0 },
+      { title: "B\u1ea3n v\u1ebd ki\u1ebfn tr\u00fac", page: 1 },
+      { title: "C\u1ea5u t\u1ea1o m\u00f3ng", page: 2, parent: 0 },
     ]);
     const loaded = await PDFDocument.load(bytes);
     const root = loaded.catalog.lookup(PDFName.of("Outlines"), PDFDict);
     const first = root.lookup(PDFName.of("First"), PDFDict);
     const text = first.lookup(PDFName.of("Title"), PDFHexString);
-    expect(text.decodeText()).toBe("Bản vẽ kiến trúc");
+    expect(text.decodeText()).toBe("B\u1ea3n v\u1ebd ki\u1ebfn tr\u00fac");
     const nested = first.lookup(PDFName.of("First"), PDFDict);
-    expect(nested.lookup(PDFName.of("Title"), PDFHexString).decodeText()).toBe("Cấu tạo móng");
+    expect(nested.lookup(PDFName.of("Title"), PDFHexString).decodeText()).toBe("C\u1ea5u t\u1ea1o m\u00f3ng");
   });
 
   it("adds a URI link annotation", async () => {

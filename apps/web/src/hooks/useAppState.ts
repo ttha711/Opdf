@@ -342,35 +342,42 @@ export function useAppState() {
     });
   }, []);
 
-  const closeTabGroup = useCallback((groupName: string) => {
-    setTabs(prevTabs => {
-      const remainingTabs = prevTabs.filter(t => t.group !== groupName);
-      const tabsToClose = prevTabs.filter(t => t.group === groupName);
-      
-      const isActiveInClosedGroup = tabsToClose.some(t => t.id === activeTabId);
-      
-      if (isActiveInClosedGroup) {
-        if (remainingTabs.length > 0) {
-          setTimeout(() => {
-            switchTab(remainingTabs[0].id);
-          }, 0);
-        } else {
-          isSwitchingRef.current = true;
-          pendingSwitchTabIdRef.current = null;
-          setActiveTabId(null);
-          setFileName("");
-          setDocBytes(null);
-          setPage(1);
-          setTotalPages(0);
-          setAnnotations([]);
-            setShowDashboard(false);
-          clearDocumentSaveTracking();
-        }
-      }
-      
-      return remainingTabs;
-    });
-  }, [activeTabId, switchTab]);
+  const closeTabGroup = useCallback(async (groupName: string) => {
+    const currentTabs = tabsRef.current;
+    const closing = currentTabs.filter((tab) => tab.group === groupName);
+    if (!closing.length) return;
+    const activeInGroup = closing.some((tab) => tab.id === activeTabId);
+    if (activeInGroup && saveState === "idle") {
+      const approved = await confirm({
+        title: "Close tab group",
+        message: `"${fileName}" has unsaved changes. Close the group without saving?`,
+        confirmLabel: "Close without saving",
+        danger: true,
+      });
+      if (!approved) return;
+    }
+
+    const remaining = currentTabs.filter((tab) => tab.group !== groupName);
+    setTabs(remaining);
+    if (!activeInGroup) return;
+    if (remaining.length) {
+      // The user has already confirmed discarding edits; avoid a second prompt.
+      applySwitchTab(remaining[0].id);
+      return;
+    }
+    isSwitchingRef.current = true;
+    pendingSwitchTabIdRef.current = null;
+    setActiveTabId(null);
+    setFileName("");
+    setDocBytes(null);
+    setSourceBlob(null);
+    setSourceIdentity("");
+    setPage(1);
+    setTotalPages(0);
+    setAnnotations([]);
+    setShowDashboard(false);
+    clearDocumentSaveTracking();
+  }, [activeTabId, applySwitchTab, clearDocumentSaveTracking, confirm, fileName, saveState]);
 
   const ungroupGroup = useCallback((groupName: string) => {
     setTabs(prevTabs => {

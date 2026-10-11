@@ -59,7 +59,7 @@ export function useExportAction({
       // Embedded annotation edits live in the viewer until export. Reusing
       // docBytes merely because the source is server-backed silently drops them.
       // Inline native edits take priority to avoid reading a stale hidden reader.
-      const bytes = inlineEditBytes ?? (await getDocumentBytes()) ?? docBytes;
+      let bytes = inlineEditBytes ?? (await getDocumentBytes()) ?? docBytes;
 
       if (hasDesktopBridge) {
         if (!inlineEditBytes) bytes = (await getDocumentBytes()) ?? bytes;

@@ -2,6 +2,7 @@ import {
   PDFArray,
   PDFCheckBox,
   PDFDict,
+  PDFHexString,
   PDFDocument,
   PDFName,
   PDFTextField,
@@ -34,6 +35,23 @@ describe("advanced PDF tools", () => {
     const loadedForm = loaded.getForm();
     expect((loadedForm.getTextField("name") as PDFTextField).getText()).toBe("OPDF");
     expect((loadedForm.getCheckBox("approved") as PDFCheckBox).isChecked()).toBe(true);
+  });
+
+  it("embeds nested Unicode bookmark titles without losing accents", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([300, 400]);
+    doc.addPage([300, 400]);
+    const bytes = await addPdfBookmarks(await doc.save(), [
+      { title: "Bản vẽ kiến trúc", page: 1 },
+      { title: "Cấu tạo móng", page: 2, parent: 0 },
+    ]);
+    const loaded = await PDFDocument.load(bytes);
+    const root = loaded.catalog.lookup(PDFName.of("Outlines"), PDFDict);
+    const first = root.lookup(PDFName.of("First"), PDFDict);
+    const text = first.lookup(PDFName.of("Title"), PDFHexString);
+    expect(text.decodeText()).toBe("Bản vẽ kiến trúc");
+    const nested = first.lookup(PDFName.of("First"), PDFDict);
+    expect(nested.lookup(PDFName.of("Title"), PDFHexString).decodeText()).toBe("Cấu tạo móng");
   });
 
   it("adds a URI link annotation", async () => {

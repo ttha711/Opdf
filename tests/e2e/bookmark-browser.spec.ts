@@ -23,7 +23,7 @@ test("opens an existing Unicode/nested PDF outline without erasing bookmarks", a
   await clickApplicationMenuItem(page, "Advanced PDF...");
   const dialog = page.locator('[data-opdf-dialog="advanced-pdf"]');
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", {name:"Bookmarks",exact:true}).click();
+  await dialog.getByRole("button", {name:/^bookmarks$/i}).click();
   const search = dialog.getByRole("searchbox", {name:"Search bookmarks"});
   await expect(search).toBeVisible();
   await expect(dialog.locator("[data-opdf-bookmark-index]")).toHaveCount(3, {timeout:15000});

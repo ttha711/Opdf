@@ -27,8 +27,16 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
     return () => controller.abort();
   }, [serverSource]);
 
-  const mobile = window.matchMedia("(max-width: 800px)").matches;
-  const remote = !isEditing && serverSource && available && (preference === "remote" || (preference === "auto" && mobile));
+  // The remote tile renderer is view-only. Never auto-enable it on touch devices:
+  // doing so silently disables annotations, editing and the PDF tool registry.
+  const needsEditor = props.activeTool !== undefined && props.activeTool !== "select";
+  const remote = !needsEditor && serverSource && available && preference === "remote";
+
+  useEffect(() => {
+    if (!needsEditor || preference !== "remote") return;
+    setPreference("full");
+    window.localStorage.setItem("opdf-render-mode", "full");
+  }, [needsEditor, preference]);
 
   const switchMode = () => {
     const next = remote ? "full" : "remote";
@@ -48,7 +56,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
           {isEditing ? <div className="absolute inset-0"><NativeEditPdfViewer {...props} /></div> : null}
         </>
       )}
-      {serverSource && available && !isEditing ? (
+      {serverSource && available && !needsEditor ? (
         <button type="button" data-opdf-action="toggle-remote-render"
           aria-label={remote ? "Use full PDF editor" : "Use lightweight remote rendering"}
           onClick={switchMode}

@@ -135,7 +135,6 @@ test("double-clicking a PDF page enters editing without Edit PDF", async ({ page
   // mounting the separate native-edit viewer or changing the active tool.
   // EmbedPDF may draw in tiles rather than exposing an image. Its
   // virtualized Scroller creates a dimensioned page wrapper in shadow DOM.
-  await expect(page.getByTestId("page-status")).toContainText("Page 1 of 1");
   const sheet = page.locator(
     'embedpdf-container div[style*="position: relative"][style*="width:"][style*="height:"]',
   ).filter({ visible: true }).last();

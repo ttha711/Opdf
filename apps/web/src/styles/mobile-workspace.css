@@ -303,3 +303,32 @@
   .opdf-mobile-page-jump button { min-width: 44px; min-height: 44px; }
   .opdf-mobile-filmstrip__header > button { margin-left: 0; }
 }
+
+@media (max-width: 900px) {
+  /* Fixed 32px desktop controls are too small for a touch-first header. */
+  .opdf-topbar .opdf-open-btn,
+  .opdf-topbar .opdf-menu-trigger,
+  .opdf-topbar .opdf-brand-home {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+  [data-opdf-region="status-bar"] > div:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-inline: 4px;
+  }
+  [data-opdf-region="status-bar"] > div:nth-child(2) span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+@media (max-width: 520px) {
+  .opdf-topbar .opdf-open-btn { width: 44px; padding-inline: 0; }
+  .opdf-topbar .opdf-open-btn span { display: none; }
+  .opdf-topbar .opdf-theme-btn { display: none; }
+  .opdf-header-tabs { min-width: 0; }
+  [data-opdf-region="status-bar"] > div:last-child > span:nth-child(n+2) { display: none; }
+}

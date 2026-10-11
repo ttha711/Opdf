@@ -98,13 +98,13 @@ export function useExportAction({
         return true;
       }
 
-      await saveWebState({ fileName, annotations, page: 1 });
-      // Browsers cannot overwrite an uploaded File without its writable handle.
-      // Keep silent autosave limited to review state; it must not falsely mark
-      // unsaved PDF byte edits as durably written to disk.
+      const draftSaved = await saveWebState({ fileName, annotations, page: 1 });
+      // In browsers the PDF bytes are NOT written back to the original file.
+      // Treat successful draft persistence as a handled autosave attempt, but
+      // deliberately keep the actual PDF marked unsaved until manual download.
       if (options.silent) {
         setSaveState("idle");
-        return false;
+        return draftSaved;
       }
       if (!bytes) throw new Error("Document bytes are unavailable.");
       const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";

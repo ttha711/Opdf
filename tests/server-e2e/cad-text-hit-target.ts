@@ -93,12 +93,7 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
       const row = page.locator('[data-opdf-object-id="' + objectId + '"]');
       if (!await row.evaluate((node) => node.classList.contains("active"))) {
         await row.evaluate((node: HTMLElement) => node.click());
-        // On very dense CAD pages the inspector selection is authoritative,
-        // while the SVG overlay may be virtualized away before it can paint.
-        await page.waitForFunction((id) => {
-          const row = document.querySelector('[data-opdf-object-id="' + id + '"]');
-          return row?.classList.contains("active");
-        }, objectId, { timeout: 15_000 });
+        // Overlay selection may be virtualized: try a real viewport hit before fallback.
       }
     }
     // Avoid speculative wheel events: they can virtualize the page away.
@@ -121,17 +116,9 @@ export async function openClickableCadText(page: Page, objectId: string): Promis
   if (await search.isVisible().catch(() => false)) {
     await search.fill(objectId);
     const row = page.locator('[data-opdf-object-id="' + objectId + '"]');
-    if (!await row.evaluate((node) => node.classList.contains("active"))) {
-      await row.evaluate((node: HTMLElement) => node.click());
-      await page.waitForFunction((id) => document.querySelector(
-        '[data-opdf-object-id="' + id + '"]',
-      )?.classList.contains("active"), objectId, { timeout: 15_000 });
-    }
-    // The properties panel can remount its button while CAD inspection
-    // refreshes. Dispatch its native click without Playwright's stability
-    // wait, then verify the editor actually opens for the pinned object.
-    await page.getByRole("button", { name: "Edit selected text", exact: true })
-      .evaluate((button: HTMLElement) => button.click());
+    // Double-click an inspector row to edit the exact PDF object. This does not
+    // require its distant SVG selection to be painted in a virtualized canvas.
+    await row.dispatchEvent("dblclick");
     await input.waitFor({ state: "visible", timeout: 15_000 });
     if (await input.getAttribute("data-opdf-inline-object-id") === objectId) return;
     await input.press("Escape");

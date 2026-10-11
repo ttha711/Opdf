@@ -280,6 +280,7 @@ export function AllToolsDashboard({
 
     { id: "watermark-pdf", name: "Watermark", icon: "watermark", color: "#1864ab", bgColor: "#e7f5ff", borderColor: "#a5d8ff", action: onTriggerWatermark, requiresDocument: true },
     { id: "page-numbers", name: "Page Numbers", icon: "hash", color: "#495057", bgColor: "#f1f3f5", borderColor: "#ced4da", action: onTriggerPageNumbers, requiresDocument: true },
+    { id: "document-health", name: "Document Health", icon: "file-text", color: "#087f5b", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: () => onSelectTool?.("document-health"), requiresDocument: true },
     { id: "ocr-pdf", name: "OCR PDF", icon: "ocr", color: "#087f5b", bgColor: "#e6fcf5", borderColor: "#96f2d7", action: onTriggerOcr, requiresDocument: true },
     { id: "fill-form", name: "Fill Form", icon: "form", color: "#c92a2a", bgColor: "#fff5f5", borderColor: "#ffc9c9", action: onTriggerFillForm, requiresDocument: true },
 

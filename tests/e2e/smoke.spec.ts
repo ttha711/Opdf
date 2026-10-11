@@ -149,7 +149,10 @@ test("double-clicking a PDF page enters editing without Edit PDF", async ({ page
         components: elements.length,
         shadow: elements.map((el) => ({
           children: el.shadowRoot?.childElementCount ?? -1,
-          snippets: el.shadowRoot?.innerHTML.slice(0, 2500),
+          text: el.shadowRoot?.textContent?.slice(-1600),
+          htmlTail: el.shadowRoot?.innerHTML.slice(-2400),
+          content: Boolean(el.shadowRoot?.querySelector("#document-content")),
+          loading: el.shadowRoot?.querySelectorAll("[role=status], [aria-busy=true]").length ?? -1,
           images: el.shadowRoot?.querySelectorAll("img").length ?? -1,
           pageRects: el.shadowRoot?.querySelectorAll('div[style*="width:"][style*="height:"]').length ?? -1,
         })),

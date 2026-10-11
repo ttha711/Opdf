@@ -12,25 +12,32 @@ export type DirectTextTarget = {
 };
 
 export function findPageCanvasRect(root: HTMLElement, x: number, y: number): PageRect | null {
-  // Identify the painted sheet, not a thumbnail or the toolbar.
-  // EmbedPDF's drop-in viewer paints inside an OPEN Web Component shadow
-  // root. document.querySelectorAll cannot see its pages.
-  const rendered: Element[] = [];
+  // EmbedPDF paints inside a shadow root, with raster images OR tiled layers.
+  // The Scroller page wrapper always owns the true page dimensions.
+  const candidates: { rect: DOMRect; priority: number }[] = [];
   const collect = (scope: ParentNode) => {
-    rendered.push(...scope.querySelectorAll("canvas, img"));
-    for (const element of scope.querySelectorAll("*")) {
+    for (const element of scope.querySelectorAll<HTMLElement>("*")) {
       if (element.shadowRoot) collect(element.shadowRoot);
+      const insideSidebar = element.closest(
+        "aside, nav, [role='navigation'], [role='toolbar'], [data-sidebar-id]",
+      );
+      if (insideSidebar) continue;
+      const raster = element.matches("canvas, img");
+      const pageBox = element instanceof HTMLDivElement &&
+        element.style.position === "relative" &&
+        element.style.width.endsWith("px") && element.style.height.endsWith("px");
+      if (!raster && !pageBox) continue;
+      const rect = element.getBoundingClientRect();
+      if (rect.width < 150 || rect.height < 150 ||
+          x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
+      candidates.push({ rect, priority: raster ? 0 : 1 });
     }
   };
   collect(root);
-  const candidates = rendered
-    .filter((element) =>
-      !element.closest("aside, nav, [role='navigation'], [role='toolbar']") &&
-      !element.closest("[data-sidebar-id], [data-epdf-i='thumbnail']"))
-    .map((element) => element.getBoundingClientRect())
-    .filter((rect) => rect.width >= 150 && rect.height >= 150 &&
-      x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom);
-  const rect = candidates.sort((a, b) => b.width * b.height - a.width * a.height)[0];
+  candidates.sort((a, b) =>
+    a.priority - b.priority ||
+    a.rect.width * a.rect.height - b.rect.width * b.rect.height);
+  const rect = candidates[0]?.rect;
   return rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : null;
 }
 

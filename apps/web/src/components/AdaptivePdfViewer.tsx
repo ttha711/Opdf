@@ -33,7 +33,9 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
 
   // The remote tile renderer is view-only. Never auto-enable it on touch devices:
   // doing so silently disables annotations, editing and the PDF tool registry.
-  const needsEditor = props.activeTool !== undefined && props.activeTool !== "select";
+  // Never unmount the editable viewer while it has unsaved PDFium changes.
+  const needsEditor = props.hasUnsavedChanges === true ||
+    (props.activeTool !== undefined && props.activeTool !== "select");
   const remote = !needsEditor && serverSource && available && preference === "remote";
 
   useEffect(() => {

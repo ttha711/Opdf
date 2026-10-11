@@ -33,7 +33,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     toggleMenu: callbacks.toggleMenu,
     closeMenu: callbacks.closeMenu,
     activeTool: state.activeTool,
-    hasUnsavedChanges: state.saveState === "idle",
+    hasUnsavedChanges: state.saveState !== "saved",
     setActiveTool,
     savePdf: actions.savePdf,
     saveState: state.saveState,

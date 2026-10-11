@@ -34,8 +34,11 @@ function editableTextHitGeometry(
   height: number,
 ): NativeObjectGeometry {
   if (object.kind !== "text" || !nativeEditObjectIsEditable(object)) return geometry;
-  const halfWidth = Math.max(geometry.width / 2, 3 * object.pageWidth / Math.max(1, width));
-  const halfHeight = Math.max(geometry.height / 2, 4 * object.pageHeight / Math.max(1, height));
+  const coarsePointer = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+  const minWidth = coarsePointer ? 20 : 6;
+  const minHeight = coarsePointer ? 20 : 8;
+  const halfWidth = Math.max(geometry.width / 2, (minWidth / 2) * object.pageWidth / Math.max(1, width));
+  const halfHeight = Math.max(geometry.height / 2, (minHeight / 2) * object.pageHeight / Math.max(1, height));
   const corner = (uSign: number, vSign: number) => ({
     x: geometry.center.x + geometry.u.x * uSign * halfWidth + geometry.v.x * vSign * halfHeight,
     y: geometry.center.y + geometry.u.y * uSign * halfWidth + geometry.v.y * vSign * halfHeight,
@@ -89,6 +92,8 @@ export function NativeEditSelectionLayer({
   onRotatePointerDown,
 }: Props) {
   const rotateOffset = selected ? 28 * selected.pageHeight / Math.max(1, height) : 0;
+  const coarsePointer = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+  const handleSize = coarsePointer ? 18 : 8;
   // Keep the stable PDF object order; hit affordances must not reshuffle selectors.
 
   return (
@@ -152,10 +157,10 @@ export function NativeEditSelectionLayer({
           <rect
             key={handle}
             className="native-edit-handle"
-            x={dom.x - 4}
-            y={dom.y - 4}
-            width={8}
-            height={8}
+            x={dom.x - handleSize / 2}
+            y={dom.y - handleSize / 2}
+            width={handleSize}
+            height={handleSize}
             style={{ cursor: handleCursor(handle) }}
             onPointerDown={(event) => onResizePointerDown(event, handle)}
             data-opdf-resize-handle={handle}
@@ -178,7 +183,7 @@ export function NativeEditSelectionLayer({
               className="native-edit-rotate-handle"
               cx={rotateDom.x}
               cy={rotateDom.y}
-              r={5}
+              r={coarsePointer ? 10 : 5}
               onPointerDown={onRotatePointerDown}
               data-opdf-rotate-handle="true"
             />

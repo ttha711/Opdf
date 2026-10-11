@@ -4,6 +4,7 @@ import { registerNativeEditSelectionListener } from "../../lib/nativeEditRuntime
 
 type Props = {
   pageIndex: number;
+  enabled: boolean;
   selectedId: string | null;
   editingText: string | null;
   setSelectedId: Dispatch<SetStateAction<string | null>>;
@@ -12,8 +13,15 @@ type Props = {
 };
 
 export function useNativeEditSelectionSync({
-  pageIndex, selectedId, editingText, setSelectedId, commitInlineText, setError,
+  pageIndex, enabled, selectedId, editingText, setSelectedId, commitInlineText, setError,
 }: Props) {
+  // A page may become inactive while its inline text draft is still open.
+  // Commit before dropping the inactive page's selection and objects.
+  useEffect(() => {
+    if (enabled || editingText === null) return;
+    void commitInlineText().catch((reason) =>
+      setError(reason instanceof Error ? reason.message : String(reason)));
+  }, [enabled, editingText, commitInlineText, setError]);
   useEffect(() => registerNativeEditSelectionListener((selection) => {
     const selectAfterCommit = () => setSelectedId(
       selection.pageIndex === pageIndex ? selection.objectId : null,

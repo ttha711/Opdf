@@ -9,12 +9,12 @@ import {
   emitNativeEditSelection,
   registerNativeEditPatchApplier,
   registerNativeEditSelectionListener,
-  requestNativeInlineTextEditById,
 } from "../lib/nativeEditRuntime";
 import { NativeContentObjectList } from "./native-content-editor/NativeContentObjectList";
 import { NativeContentProperties, type NativeContentDraft } from "./native-content-editor/NativeContentProperties";
 import { NativeContentToolbar } from "./native-content-editor/NativeContentToolbar";
 import { useNativeContentKeyboard } from "./native-content-editor/useNativeContentKeyboard";
+import { useNativeContentPanelText } from "./native-content-editor/useNativeContentPanelText";
 
 type Props = {
   page: number;
@@ -269,10 +269,9 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       .then(() => emitNativeEditSelection({ pageIndex: page - 1, objectId: id }))
       .catch((error) => setMessage(error instanceof Error ? error.message : String(error)));
   }, [page]);
-  const editSelectedText = useCallback(() => {
-    if (selected?.kind !== "text" || deepFormReadOnly) return;
-    requestNativeInlineTextEditById({ pageIndex: page - 1, objectId: selected.id });
-  }, [deepFormReadOnly, page, selected]);
+  const { editSelectedText, panelTextEditor } = useNativeContentPanelText({
+    selected, readOnly: deepFormReadOnly, apply,
+  });
 
   return (
     <aside className="native-content-editor" data-opdf-native-editor="true">
@@ -285,6 +284,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       </div>
       <NativeContentToolbar page={page} loading={loading} message={message} canUndo={undoStack.length > 0} canRedo={redoStack.length > 0} refresh={refresh} undo={undo} redo={redo} apply={apply} />
       <NativeContentObjectList objects={objects} selectedId={selectedId} loading={loading} onSelect={selectFromPanel} />
+      {panelTextEditor}
       {selected ? (
         <NativeContentProperties selected={selected} draft={draft} setDraft={setDraft} loading={loading} deepFormReadOnly={deepFormReadOnly} saveTextStyle={saveTextStyle} editSelectedText={editSelectedText} move={move} scale={scale} rotate={rotate} apply={apply} />
       ) : null}

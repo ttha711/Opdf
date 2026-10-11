@@ -30,9 +30,9 @@ describe("direct PDF reader text hit testing", () => {
       pageIndex: 0, clientX: 450, clientY: 400, rect,
     })).toBeNull();
   });
-  it("honors the selected text when there is a unique match", () => {
+  it("does not edit a distant text object just because selected text matches", () => {
     expect(findDirectTextObject(objects, {
       pageIndex: 0, clientX: 450, clientY: 400, rect, selectedText: "1350",
-    })?.id).toBe("p0-o1");
+    })).toBeNull();
   });
 });

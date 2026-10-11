@@ -13,8 +13,20 @@ export type DirectTextTarget = {
 
 export function findPageCanvasRect(root: HTMLElement, x: number, y: number): PageRect | null {
   // Identify the painted sheet, not a thumbnail or the toolbar.
-  const candidates = [...root.querySelectorAll<HTMLCanvasElement | HTMLImageElement>("canvas, img")]
-    .filter((element) => !element.closest("aside, nav, [role='navigation'], [role='toolbar']"))
+  // EmbedPDF's drop-in viewer paints inside an OPEN Web Component shadow
+  // root. document.querySelectorAll cannot see its pages.
+  const rendered: Element[] = [];
+  const collect = (scope: ParentNode) => {
+    rendered.push(...scope.querySelectorAll("canvas, img"));
+    for (const element of scope.querySelectorAll("*")) {
+      if (element.shadowRoot) collect(element.shadowRoot);
+    }
+  };
+  collect(root);
+  const candidates = rendered
+    .filter((element) =>
+      !element.closest("aside, nav, [role='navigation'], [role='toolbar']") &&
+      !element.closest("[data-sidebar-id], [data-epdf-i='thumbnail']"))
     .map((element) => element.getBoundingClientRect())
     .filter((rect) => rect.width >= 150 && rect.height >= 150 &&
       x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom);

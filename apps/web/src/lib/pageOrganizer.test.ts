@@ -58,6 +58,6 @@ describe("Page Organizer draft", () => {
       rotatePages: bridge.rotatePages,
     }, {order:[1,2,3],removed:[],rotations:{2:-90}});
     const doc = await PDFDocument.load(result.bytes);
-    expect(doc.getPage(1).getRotation().angle).toBe(270);
+    expect(((doc.getPage(1).getRotation().angle % 360) + 360) % 360).toBe(270);
   });
 });

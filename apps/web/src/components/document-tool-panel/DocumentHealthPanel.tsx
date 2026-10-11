@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getServerDocumentUrl } from "../../lib/documentSource";
+import { PdfStructureInventory, type PdfInventory } from "./PdfStructureInventory";
 
 type Finding = { page?: number | null; message?: string };
 type Check = { rule?: string; name?: string; status?: string; findings?: Finding[] };
@@ -7,7 +8,7 @@ type Health = {
   ok: boolean;
   documentSha256: string;
   elapsedMs: number;
-  summary: { document?: { pages?: number }; pdf_version?: string; tagged?: boolean; has_javascript?: boolean };
+  summary: PdfInventory & { document?: { pages?: number }; pdf_version?: string; tagged?: boolean; has_javascript?: boolean };
   revisions: { revisions?: unknown[] };
   accessibility: { passed?: number; failed?: number; manual?: number; skipped?: number; results?: Check[] };
   pdfa: { issues?: Array<{ clause?: string; message?: string; page?: number | null }> };
@@ -73,6 +74,7 @@ export function DocumentHealthPanel({ sourceIdentity }: { sourceIdentity?: strin
             <p><strong>JavaScript:</strong> {report.summary.has_javascript ? "Present" : "Not detected"}</p>
             <p><strong>Scan time:</strong> {report.elapsedMs} ms</p>
           </div>
+          <PdfStructureInventory inventory={report.summary} />
           <div className="rounded border border-[var(--border-color)] p-2 space-y-1">
             <h5 className="font-bold">Accessibility</h5>
             <p>{report.accessibility.passed ?? 0} passed · {report.accessibility.failed ?? 0} failed · {report.accessibility.manual ?? 0} manual</p>

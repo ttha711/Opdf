@@ -131,9 +131,20 @@ test("double-clicking a PDF page enters editing without Edit PDF", async ({ page
     buffer: Buffer.from(await pdf.save()),
   });
   await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
-  // EmbedPDF can render text on a canvas without a selectable DOM span.
-  // Double-clicking the page itself must still enter the native editor.
-  await page.locator(".viewer-area").dblclick({ position: { x: 250, y: 250 } });
-  await expect(page.locator('[data-opdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('[data-opdf-canvas-object][data-opdf-object-kind="text"]').first()).toBeVisible();
+  // Double-click near the painted text to edit in the reader, without
+  // mounting the separate native-edit viewer or changing the active tool.
+  const canvas = page.locator(".viewer-shell canvas").filter({ visible: true }).first();
+  await expect(canvas).toBeVisible({ timeout: 30_000 });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Reader canvas has no visible bounds.");
+  // The text starts at PDF (72, 700) on a 612 x 792 point page.
+  const x = box.x + box.width * (125 / 612);
+  const y = box.y + box.height * (92 / 792);
+  await page.mouse.dblclick(x, y);
+  await expect(page.locator('[data-opdf-direct-text-input="true"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-opdf-native-edit-page="1"]')).toHaveCount(0);
+  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-active-tool", "select");
+  await page.locator('[data-opdf-direct-text-input="true"]').fill("UPDATED DIRECT TEXT");
+  await page.locator('[data-opdf-direct-text-input="true"]').press("Enter");
+  await expect(page.locator('[data-opdf-direct-text-input="true"]')).toHaveCount(0, { timeout: 30_000 });
 });

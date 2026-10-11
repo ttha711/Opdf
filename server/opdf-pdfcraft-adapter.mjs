@@ -109,8 +109,8 @@ export function createPdfcraftDiagnostics(env = process.env) {
     const started = Date.now();
     let workDir;
     try {
-      const source = await stat(filePath);
-      if (!source.isFile()) throw fail(404, 'Document is unavailable.');
+      const source = await stat(filePath).catch(() => null);
+      if (!source?.isFile()) throw fail(404, 'Document is unavailable.');
       if (source.size > maxBytes) throw fail(413, 'PDF exceeds the configured diagnostic size limit.');
       workDir = await mkdtemp(join(tmpdir(), 'opdf-health-'));
       const snapshot = join(workDir, 'input.pdf');

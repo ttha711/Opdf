@@ -13,9 +13,9 @@ describe("PDF command palette registry", () => {
   });
 
   it("supports multiple terms and prioritizes title matches", () => {
-    expect(filterPaletteCommands(PALETTE_COMMANDS, "PDF rotate")[0]?.id).toBe("rotate");
+    expect(filterPaletteCommands(PALETTE_COMMANDS, "rotate page")[0]?.id).toBe("rotate");
     expect(filterPaletteCommands(PALETTE_COMMANDS, "   PAGE  DELETE ")[0]?.id).toBe("delete");
-    expect(filterPaletteCommands(PALETTE_COMMANDS, "accessible PDF")[0]?.id).toBe("health");
+    expect(filterPaletteCommands(PALETTE_COMMANDS, "accessibility pdf")[0]?.id).toBe("health");
     expect(filterPaletteCommands(PALETTE_COMMANDS, "nonexistentxyz")).toEqual([]);
     expect(filterPaletteCommands(PALETTE_COMMANDS, "")).toEqual(PALETTE_COMMANDS);
   });

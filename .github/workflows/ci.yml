@@ -29,8 +29,7 @@ jobs:
         run: npm run typecheck
       - run: npm run check:english-ui
       - run: npm run check:file-size
-      - if: github.event_name == 'push'
-        run: npm run test:cli
+      - run: npm run test:cli
       - run: npm run test -w @opdf/web
       - name: Build web (PR)
         if: github.event_name == 'pull_request'
@@ -40,8 +39,7 @@ jobs:
         run: npm run build
       - if: github.event_name == 'push'
         run: npm run server-smoke
-      - if: github.event_name == 'push'
-        run: npm run server-auth-smoke
+      - run: npm run server-auth-smoke
       - if: github.event_name == 'push'
         run: npm run server-s3-smoke
       - if: github.event_name == 'push'

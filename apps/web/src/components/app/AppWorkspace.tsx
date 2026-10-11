@@ -69,7 +69,6 @@ export function AppWorkspace({
     isDraggingRight,
     setIsDraggingRight,
   } = sidebars;
-
   const [selectedTextForEdit, setSelectedTextForEdit] = useState<{ text: string; page: number; tabId: string; documentKey: string } | null>(null);
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
   const getNativeEditBytes = useNativeEditBytes(state);
@@ -241,6 +240,7 @@ export function AppWorkspace({
           <DocumentToolPanel
             activeToolId={state.activeDashboardTool}
             fileName={state.fileName}
+            sourceIdentity={state.sourceIdentity}
             docBytes={state.docBytes}
             sourceBlob={state.sourceBlob}
             getDocumentBytes={materializeDocumentBytes}

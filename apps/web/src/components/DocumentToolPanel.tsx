@@ -9,10 +9,12 @@ import type { DocumentToolPanelProps, MergeFile } from "./document-tool-panel/ty
 import { useSplitMergeActions } from "./document-tool-panel/useSplitMergeActions";
 import { useConversionActions } from "./document-tool-panel/useConversionActions";
 import { BasicPdfToolsPanel } from "./document-tool-panel/BasicPdfToolsPanel";
+import { DocumentHealthPanel } from "./document-tool-panel/DocumentHealthPanel";
 
 export function DocumentToolPanel({
   activeToolId,
   fileName,
+  sourceIdentity,
   docBytes,
   sourceBlob = null,
   getDocumentBytes,
@@ -308,6 +310,7 @@ export function DocumentToolPanel({
         ) : null}
 
         {activeToolId === "fill-form" && <FillFormPanel />}
+        {activeToolId === "document-health" && <DocumentHealthPanel sourceIdentity={sourceIdentity} />}
       </div>
 
       <div className="absolute bottom-6 left-4 right-4 p-2.5 rounded bg-[var(--ui-muted-bg)] border border-[var(--border-color)] text-[10px] text-[var(--text-secondary)] leading-normal flex gap-2 items-start">

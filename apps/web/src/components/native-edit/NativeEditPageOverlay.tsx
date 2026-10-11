@@ -237,7 +237,7 @@ export function NativeEditPageOverlay({
     } else beginEdit();
   }), [commitInlineText, editingText, objects, pageIndex]);
   useNativeEditSelectionSync({
-    pageIndex, selectedId, editingText, setSelectedId, commitInlineText, setError,
+    pageIndex, enabled, selectedId, editingText, setSelectedId, commitInlineText, setError,
   });
   return (
     <>

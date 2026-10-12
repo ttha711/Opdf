@@ -1,11 +1,11 @@
 import type { AgentToolId } from "../agent/types";
-import type { OpdfIconName } from "../components/OpdfIcon";
+import type { TpdfIconName } from "../components/TpdfIcon";
 
 export type PaletteCommand = {
   id: string;
   title: string;
   group: "Document" | "Editing" | "Review" | "Pages" | "Conversion";
-  icon: OpdfIconName;
+  icon: TpdfIconName;
   keywords?: string;
   requiresDocument?: boolean;
   needsFullAccess?: boolean;
@@ -45,7 +45,7 @@ export const PALETTE_COMMANDS: PaletteCommand[] = [
 
 export function paletteUnavailableReason(command: PaletteCommand, hasDocument: boolean, isPublic: boolean) {
   if (command.requiresDocument && !hasDocument) return "Open a PDF first";
-  if (command.needsFullAccess && isPublic) return "Local or OPDF Server required";
+  if (command.needsFullAccess && isPublic) return "Local or TPDF Server required";
   return null;
 }
 

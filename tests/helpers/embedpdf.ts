@@ -1,7 +1,7 @@
 import { expect, type Locator } from "@playwright/test";
 
 /**
- * Stable selectors for the EmbedPDF 2.15.x viewer surface used by OPDF.
+ * Stable selectors for the EmbedPDF 2.15.x viewer surface used by TPDF.
  *
  * Prefer the viewer's explicit data hooks over generated Tailwind classes,
  * translated labels, thumbnail DOM shape, or ARIA state that the package

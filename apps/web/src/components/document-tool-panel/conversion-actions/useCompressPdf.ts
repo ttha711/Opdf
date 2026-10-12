@@ -50,7 +50,7 @@ export function useCompressPdf(args: UseCompressPdfArgs) {
               const pct = Math.max(0, Math.min(100, Math.round(((state.bytesReceived ?? 0) / state.totalBytes) * 100)));
               setViewerError(`Uploading for compression… ${pct}%`);
             } else if (state.status === "processing") {
-              setViewerError("Optimizing PDF on OPDF Server...");
+              setViewerError("Optimizing PDF on TPDF Server...");
             }
           },
         });

@@ -40,11 +40,11 @@ export function useAiAssistant() {
       syncAiConfigToDesktop,
     } = settings;
 
-    localStorage.setItem("opdf_ai_mode", isServerRuntime ? "agent" : engineMode);
-    if (!isServerRuntime) localStorage.setItem("opdf_dify_url", difyUrl);
-    if (isServerRuntime || window.opdf?.setAiConfig) localStorage.removeItem("opdf_dify_key");
-    else localStorage.setItem("opdf_dify_key", difyKey);
-    localStorage.setItem("opdf_iframe_url", iframeUrl);
+    localStorage.setItem("tpdf_ai_mode", isServerRuntime ? "agent" : engineMode);
+    if (!isServerRuntime) localStorage.setItem("tpdf_dify_url", difyUrl);
+    if (isServerRuntime || window.tpdf?.setAiConfig) localStorage.removeItem("tpdf_dify_key");
+    else localStorage.setItem("tpdf_dify_key", difyKey);
+    localStorage.setItem("tpdf_iframe_url", iframeUrl);
     setShowSettings(false);
     if (!isServerRuntime) void syncAiConfigToDesktop(engineMode, difyUrl, difyKey);
 

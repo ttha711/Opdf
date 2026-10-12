@@ -1,4 +1,4 @@
-// opdf-file-size-allow: existing legacy modal over 300 lines; narrow accessible-picker repair, independent component split deferred.
+// tpdf-file-size-allow: existing legacy modal over 300 lines; narrow accessible-picker repair, independent component split deferred.
 import { useState, useEffect, useRef } from "react";
 import { toast } from "./ToastProvider";
 import { useDialogClose } from "../hooks/useDialogClose";
@@ -163,12 +163,12 @@ export function InsertPdfModal({
   }
 
   return (
-    <div data-opdf-dialog="insert-pdf" className="modal-backdrop" role="dialog" aria-modal="true">
+    <div data-tpdf-dialog="insert-pdf" className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="premium-modal max-w-[500px]">
         {/* Hidden Input Picker */}
         <input
-          data-opdf-field="insert-file"
-          id="opdf-insert-pdf-file"
+          data-tpdf-field="insert-file"
+          id="tpdf-insert-pdf-file"
           type="file"
           aria-label="Choose a PDF to insert"
           ref={fileInputRef}
@@ -188,7 +188,7 @@ export function InsertPdfModal({
             </svg>
             Insert PDF Document
           </h3>
-          <button data-opdf-action="close-dialog" className="premium-modal-close" onClick={onClose} aria-label="Close dialog">
+          <button data-tpdf-action="close-dialog" className="premium-modal-close" onClick={onClose} aria-label="Close dialog">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
@@ -210,7 +210,7 @@ export function InsertPdfModal({
 
           {/* Step 1: Document selection */}
           <div className="form-group">
-            <label className="form-label" htmlFor="opdf-insert-pdf-file">Select PDF to Insert</label>
+            <label className="form-label" htmlFor="tpdf-insert-pdf-file">Select PDF to Insert</label>
             {!selectedFile ? (
               <div
                 className="flex flex-col items-center justify-center p-8 rounded-xl border border-dashed text-center transition-all"
@@ -231,7 +231,7 @@ export function InsertPdfModal({
                 <button
                   className="btn-premium btn-premium-outline py-1 px-4 text-xs font-semibold"
                   onClick={triggerFilePicker}
-                  aria-controls="opdf-insert-pdf-file"
+                  aria-controls="tpdf-insert-pdf-file"
                   disabled={isProcessing}
                   type="button"
                 >
@@ -256,7 +256,7 @@ export function InsertPdfModal({
                 <button
                   className="btn-premium btn-premium-secondary py-1 px-3 text-xs"
                   onClick={triggerFilePicker}
-                  aria-controls="opdf-insert-pdf-file"
+                  aria-controls="tpdf-insert-pdf-file"
                   disabled={isProcessing}
                   type="button"
                 >
@@ -273,7 +273,7 @@ export function InsertPdfModal({
                 <label className="form-label" htmlFor="insertTargetPage">Insert at Page</label>
                 <div className="flex items-center gap-3">
                   <input
-                    data-opdf-field="insert-page"
+                    data-tpdf-field="insert-page"
                     id="insertTargetPage"
                     type="number"
                     min="1"
@@ -299,7 +299,7 @@ export function InsertPdfModal({
                   >
                     <div className="radio-card-header">
                       <input
-                        data-opdf-field="insert-after"
+                        data-tpdf-field="insert-after"
                         type="radio"
                         checked={position === "after"}
                         onChange={() => setPosition("after")}
@@ -317,7 +317,7 @@ export function InsertPdfModal({
                   >
                     <div className="radio-card-header">
                       <input
-                        data-opdf-field="insert-before"
+                        data-tpdf-field="insert-before"
                         type="radio"
                         checked={position === "before"}
                         onChange={() => setPosition("before")}
@@ -336,11 +336,11 @@ export function InsertPdfModal({
 
         {/* Footer */}
         <div className="premium-modal-footer">
-          <button data-opdf-action="close-dialog" className="btn-premium btn-premium-secondary" onClick={onClose} disabled={isProcessing} type="button">
+          <button data-tpdf-action="close-dialog" className="btn-premium btn-premium-secondary" onClick={onClose} disabled={isProcessing} type="button">
             Cancel
           </button>
           <button
-            data-opdf-action="insert-run"
+            data-tpdf-action="insert-run"
             className="btn-premium btn-premium-primary"
             onClick={handleInsert}
             disabled={isProcessing || !selectedFile}

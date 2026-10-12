@@ -2,7 +2,7 @@
 
 ## Scope
 
-Security reports for OPDF should focus on the web/server runtime, authentication,
+Security reports for TPDF should focus on the web/server runtime, authentication,
 document isolation, file handling, PDF processing, update/deployment boundaries,
 and any path that could expose user documents or credentials.
 
@@ -23,7 +23,7 @@ available. Include:
 
 ## Production response
 
-For a confirmed vulnerability affecting an Internet-facing OPDF deployment:
+For a confirmed vulnerability affecting an Internet-facing TPDF deployment:
 
 1. block or disable the affected route/feature when practical;
 2. rotate any credential that may have been exposed;

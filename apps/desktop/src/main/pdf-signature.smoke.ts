@@ -10,8 +10,8 @@ function buildTestP12(passphrase: string) {
   cert.validity.notBefore = new Date(Date.now() - 60_000);
   cert.validity.notAfter = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const attrs = [
-    { name: "commonName", value: "OPDF CI Test" },
-    { name: "organizationName", value: "OPDF" },
+    { name: "commonName", value: "TPDF CI Test" },
+    { name: "organizationName", value: "TPDF" },
     { name: "countryName", value: "VN" },
   ];
   cert.setSubject(attrs);
@@ -30,16 +30,16 @@ function buildTestP12(passphrase: string) {
 }
 
 async function main() {
-  const passphrase = "opdf-ci";
+  const passphrase = "tpdf-ci";
   const p12 = buildTestP12(passphrase);
   const info = inspectP12Certificate(p12, passphrase);
-  if (info.commonName !== "OPDF CI Test") {
+  if (info.commonName !== "TPDF CI Test") {
     throw new Error("Unexpected certificate common name: " + info.commonName);
   }
 
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([400, 300]);
-  page.drawText("OPDF digital signature integration smoke test", { x: 40, y: 240, size: 14 });
+  page.drawText("TPDF digital signature integration smoke test", { x: 40, y: 240, size: 14 });
   const source = await pdf.save();
 
   const signed = await signPdfWithP12(source, p12, {
@@ -47,7 +47,7 @@ async function main() {
     page: 1,
     reason: "CI verification",
     location: "Local test runner",
-    contactInfo: "ci@opdf.local",
+    contactInfo: "ci@tpdf.local",
     x: 0.55,
     y: 0.72,
     width: 0.38,
@@ -75,14 +75,14 @@ async function main() {
   if (!inspected.byteRangeWellFormed || !inspected.cmsParsed) {
     throw new Error("Signature inspector could not parse the generated signature.");
   }
-  if (inspected.certificates[0]?.commonName !== "OPDF CI Test") {
+  if (inspected.certificates[0]?.commonName !== "TPDF CI Test") {
     throw new Error("Signature inspector did not recover the signer certificate.");
   }
   if (inspected.hasLaterRevision) {
     throw new Error("Freshly signed PDF unexpectedly reports a later revision.");
   }
 
-  const withLaterBytes = new Uint8Array(Buffer.concat([Buffer.from(signed.bytes), Buffer.from("\n% OPDF later revision marker\n")]));
+  const withLaterBytes = new Uint8Array(Buffer.concat([Buffer.from(signed.bytes), Buffer.from("\n% TPDF later revision marker\n")]));
   const laterInspection = inspectPdfSignatures(withLaterBytes)[0];
   if (!laterInspection?.hasLaterRevision || laterInspection.bytesAfterSignedRevision <= 0) {
     throw new Error("Signature inspector did not detect bytes after the signed revision.");

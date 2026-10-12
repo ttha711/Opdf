@@ -13,8 +13,8 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
   const { sender, isPending, text, toolLogs, confirmation } = message;
   return (
     <div
-      data-opdf-ai-message={sender}
-      data-opdf-ai-pending={isPending ? "true" : "false"}
+      data-tpdf-ai-message={sender}
+      data-tpdf-ai-pending={isPending ? "true" : "false"}
       className={`ai-message-bubble-wrapper ${sender}`}
     >
       <div className="ai-message-avatar">
@@ -122,7 +122,7 @@ export function ChatInputForm({
   return (
     <form className="ai-chat-input-form" onSubmit={onSubmit}>
       <textarea
-        data-opdf-ai-input
+        data-tpdf-ai-input
         ref={textareaRef}
         className="ai-chat-textarea"
         rows={1}
@@ -136,7 +136,7 @@ export function ChatInputForm({
         placeholder={placeholder}
       />
       <button
-        data-opdf-ai-send
+        data-tpdf-ai-send
         className="ai-chat-send-btn"
         disabled={!inputValue.trim()}
         type="submit"

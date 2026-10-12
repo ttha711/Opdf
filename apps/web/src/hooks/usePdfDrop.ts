@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { Annotation } from "@opdf/core";
+import type { Annotation } from "@tpdf/core";
 import { computeBlobHash, loadAnnotationsByHash } from "../lib/web-storage";
 
 type UsePdfDropArgs = {

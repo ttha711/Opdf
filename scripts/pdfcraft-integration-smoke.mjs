@@ -5,23 +5,23 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
-import { createPdfcraftDiagnostics } from '../server/opdf-pdfcraft-adapter.mjs';
+import { createPdfcraftDiagnostics } from '../server/tpdf-pdfcraft-adapter.mjs';
 
-const binary = process.env.OPDF_PDFCRAFT_BIN;
-assert(binary, 'OPDF_PDFCRAFT_BIN must point to a pinned PdfCraft CLI executable');
-const directory = await mkdtemp(join(tmpdir(), 'opdf-pdfcraft-real-'));
+const binary = process.env.TPDF_PDFCRAFT_BIN;
+assert(binary, 'TPDF_PDFCRAFT_BIN must point to a pinned PdfCraft CLI executable');
+const directory = await mkdtemp(join(tmpdir(), 'tpdf-pdfcraft-real-'));
 try {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([612, 792]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
-  page.drawText('OPDF read-only diagnostic fixture', { x: 72, y: 700, font, size: 16 });
+  page.drawText('TPDF read-only diagnostic fixture', { x: 72, y: 700, font, size: 16 });
   const target = join(directory, 'fixture.pdf');
   await writeFile(target, await pdf.save());
   const original = await readFile(target);
   const diagnostic = createPdfcraftDiagnostics({
-    OPDF_PDFCRAFT_ENABLED: '1',
-    OPDF_PDFCRAFT_BIN: resolve(binary),
-    OPDF_PDFCRAFT_TIMEOUT_MS: '60000',
+    TPDF_PDFCRAFT_ENABLED: '1',
+    TPDF_PDFCRAFT_BIN: resolve(binary),
+    TPDF_PDFCRAFT_TIMEOUT_MS: '60000',
   });
   const start = performance.now();
   const report = await diagnostic.diagnose(target);

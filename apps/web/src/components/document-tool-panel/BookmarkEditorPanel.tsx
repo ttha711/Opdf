@@ -38,9 +38,9 @@ export function BookmarkEditorPanel({ bookmarks, setBookmarks, totalPages, curre
         </label>
         <span className="shrink-0 text-xs text-[var(--text-secondary)]">{matches.length} / {bookmarks.length}</span>
       </div>
-      <div className="max-h-[42vh] space-y-2 overflow-y-auto" data-opdf-bookmark-results="true">
+      <div className="max-h-[42vh] space-y-2 overflow-y-auto" data-tpdf-bookmark-results="true">
         {matches.map(({index, ...bookmark}) => (
-          <div key={index} data-opdf-bookmark-index={index}
+          <div key={index} data-tpdf-bookmark-index={index}
             className="grid grid-cols-[minmax(0,1fr)_72px] items-center gap-2 rounded border border-[var(--border-color)] p-2 sm:grid-cols-[minmax(0,1fr)_80px_170px_68px]">
             <input value={bookmark.title} aria-label={`Bookmark title ${index + 1}`}
               disabled={locked} onChange={event => setBookmarks(current =>

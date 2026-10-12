@@ -41,11 +41,11 @@ const APPLICATION_MENU_PATHS: Record<string, string[]> = {
 
 function menuItemSelector(label: string) {
   const escaped = label.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  return `[data-opdf-menu-item="${escaped}"]`;
+  return `[data-tpdf-menu-item="${escaped}"]`;
 }
 
 export async function openApplicationMenu(page: Page) {
-  const header = page.locator('[data-opdf-region="app-header"]');
+  const header = page.locator('[data-tpdf-region="app-header"]');
   const trigger = header.locator('button[aria-label="Application menu"]:visible').first();
   await expect(trigger).toBeVisible({ timeout: UI_ACTION_TIMEOUT });
 

@@ -17,8 +17,8 @@ test("Windows Electron boots and its real IPC PDF/Office/signing engines work", 
     cwd: process.cwd(),
     env: {
       ...process.env,
-      OPDF_PROJECT_PATH: process.cwd(),
-      OPDF_SOFFICE_PATH: process.env.OPDF_SOFFICE_PATH || "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+      TPDF_PROJECT_PATH: process.cwd(),
+      TPDF_SOFFICE_PATH: process.env.TPDF_SOFFICE_PATH || "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
     },
   });
 
@@ -28,7 +28,7 @@ test("Windows Electron boots and its real IPC PDF/Office/signing engines work", 
     await expect(window.locator('button[aria-label="Application menu"]:visible').first()).toBeVisible();
 
     const bridgeShape = await window.evaluate(() => {
-      const bridge = (window as any).opdf;
+      const bridge = (window as any).tpdf;
       return {
         present: Boolean(bridge),
         compress: typeof bridge?.compressPdf === "function",
@@ -48,18 +48,18 @@ test("Windows Electron boots and its real IPC PDF/Office/signing engines work", 
     });
 
     const sourceDoc = await PDFDocument.create();
-    sourceDoc.addPage([400, 300]).drawText("OPDF WINDOWS DESKTOP IPC CHECK", { x: 40, y: 240, size: 14 });
+    sourceDoc.addPage([400, 300]).drawText("TPDF WINDOWS DESKTOP IPC CHECK", { x: 40, y: 240, size: 14 });
     const source = Buffer.from(await sourceDoc.save({ useObjectStreams: false }));
 
     const compressed = Buffer.from(await window.evaluate(async (input) => {
-      const bytes = await (window as any).opdf.compressPdf(new Uint8Array(input));
+      const bytes = await (window as any).tpdf.compressPdf(new Uint8Array(input));
       return Array.from(bytes);
     }, Array.from(source)));
     expect(compressed.subarray(0, 5).toString("ascii")).toBe("%PDF-");
     expect((await PDFDocument.load(compressed)).getPageCount()).toBe(1);
 
     const encrypted = Buffer.from(await window.evaluate(async (input) => {
-      const bytes = await (window as any).opdf.encryptPdf(new Uint8Array(input), {
+      const bytes = await (window as any).tpdf.encryptPdf(new Uint8Array(input), {
         userPassword: "desktop-pass",
         ownerPassword: "desktop-pass",
       });
@@ -68,15 +68,15 @@ test("Windows Electron boots and its real IPC PDF/Office/signing engines work", 
     await expect(PDFDocument.load(encrypted)).rejects.toThrow();
 
     const decrypted = Buffer.from(await window.evaluate(async ({ input, password }) => {
-      const bytes = await (window as any).opdf.decryptPdf(new Uint8Array(input), password);
+      const bytes = await (window as any).tpdf.decryptPdf(new Uint8Array(input), password);
       return Array.from(bytes);
     }, { input: Array.from(encrypted), password: "desktop-pass" }));
     expect((await PDFDocument.load(decrypted)).getPageCount()).toBe(1);
 
-    const passphrase = "opdf-ci";
+    const passphrase = "tpdf-ci";
     const p12 = buildTestP12(passphrase);
     const signed = await window.evaluate(async ({ pdf, certificate, passphraseValue }) => {
-      const result = await (window as any).opdf.signPdfP12(
+      const result = await (window as any).tpdf.signPdfP12(
         new Uint8Array(pdf),
         new Uint8Array(certificate),
         {
@@ -84,7 +84,7 @@ test("Windows Electron boots and its real IPC PDF/Office/signing engines work", 
           page: 1,
           reason: "Windows CI approval",
           location: "GitHub Actions",
-          contactInfo: "ci@opdf.local",
+          contactInfo: "ci@tpdf.local",
           x: 0.55,
           y: 0.72,
           width: 0.35,
@@ -97,7 +97,7 @@ test("Windows Electron boots and its real IPC PDF/Office/signing engines work", 
     expect(signedBytes.includes(Buffer.from("/ByteRange"))).toBeTruthy();
 
     const inspections = await window.evaluate(async (input) => {
-      return (window as any).opdf.inspectPdfSignatures(new Uint8Array(input));
+      return (window as any).tpdf.inspectPdfSignatures(new Uint8Array(input));
     }, Array.from(signedBytes));
     expect(inspections).toHaveLength(1);
     expect(inspections[0].byteRangeWellFormed).toBeTruthy();
@@ -105,14 +105,14 @@ test("Windows Electron boots and its real IPC PDF/Office/signing engines work", 
 
     const fixtures = await buildOfficeFixtures();
     const officePdf = Buffer.from(await window.evaluate(async ({ input, name }) => {
-      const bytes = await (window as any).opdf.convertOfficeToPdf(new Uint8Array(input), name);
+      const bytes = await (window as any).tpdf.convertOfficeToPdf(new Uint8Array(input), name);
       return Array.from(bytes);
     }, { input: Array.from(fixtures.docx.bytes), name: fixtures.docx.name }));
     expect(officePdf.subarray(0, 5).toString("ascii")).toBe("%PDF-");
     expect((await PDFDocument.load(officePdf)).getPageCount()).toBeGreaterThan(0);
 
     const docx = Buffer.from(await window.evaluate(async (input) => {
-      const bytes = await (window as any).opdf.convertPdfOffice(new Uint8Array(input), "docx");
+      const bytes = await (window as any).tpdf.convertPdfOffice(new Uint8Array(input), "docx");
       return Array.from(bytes);
     }, Array.from(source)));
     const entries = Object.keys(unzipSync(new Uint8Array(docx)));

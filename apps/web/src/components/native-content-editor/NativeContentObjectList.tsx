@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { PdfContentObject } from "@opdf/core";
+import type { PdfContentObject } from "@tpdf/core";
 
 const BATCH_SIZE = 200;
 type ObjectKind = "all" | "text" | "image" | "path" | "form";
@@ -58,7 +58,7 @@ export function NativeContentObjectList({ objects, selectedId, loading, onSelect
       <div role="group" aria-label="Filter PDF object types" className="flex flex-wrap gap-1">
         {FILTERS.map(filter => (
           <button type="button" key={filter.kind} aria-pressed={kind === filter.kind}
-            data-opdf-object-filter={filter.kind}
+            data-tpdf-object-filter={filter.kind}
             onClick={() => { setKind(filter.kind); setLimit(BATCH_SIZE); }}
             className={`rounded-md border border-[var(--border-color)] px-2 py-1 text-[11px] ${kind === filter.kind ? "bg-[var(--ui-accent-bg)] font-semibold text-[var(--text-primary)]" : "bg-[var(--ui-muted-bg)] text-[var(--text-secondary)]"}`}>
             {filter.label} <span aria-hidden="true">{counts[filter.kind]}</span>
@@ -78,13 +78,13 @@ export function NativeContentObjectList({ objects, selectedId, loading, onSelect
           className={object.id === selectedId ? "active" : ""}
           aria-pressed={object.id === selectedId}
           onClick={() => onSelect(object.id)}
-          data-opdf-object-id={object.id}
-          data-opdf-object-kind={object.kind}
-          data-opdf-object-depth={object.depth ?? 0}
-          data-opdf-rotated-bounds={object.rotatedBounds ? "true" : "false"}
-          data-opdf-bounds={`${object.bounds.x},${object.bounds.y},${object.bounds.width},${object.bounds.height}`}
-          data-opdf-fill-color={object.fillColor ?? ""}
-          data-opdf-stroke-color={object.strokeColor ?? ""}
+          data-tpdf-object-id={object.id}
+          data-tpdf-object-kind={object.kind}
+          data-tpdf-object-depth={object.depth ?? 0}
+          data-tpdf-rotated-bounds={object.rotatedBounds ? "true" : "false"}
+          data-tpdf-bounds={`${object.bounds.x},${object.bounds.y},${object.bounds.width},${object.bounds.height}`}
+          data-tpdf-fill-color={object.fillColor ?? ""}
+          data-tpdf-stroke-color={object.strokeColor ?? ""}
           style={{ paddingLeft: 8 + (object.depth ?? 0) * 14 }}
         >
           <span>{object.depth ? "↳ " : ""}{object.kind.toUpperCase()}</span>

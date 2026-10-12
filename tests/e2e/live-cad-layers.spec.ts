@@ -15,7 +15,7 @@ function layeredPdf() {
     "<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Properties << /Grid 6 0 R /Services 7 0 R >> >> /Contents 4 0 R >>",
     "<< /Length "+Buffer.byteLength(stream)+" >>\nstream\n"+stream+"endstream",
-    "<< /Producer (OPDF CAD E2E) >>",
+    "<< /Producer (TPDF CAD E2E) >>",
     "<< /Type /OCG /Name (Grid) >>",
     "<< /Type /OCG /Name (Services) >>",
   ];
@@ -38,15 +38,15 @@ test("toggle real PDF OCG pixels and snap to CAD vector endpoints",async({page})
   await page.locator('input[type="file"][accept="application/pdf"]').first().setInputFiles({
     name:"cad-layers.pdf", mimeType:"application/pdf", buffer:layeredPdf(),
   });
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({timeout:20_000});
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({timeout:20_000});
   await page.keyboard.press("Control+k");
   await page.getByRole("combobox",{name:"Find a command"}).fill("drawing layers");
-  await page.locator('[data-opdf-command="drawing"]').click();
-  await page.locator('[data-opdf-action="open-drawing-workspace"]').click();
-  const workspace=page.locator('[data-opdf-drawing-workspace="true"]');
+  await page.locator('[data-tpdf-command="drawing"]').click();
+  await page.locator('[data-tpdf-action="open-drawing-workspace"]').click();
+  const workspace=page.locator('[data-tpdf-drawing-workspace="true"]');
   await expect(workspace).toBeVisible();
-  await expect(workspace.locator('[data-opdf-ocg]')).toHaveCount(2,{timeout:20_000});
-  const canvas=workspace.locator('[data-opdf-layer-canvas]');
+  await expect(workspace.locator('[data-tpdf-ocg]')).toHaveCount(2,{timeout:20_000});
+  const canvas=workspace.locator('[data-tpdf-layer-canvas]');
   const pixel=()=>canvas.evaluate(element=>{
     const c=element as HTMLCanvasElement;
     const pixel=c.getContext("2d")!.getImageData(
@@ -65,9 +65,9 @@ test("toggle real PDF OCG pixels and snap to CAD vector endpoints",async({page})
   expect(rect).not.toBeNull();
   // PDF y=20 appears at screen y=180; a true vector endpoint is (20,20).
   await page.mouse.move(rect!.x+24,rect!.y+180);
-  await expect(workspace.locator('[data-opdf-cad-overlay] text').filter({hasText:"endpoint"})).toBeVisible();
+  await expect(workspace.locator('[data-tpdf-cad-overlay] text').filter({hasText:"endpoint"})).toBeVisible();
   await page.mouse.click(rect!.x+24,rect!.y+180);
   await page.mouse.click(rect!.x+78,rect!.y+180);
-  await expect(workspace.locator('[data-opdf-cad-overlay] circle[fill="#e11d48"]')).toHaveCount(2);
-  await expect(workspace.locator('[data-opdf-cad-overlay]')).toContainText("0.021 m");
+  await expect(workspace.locator('[data-tpdf-cad-overlay] circle[fill="#e11d48"]')).toHaveCount(2);
+  await expect(workspace.locator('[data-tpdf-cad-overlay]')).toContainText("0.021 m");
 });

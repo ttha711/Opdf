@@ -9,9 +9,9 @@ export type FixturePage = {
 };
 
 export const DEFAULT_TOOL_PAGES: FixturePage[] = [
-  { width: 300, height: 400, text: "OPDF TOOL PAGE ONE KEEP" },
-  { width: 400, height: 500, text: "OPDF TOOL PAGE TWO DELETE" },
-  { width: 500, height: 600, text: "OPDF TOOL PAGE THREE KEEP" },
+  { width: 300, height: 400, text: "TPDF TOOL PAGE ONE KEEP" },
+  { width: 400, height: 500, text: "TPDF TOOL PAGE TWO DELETE" },
+  { width: 500, height: 600, text: "TPDF TOOL PAGE THREE KEEP" },
 ];
 
 export async function createFixturePdf(pages: FixturePage[] = DEFAULT_TOOL_PAGES) {
@@ -52,28 +52,28 @@ export async function loadToolFixture(
     mimeType: "application/pdf",
     buffer: source,
   });
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
-    "data-opdf-total-pages",
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute(
+    "data-tpdf-total-pages",
     String((await PDFDocument.load(source)).getPageCount()),
     { timeout: 20_000 },
   );
 }
 
 export async function openAllTools(page: Page) {
-  const visibleCard = page.locator("[data-opdf-tool-card]:visible").first();
+  const visibleCard = page.locator("[data-tpdf-tool-card]:visible").first();
   if (await visibleCard.isVisible().catch(() => false)) return;
   await clickApplicationMenuItem(page, "All Tools...");
-  await expect(page.locator("[data-opdf-tool-card]").first()).toBeVisible({
+  await expect(page.locator("[data-tpdf-tool-card]").first()).toBeVisible({
     timeout: 10_000,
   });
 }
 
 export async function openDashboardTool(page: Page, toolId: string) {
   await openAllTools(page);
-  const card = page.locator(`[data-opdf-tool-card="${toolId}"]`);
+  const card = page.locator(`[data-tpdf-tool-card="${toolId}"]`);
   await expect(card).toBeEnabled();
   await card.click();
 }
@@ -125,7 +125,7 @@ export async function extractPdfTextPages(bytes: Uint8Array) {
 }
 
 export async function waitForStatusText(page: Page, text: string | RegExp) {
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toContainText(text, {
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toContainText(text, {
     timeout: 15_000,
   });
 }

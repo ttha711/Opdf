@@ -7,9 +7,9 @@ export async function replaceNativeTextFromCanvas(
   listedObject: Locator,
   replacement: string,
 ) {
-  const objectId = await listedObject.getAttribute("data-opdf-object-id");
+  const objectId = await listedObject.getAttribute("data-tpdf-object-id");
   expect(objectId).toBeTruthy();
-  const canvasObject = page.locator(`[data-opdf-canvas-object="${objectId}"]`);
+  const canvasObject = page.locator(`[data-tpdf-canvas-object="${objectId}"]`);
   await canvasObject.dblclick();
   const input = page.getByRole("textbox", { name: "Edit PDF text" });
   await expect(input).toBeVisible();
@@ -19,6 +19,6 @@ export async function replaceNativeTextFromCanvas(
   await expect(editor.getByText("Text applied. Check the Save status in the toolbar.")).toBeVisible({
     timeout: 45_000,
   });
-  await expect(editor.locator('.native-content-editor__objects [data-opdf-object-kind="text"]')
+  await expect(editor.locator('.native-content-editor__objects [data-tpdf-object-kind="text"]')
     .filter({ hasText: replacement }).first()).toBeVisible({ timeout: 45_000 });
 }

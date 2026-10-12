@@ -56,9 +56,9 @@ export function DocumentHealthPanel({ sourceIdentity }: { sourceIdentity?: strin
         Results describe the last <strong>saved server copy</strong>. Save edits before scanning.
       </p>
       {!savedUrl ? (
-        <p role="status">Document Health requires a PDF saved on OPDF Server.</p>
+        <p role="status">Document Health requires a PDF saved on TPDF Server.</p>
       ) : (
-        <button type="button" data-opdf-action="run-document-health" disabled={busy}
+        <button type="button" data-tpdf-action="run-document-health" disabled={busy}
           onClick={() => void analyze()}
           className="w-full rounded bg-[var(--acrobat-blue)] p-2 font-semibold text-white disabled:opacity-50">
           {busy ? "Analyzing…" : report ? "Run analysis again" : "Analyze saved PDF"}
@@ -66,7 +66,7 @@ export function DocumentHealthPanel({ sourceIdentity }: { sourceIdentity?: strin
       )}
       {error && <p role="alert" className="rounded border border-red-400 p-2 text-red-600">{error}</p>}
       {report && (
-        <div data-opdf-document-health="ready" className="space-y-3">
+        <div data-tpdf-document-health="ready" className="space-y-3">
           <div className="rounded border border-[var(--border-color)] p-2 space-y-1">
             <p><strong>Pages:</strong> {report.summary.document?.pages ?? "Unknown"}</p>
             <p><strong>PDF version:</strong> {report.summary.pdf_version || "Unknown"}</p>

@@ -1,4 +1,4 @@
-import type { Annotation } from "@opdf/core";
+import type { Annotation } from "@tpdf/core";
 
 export interface AnnotationListItem {
   id: string;

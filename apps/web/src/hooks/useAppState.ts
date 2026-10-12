@@ -1,9 +1,9 @@
-// opdf-file-size-allow: legacy centralized app state; this PR removes viewer mirror state and does not add new state responsibilities.
+// tpdf-file-size-allow: legacy centralized app state; this PR removes viewer mirror state and does not add new state responsibilities.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Annotation, OcrJob } from "@opdf/core";
+import type { Annotation, OcrJob } from "@tpdf/core";
 import type { ActiveTool, AnnotationToolDefaults, ViewMode, ZoomPreset } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
-import { saveActiveTabId, saveTabsList, type OpdfTab } from "../lib/web-storage";
+import { saveActiveTabId, saveTabsList, type TpdfTab } from "../lib/web-storage";
 import { buildDocumentFingerprint } from "../lib/documentFingerprint";
 import { useToast } from "../components/ToastProvider";
 import { useConfirm } from "../components/ConfirmDialog";
@@ -38,13 +38,13 @@ export function useAppState() {
   const [activeDashboardTool, setActiveDashboardTool] = useState<string | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
-      return (localStorage.getItem("opdf-theme") as "light" | "dark") || "light";
+      return (localStorage.getItem("tpdf-theme") as "light" | "dark") || "light";
     }
     return "light";
   });
 
   // MULTI-TABS STATE
-  const [tabs, setTabs] = useState<OpdfTab[]>([]);
+  const [tabs, setTabs] = useState<TpdfTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   
   // URL Group filter for separate windows (?group=Work)
@@ -158,7 +158,7 @@ export function useAppState() {
 
     const serverMatch = /^server:\/\/([0-9a-f-]{36})\//i.exec(sourceIdentity);
     if (serverMatch) {
-      const baseUrl = window.__OPDF_SERVER_BASE__ || "/api/opdf";
+      const baseUrl = window.__TPDF_SERVER_BASE__ || "/api/tpdf";
       const response = await fetch(`${baseUrl}/documents/${serverMatch[1]}`);
       if (!response.ok) {
         throw new Error(`Unable to materialize server PDF: HTTP ${response.status}`);
@@ -175,7 +175,7 @@ export function useAppState() {
     () => Boolean(fileName && (docBytes || sourceBlob || sourceIdentity.startsWith("server://"))),
     [fileName, docBytes, sourceBlob, sourceIdentity],
   );
-  const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
+  const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.tpdf);
 
   // Tab operations
   const switchTab = useCallback((tabId: string) => {
@@ -405,7 +405,7 @@ export function useAppState() {
       const colors = ["#ff5a5f", "#e03e2d", "#10b981", "#0061d5", "#8b5cf6", "#f59e0b"];
       const randomColor = colors[Math.floor(Math.random() * colors.length)];
       
-      const newTab: OpdfTab = {
+      const newTab: TpdfTab = {
         id: newTabId,
         fileName,
         docBytes,

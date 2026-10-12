@@ -1,4 +1,4 @@
-import type { PdfContentObject } from "@opdf/core";
+import type { PdfContentObject } from "@tpdf/core";
 import { pdfPointToDom, type NativeObjectGeometry } from "../../lib/nativeEditGeometry";
 
 export type InlineTextLayout = {

@@ -192,7 +192,7 @@ export async function buildRevisionReportPdf(input: RevisionReportInput): Promis
     y -= size + 7;
   };
 
-  draw("OPDF Revision Comparison Report", 18, true);
+  draw("TPDF Revision Comparison Report", 18, true);
   y -= 6;
   draw("Current: " + input.baseFileName, 10);
   draw("Revision: " + input.revisionFileName, 10);
@@ -221,7 +221,7 @@ export async function buildRevisionReportPdf(input: RevisionReportInput): Promis
     draw("... " + (input.regions.length - 32) + " additional regions omitted.", 9);
   }
 
-  page.drawText("Generated locally by OPDF", {
+  page.drawText("Generated locally by TPDF", {
     x: 42,
     y: 30,
     size: 8,

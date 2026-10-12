@@ -1,4 +1,4 @@
-import type { PdfContentObject, PdfMatrix, PdfPoint } from "@opdf/core";
+import type { PdfContentObject, PdfMatrix, PdfPoint } from "@tpdf/core";
 
 export type NativeResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 

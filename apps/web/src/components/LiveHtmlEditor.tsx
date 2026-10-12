@@ -68,8 +68,8 @@ export function LiveHtmlEditor({ isOpen, onClose, initialHtml }: LiveHtmlEditorP
   };
 
   const saveTextFile = async (bytes: Uint8Array, defaultName: string, extensions: string[]) => {
-    if (window.opdf?.saveFile) {
-      await window.opdf.saveFile(bytes, defaultName, extensions);
+    if (window.tpdf?.saveFile) {
+      await window.tpdf.saveFile(bytes, defaultName, extensions);
       return;
     }
     const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;

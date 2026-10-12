@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
+import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { applyVerifiedNativePatches } from "../lib/nativeEditPatchVerification";
 import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
@@ -149,7 +149,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
         : success);
       return edited;
     } catch (error) {
-      console.error("[opdf:native-edit] PDF patch rejected:", error);
+      console.error("[tpdf:native-edit] PDF patch rejected:", error);
       setMessage(error instanceof Error ? error.message : "Unable to edit PDF content.");
       return null;
     } finally {
@@ -272,7 +272,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   }, [deepFormReadOnly, page, selected]);
 
   return (
-    <aside className="native-content-editor" data-opdf-native-editor="true">
+    <aside className="native-content-editor" data-tpdf-native-editor="true">
       <div className="native-content-editor__header">
         <div>
           <strong>Edit PDF Content</strong>

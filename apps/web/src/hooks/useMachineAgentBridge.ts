@@ -23,7 +23,7 @@ type TaskState = {
 };
 
 const isServerRuntime = () =>
-  typeof window !== "undefined" && window.__OPDF_RUNTIME__ === "server";
+  typeof window !== "undefined" && window.__TPDF_RUNTIME__ === "server";
 
 export function useMachineAgentBridge() {
   const [agents, setAgents] = useState<AgentSummary[]>([]);
@@ -34,7 +34,7 @@ export function useMachineAgentBridge() {
   const refresh = useCallback(async () => {
     if (!isServerRuntime()) return;
     try {
-      const response = await fetch("/api/opdf/agent/status", {
+      const response = await fetch("/api/tpdf/agent/status", {
         credentials: "same-origin",
         cache: "no-store",
       });
@@ -59,7 +59,7 @@ export function useMachineAgentBridge() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/opdf/agent/pairing/start", {
+      const response = await fetch("/api/tpdf/agent/pairing/start", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -78,8 +78,8 @@ export function useMachineAgentBridge() {
   }, []);
 
   const sendQuery = useCallback(async (query: string, context: Record<string, unknown>) => {
-    if (!isServerRuntime()) throw new Error("Machine Agent Bridge is available on OPDF Server.");
-    const response = await fetch("/api/opdf/agent/chat", {
+    if (!isServerRuntime()) throw new Error("Machine Agent Bridge is available on TPDF Server.");
+    const response = await fetch("/api/tpdf/agent/chat", {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
@@ -94,7 +94,7 @@ export function useMachineAgentBridge() {
     const deadline = Date.now() + 90_000;
     while (Date.now() < deadline) {
       await new Promise((resolve) => window.setTimeout(resolve, 600));
-      const poll = await fetch(`/api/opdf/agent/tasks/${task.id}`, {
+      const poll = await fetch(`/api/tpdf/agent/tasks/${task.id}`, {
         credentials: "same-origin",
         cache: "no-store",
       });

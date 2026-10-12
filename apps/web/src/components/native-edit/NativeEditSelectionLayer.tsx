@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import type { PdfContentObject } from "@opdf/core";
+import type { PdfContentObject } from "@tpdf/core";
 import {
   handlePdfPoint,
   pdfPointToDom,
@@ -100,7 +100,7 @@ export function NativeEditSelectionLayer({
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onEmptyPointerDown();
       }}
-      data-opdf-native-edit-page={pageIndex + 1}
+      data-tpdf-native-edit-page={pageIndex + 1}
     >
       {objects.map((object) => {
         const isSelected = selected?.id === object.id;
@@ -117,10 +117,10 @@ export function NativeEditSelectionLayer({
             points={pointsAttribute(editableTextHitGeometry(geometry, object, width, height), object.pageWidth, object.pageHeight, width, height)}
             onPointerDown={(event) => onObjectPointerDown(event, object)}
             onDoubleClick={(event) => onObjectDoubleClick(event, object)}
-            data-opdf-canvas-object={object.id}
-            data-opdf-canvas-selection={isSelected ? object.id : undefined}
-            data-opdf-object-kind={object.kind}
-            data-opdf-object-depth={object.depth ?? 0}
+            data-tpdf-canvas-object={object.id}
+            data-tpdf-canvas-selection={isSelected ? object.id : undefined}
+            data-tpdf-object-kind={object.kind}
+            data-tpdf-object-depth={object.depth ?? 0}
           />
         );
       })}
@@ -134,7 +134,7 @@ export function NativeEditSelectionLayer({
             selected.pageWidth, selected.pageHeight, width, height,
           )}
           style={{ fill: "transparent", stroke: "transparent", pointerEvents: "all", cursor: "text" }}
-          data-opdf-foreground-hit-target={selected.id}
+          data-tpdf-foreground-hit-target={selected.id}
           onPointerDown={(event) => onObjectPointerDown(event, selected)}
           onDoubleClick={(event) => onObjectDoubleClick(event, selected)}
         />
@@ -158,7 +158,7 @@ export function NativeEditSelectionLayer({
             height={8}
             style={{ cursor: handleCursor(handle) }}
             onPointerDown={(event) => onResizePointerDown(event, handle)}
-            data-opdf-resize-handle={handle}
+            data-tpdf-resize-handle={handle}
           />
         );
       }) : null}
@@ -180,7 +180,7 @@ export function NativeEditSelectionLayer({
               cy={rotateDom.y}
               r={5}
               onPointerDown={onRotatePointerDown}
-              data-opdf-rotate-handle="true"
+              data-tpdf-rotate-handle="true"
             />
           </>
         );

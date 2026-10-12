@@ -11,34 +11,34 @@ import type {
   InsertOptions,
   RecentDocument,
   SessionSnapshot,
-} from "@opdf/core";
+} from "@tpdf/core";
 
 const api = {
-  openProjectFolder: () => ipcRenderer.invoke("opdf:open-project-folder") as Promise<boolean>,
-  pickAndOpenDocument: () => ipcRenderer.invoke("opdf:pick-and-open") as Promise<OpenDocumentResult | null>,
-  openDocument: (filePath: string) => ipcRenderer.invoke("opdf:open", filePath) as Promise<OpenDocumentResult>,
-  saveDocument: (filePath: string, bytes: Uint8Array) => ipcRenderer.invoke("opdf:save", filePath, bytes) as Promise<void>,
-  exportFlattened: (bytes: Uint8Array, annotations: any[]) => ipcRenderer.invoke("opdf:export-flattened", bytes, annotations) as Promise<Uint8Array>,
-  compressPdf: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:compress", bytes) as Promise<Uint8Array>,
-  watermarkPdf: (bytes: Uint8Array, text: string) => ipcRenderer.invoke("opdf:watermark", bytes, text) as Promise<Uint8Array>,
-  mergePdfs: (bytesList: Uint8Array[]) => ipcRenderer.invoke("opdf:merge", bytesList) as Promise<Uint8Array>,
-  splitPdf: (bytes: Uint8Array, pages: number[]) => ipcRenderer.invoke("opdf:split", bytes, pages) as Promise<Uint8Array[]>,
-  encryptPdf: (bytes: Uint8Array, opts: PasswordOptions) => ipcRenderer.invoke("opdf:encrypt", bytes, opts) as Promise<Uint8Array>,
-  decryptPdf: (bytes: Uint8Array, password: string) => ipcRenderer.invoke("opdf:decrypt", bytes, password) as Promise<Uint8Array>,
-  insertPages: (bytes: Uint8Array, opts: InsertOptions) => ipcRenderer.invoke("opdf:insert-pages", bytes, opts) as Promise<Uint8Array>,
-  deletePages: (bytes: Uint8Array, pageNumbers: number[]) => ipcRenderer.invoke("opdf:delete-pages", bytes, pageNumbers) as Promise<Uint8Array>,
-  cropPage: (bytes: Uint8Array, opts: CropOptions) => ipcRenderer.invoke("opdf:crop-page", bytes, opts) as Promise<Uint8Array>,
-  addPageNumbers: (bytes: Uint8Array, opts: PageNumbers) => ipcRenderer.invoke("opdf:add-page-numbers", bytes, opts) as Promise<Uint8Array>,
-  addHeaderFooter: (bytes: Uint8Array, lines: HeaderFooterLine[], isHeader: boolean) => ipcRenderer.invoke("opdf:add-header-footer", bytes, lines, isHeader) as Promise<Uint8Array>,
-  addBookmarks: (bytes: Uint8Array, bookmarks: Array<{ title: string; page: number; parent?: number }>) => ipcRenderer.invoke("opdf:add-bookmarks", bytes, bookmarks) as Promise<Uint8Array>,
-  addBatesNumbering: (bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => ipcRenderer.invoke("opdf:add-bates-numbering", bytes, prefix, startNumber, suffix) as Promise<Uint8Array>,
-  convertToPdfA: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:convert-to-pdfa", bytes) as Promise<Uint8Array>,
-  rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => ipcRenderer.invoke("opdf:rotate-pages", bytes, pageNumbers, degrees) as Promise<Uint8Array>,
-  showItemInFolder: (filePath: string) => ipcRenderer.invoke("opdf:show-item-in-folder", filePath) as Promise<void>,
-  convertPdfOffice: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => ipcRenderer.invoke("opdf:convert-pdf-office", bytes, format) as Promise<Uint8Array>,
-  convertOfficeToPdf: (bytes: Uint8Array, fileName: string) => ipcRenderer.invoke("opdf:convert-office-pdf", bytes, fileName) as Promise<Uint8Array>,
+  openProjectFolder: () => ipcRenderer.invoke("tpdf:open-project-folder") as Promise<boolean>,
+  pickAndOpenDocument: () => ipcRenderer.invoke("tpdf:pick-and-open") as Promise<OpenDocumentResult | null>,
+  openDocument: (filePath: string) => ipcRenderer.invoke("tpdf:open", filePath) as Promise<OpenDocumentResult>,
+  saveDocument: (filePath: string, bytes: Uint8Array) => ipcRenderer.invoke("tpdf:save", filePath, bytes) as Promise<void>,
+  exportFlattened: (bytes: Uint8Array, annotations: any[]) => ipcRenderer.invoke("tpdf:export-flattened", bytes, annotations) as Promise<Uint8Array>,
+  compressPdf: (bytes: Uint8Array) => ipcRenderer.invoke("tpdf:compress", bytes) as Promise<Uint8Array>,
+  watermarkPdf: (bytes: Uint8Array, text: string) => ipcRenderer.invoke("tpdf:watermark", bytes, text) as Promise<Uint8Array>,
+  mergePdfs: (bytesList: Uint8Array[]) => ipcRenderer.invoke("tpdf:merge", bytesList) as Promise<Uint8Array>,
+  splitPdf: (bytes: Uint8Array, pages: number[]) => ipcRenderer.invoke("tpdf:split", bytes, pages) as Promise<Uint8Array[]>,
+  encryptPdf: (bytes: Uint8Array, opts: PasswordOptions) => ipcRenderer.invoke("tpdf:encrypt", bytes, opts) as Promise<Uint8Array>,
+  decryptPdf: (bytes: Uint8Array, password: string) => ipcRenderer.invoke("tpdf:decrypt", bytes, password) as Promise<Uint8Array>,
+  insertPages: (bytes: Uint8Array, opts: InsertOptions) => ipcRenderer.invoke("tpdf:insert-pages", bytes, opts) as Promise<Uint8Array>,
+  deletePages: (bytes: Uint8Array, pageNumbers: number[]) => ipcRenderer.invoke("tpdf:delete-pages", bytes, pageNumbers) as Promise<Uint8Array>,
+  cropPage: (bytes: Uint8Array, opts: CropOptions) => ipcRenderer.invoke("tpdf:crop-page", bytes, opts) as Promise<Uint8Array>,
+  addPageNumbers: (bytes: Uint8Array, opts: PageNumbers) => ipcRenderer.invoke("tpdf:add-page-numbers", bytes, opts) as Promise<Uint8Array>,
+  addHeaderFooter: (bytes: Uint8Array, lines: HeaderFooterLine[], isHeader: boolean) => ipcRenderer.invoke("tpdf:add-header-footer", bytes, lines, isHeader) as Promise<Uint8Array>,
+  addBookmarks: (bytes: Uint8Array, bookmarks: Array<{ title: string; page: number; parent?: number }>) => ipcRenderer.invoke("tpdf:add-bookmarks", bytes, bookmarks) as Promise<Uint8Array>,
+  addBatesNumbering: (bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => ipcRenderer.invoke("tpdf:add-bates-numbering", bytes, prefix, startNumber, suffix) as Promise<Uint8Array>,
+  convertToPdfA: (bytes: Uint8Array) => ipcRenderer.invoke("tpdf:convert-to-pdfa", bytes) as Promise<Uint8Array>,
+  rotatePages: (bytes: Uint8Array, pageNumbers: number[], degrees: number) => ipcRenderer.invoke("tpdf:rotate-pages", bytes, pageNumbers, degrees) as Promise<Uint8Array>,
+  showItemInFolder: (filePath: string) => ipcRenderer.invoke("tpdf:show-item-in-folder", filePath) as Promise<void>,
+  convertPdfOffice: (bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => ipcRenderer.invoke("tpdf:convert-pdf-office", bytes, format) as Promise<Uint8Array>,
+  convertOfficeToPdf: (bytes: Uint8Array, fileName: string) => ipcRenderer.invoke("tpdf:convert-office-pdf", bytes, fileName) as Promise<Uint8Array>,
   inspectP12Certificate: (certificateBytes: Uint8Array, passphrase: string) =>
-    ipcRenderer.invoke("opdf:inspect-p12", certificateBytes, passphrase) as Promise<{
+    ipcRenderer.invoke("tpdf:inspect-p12", certificateBytes, passphrase) as Promise<{
       commonName: string;
       organization: string;
       serialNumber: string;
@@ -59,7 +59,7 @@ const api = {
       width: number;
       height: number;
     },
-  ) => ipcRenderer.invoke("opdf:sign-p12", bytes, certificateBytes, options) as Promise<{
+  ) => ipcRenderer.invoke("tpdf:sign-p12", bytes, certificateBytes, options) as Promise<{
     bytes: Uint8Array;
     certificate: {
       commonName: string;
@@ -70,7 +70,7 @@ const api = {
     };
   }>,
   inspectPdfSignatures: (bytes: Uint8Array) =>
-    ipcRenderer.invoke("opdf:inspect-pdf-signatures", bytes) as Promise<Array<{
+    ipcRenderer.invoke("tpdf:inspect-pdf-signatures", bytes) as Promise<Array<{
       index: number;
       byteRange: [number, number, number, number];
       byteRangeWellFormed: boolean;
@@ -94,46 +94,46 @@ const api = {
       verification: "not-verified";
     }>>,
   applyAiPatch: (payload: { prompt: string; selectedBlocks: unknown[]; allBlocks: unknown[]; referenceImage: string | null }) =>
-    ipcRenderer.invoke("opdf:ai-patch", payload) as Promise<{ updates: Array<Record<string, unknown> & { id: string }> }>,
-  saveDocumentAs: (bytes: Uint8Array) => ipcRenderer.invoke("opdf:save-as", bytes) as Promise<string | null>,
-  saveFile: (bytes: Uint8Array, defaultName: string, extensions: string[]) => ipcRenderer.invoke("opdf:save-file", bytes, defaultName, extensions) as Promise<string | null>,
-  setAiConfig: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => ipcRenderer.invoke("opdf:ai-config:set", config) as Promise<boolean>,
-  getAiConfig: () => ipcRenderer.invoke("opdf:ai-config:get") as Promise<{ mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }>,
-  getAiAccessToken: () => ipcRenderer.invoke("opdf:ai:token:get") as Promise<string | null>,
+    ipcRenderer.invoke("tpdf:ai-patch", payload) as Promise<{ updates: Array<Record<string, unknown> & { id: string }> }>,
+  saveDocumentAs: (bytes: Uint8Array) => ipcRenderer.invoke("tpdf:save-as", bytes) as Promise<string | null>,
+  saveFile: (bytes: Uint8Array, defaultName: string, extensions: string[]) => ipcRenderer.invoke("tpdf:save-file", bytes, defaultName, extensions) as Promise<string | null>,
+  setAiConfig: (config: { mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }) => ipcRenderer.invoke("tpdf:ai-config:set", config) as Promise<boolean>,
+  getAiConfig: () => ipcRenderer.invoke("tpdf:ai-config:get") as Promise<{ mode: "dify" | "local" | "iframe"; difyUrl?: string; difyKey?: string }>,
+  getAiAccessToken: () => ipcRenderer.invoke("tpdf:ai:token:get") as Promise<string | null>,
   getAiDeviceStatus: () =>
-    ipcRenderer.invoke("opdf:ai:device-status:get") as Promise<{
+    ipcRenderer.invoke("tpdf:ai:device-status:get") as Promise<{
       deviceId: string;
       hasToken: boolean;
       expiresAt: string | null;
       lastError: string | null;
       gatewayBaseUrl: string | null;
     }>,
-  getRecent: () => ipcRenderer.invoke("opdf:storage:get-recent") as Promise<RecentDocument[]>,
-  pushRecent: (filePath: string) => ipcRenderer.invoke("opdf:storage:push-recent", filePath) as Promise<void>,
-  restoreSession: () => ipcRenderer.invoke("opdf:storage:restore-session") as Promise<SessionSnapshot>,
-  writeSession: (session: SessionSnapshot) => ipcRenderer.invoke("opdf:storage:write-session", session) as Promise<void>,
+  getRecent: () => ipcRenderer.invoke("tpdf:storage:get-recent") as Promise<RecentDocument[]>,
+  pushRecent: (filePath: string) => ipcRenderer.invoke("tpdf:storage:push-recent", filePath) as Promise<void>,
+  restoreSession: () => ipcRenderer.invoke("tpdf:storage:restore-session") as Promise<SessionSnapshot>,
+  writeSession: (session: SessionSnapshot) => ipcRenderer.invoke("tpdf:storage:write-session", session) as Promise<void>,
 
-  listAnnotations: (documentId: string) => ipcRenderer.invoke("opdf:annotation:list", documentId) as Promise<Annotation[]>,
-  createAnnotation: (documentId: string, input: AnnotationCreateInput) => ipcRenderer.invoke("opdf:annotation:create", documentId, input) as Promise<Annotation>,
-  deleteAnnotation: (documentId: string, id: string) => ipcRenderer.invoke("opdf:annotation:delete", documentId, id) as Promise<boolean>,
-  updateAnnotation: (documentId: string, id: string, payload: Record<string, unknown>) => ipcRenderer.invoke("opdf:annotation:update", documentId, id, payload) as Promise<Annotation | null>,
-  undoAnnotation: (documentId: string) => ipcRenderer.invoke("opdf:annotation:undo", documentId) as Promise<Annotation[]>,
-  redoAnnotation: (documentId: string) => ipcRenderer.invoke("opdf:annotation:redo", documentId) as Promise<Annotation[]>,
+  listAnnotations: (documentId: string) => ipcRenderer.invoke("tpdf:annotation:list", documentId) as Promise<Annotation[]>,
+  createAnnotation: (documentId: string, input: AnnotationCreateInput) => ipcRenderer.invoke("tpdf:annotation:create", documentId, input) as Promise<Annotation>,
+  deleteAnnotation: (documentId: string, id: string) => ipcRenderer.invoke("tpdf:annotation:delete", documentId, id) as Promise<boolean>,
+  updateAnnotation: (documentId: string, id: string, payload: Record<string, unknown>) => ipcRenderer.invoke("tpdf:annotation:update", documentId, id, payload) as Promise<Annotation | null>,
+  undoAnnotation: (documentId: string) => ipcRenderer.invoke("tpdf:annotation:undo", documentId) as Promise<Annotation[]>,
+  redoAnnotation: (documentId: string) => ipcRenderer.invoke("tpdf:annotation:redo", documentId) as Promise<Annotation[]>,
 
-  enqueueOcr: (filePath: string, language?: string) => ipcRenderer.invoke("opdf:ocr:enqueue", filePath, language) as Promise<OcrJob>,
-  runOcr: (jobId: string, inputBytes?: Uint8Array) => ipcRenderer.invoke("opdf:ocr:run", jobId, inputBytes) as Promise<OcrJob | null>,
-  listOcrJobs: () => ipcRenderer.invoke("opdf:ocr:list") as Promise<OcrJob[]>,
+  enqueueOcr: (filePath: string, language?: string) => ipcRenderer.invoke("tpdf:ocr:enqueue", filePath, language) as Promise<OcrJob>,
+  runOcr: (jobId: string, inputBytes?: Uint8Array) => ipcRenderer.invoke("tpdf:ocr:run", jobId, inputBytes) as Promise<OcrJob | null>,
+  listOcrJobs: () => ipcRenderer.invoke("tpdf:ocr:list") as Promise<OcrJob[]>,
 };
 
 if (process.isMainFrame) {
-  contextBridge.exposeInMainWorld("opdf", api);
+  contextBridge.exposeInMainWorld("tpdf", api);
 
-  contextBridge.exposeInMainWorld("opdfUpdate", {
+  contextBridge.exposeInMainWorld("tpdfUpdate", {
     onUpdateReady: (callback: (info: { version: string; description?: string }) => void) => {
-      ipcRenderer.on("opdf:update-ready", (_event, info) => callback(info));
+      ipcRenderer.on("tpdf:update-ready", (_event, info) => callback(info));
     },
-    checkPendingUpdate: () => ipcRenderer.invoke("opdf:check-pending-update"),
-    restartApp: () => ipcRenderer.invoke("opdf:restart-app"),
+    checkPendingUpdate: () => ipcRenderer.invoke("tpdf:check-pending-update"),
+    restartApp: () => ipcRenderer.invoke("tpdf:restart-app"),
   });
 }
 

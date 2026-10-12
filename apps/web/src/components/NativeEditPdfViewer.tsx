@@ -17,7 +17,7 @@ import { NativeEditDocumentRevisionBridge } from "./native-edit/NativeEditDocume
 import { NativeEditPaintShield } from "./native-edit/NativeEditPaintShield";
 import "../styles/native-edit-surface.css";
 
-const EDIT_DOCUMENT_ID = "opdf-native-edit-document";
+const EDIT_DOCUMENT_ID = "tpdf-native-edit-document";
 
 export function NativeEditPdfViewer({
   data,

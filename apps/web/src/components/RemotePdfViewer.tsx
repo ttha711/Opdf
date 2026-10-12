@@ -76,7 +76,7 @@ export function RemotePdfViewer(props: PdfViewerProps) {
   }
   const toolStyle: React.CSSProperties = { padding: "8px 12px", borderRadius: 8, border: "1px solid #94a3b8" };
   if (!base) return <div role="status">Open a stored server document to use lightweight viewing.</div>;
-  return <div className="h-full w-full" style={{ display: "flex", flexDirection: "column", minHeight: 0 }} data-opdf-remote-viewer="true">
+  return <div className="h-full w-full" style={{ display: "flex", flexDirection: "column", minHeight: 0 }} data-tpdf-remote-viewer="true">
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, padding: 6, background: "#f1f5f9", color: "#0f172a" }}>
       <button style={toolStyle} onClick={() => props.onActivePageChange?.(Math.max(1, page - 1))} aria-label="Previous sheet">‹</button>
       <span style={{ fontSize: 13 }}>Sheet {page}/{pages.length || "…"}</span>

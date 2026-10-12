@@ -1,4 +1,4 @@
-"""Persistent bounded native PDF tile renderer for OPDF Server.
+"""Persistent bounded native PDF tile renderer for TPDF Server.
 
 Protocol: one JSON command per stdin line, one JSON response per stdout line.
 Only the authenticated Node server supplies absolute paths; never expose this worker.

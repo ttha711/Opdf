@@ -1,4 +1,4 @@
-import type { PdfMatrix, PdfPoint } from "@opdf/core";
+import type { PdfMatrix, PdfPoint } from "@tpdf/core";
 import {
   resizeMatrix,
   rotationMatrix,

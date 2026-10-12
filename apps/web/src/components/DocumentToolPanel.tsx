@@ -1,4 +1,4 @@
-// opdf-file-size-allow: existing legacy panel over 300 lines; this issue makes a narrow accessibility fix without unrelated refactor.
+// tpdf-file-size-allow: existing legacy panel over 300 lines; this issue makes a narrow accessibility fix without unrelated refactor.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SplitToolPanel } from "./document-tool-panel/SplitToolPanel";
 import { MergeToolPanel } from "./document-tool-panel/MergeToolPanel";
@@ -170,15 +170,15 @@ export function DocumentToolPanel({
   });
 
   return (
-    <aside data-opdf-panel="tool" data-opdf-tool={activeToolId} className="acrobat-tool-panel select-none overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
+    <aside data-tpdf-panel="tool" data-tpdf-tool={activeToolId} className="acrobat-tool-panel select-none overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
       <input
         type="file"
-        id={`opdf-tool-file-${activeToolId}`}
+        id={`tpdf-tool-file-${activeToolId}`}
         aria-label={activeToolId === "merge-pdf" ? "Choose PDF documents to merge" : "Choose a file for conversion"}
         ref={fileInputRef}
         onChange={activeToolId === "merge-pdf" ? handleMergeFileSelected : handleOfficeFileSelected}
         multiple={activeToolId === "merge-pdf"}
-        data-opdf-file-input={activeToolId}
+        data-tpdf-file-input={activeToolId}
         className="hidden"
       />
 
@@ -186,7 +186,7 @@ export function DocumentToolPanel({
         <h4 className="m-0 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.04em] text-[var(--text-primary)]">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M7 12h10M9 18h6" /></svg> {toolName}
         </h4>
-        <button data-opdf-action="close-tool" onClick={onClose} title="Close tool" className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-[11px] text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] hover:text-[var(--text-primary)] transition-all">
+        <button data-tpdf-action="close-tool" onClick={onClose} title="Close tool" className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-[11px] text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] hover:text-[var(--text-primary)] transition-all">
           ✕
         </button>
       </div>
@@ -313,8 +313,8 @@ export function DocumentToolPanel({
           />
         ) : null}
 
-        {activeToolId === "drawing-workspace" && <button type="button" data-opdf-action="open-drawing-workspace" onClick={() => setDrawingWorkspaceOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open drawing workspace</button>}
-        {activeToolId === "organize-pages" && <button type="button" data-opdf-action="open-page-organizer" title="Organize all pages" onClick={() => setOrganizerOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open page grid</button>}
+        {activeToolId === "drawing-workspace" && <button type="button" data-tpdf-action="open-drawing-workspace" onClick={() => setDrawingWorkspaceOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open drawing workspace</button>}
+        {activeToolId === "organize-pages" && <button type="button" data-tpdf-action="open-page-organizer" title="Organize all pages" onClick={() => setOrganizerOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open page grid</button>}
         {activeToolId === "fill-form" && <FillFormPanel />}
         {activeToolId === "document-health" && <DocumentHealthPanel sourceIdentity={sourceIdentity} />}
       </div>

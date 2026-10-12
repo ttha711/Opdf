@@ -80,13 +80,13 @@ export const checkAndParseCommand = (queryText: string): ParseResult => {
 
   // 8. HEADER
   if (text.includes("header") || text.includes("tiêu đề đầu")) {
-    const headerText = queryText.replace(/^(thêm|add)\s+(header|tiêu đề đầu trang)[:\s]*/i, "").trim() || "OPDF Header";
+    const headerText = queryText.replace(/^(thêm|add)\s+(header|tiêu đề đầu trang)[:\s]*/i, "").trim() || "TPDF Header";
     return { tool: "header", args: { text: headerText } };
   }
 
   // 9. FOOTER
   if (text.includes("footer") || text.includes("tiêu đề cuối")) {
-    const footerText = queryText.replace(/^(thêm|add)\s+(footer|tiêu đề cuối trang)[:\s]*/i, "").trim() || "OPDF Footer";
+    const footerText = queryText.replace(/^(thêm|add)\s+(footer|tiêu đề cuối trang)[:\s]*/i, "").trim() || "TPDF Footer";
     return { tool: "footer", args: { text: footerText } };
   }
 

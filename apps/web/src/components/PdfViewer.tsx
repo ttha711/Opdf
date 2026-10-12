@@ -1,4 +1,4 @@
-// opdf-file-size-allow: legacy EmbedPDF integration coordinator; this patch fixes tool/panel lifecycle without expanding the component surface.
+// tpdf-file-size-allow: legacy EmbedPDF integration coordinator; this patch fixes tool/panel lifecycle without expanding the component surface.
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PDFViewer as EmbedPdfViewer,
@@ -31,8 +31,8 @@ import {
   type MeasurementUnit,
 } from "../lib/measurement";
 
-const DOCUMENT_ID = "opdf-active-document";
-const SIDEBAR_PREF_KEY = "opdf-embedpdf-sidebar";
+const DOCUMENT_ID = "tpdf-active-document";
+const SIDEBAR_PREF_KEY = "tpdf-embedpdf-sidebar";
 
 function isVisibleElement(element: HTMLElement | null) {
   if (!element) return false;
@@ -72,18 +72,18 @@ export function PdfViewer({
   const lastPageRef = useRef(page);
   const lastScaleRef = useRef(scale);
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(() => {
-    const saved = window.localStorage.getItem("opdf-measure-mode");
+    const saved = window.localStorage.getItem("tpdf-measure-mode");
     return saved === "perimeter" || saved === "area" ? saved : "distance";
   });
   const [drawingScale, setDrawingScale] = useState(() => {
-    const saved = Number(window.localStorage.getItem("opdf-measure-scale"));
+    const saved = Number(window.localStorage.getItem("tpdf-measure-scale"));
     return Number.isFinite(saved) && saved > 0 ? saved : 1;
   });
   const [measurementUnit, setMeasurementUnit] = useState<MeasurementUnit>(() => {
-    const saved = window.localStorage.getItem("opdf-measure-unit");
+    const saved = window.localStorage.getItem("tpdf-measure-unit");
     return saved === "mm" || saved === "cm" ? saved : "m";
   });
-  const calibrationKey = "opdf-measure-calibration:" + encodeURIComponent(sourceIdentity || "document");
+  const calibrationKey = "tpdf-measure-calibration:" + encodeURIComponent(sourceIdentity || "document");
   const [calibratedMmPerPdfPoint, setCalibratedMmPerPdfPoint] = useState<number | null>(() => {
     const saved = Number(window.localStorage.getItem(calibrationKey));
     return Number.isFinite(saved) && saved > 0 ? saved : null;
@@ -205,7 +205,7 @@ export function PdfViewer({
       chrome: (base: any, helpers: any) =>
         helpers?.removeItems ? helpers.removeItems(base, ["document:menu"]) : base,
       theme: { preference: "light" },
-      annotations: { annotationAuthor: "OPDF" },
+      annotations: { annotationAuthor: "TPDF" },
       pan: { defaultMode: "mobile" },
       zoom: {
         // EmbedPDF 2.x gates the viewport during initial zoom and only releases
@@ -585,15 +585,15 @@ export function PdfViewer({
   }, [activeRegistry, activeTool, measurementMode, sourceUrl]);
 
   useEffect(() => {
-    window.localStorage.setItem("opdf-measure-mode", measurementMode);
+    window.localStorage.setItem("tpdf-measure-mode", measurementMode);
   }, [measurementMode]);
 
   useEffect(() => {
-    window.localStorage.setItem("opdf-measure-scale", String(drawingScale));
+    window.localStorage.setItem("tpdf-measure-scale", String(drawingScale));
   }, [drawingScale]);
 
   useEffect(() => {
-    window.localStorage.setItem("opdf-measure-unit", measurementUnit);
+    window.localStorage.setItem("tpdf-measure-unit", measurementUnit);
   }, [measurementUnit]);
 
   useEffect(() => {
@@ -677,8 +677,8 @@ export function PdfViewer({
     <div
       ref={viewerRootRef}
       className="viewer-shell relative h-full min-h-0 overflow-hidden"
-      data-opdf-engine="pdfium-wasm"
-      data-opdf-source={localUrl ? "working-copy" : serverUrl ? "server" : "none"}
+      data-tpdf-engine="pdfium-wasm"
+      data-tpdf-source={localUrl ? "working-copy" : serverUrl ? "server" : "none"}
     >
       <AiPatchDialog
         open={Boolean(pendingAiPatch)}

@@ -76,14 +76,14 @@ export default function App() {
     setUseTailwindLayout,
   } = usePdfToHtml(setErrorMessage);
 
-  // ── PostMessage Communication with Opdf ──────────────────
+  // ── PostMessage Communication with Tpdf ──────────────────
   useEffect(() => {
     if (window.opener) {
-      window.opener.postMessage("opdf-editor-ready", "*");
+      window.opener.postMessage("tpdf-editor-ready", "*");
     }
 
-    const handleOpdfMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === "opdf-load-pdf") {
+    const handleTpdfMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "tpdf-load-pdf") {
         const { fileName, docBytes, targetFormat } = event.data;
         if (docBytes) {
           const bytes = docBytes instanceof Uint8Array ? docBytes : new Uint8Array(docBytes);
@@ -123,8 +123,8 @@ export default function App() {
       }
     };
 
-    window.addEventListener("message", handleOpdfMessage);
-    return () => window.removeEventListener("message", handleOpdfMessage);
+    window.addEventListener("message", handleTpdfMessage);
+    return () => window.removeEventListener("message", handleTpdfMessage);
   }, [loadPdfFromBytes, showToast]);
 
   // ── BlockOffice workspace ──────────────────────────────

@@ -17,10 +17,10 @@ describe("production document references", () => {
     });
   });
 
-  it("normalizes OPDF document API URLs without touching Vite /@fs", async () => {
+  it("normalizes TPDF document API URLs without touching Vite /@fs", async () => {
     const fetchImpl = vi.fn();
     const resolved = await resolveBrowserDocumentReference(
-      `https://pdf.example.com/api/opdf/documents/${id}`,
+      `https://pdf.example.com/api/tpdf/documents/${id}`,
       { allowViteFs: false, fetchImpl: fetchImpl as unknown as typeof fetch },
     );
 
@@ -33,7 +33,7 @@ describe("production document references", () => {
   it("normalizes persisted storage paths that contain a document UUID", async () => {
     const fetchImpl = vi.fn();
     const resolved = await resolveBrowserDocumentReference(
-      `D:\\OPDF\\data\\documents\\${id}\\document.pdf`,
+      `D:\\TPDF\\data\\documents\\${id}\\document.pdf`,
       { allowViteFs: false, fetchImpl: fetchImpl as unknown as typeof fetch },
     );
 

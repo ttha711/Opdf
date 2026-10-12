@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
+import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { applyNativeEditPatches } from "../../lib/nativeEditRuntime";
 
 type Props = {
@@ -39,7 +39,7 @@ export function useNativeInlineCommit({
         patches.push({
           type: "style-text",
           objectId: selectedObject.id,
-          fontFamily: "__opdf_unicode__",
+          fontFamily: "__tpdf_unicode__",
           fontSize: selectedObject.fontSize,
         });
       }

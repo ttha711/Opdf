@@ -42,7 +42,7 @@ describe("annotation-aware EmbedPDF thumbnails", () => {
         getState: () => ({
           core: {
             documents: {
-              "opdf-active-document": {
+              "tpdf-active-document": {
                 document: {
                   pages: [
                     { size: { width: 600, height: 800 }, rotation: 0 },
@@ -57,9 +57,9 @@ describe("annotation-aware EmbedPDF thumbnails", () => {
       }),
     };
 
-    const cleanup = installAnnotationThumbnailSync(registry, "opdf-active-document");
+    const cleanup = installAnnotationThumbnailSync(registry, "tpdf-active-document");
 
-    const task = (thumbnailPlugin.renderThumb as any)(0, 2, "opdf-active-document");
+    const task = (thumbnailPlugin.renderThumb as any)(0, 2, "tpdf-active-document");
     expect(task).toBe(renderedTask);
     expect(renderPageRect).toHaveBeenCalledWith({
       pageIndex: 0,
@@ -78,7 +78,7 @@ describe("annotation-aware EmbedPDF thumbnails", () => {
     expect(dispatch).toHaveBeenCalledWith({
       type: "REFRESH_PAGES",
       payload: {
-        documentId: "opdf-active-document",
+        documentId: "tpdf-active-document",
         pageIndexes: [0, 1],
       },
     });
@@ -86,7 +86,7 @@ describe("annotation-aware EmbedPDF thumbnails", () => {
     dispatch.mockClear();
     annotationListener.current?.({
       type: "update",
-      documentId: "opdf-active-document",
+      documentId: "tpdf-active-document",
       pageIndex: 1,
       committed: false,
     });
@@ -94,14 +94,14 @@ describe("annotation-aware EmbedPDF thumbnails", () => {
 
     annotationListener.current?.({
       type: "update",
-      documentId: "opdf-active-document",
+      documentId: "tpdf-active-document",
       pageIndex: 1,
       committed: true,
     });
     expect(dispatch).toHaveBeenCalledWith({
       type: "REFRESH_PAGES",
       payload: {
-        documentId: "opdf-active-document",
+        documentId: "tpdf-active-document",
         pageIndexes: [1],
       },
     });

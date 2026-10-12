@@ -4,7 +4,7 @@ import { resolve, join } from 'node:path';
 
 const manifestPath = new URL('../../tests/fixtures/real-cad-corpus.json', import.meta.url);
 const fixtures = JSON.parse(await readFile(manifestPath, 'utf8'));
-const root = resolve(process.env.OPDF_REAL_CAD_FIXTURES_DIR || '.opdf-cad-fixtures');
+const root = resolve(process.env.TPDF_REAL_CAD_FIXTURES_DIR || '.tpdf-cad-fixtures');
 const only = process.argv.find((arg) => arg.startsWith('--only='))?.slice(7);
 const sha1 = (data) => createHash('sha1')
   .update('blob ' + data.byteLength + '\0').update(data).digest('hex');

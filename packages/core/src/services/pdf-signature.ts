@@ -279,7 +279,7 @@ export async function signPdfWithP12(
     location,
     signingTime: now,
     widgetRect: [x, y, x + boxWidth, y + boxHeight],
-    appName: "OPDF",
+    appName: "TPDF",
   });
 
   const pdfWithPlaceholder = Buffer.from(await pdfDoc.save({ useObjectStreams: false }));

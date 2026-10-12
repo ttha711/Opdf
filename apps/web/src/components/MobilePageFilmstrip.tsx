@@ -52,16 +52,16 @@ function PageThumbnail({
     <button
       ref={buttonRef}
       type="button"
-      className={"opdf-mobile-filmstrip__thumb" + (active ? " active" : "")}
+      className={"tpdf-mobile-filmstrip__thumb" + (active ? " active" : "")}
       onClick={() => onSelect(page)}
-      data-opdf-page-thumb={page}
+      data-tpdf-page-thumb={page}
       aria-label={`Go to page ${page}`}
       aria-current={active ? "page" : undefined}
     >
-      <span className="opdf-mobile-filmstrip__preview">
+      <span className="tpdf-mobile-filmstrip__preview">
         {imageUrl ? <img src={imageUrl} alt="" /> : <span>Page {page}</span>}
       </span>
-      <span className="opdf-mobile-filmstrip__number">{page}</span>
+      <span className="tpdf-mobile-filmstrip__number">{page}</span>
     </button>
   );
 }
@@ -81,7 +81,7 @@ export function MobilePageFilmstrip({
 }) {
   useEffect(() => {
     if (!isOpen) return;
-    const current = document.querySelector<HTMLElement>(`[data-opdf-page-thumb="${page}"]`);
+    const current = document.querySelector<HTMLElement>(`[data-tpdf-page-thumb="${page}"]`);
     requestAnimationFrame(() => current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }));
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -94,13 +94,13 @@ export function MobilePageFilmstrip({
   if (!isOpen || totalPages < 1) return null;
 
   return (
-    <div className="opdf-mobile-filmstrip" data-opdf-mobile-filmstrip="true" role="dialog" aria-label="Page previews">
-      <div className="opdf-mobile-filmstrip__header">
+    <div className="tpdf-mobile-filmstrip" data-tpdf-mobile-filmstrip="true" role="dialog" aria-label="Page previews">
+      <div className="tpdf-mobile-filmstrip__header">
         <strong>Pages</strong>
         <span>{page} / {totalPages}</span>
         <button type="button" onClick={onClose} aria-label="Close page previews">×</button>
       </div>
-      <div className="opdf-mobile-filmstrip__track">
+      <div className="tpdf-mobile-filmstrip__track">
         {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
           <PageThumbnail
             key={pageNumber}

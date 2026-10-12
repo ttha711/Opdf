@@ -4,7 +4,7 @@ import {
   filterPaletteCommands, paletteUnavailableReason, PALETTE_COMMANDS,
   type PaletteCommand,
 } from "../lib/commandPalette";
-import { OpdfIcon } from "./OpdfIcon";
+import { TpdfIcon } from "./TpdfIcon";
 import { toast } from "./ToastProvider";
 
 type Props = {
@@ -52,10 +52,10 @@ export function CommandPalette({ hasDocument, isPublic, onOpenFile, onNavigate }
       }
     };
     window.addEventListener("keydown", key);
-    window.addEventListener("opdf:open-command-palette", trigger);
+    window.addEventListener("tpdf:open-command-palette", trigger);
     return () => {
       window.removeEventListener("keydown", key);
-      window.removeEventListener("opdf:open-command-palette", trigger);
+      window.removeEventListener("tpdf:open-command-palette", trigger);
     };
   }, [open]);
 
@@ -72,7 +72,7 @@ export function CommandPalette({ hasDocument, isPublic, onOpenFile, onNavigate }
     close();
     try {
       if (command.id === "open") return onOpenFile();
-      const agent = window.opdfAgent;
+      const agent = window.tpdfAgent;
       if (!agent) throw new Error("PDF tools are not ready yet.");
       // Switching panels must commit any pending inline edit first.
       if (command.tool === "open-tool-panel" || command.tool === "open-tools-dashboard") {
@@ -115,22 +115,22 @@ export function CommandPalette({ hasDocument, isPublic, onOpenFile, onNavigate }
 
   if (!open) return null;
   return (
-    <div data-opdf-command-palette="open" className="fixed inset-0 z-[9999] flex items-start justify-center px-3 pt-[min(14vh,110px)]">
+    <div data-tpdf-command-palette="open" className="fixed inset-0 z-[9999] flex items-start justify-center px-3 pt-[min(14vh,110px)]">
       <button type="button" tabIndex={-1} aria-label="Dismiss command search"
         className="absolute inset-0 h-full w-full cursor-default bg-black/55"
         onClick={close} />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="opdf-command-heading"
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="tpdf-command-heading"
         onKeyDown={handleKeys}
         className="relative w-full max-w-xl overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-2xl">
         <div className="flex items-center gap-3 border-b border-[var(--border-color)] p-4">
-          <OpdfIcon name="search" size={20} />
+          <TpdfIcon name="search" size={20} />
           <div className="min-w-0 flex-1">
-            <label id="opdf-command-heading" className="sr-only">Find a command</label>
+            <label id="tpdf-command-heading" className="sr-only">Find a command</label>
             <input ref={inputRef} value={query}
               onChange={event => { setQuery(event.target.value); setActiveIndex(0); }}
               role="combobox" aria-expanded="true" aria-autocomplete="list"
-              aria-controls="opdf-command-results"
-              aria-activedescendant={matches[activeIndex] ? "opdf-command-" + matches[activeIndex].id : undefined}
+              aria-controls="tpdf-command-results"
+              aria-activedescendant={matches[activeIndex] ? "tpdf-command-" + matches[activeIndex].id : undefined}
               aria-label="Find a command"
               placeholder="Search actions, tools or tasks…"
               className="w-full border-none bg-transparent text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]" />
@@ -138,27 +138,27 @@ export function CommandPalette({ hasDocument, isPublic, onOpenFile, onNavigate }
           <button type="button" onClick={close} aria-label="Close command search"
             className="rounded border border-[var(--border-color)] px-2 py-1 text-[11px] text-[var(--text-secondary)]">Esc</button>
         </div>
-        <div id="opdf-command-results" role="listbox" aria-label="Available commands"
+        <div id="tpdf-command-results" role="listbox" aria-label="Available commands"
           className="max-h-[min(55vh,440px)] overflow-y-auto p-2">
           {matches.length === 0 ? (
             <p className="p-5 text-center text-sm text-[var(--text-secondary)]">No matching commands. Try “page” or “edit”.</p>
           ) : matches.map((command, index) => {
             const reason = paletteUnavailableReason(command, hasDocument, isPublic);
             return (
-              <button id={"opdf-command-" + command.id} key={command.id} type="button"
+              <button id={"tpdf-command-" + command.id} key={command.id} type="button"
                 role="option" aria-selected={index === activeIndex}
-                data-opdf-command={command.id} disabled={Boolean(reason)} title={reason || command.title}
+                data-tpdf-command={command.id} disabled={Boolean(reason)} title={reason || command.title}
                 onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => void execute(command)}
                 className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${index === activeIndex ? "bg-[var(--ui-hover-bg)]" : ""} ${reason ? "cursor-not-allowed opacity-45" : "hover:bg-[var(--ui-hover-bg)]"}`}>
                 <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[var(--ui-muted-bg)]">
-                  <OpdfIcon name={command.icon} size={17} />
+                  <TpdfIcon name={command.icon} size={17} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">{command.title}</span>
                   <span className="block truncate text-[11px] text-[var(--text-secondary)]">{reason || command.group}</span>
                 </span>
-                {!reason && <OpdfIcon name="chevron-right" size={16} />}
+                {!reason && <TpdfIcon name="chevron-right" size={16} />}
               </button>
             );
           })}

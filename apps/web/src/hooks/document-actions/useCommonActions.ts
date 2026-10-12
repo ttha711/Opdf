@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { useOpdfBridge } from "../useOpdfBridge";
+import type { useTpdfBridge } from "../useTpdfBridge";
 import { toast } from "../../components/ToastProvider";
 import { getLargePdfCapabilities, runLargePdfJob } from "../../lib/largePdfJobs";
 import { renderViewerPageImages } from "../../lib/viewer-runtime";
@@ -17,7 +17,7 @@ export function useCommonActions({
   setShowSplitModal,
   setShowMergeModal,
 }: {
-  bridge: ReturnType<typeof useOpdfBridge>;
+  bridge: ReturnType<typeof useTpdfBridge>;
   fileName: string;
   docBytes: Uint8Array | null;
   sourceBlob: Blob | null;

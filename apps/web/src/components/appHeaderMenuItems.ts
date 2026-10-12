@@ -1,6 +1,6 @@
 import type { MenuItemDef } from "./MenuDropdown";
 import type { DocumentTool } from "../lib/document-tools";
-import type { BridgeCapabilities } from "../types/opdf";
+import type { BridgeCapabilities } from "../types/tpdf";
 
 type CompactToolsArgs = {
   hasDocument: boolean;

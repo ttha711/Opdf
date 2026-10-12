@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { PdfContentObject } from "@opdf/core";
+import type { PdfContentObject } from "@tpdf/core";
 import type { NativeObjectGeometry } from "../../lib/nativeEditGeometry";
 import { nativeInlineTextLayout } from "./nativeInlineTextLayout";
 
@@ -95,8 +95,8 @@ export function NativeInlineTextEditor({
         lineHeight: 1.35,
         color: "#111827",
       }}
-      data-opdf-inline-text-editor="true"
-      data-opdf-inline-object-id={object.id}
+      data-tpdf-inline-text-editor="true"
+      data-tpdf-inline-object-id={object.id}
     />
     {isApplying ? (
       <div className="native-edit-inline-feedback" role="status" style={{ left: layout.left, top: layout.top + layout.height + 4 }}>

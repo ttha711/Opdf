@@ -1,17 +1,17 @@
-import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
+import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "./pdfiumContentEngine";
 import { parseContentObjectId } from "./pdfiumObjectTree";
 
 export function withUnicodeGlyphFallback(patches: PdfContentPatch[]): PdfContentPatch[] {
   const unicodeStyled = new Set(patches.flatMap((patch) =>
-    patch.type === "style-text" && patch.fontFamily === "__opdf_unicode__"
+    patch.type === "style-text" && patch.fontFamily === "__tpdf_unicode__"
       ? [patch.objectId]
       : [],
   ));
   return patches.flatMap((patch) => {
     if (patch.type !== "replace-text" || unicodeStyled.has(patch.objectId)) return [patch];
     return [
-      { type: "style-text", objectId: patch.objectId, fontFamily: "__opdf_unicode__" } as PdfContentPatch,
+      { type: "style-text", objectId: patch.objectId, fontFamily: "__tpdf_unicode__" } as PdfContentPatch,
       patch,
     ];
   });
@@ -75,7 +75,7 @@ export async function applyVerifiedNativePatches(
       const after = await pdfiumContentEditingEngine.inspectPage(edited, index);
       const originalObject = before.find((item) => item.id === target.objectId);
       const updatedObject = after.find((item) => item.id === target.objectId);
-      console.error("[opdf:verify] " + JSON.stringify({
+      console.error("[tpdf:verify] " + JSON.stringify({
         objectId: target.objectId,
         pageIndex: index,
         objectsBefore: before.length,

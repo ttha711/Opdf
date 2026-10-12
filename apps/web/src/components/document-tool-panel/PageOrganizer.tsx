@@ -123,7 +123,7 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
   };
 
   return (
-    <div data-opdf-dialog="organize-pages" className="fixed inset-0 z-[9990] flex items-center justify-center bg-black/60 p-2 md:p-6">
+    <div data-tpdf-dialog="organize-pages" className="fixed inset-0 z-[9990] flex items-center justify-center bg-black/60 p-2 md:p-6">
       <div ref={modal} role="dialog" aria-modal="true" aria-label="Organize pages" tabIndex={-1}
         className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-2xl">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-color)] p-4">
@@ -139,11 +139,11 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
           <button type="button" onClick={() => setSelected(live)} disabled={working || loadingCount}>Select all</button>
           <button type="button" onClick={() => setSelected([])} disabled={working}>Clear selection</button>
           <span className="mr-2 text-[var(--text-secondary)]">{active.length} selected</span>
-          <button type="button" data-opdf-action="organizer-move-left" onClick={() => move(-1)} disabled={!active.length || working}>← Earlier</button>
-          <button type="button" data-opdf-action="organizer-move-right" onClick={() => move(1)} disabled={!active.length || working}>Later →</button>
-          <button type="button" data-opdf-action="organizer-rotate-left" onClick={() => rotate(-90)} disabled={!active.length || working}>↶ Rotate left</button>
-          <button type="button" data-opdf-action="organizer-rotate-right" onClick={() => rotate(90)} disabled={!active.length || working}>↷ Rotate right</button>
-          <button type="button" data-opdf-action="organizer-delete" onClick={() => setRemoved(current => [...new Set([...current, ...active])])} disabled={!active.length || working || live.length <= active.length}>Remove</button>
+          <button type="button" data-tpdf-action="organizer-move-left" onClick={() => move(-1)} disabled={!active.length || working}>← Earlier</button>
+          <button type="button" data-tpdf-action="organizer-move-right" onClick={() => move(1)} disabled={!active.length || working}>Later →</button>
+          <button type="button" data-tpdf-action="organizer-rotate-left" onClick={() => rotate(-90)} disabled={!active.length || working}>↶ Rotate left</button>
+          <button type="button" data-tpdf-action="organizer-rotate-right" onClick={() => rotate(90)} disabled={!active.length || working}>↷ Rotate right</button>
+          <button type="button" data-tpdf-action="organizer-delete" onClick={() => setRemoved(current => [...new Set([...current, ...active])])} disabled={!active.length || working || live.length <= active.length}>Remove</button>
           <button type="button" onClick={() => { setOrder(range(pageCount)); setRemoved([]); setRotations({}); setSelected([]); setAcknowledged(false); }} disabled={working}>Reset</button>
         </div>
         <p className="px-4 pt-3 text-xs text-[var(--text-secondary)]">
@@ -166,7 +166,7 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
                   drag.current = null;
                 }}
                 className={`min-w-0 rounded-lg border p-2 ${isSelected ? "border-[var(--acrobat-blue)] bg-[var(--ui-accent-bg)]" : "border-[var(--border-color)]"} ${gone ? "opacity-45" : ""}`}>
-                <button type="button" aria-pressed={isSelected} data-opdf-organizer-page={page}
+                <button type="button" aria-pressed={isSelected} data-tpdf-organizer-page={page}
                   onClick={event => select(page, event)} disabled={working}
                   className="w-full text-left">
                   <PageOrganizerThumbnail page={page} deleted={gone} rotation={rotations[page] || 0} />
@@ -185,7 +185,7 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
           {error ? <p role="alert" className="text-xs text-red-600">{error}</p> : null}
           <div className="flex items-center justify-end gap-2">
             <button type="button" onClick={close} disabled={working} className="rounded border border-[var(--border-color)] px-4 py-2">Cancel</button>
-            <button type="button" data-opdf-action="organizer-apply" onClick={() => void apply()} disabled={!safe}
+            <button type="button" data-tpdf-action="organizer-apply" onClick={() => void apply()} disabled={!safe}
               className="rounded bg-[var(--acrobat-blue)] px-4 py-2 font-semibold text-white disabled:opacity-50">
               {working ? "Applying…" : "Apply page changes"}
             </button>

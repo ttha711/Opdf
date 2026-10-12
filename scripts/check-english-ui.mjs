@@ -13,7 +13,7 @@ const multilingualInternalFiles = new Set([
   "apps/web/src/components/AiAssistantPanel.utils.ts",
   "apps/web/src/components/AiAssistantPanel.hooks.ts",
   "apps/web/src/components/live-editor/aiPatchService.ts",
-  "apps/web/src/hooks/opdf-bridge/mockBridge.ts",
+  "apps/web/src/hooks/tpdf-bridge/mockBridge.ts",
 ]);
 
 async function walk(dir) {

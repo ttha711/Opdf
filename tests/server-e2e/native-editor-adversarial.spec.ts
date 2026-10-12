@@ -11,10 +11,10 @@ import {
 test.setTimeout(90_000);
 
 async function expandAdvancedEditor(page: Page) {
-  const expand = page.locator('[data-opdf-action="expand-right-panel"]');
+  const expand = page.locator('[data-tpdf-action="expand-right-panel"]');
   await expect(expand).toBeVisible({ timeout: 20_000 });
   await expand.click();
-  const editor = page.locator("[data-opdf-native-editor='true']");
+  const editor = page.locator("[data-tpdf-native-editor='true']");
   await expect(editor).toBeVisible({ timeout: 20_000 });
   return editor;
 }
@@ -24,7 +24,7 @@ async function uploadPdf(
   name: string,
   bytes: Buffer,
 ) {
-  return request.post(`/api/opdf/documents?name=${encodeURIComponent(name)}`, {
+  return request.post(`/api/tpdf/documents?name=${encodeURIComponent(name)}`, {
     headers: { "Content-Type": "application/pdf" },
     data: bytes,
   });
@@ -54,7 +54,7 @@ async function expectSafeViewerFailure(
   await expect.poll(
     async () => {
       const statusMessage =
-        (await page.getByTestId("status-bar").getAttribute("data-opdf-message")) ?? "";
+        (await page.getByTestId("status-bar").getAttribute("data-tpdf-message")) ?? "";
       if (statusMessage.trim()) return true;
 
       const text = (await page.locator("body").innerText()).toLowerCase();
@@ -69,7 +69,7 @@ async function expectSafeViewerFailure(
   await expect(
     page.locator("header").getByRole("button", { name: "Application menu", exact: true }),
   ).toBeVisible();
-  await expect(page.locator("[data-opdf-native-editor='true']")).toHaveCount(0);
+  await expect(page.locator("[data-tpdf-native-editor='true']")).toHaveCount(0);
 }
 
 test("real embedded subset font can be replaced and survives save/reload", async ({
@@ -85,14 +85,14 @@ test("real embedded subset font can be replaced and survives save/reload", async
   const document = await upload.json();
 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({
     timeout: 30_000,
   });
   await page.getByTitle("Edit PDF Content").click();
 
   const editor = await expandAdvancedEditor(page);
   const original = editor
-    .locator("[data-opdf-object-kind='text']")
+    .locator("[data-tpdf-object-kind='text']")
     .filter({ hasText: "Subset font source 01" })
     .first();
   await expect(original).toBeVisible({ timeout: 20_000 });
@@ -101,7 +101,7 @@ test("real embedded subset font can be replaced and survives save/reload", async
 
   await saveServerDocumentAndWait(page);
   await page.reload();
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({
     timeout: 30_000,
   });
   await page.getByTitle("Edit PDF Content").click();
@@ -109,7 +109,7 @@ test("real embedded subset font can be replaced and survives save/reload", async
   const reopened = await expandAdvancedEditor(page);
   await expect(
     reopened
-      .locator("[data-opdf-object-kind='text']")
+      .locator("[data-tpdf-object-kind='text']")
       .filter({ hasText: replacement })
       .first(),
   ).toBeVisible({ timeout: 20_000 });
@@ -148,19 +148,19 @@ test("ASCII letters replace digits in a subset font and survive save/reload", as
   expect(upload.status()).toBe(201);
   const document = await upload.json();
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
   const editor = await expandAdvancedEditor(page);
-  await expect(editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "12345" })).toBeVisible();
+  await expect(editor.locator("[data-tpdf-object-kind='text']").filter({ hasText: "12345" })).toBeVisible();
 
-  const hit = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").first();
+  const hit = page.locator(".native-edit-page polygon[data-tpdf-object-kind='text']").first();
   await expect(hit).toBeVisible({ timeout: 30_000 });
   await hit.dblclick();
   const draft = page.getByRole("textbox", { name: "Edit PDF text" });
   await draft.fill("KITCHEN ABC");
   await draft.press("Enter");
   await expect(draft).toHaveCount(0, { timeout: 30000 });
-  await expect(editor.locator("[data-opdf-object-kind='text']").filter({ hasText: "KITCHEN ABC" }))
+  await expect(editor.locator("[data-tpdf-object-kind='text']").filter({ hasText: "KITCHEN ABC" }))
     .toBeVisible({ timeout: 30000 });
 
   // Embedding a full Unicode font rather than reusing the digits-only subset
@@ -168,16 +168,16 @@ test("ASCII letters replace digits in a subset font and survive save/reload", as
   await saveServerDocumentAndWait(page);
   const documentId = /^server:\/\/([0-9a-f-]{36})/i.exec(document.filePath)?.[1];
   expect(documentId).toBeTruthy();
-  const response = await request.get("/api/opdf/documents/" + documentId);
+  const response = await request.get("/api/tpdf/documents/" + documentId);
   expect(response.ok()).toBe(true);
   const saved = Buffer.from(await response.body());
   expect(saved.byteLength).toBeGreaterThan(source.byteLength + 1000);
 
   await page.reload();
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
   const reopened = await expandAdvancedEditor(page);
-  await expect(reopened.locator("[data-opdf-object-kind='text']").filter({ hasText: "KITCHEN ABC" }))
+  await expect(reopened.locator("[data-tpdf-object-kind='text']").filter({ hasText: "KITCHEN ABC" }))
     .toBeVisible({ timeout: 30_000 });
   // Text extraction can succeed while a subset font paints no glyphs. Inspect
   // the actual PDF raster: this fixture contains no other dark content.

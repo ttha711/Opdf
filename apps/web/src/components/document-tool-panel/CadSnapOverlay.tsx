@@ -68,7 +68,7 @@ export function CadSnapOverlay({
     formatSquareMillimeters(pdfArea*mmPerPoint*mmPerPoint,unit) :
     formatMillimeters(pdfDistance*mmPerPoint,unit);
   return (
-    <svg data-opdf-cad-overlay="true" role="application" aria-label="CAD measurement canvas"
+    <svg data-tpdf-cad-overlay="true" role="application" aria-label="CAD measurement canvas"
       tabIndex={active?0:-1} width={viewport.width} height={viewport.height}
       viewBox={`0 0 ${viewport.width} ${viewport.height}`}
       onPointerMove={move} onPointerLeave={()=>setHover(null)}

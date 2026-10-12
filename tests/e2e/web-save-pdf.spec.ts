@@ -15,12 +15,12 @@ test("web Save downloads the actual native-edited PDF", async ({ page }) => {
     buffer: original,
   });
 
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
-  await page.locator('[data-opdf-action="edit-content"]').click();
-  const object = page.locator('[data-opdf-canvas-object][data-opdf-object-kind="text"]').first();
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  await page.locator('[data-tpdf-action="edit-content"]').click();
+  const object = page.locator('[data-tpdf-canvas-object][data-tpdf-object-kind="text"]').first();
   await expect(object).toBeVisible({ timeout: 30_000 });
   await object.dblclick();
-  const editor = page.locator('[data-opdf-inline-text-editor="true"]');
+  const editor = page.locator('[data-tpdf-inline-text-editor="true"]');
   await expect(editor).toBeVisible();
   await editor.fill("AFTER NATIVE EDIT");
   await editor.press("Enter");

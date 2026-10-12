@@ -13,7 +13,7 @@ export function PdfStructureInventory({ inventory }: { inventory: PdfInventory }
   const fonts = inventory.fonts ?? [];
   const attachments = inventory.attachments ?? [];
   return (
-    <section data-opdf-document-inventory="true" className="space-y-2">
+    <section data-tpdf-document-inventory="true" className="space-y-2">
       <h5 className="font-bold">PDF content inventory</h5>
       <p className="text-[11px] text-[var(--text-secondary)]">
         Read-only information from PdfCraft. Layer visibility reflects the saved document,

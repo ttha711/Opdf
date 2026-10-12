@@ -33,8 +33,8 @@
   stroke: rgb(37 99 235 / 45%);
 }
 
-.native-edit-object[data-opdf-object-kind="text"],
-.native-edit-selection[data-opdf-object-kind="text"] {
+.native-edit-object[data-tpdf-object-kind="text"],
+.native-edit-selection[data-tpdf-object-kind="text"] {
   cursor: text;
 }
 

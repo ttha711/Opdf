@@ -19,7 +19,7 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
 
   await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open PDF", exact: true })).toBeVisible();
-  await expect(page.getByText("Opdf Power Tools Dashboard")).toHaveCount(0);
+  await expect(page.getByText("Tpdf Power Tools Dashboard")).toHaveCount(0);
 
   const mobileMenu = page.locator("header").getByRole("button", { name: "Application menu", exact: true });
   await expect(mobileMenu).toBeVisible();
@@ -30,7 +30,7 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   expect(primaryBox?.height ?? 0).toBeGreaterThanOrEqual(44);
 
   await mobileMenu.click();
-  const mobileSheet = page.locator('[data-opdf-mobile-sheet="true"]');
+  const mobileSheet = page.locator('[data-tpdf-mobile-sheet="true"]');
   await expect(mobileSheet).toBeVisible();
   await expect(mobileSheet).not.toContainText("Ctrl+O");
   await expect(mobileSheet).not.toContainText("Ctrl+S");
@@ -52,15 +52,15 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
     buffer: pdf,
   });
 
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+3/i, { timeout: 30_000 });
 
-  const pagePreviewButton = page.locator('[data-opdf-action="toggle-page-filmstrip"]');
+  const pagePreviewButton = page.locator('[data-tpdf-action="toggle-page-filmstrip"]');
   await expect(pagePreviewButton).toBeVisible();
   const pagePreviewButtonBox = await pagePreviewButton.boundingBox();
   expect(pagePreviewButtonBox?.height ?? 0).toBeGreaterThanOrEqual(44);
   await pagePreviewButton.click();
-  const filmstrip = page.locator('[data-opdf-mobile-filmstrip="true"]');
+  const filmstrip = page.locator('[data-tpdf-mobile-filmstrip="true"]');
   await expect(filmstrip).toBeVisible();
   await expect(filmstrip.getByRole("button", { name: "Go to page 1" })).toBeVisible();
   await expect(filmstrip.getByRole("button", { name: "Go to page 2" })).toBeVisible();
@@ -69,18 +69,18 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(filmstrip).toHaveCount(0);
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+2\s+of\s+3/i, { timeout: 10_000 });
 
-  await expect(page.locator(".opdf-topbar .tab-bar-container")).toBeVisible();
-  await page.locator('[data-opdf-action="home"]').click();
+  await expect(page.locator(".tpdf-topbar .tab-bar-container")).toBeVisible();
+  await page.locator('[data-tpdf-action="home"]').click();
   await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toBeVisible();
-  const preservedTab = page.locator(".opdf-header-tabs").getByText("mobile-three-pages.pdf", { exact: true });
+  const preservedTab = page.locator(".tpdf-header-tabs").getByText("mobile-three-pages.pdf", { exact: true });
   await expect(preservedTab).toBeVisible();
   await preservedTab.click();
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
 
   const documentOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(documentOverflow).toBeLessThanOrEqual(1);
 
-  const aiFab = page.locator('[data-opdf-action="open-ai"]');
+  const aiFab = page.locator('[data-tpdf-action="open-ai"]');
   await expect(aiFab).toBeVisible();
   const aiFabBox = await aiFab.boundingBox();
   const mobileViewport = page.viewportSize();
@@ -89,13 +89,13 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   expect((mobileViewport?.height ?? 0) - ((aiFabBox?.y ?? 0) + (aiFabBox?.height ?? 0))).toBeGreaterThanOrEqual(80);
 
   await aiFab.click();
-  await expect(page.locator('[data-opdf-right-sidebar="open"]')).toBeVisible();
-  await expect(page.locator('[data-opdf-action="collapse-right-panel"]')).toBeVisible();
-  const drawerBackdrop = page.locator('[data-opdf-action="right-panel-backdrop"]');
+  await expect(page.locator('[data-tpdf-right-sidebar="open"]')).toBeVisible();
+  await expect(page.locator('[data-tpdf-action="collapse-right-panel"]')).toBeVisible();
+  const drawerBackdrop = page.locator('[data-tpdf-action="right-panel-backdrop"]');
   await expect(drawerBackdrop).toBeVisible();
   await drawerBackdrop.click({ position: { x: 12, y: 120 } });
-  await expect(page.locator('[data-opdf-right-sidebar="closed"]')).toHaveCount(1);
-  await expect(page.locator('[data-opdf-action="expand-right-panel"]')).toBeVisible();
+  await expect(page.locator('[data-tpdf-right-sidebar="closed"]')).toHaveCount(1);
+  await expect(page.locator('[data-tpdf-action="expand-right-panel"]')).toBeVisible();
 
   const viewer = page.locator(".viewer-shell");
   const sidebar = await openEmbedPdfSidebar(viewer);
@@ -105,7 +105,7 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   expect((sidebarBox?.x ?? 0) + (sidebarBox?.width ?? Infinity)).toBeLessThanOrEqual(viewport?.width ?? 412);
 
   // EmbedPDF renders its toolbar in Shadow DOM and owns its 32px chrome.
-  // OPDF verifies operability and drawer geometry here; OPDF-owned mobile
+  // TPDF verifies operability and drawer geometry here; TPDF-owned mobile
   // actions retain the 44px touch-target assertion above.
   await closeEmbedPdfSidebar(viewer);
 

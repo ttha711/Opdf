@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PdfContentObject, PdfMatrix } from "@opdf/core";
+import type { PdfContentObject, PdfMatrix } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "../../lib/pdfiumContentEngine";
 import {
   geometryForObject,

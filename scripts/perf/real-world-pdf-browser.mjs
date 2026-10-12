@@ -9,7 +9,7 @@ function assert(condition, message) {
 
 export async function browserTest(browser, testCase, stored, fileBytes, baseUrl) {
   const page = await browser.newPage();
-  const documentUrlPart = `/api/opdf/documents/${stored.id}`;
+  const documentUrlPart = `/api/tpdf/documents/${stored.id}`;
   const pdfResponses = [];
   const finishedPdfTransfers = [];
   page.on("response", (response) => {
@@ -38,7 +38,7 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
     timeout: 60_000,
   });
 
-  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
   await viewer.waitFor({ state: "visible", timeout: 60_000 });
   const firstPageStatus = page.locator("body").getByText(/Page\s+1\s+of\s+\d+/i).first();
   await firstPageStatus.waitFor({
@@ -78,7 +78,7 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
   await page.waitForTimeout(250);
   const bytesObserved = finishedPdfTransfers.reduce((sum, item) => sum + item.responseBodySize, 0);
   const usedRange = rangeResponses.length > 0;
-  const viewerEngine = await viewer.getAttribute("data-opdf-engine");
+  const viewerEngine = await viewer.getAttribute("data-tpdf-engine");
   assert(
     viewerEngine === "pdfium-wasm",
     `${testCase.name}: expected stable EmbedPDF/PDFium viewer, got ${viewerEngine}`,
@@ -123,7 +123,7 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
     const mutateStartedAt = Date.now();
     try {
       const mutationResponse = await fetch(
-        `${baseUrl}/api/opdf/documents/${stored.id}/mutations`,
+        `${baseUrl}/api/tpdf/documents/${stored.id}/mutations`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -135,7 +135,7 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
       saveMs = Date.now() - mutateStartedAt;
       assert(saveMs < 90_000, `${testCase.name}: server-side rotate exceeded 90 s budget (${saveMs} ms)`);
 
-      const persisted = await fetch(`${baseUrl}/api/opdf/documents/${stored.id}`);
+      const persisted = await fetch(`${baseUrl}/api/tpdf/documents/${stored.id}`);
       assert(persisted.ok, `${testCase.name}: unable to reload mutated PDF`);
       const persistedDoc = await PDFDocument.load(new Uint8Array(await persisted.arrayBuffer()));
       assert(
@@ -147,7 +147,7 @@ export async function browserTest(browser, testCase, stored, fileBytes, baseUrl)
         waitUntil: "domcontentloaded",
         timeout: 60_000,
       });
-      await page.locator('[data-opdf-engine="pdfium-wasm"]').waitFor({
+      await page.locator('[data-tpdf-engine="pdfium-wasm"]').waitFor({
         state: "visible",
         timeout: 60_000,
       });
@@ -185,7 +185,7 @@ export function formatMiB(bytes) {
 export async function writeSummary(results) {
   if (!process.env.GITHUB_STEP_SUMMARY) return;
   const lines = [
-    "# OPDF real-world PDF benchmark",
+    "# TPDF real-world PDF benchmark",
     "",
     "| Document | Size | Download | First page | Budget | Engine | Pages | Range seen | Requests 206/200 | Observed transfer | Search matches | Save/reload | Save time |",
     "|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|",

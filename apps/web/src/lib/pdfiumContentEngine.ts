@@ -1,4 +1,4 @@
-// opdf-file-size-allow: legacy PDFium WASM engine; this targeted glyph fix reuses existing routines, with module extraction reserved for a dedicated refactor.
+// tpdf-file-size-allow: legacy PDFium WASM engine; this targeted glyph fix reuses existing routines, with module extraction reserved for a dedicated refactor.
 import { init } from "@embedpdf/pdfium";
 import pdfiumWasmUrl from "@embedpdf/pdfium/pdfium.wasm?url";
 import type {
@@ -9,7 +9,7 @@ import type {
   PdfMatrix,
   PdfPathCommand,
   PdfRect,
-} from "@opdf/core";
+} from "@tpdf/core";
 import { needsSubsetFontFallback } from "./nativeEditSubsetFont";
 import {
   childContentObjectId,
@@ -256,13 +256,13 @@ function readImageInfo(module: PdfiumModule, objectPtr: number) {
 
 async function loadUnicodeFont(module: PdfiumModule, docPtr: number): Promise<number> {
   const response = await fetch(unicodeFontUrl);
-  if (!response.ok) throw new Error(`Unable to load OPDF Unicode font: ${response.status}`);
+  if (!response.ok) throw new Error(`Unable to load TPDF Unicode font: ${response.status}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
   const ptr = malloc(module, bytes.byteLength);
   try {
     module.pdfium.HEAPU8.set(bytes, ptr);
     const fontPtr = module.FPDFText_LoadFont(docPtr, ptr, bytes.byteLength, 2, true);
-    if (!fontPtr) throw new Error("PDFium could not embed the OPDF Unicode font.");
+    if (!fontPtr) throw new Error("PDFium could not embed the TPDF Unicode font.");
     return fontPtr;
   } finally {
     free(module, ptr);
@@ -278,7 +278,7 @@ async function replaceTextObjectFontSize(
   fontSize: number,
   fontFamily?: string,
 ): Promise<number> {
-  const fontPtr = fontFamily === "__opdf_unicode__"
+  const fontPtr = fontFamily === "__tpdf_unicode__"
     ? await loadUnicodeFont(module, docPtr)
     : fontFamily
       ? module.FPDFText_LoadStandardFont(docPtr, fontFamily)
@@ -1018,7 +1018,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
 
           for (const patch of pagePatches) {
             if (patch.type === "add-text") {
-              const fontPtr = patch.fontFamily === "__opdf_unicode__"
+              const fontPtr = patch.fontFamily === "__tpdf_unicode__"
                 ? await loadUnicodeFont(module, docPtr)
                 : module.FPDFText_LoadStandardFont(docPtr, patch.fontFamily || "Helvetica");
               if (!fontPtr) throw new Error("Unable to load font for new text.");
@@ -1114,7 +1114,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
                   module, docPtr, pagePtr, objectPtr,
                   resolved.rootObjectIndex,
                   readFontSize(module, objectPtr) ?? 12,
-                  "__opdf_unicode__",
+                  "__tpdf_unicode__",
                 );
                 handles.set(patch.objectId, { ...resolved, objectPtr });
               }

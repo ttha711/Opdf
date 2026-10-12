@@ -109,7 +109,7 @@ export function IntegratedUploadWorkspace({
   return (
     <div className="upload-workspace flex-1 flex flex-col justify-center items-center p-8 bg-[var(--bg-app)] select-none">
       <input
-        id={`opdf-tool-upload-${activeToolId}`}
+        id={`tpdf-tool-upload-${activeToolId}`}
         type="file"
         aria-label={`Choose ${fileSpec.label} to upload`}
         ref={fileInputRef}
@@ -154,7 +154,7 @@ export function IntegratedUploadWorkspace({
         {/* Premium Select Button */}
         <button
           type="button"
-          aria-controls={`opdf-tool-upload-${activeToolId}`}
+          aria-controls={`tpdf-tool-upload-${activeToolId}`}
           onClick={(e) => {
             e.stopPropagation();
             triggerPicker();
@@ -167,7 +167,7 @@ export function IntegratedUploadWorkspace({
 
         {/* Helper footer */}
         <span className="text-[10px] text-[var(--text-secondary)] mt-6 flex items-center gap-1">
-          🔒 Processing stays local when supported. Office conversion may use your configured OPDF Server.
+          🔒 Processing stays local when supported. Office conversion may use your configured TPDF Server.
         </span>
       </div>
     </div>

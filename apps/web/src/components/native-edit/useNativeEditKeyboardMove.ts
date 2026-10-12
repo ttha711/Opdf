@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { PdfMatrix } from "@opdf/core";
+import type { PdfMatrix } from "@tpdf/core";
 import { translationMatrix } from "../../lib/nativeEditGeometry";
 import { applyNativeEditPatches } from "../../lib/nativeEditRuntime";
 

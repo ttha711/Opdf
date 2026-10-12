@@ -1,6 +1,6 @@
 # Optional Document Health (PdfCraft)
 
-Document Health adds **read-only diagnostics** to OPDF Server. The existing EmbedPDF/PDFium
+Document Health adds **read-only diagnostics** to TPDF Server. The existing EmbedPDF/PDFium
 viewer, editor, save pipeline, OCR, signatures and automation continue to operate unchanged.
 
 Status: **feature-flagged integration**, off by default. A real PdfCraft binary and its
@@ -20,22 +20,22 @@ cargo build --release -p pdfcraft-cli --no-default-features
 
 The executable will be at \`target/release/pdfcraft-cli\` (Windows:
 \`target\release\pdfcraft-cli.exe\`). Treat it like any other executable with access
-to local documents. Do not fetch unverified binaries at OPDF startup. The CLI must
-be explicitly installed by the operator on the **same OS/architecture** as OPDF Server.
+to local documents. Do not fetch unverified binaries at TPDF startup. The CLI must
+be explicitly installed by the operator on the **same OS/architecture** as TPDF Server.
 
-Set environment variables **on the OPDF Server process**, then restart it:
+Set environment variables **on the TPDF Server process**, then restart it:
 
 ~~~powershell
-$env:OPDF_PDFCRAFT_ENABLED="1"
-$env:OPDF_PDFCRAFT_BIN="C:\tools\pdfcraft\pdfcraft-cli.exe"
+$env:TPDF_PDFCRAFT_ENABLED="1"
+$env:TPDF_PDFCRAFT_BIN="C:\tools\pdfcraft\pdfcraft-cli.exe"
 npm run server-start
 ~~~
 
 Linux/macOS:
 
 ~~~shell
-export OPDF_PDFCRAFT_ENABLED=1
-export OPDF_PDFCRAFT_BIN=/opt/pdfcraft/bin/pdfcraft-cli
+export TPDF_PDFCRAFT_ENABLED=1
+export TPDF_PDFCRAFT_BIN=/opt/pdfcraft/bin/pdfcraft-cli
 npm run server-start
 ~~~
 
@@ -43,12 +43,12 @@ Default constraints (adjust only after benchmarking):
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| \`OPDF_PDFCRAFT_ENABLED\` | \`0\` | Off unless explicitly \`1\` |
-| \`OPDF_PDFCRAFT_BIN\` | unset | Required absolute CLI binary path (no PATH/shell lookup) |
-| \`OPDF_PDFCRAFT_MAX_BYTES\` | 32 MiB | Per-PDF copy size ceiling, clamped 1–256 MiB |
-| \`OPDF_PDFCRAFT_TIMEOUT_MS\` | 45000 | Child-process time limit, clamped 5–120 seconds |
-| \`OPDF_PDFCRAFT_MAX_OUTPUT_BYTES\` | 2 MiB | Bounded diagnostic JSON, clamped 0.5–8 MiB |
-| \`OPDF_PDFCRAFT_CONCURRENCY\` | 1 | Max active jobs, clamped 1–2; overflow returns 429 |
+| \`TPDF_PDFCRAFT_ENABLED\` | \`0\` | Off unless explicitly \`1\` |
+| \`TPDF_PDFCRAFT_BIN\` | unset | Required absolute CLI binary path (no PATH/shell lookup) |
+| \`TPDF_PDFCRAFT_MAX_BYTES\` | 32 MiB | Per-PDF copy size ceiling, clamped 1–256 MiB |
+| \`TPDF_PDFCRAFT_TIMEOUT_MS\` | 45000 | Child-process time limit, clamped 5–120 seconds |
+| \`TPDF_PDFCRAFT_MAX_OUTPUT_BYTES\` | 2 MiB | Bounded diagnostic JSON, clamped 0.5–8 MiB |
+| \`TPDF_PDFCRAFT_CONCURRENCY\` | 1 | Max active jobs, clamped 1–2; overflow returns 429 |
 
 No background queue, remote network connection, unrestricted MCP endpoint, auto-install,
 PDF auto-fix, or incremental-write migration is introduced.
@@ -58,13 +58,13 @@ PDF auto-fix, or incremental-write migration is introduced.
 Open a **stored server PDF**, navigate to **All Tools -> Document Health**, and click
 **Analyze saved PDF**. The panel shows page metadata, accessibility findings,
 preliminary PDF/A-2b issues, saved revision information (in JSON), and SHA-256 of
-the examined copy. Edits not yet persisted to OPDF Server are **not included**.
-If the feature is off or the CLI is unavailable, OPDF's viewer continues working.
+the examined copy. Edits not yet persisted to TPDF Server are **not included**.
+If the feature is off or the CLI is unavailable, TPDF's viewer continues working.
 
 For authenticated clients, the read-only endpoint is:
 
 ~~~text
-GET /api/opdf/documents/{documentId}/health
+GET /api/tpdf/documents/{documentId}/health
 ~~~
 
 Documents are resolved with the **same tenant/project boundary** as other stored
@@ -92,13 +92,13 @@ The temporary working directory is removed after the job.
   version. Save it first and compare SHA-256 if reproducibility matters.
 - Keep this feature disabled on public production until the actual CLI has been
   built, independently smoke-tested and benchmarked with local CAD PDF fixtures.
-- This does not fix OPDF native PDF editing/performance [issue #151](https://github.com/ttha711/Opdf/issues/151).
+- This does not fix TPDF native PDF editing/performance [issue #151](https://github.com/ttha711/Tpdf/issues/151).
 
 ## Tests and acceptance
 
 - Fast isolated Node tests: \`npm run test:cli\` (includes fake CLI behavior and limits).
-- Tenant isolation smoke: \`node server/opdf-server.auth.smoke.mjs\`.
-- Start OPDF Server with feature disabled and confirm \`health.capabilities.documentHealth=false\`.
+- Tenant isolation smoke: \`node server/tpdf-server.auth.smoke.mjs\`.
+- Start TPDF Server with feature disabled and confirm \`health.capabilities.documentHealth=false\`.
 - Build real upstream CLI, run at least one ordinary PDF, one damaged PDF,
   Unicode Vietnamese text, one scanned PDF, and one real CAD drawing.
 - Run the regression CAD corpus twice without retries (see
@@ -107,7 +107,7 @@ The temporary working directory is removed after the job.
   peak RSS/elapsed time, text fidelity and crash/hang data **before** enabling
   larger file limits.
 
-Rollback: set \`OPDF_PDFCRAFT_ENABLED=0\`, restart OPDF Server. No migration is required.
+Rollback: set \`TPDF_PDFCRAFT_ENABLED=0\`, restart TPDF Server. No migration is required.
 
 Licensing: upstream PdfCraft is MIT OR Apache-2.0, but its embedded dependencies
 and branded assets have separate obligations. Do not copy ArtCraft marks.

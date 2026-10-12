@@ -92,9 +92,9 @@ export function AiRewriteEditorWindow() {
 
   useEffect(() => {
     const bootstrap =
-      window.opener?.__opdfAiEditorGetBootstrap?.() ??
-      window.opener?.__opdfAiEditorBootstrap ??
-      window.__opdfAiEditorBootstrap;
+      window.opener?.__tpdfAiEditorGetBootstrap?.() ??
+      window.opener?.__tpdfAiEditorBootstrap ??
+      window.__tpdfAiEditorBootstrap;
     if (!bootstrap) return;
     setFileName(bootstrap.fileName || "Untitled");
     if (bootstrap.docBytes && bootstrap.docBytes.length > 0) {
@@ -282,9 +282,9 @@ export function AiRewriteEditorWindow() {
       let sourceBlocks = blocks;
       if (sourceBlocks.length === 0) {
         const bootstrap =
-          window.opener?.__opdfAiEditorGetBootstrap?.() ??
-          window.opener?.__opdfAiEditorBootstrap ??
-          window.__opdfAiEditorBootstrap;
+          window.opener?.__tpdfAiEditorGetBootstrap?.() ??
+          window.opener?.__tpdfAiEditorBootstrap ??
+          window.__tpdfAiEditorBootstrap;
         if (bootstrap?.docBytes && bootstrap.docBytes.length > 0) {
           const typed = bootstrap.docBytes instanceof Uint8Array ? bootstrap.docBytes : new Uint8Array(bootstrap.docBytes);
           sourceBlocks = await parsePdfToBlocks(typed);

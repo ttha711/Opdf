@@ -148,7 +148,7 @@ export function NativeEditFallbackRaster({
 
   return (
     <>
-      <canvas ref={canvasRef} data-opdf-pdfjs-fallback="true" data-opdf-fallback-stage={stage}
+      <canvas ref={canvasRef} data-tpdf-pdfjs-fallback="true" data-tpdf-fallback-stage={stage}
         style={{ display: painted ? "block" : "none", position: "absolute", inset: 0,
           width: "100%", height: "100%", pointerEvents: "none" }} />
       {error && <div role="status" className="native-edit-error">

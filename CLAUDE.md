@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **Opdf** (5939 symbols, 8815 relationships, 237 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **Tpdf** (5939 symbols, 8815 relationships, 237 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -24,10 +24,10 @@ This project is indexed by GitNexus as **Opdf** (5939 symbols, 8815 relationship
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/Opdf/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/Opdf/clusters` | All functional areas |
-| `gitnexus://repo/Opdf/processes` | All execution flows |
-| `gitnexus://repo/Opdf/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/Tpdf/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/Tpdf/clusters` | All functional areas |
+| `gitnexus://repo/Tpdf/processes` | All execution flows |
+| `gitnexus://repo/Tpdf/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 

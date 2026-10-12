@@ -1,6 +1,6 @@
-// opdf-file-size-allow: legacy app composition coordinator; this PR deletes mirrored viewer state and does not add new controller surface.
+// tpdf-file-size-allow: legacy app composition coordinator; this PR deletes mirrored viewer state and does not add new controller surface.
 import { useCallback, useEffect, useRef } from "react";
-import { useOpdfBridge } from "./useOpdfBridge";
+import { useTpdfBridge } from "./useTpdfBridge";
 import { useAppState } from "./useAppState";
 import { useDocumentLifecycle } from "./useDocumentLifecycle";
 import { useAnnotationActions } from "./useAnnotationActions";
@@ -25,7 +25,7 @@ type UseAppControllersArgs = {
 };
 
 export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSidebar }: UseAppControllersArgs) {
-  const bridge = useOpdfBridge();
+  const bridge = useTpdfBridge();
   const state = useAppState();
   const viewerAreaRef = useRef<HTMLDivElement>(null);
 
@@ -53,11 +53,11 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
         documentIdentity: nextIdentity,
         annotations: state.annotations,
       });
-      state.setViewerError("Saved to OPDF Server.");
+      state.setViewerError("Saved to TPDF Server.");
       window.setTimeout(() => state.setViewerError(null), 3000);
     };
-    window.addEventListener("opdf:server-document-mutated", onStoredMutation);
-    return () => window.removeEventListener("opdf:server-document-mutated", onStoredMutation);
+    window.addEventListener("tpdf:server-document-mutated", onStoredMutation);
+    return () => window.removeEventListener("tpdf:server-document-mutated", onStoredMutation);
   }, [
     state.sourceIdentity,
     state.fileName,
@@ -522,7 +522,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
 
   const analyzeDocumentHealth = useCallback(async () => {
     const url = getServerDocumentUrl(state.sourceIdentity)?.split("?")[0];
-    if (!url) throw new Error("Document Health requires a document saved to OPDF Server.");
+    if (!url) throw new Error("Document Health requires a document saved to TPDF Server.");
     const response = await fetch(url + "/health", { credentials: "same-origin", cache: "no-store" });
     const report = await response.json() as {
       error?: string;
@@ -595,8 +595,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
       toast.info("This feature is only available in the Local or Desktop App.");
       return;
     }
-    const editorUrl = localStorage.getItem("opdf-editor-url") || "http://localhost:5175";
-    const popup = window.open(editorUrl, "opdf-ai-editor", "width=1440,height=920");
+    const editorUrl = localStorage.getItem("tpdf-editor-url") || "http://localhost:5175";
+    const popup = window.open(editorUrl, "tpdf-ai-editor", "width=1440,height=920");
     if (popup) popup.focus();
   }, [isPublic]);
 

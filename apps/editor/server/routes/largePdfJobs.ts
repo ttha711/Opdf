@@ -23,9 +23,9 @@ type PdfJob = {
 
 const router = Router();
 const jobs = new Map<string, PdfJob>();
-const JOB_ROOT = path.join(tmpdir(), "opdf-large-jobs");
-const MAX_UPLOAD_BYTES = Number(process.env.OPDF_MAX_UPLOAD_BYTES || 1024 * 1024 * 1024);
-const JOB_TTL_MS = Number(process.env.OPDF_JOB_TTL_MS || 60 * 60 * 1000);
+const JOB_ROOT = path.join(tmpdir(), "tpdf-large-jobs");
+const MAX_UPLOAD_BYTES = Number(process.env.TPDF_MAX_UPLOAD_BYTES || 1024 * 1024 * 1024);
+const JOB_TTL_MS = Number(process.env.TPDF_JOB_TTL_MS || 60 * 60 * 1000);
 
 function safeName(value: string | undefined) {
   const fallback = "document.pdf";

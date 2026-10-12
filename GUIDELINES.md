@@ -1,4 +1,4 @@
-# Opdf Coding & UX Guidelines
+# Tpdf Coding & UX Guidelines
 
 ## 1. No Native Browser Popup Dialogs
 
@@ -12,14 +12,14 @@
 4. **Poor Dark Mode Support & Design Consistency**: Native popups ignore the application's premium dark mode theme and disrupt the cohesive user experience.
 
 ### Standard Approved Pattern
-Instead of native dialogs, always implement a custom React modal component under `apps/web/src/components` styled with Opdf's premium UI classes:
+Instead of native dialogs, always implement a custom React modal component under `apps/web/src/components` styled with Tpdf's premium UI classes:
 * Outer backdrop class: `modal-backdrop`
 * Main container class: `premium-modal`
 * Title icon & text container class: `premium-modal-header` > `premium-modal-title`
 * Content body class: `premium-modal-body`
 * Action buttons footer class: `premium-modal-footer`
 
-All components must adapt automatically in dark mode using Opdf's standard CSS custom properties:
+All components must adapt automatically in dark mode using Tpdf's standard CSS custom properties:
 * Border styling: `style={{ borderColor: 'var(--border-color)' }}`
 * Background colors: `style={{ background: 'var(--ui-muted-bg)' }}` or `var(--bg-toolbar)`
 * Text styling: class `text-[var(--text-primary)]` or `text-[var(--text-secondary)]`

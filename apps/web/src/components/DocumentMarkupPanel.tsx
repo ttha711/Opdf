@@ -33,7 +33,7 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
 
   useEffect(() => {
     setText(baseName);
-    setPrefix(tool === "bates" ? "OPDF-" : "Page ");
+    setPrefix(tool === "bates" ? "TPDF-" : "Page ");
     setSuffix("");
     setStartNumber(1);
     setFontSize(tool === "bates" ? 8 : tool === "page-numbers" ? 11 : 10);
@@ -70,13 +70,13 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
   }
 
   return (
-    <aside data-opdf-panel="markup" data-opdf-tool={tool} data-opdf-apply-sequence={applySequence} className="h-full overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
+    <aside data-tpdf-panel="markup" data-tpdf-tool={tool} data-tpdf-apply-sequence={applySequence} className="h-full overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-4 py-3">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Document Markup</div>
           <h4 className="m-0 mt-0.5 text-sm font-bold">{toolTitles[tool]}</h4>
         </div>
-        <button data-opdf-action="close-tool" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded hover:bg-[var(--ui-hover-bg)]" title="Close tool" type="button">✕</button>
+        <button data-tpdf-action="close-tool" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded hover:bg-[var(--ui-hover-bg)]" title="Close tool" type="button">✕</button>
       </div>
 
       <div className="flex flex-col gap-4 p-4">
@@ -88,7 +88,7 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
         {isHeaderFooter ? (
           <label className="flex flex-col gap-1.5 text-xs font-semibold">
             Text
-            <input data-opdf-field="markup-text" className="form-control" value={text} onChange={(event) => setText(event.target.value)} />
+            <input data-tpdf-field="markup-text" className="form-control" value={text} onChange={(event) => setText(event.target.value)} />
           </label>
         ) : null}
 
@@ -96,11 +96,11 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1.5 text-xs font-semibold">
               Prefix
-              <input data-opdf-field="markup-prefix" className="form-control" value={prefix} onChange={(event) => setPrefix(event.target.value)} />
+              <input data-tpdf-field="markup-prefix" className="form-control" value={prefix} onChange={(event) => setPrefix(event.target.value)} />
             </label>
             <label className="flex flex-col gap-1.5 text-xs font-semibold">
               Suffix
-              <input data-opdf-field="markup-suffix" className="form-control" value={suffix} onChange={(event) => setSuffix(event.target.value)} />
+              <input data-tpdf-field="markup-suffix" className="form-control" value={suffix} onChange={(event) => setSuffix(event.target.value)} />
             </label>
           </div>
         ) : null}
@@ -109,12 +109,12 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
           {(isPageNumbers || isBates) ? (
             <label className="flex flex-col gap-1.5 text-xs font-semibold">
               Start Number
-              <input data-opdf-field="markup-start" className="form-control" type="number" min="0" value={startNumber} onChange={(event) => setStartNumber(Number(event.target.value) || 0)} />
+              <input data-tpdf-field="markup-start" className="form-control" type="number" min="0" value={startNumber} onChange={(event) => setStartNumber(Number(event.target.value) || 0)} />
             </label>
           ) : null}
           <label className="flex flex-col gap-1.5 text-xs font-semibold">
             Font Size
-            <input data-opdf-field="markup-font-size" className="form-control" type="number" min="6" max="72" value={fontSize} onChange={(event) => setFontSize(Number(event.target.value) || 10)} />
+            <input data-tpdf-field="markup-font-size" className="form-control" type="number" min="6" max="72" value={fontSize} onChange={(event) => setFontSize(Number(event.target.value) || 10)} />
           </label>
         </div>
 
@@ -129,7 +129,7 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
           <>
             <label className="flex flex-col gap-1.5 text-xs font-semibold">
               Position
-              <select data-opdf-field="markup-position" className="form-control" value={position} onChange={(event) => setPosition(event.target.value as NonNullable<MarkupOptions["position"]>)}>
+              <select data-tpdf-field="markup-position" className="form-control" value={position} onChange={(event) => setPosition(event.target.value as NonNullable<MarkupOptions["position"]>)}>
                 <option value="top-left">Top Left</option>
                 <option value="top-center">Top Center</option>
                 <option value="top-right">Top Right</option>
@@ -141,11 +141,11 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
             <div className="grid grid-cols-2 gap-2">
               <label className="flex flex-col gap-1.5 text-xs font-semibold">
                 From Page
-                <input data-opdf-field="markup-page-start" className="form-control" type="number" min="1" max={totalPages} value={pageStart} onChange={(event) => setPageStart(Number(event.target.value) || 1)} />
+                <input data-tpdf-field="markup-page-start" className="form-control" type="number" min="1" max={totalPages} value={pageStart} onChange={(event) => setPageStart(Number(event.target.value) || 1)} />
               </label>
               <label className="flex flex-col gap-1.5 text-xs font-semibold">
                 To Page
-                <input data-opdf-field="markup-page-end" className="form-control" type="number" min="1" max={totalPages} value={pageEnd} onChange={(event) => setPageEnd(Number(event.target.value) || totalPages)} />
+                <input data-tpdf-field="markup-page-end" className="form-control" type="number" min="1" max={totalPages} value={pageEnd} onChange={(event) => setPageEnd(Number(event.target.value) || totalPages)} />
               </label>
             </div>
           </>
@@ -154,7 +154,7 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
         {isHeaderFooter ? (
           <label className="flex flex-col gap-1.5 text-xs font-semibold">
             Alignment
-            <select data-opdf-field="markup-align" className="form-control" value={align} onChange={(event) => setAlign(event.target.value as NonNullable<MarkupOptions["align"]>)}>
+            <select data-tpdf-field="markup-align" className="form-control" value={align} onChange={(event) => setAlign(event.target.value as NonNullable<MarkupOptions["align"]>)}>
               <option value="left">Left</option>
               <option value="center">Center</option>
               <option value="right">Right</option>
@@ -170,7 +170,7 @@ export function DocumentMarkupPanel({ tool, fileName, totalPages, onClose, onApp
         </div>
 
         <button
-          data-opdf-action="markup-apply"
+          data-tpdf-action="markup-apply"
           type="button"
           onClick={() => void handleApply()}
           disabled={isApplying}

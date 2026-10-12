@@ -17,12 +17,12 @@ async function makeMultiPagePdf(count: number): Promise<Buffer> {
 }
 
 async function openNativeEditor(page: Page) {
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45_000 });
   await page.getByTitle("Edit PDF Content").click();
-  const expand = page.locator('[data-opdf-action="expand-right-panel"]');
+  const expand = page.locator('[data-tpdf-action="expand-right-panel"]');
   await expect(expand).toBeVisible({ timeout: 30_000 });
   await expand.click();
-  const editor = page.locator("[data-opdf-native-editor='true']");
+  const editor = page.locator("[data-tpdf-native-editor='true']");
   await expect(editor).toBeVisible({ timeout: 30_000 });
   return editor;
 }
@@ -31,19 +31,19 @@ async function goToPage(page: Page, target: number) {
   // The desktop Pages trigger is CSS-hidden, but its handler uses the real
   // viewer goToPage API. Dispatch a DOM click to exercise that API without
   // assuming virtualized page DOM nodes or scroll container internals.
-  const trigger = page.locator('[data-opdf-action="toggle-page-filmstrip"]');
+  const trigger = page.locator('[data-tpdf-action="toggle-page-filmstrip"]');
   await expect(trigger).toBeAttached({ timeout: 10_000 });
   await trigger.evaluate((element: HTMLElement) => element.click());
-  const option = page.locator(`[data-opdf-page-thumb="${target}"]`);
+  const option = page.locator(`[data-tpdf-page-thumb="${target}"]`);
   await expect(option).toBeAttached({ timeout: 10_000 });
   await option.evaluate((element: HTMLElement) => element.click());
-  await expect(page.locator('[data-opdf-region="status-bar"]'))
-    .toHaveAttribute("data-opdf-page", String(target), { timeout: 20_000 });
+  await expect(page.locator('[data-tpdf-region="status-bar"]'))
+    .toHaveAttribute("data-tpdf-page", String(target), { timeout: 20_000 });
 }
 
 test("90-page native text replacement persists after save and reload", async ({ page, request }) => {
   const pdf = await makeMultiPagePdf(90);
-  const upload = await request.post("/api/opdf/documents?name=large-editor-regression.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=large-editor-regression.pdf", {
     headers: { "Content-Type": "application/pdf" }, data: pdf,
   });
   expect(upload.status()).toBe(201);
@@ -58,19 +58,19 @@ test("90-page native text replacement persists after save and reload", async ({ 
     }
   });
   page.on("request", (req) => {
-    if (req.method() === "GET" && new URL(req.url()).pathname.startsWith("/api/opdf/documents/")) fetches++;
+    if (req.method() === "GET" && new URL(req.url()).pathname.startsWith("/api/tpdf/documents/")) fetches++;
   });
 
   await page.goto("/?open=" + encodeURIComponent(stored.filePath));
   let editor = await openNativeEditor(page);
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "90");
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute("data-tpdf-total-pages", "90");
 
-  const original = editor.locator(".native-content-editor__objects [data-opdf-object-kind='text']")
+  const original = editor.locator(".native-content-editor__objects [data-tpdf-object-kind='text']")
     .filter({ hasText: "Large PDF original text" }).first();
   await expect(original).toBeVisible({ timeout: 30_000 });
-  const objectId = await original.getAttribute("data-opdf-object-id");
+  const objectId = await original.getAttribute("data-tpdf-object-id");
   expect(objectId).toBeTruthy();
-  const canvasText = page.locator(`[data-opdf-canvas-object="${objectId}"]`);
+  const canvasText = page.locator(`[data-tpdf-canvas-object="${objectId}"]`);
   await canvasText.dblclick();
   const inlineEditor = page.getByRole("textbox", { name: "Edit PDF text" });
   await inlineEditor.fill("Large PDF edited text");
@@ -85,7 +85,7 @@ test("90-page native text replacement persists after save and reload", async ({ 
   await saveServerDocumentAndWait(page);
   await page.reload();
   editor = await openNativeEditor(page);
-  const persisted = editor.locator(".native-content-editor__objects [data-opdf-object-kind='text']")
+  const persisted = editor.locator(".native-content-editor__objects [data-tpdf-object-kind='text']")
     .filter({ hasText: "Large PDF edited text" }).first();
   await expect(persisted).toBeVisible({ timeout: 30_000 });
   await expect(editor.getByText("Large PDF original text")).toHaveCount(0);
@@ -93,7 +93,7 @@ test("90-page native text replacement persists after save and reload", async ({ 
 });
 
 test("90-page virtualized navigation remains responsive without fetch flooding", async ({ page, request }) => {
-  const upload = await request.post("/api/opdf/documents?name=large-editor-scroll.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=large-editor-scroll.pdf", {
     headers: { "Content-Type": "application/pdf" }, data: await makeMultiPagePdf(90),
   });
   expect(upload.status()).toBe(201);
@@ -103,7 +103,7 @@ test("90-page virtualized navigation remains responsive without fetch flooding",
   const failures: string[] = [];
   page.on("request", (req) => {
     if (req.method() === "GET" &&
-        new URL(req.url()).pathname.startsWith("/api/opdf/documents/")) fetches++;
+        new URL(req.url()).pathname.startsWith("/api/tpdf/documents/")) fetches++;
   });
   page.on("pageerror", (error) => failures.push(error.message));
   page.on("console", (msg) => {
@@ -114,8 +114,8 @@ test("90-page virtualized navigation remains responsive without fetch flooding",
 
   await page.goto("/?open=" + encodeURIComponent(stored.filePath));
   await openNativeEditor(page);
-  await expect(page.locator('[data-opdf-region="status-bar"]'))
-    .toHaveAttribute("data-opdf-total-pages", "90");
+  await expect(page.locator('[data-tpdf-region="status-bar"]'))
+    .toHaveAttribute("data-tpdf-total-pages", "90");
   // Virtualized viewers should not retain one DOM page for every document page.
   expect(await page.locator(".native-edit-page").count()).toBeLessThan(90);
 
@@ -144,7 +144,7 @@ test("dense CAD-style page keeps raster visible and bounds interactive DOM", asy
     });
   }
   canvas.drawText("CAD title block", { x: 60, y: 740, size: 18, font });
-  const upload = await request.post("/api/opdf/documents?name=cad-overlay-budget.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=cad-overlay-budget.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: Buffer.from(await pdf.save({ useObjectStreams: false })),
   });
@@ -160,12 +160,12 @@ test("dense CAD-style page keeps raster visible and bounds interactive DOM", asy
   const polygons = page.locator("polygon.native-edit-object");
   await expect(polygons.first()).toBeAttached({ timeout: 45_000 });
   expect(await polygons.count()).toBeLessThanOrEqual(500);
-  await expect(page.locator("polygon[data-opdf-object-kind='text']")).toHaveCount(1);
+  await expect(page.locator("polygon[data-tpdf-object-kind='text']")).toHaveCount(1);
 
   // The properties sidebar must not create another 1600 buttons at once.
-  const objectButtons = editor.locator(".native-content-editor__objects button[data-opdf-object-id]");
+  const objectButtons = editor.locator(".native-content-editor__objects button[data-tpdf-object-id]");
   expect(await objectButtons.count()).toBeLessThanOrEqual(201);
   await editor.getByRole("searchbox", { name: "Find PDF object" }).fill("CAD title block");
-  await expect(editor.locator(".native-content-editor__objects button[data-opdf-object-kind='text']"))
+  await expect(editor.locator(".native-content-editor__objects button[data-tpdf-object-kind='text']"))
     .toHaveCount(1);
 });

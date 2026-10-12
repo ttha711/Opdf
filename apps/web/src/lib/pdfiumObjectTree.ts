@@ -1,4 +1,4 @@
-import type { PdfMatrix, PdfPoint, PdfQuad, PdfRect } from "@opdf/core";
+import type { PdfMatrix, PdfPoint, PdfQuad, PdfRect } from "@tpdf/core";
 
 type PdfiumModule = any;
 

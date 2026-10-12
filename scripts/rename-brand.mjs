@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync, renameSync, rmSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 const names = execFileSync("git", ["ls-files", "-z"]).toString("utf8").split("\0").filter(Boolean);
-const replace = (s) => s.replace(/OPDF|Opdf|opdf/g, (m) => ({OPDF:"TPDF",Opdf:"Tpdf",opdf:"tpdf"})[m]);
+const replace = (s) => s.replace(/TPDF|Tpdf|tpdf/g, (m) => ({TPDF:"TPDF",Tpdf:"Tpdf",tpdf:"tpdf"})[m]);
 let contents = 0, renamed = 0, skippedBinary = 0;
 const moves = [];
 for (const path of names) {

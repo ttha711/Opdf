@@ -24,7 +24,7 @@ export class AppErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("OPDF renderer crashed", {
+    console.error("TPDF renderer crashed", {
       name: error.name,
       message: error.message,
       stack: error.stack,
@@ -44,7 +44,7 @@ export class AppErrorBoundary extends Component<Props, State> {
   private errorDetails() {
     const { error, componentStack } = this.state;
     return [
-      "OPDF web error",
+      "TPDF web error",
       `Build: ${this.props.buildSha}`,
       `URL: ${window.location.href}`,
       `Time: ${new Date().toISOString()}`,
@@ -78,11 +78,11 @@ export class AppErrorBoundary extends Component<Props, State> {
       <main className="flex min-h-screen items-center justify-center bg-[var(--ui-bg)] p-6 text-[var(--text-primary)]">
         <section
           role="alert"
-          data-opdf-error-boundary="true"
+          data-tpdf-error-boundary="true"
           className="w-full max-w-xl rounded-xl border border-[var(--ui-border)] bg-[var(--panel-bg)] p-6 shadow-xl"
         >
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ui-error-text)]">
-            OPDF recovered from an interface error
+            TPDF recovered from an interface error
           </p>
           <h1 className="mt-2 text-xl font-semibold">The document data on the server is unchanged.</h1>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
@@ -94,7 +94,7 @@ export class AppErrorBoundary extends Component<Props, State> {
               onClick={() => window.location.reload()}
               className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white"
             >
-              Reload OPDF
+              Reload TPDF
             </button>
             <button
               type="button"

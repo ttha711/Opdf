@@ -1,4 +1,4 @@
-import type { PdfContentPatch } from "@opdf/core";
+import type { PdfContentPatch } from "@tpdf/core";
 
 export type NativeEditSelection = {
   pageIndex: number;

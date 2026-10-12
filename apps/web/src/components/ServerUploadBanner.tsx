@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import {
-  OPDF_UPLOAD_CANCEL_EVENT,
-  OPDF_UPLOAD_RETRY_EVENT,
-  OPDF_UPLOAD_STATUS_EVENT,
+  TPDF_UPLOAD_CANCEL_EVENT,
+  TPDF_UPLOAD_RETRY_EVENT,
+  TPDF_UPLOAD_STATUS_EVENT,
   type ServerUploadUiState,
 } from "../hooks/useServerUpload";
 
@@ -18,8 +18,8 @@ export function ServerUploadBanner() {
     const onStatus = (event: Event) => {
       setState((event as CustomEvent<ServerUploadUiState>).detail);
     };
-    window.addEventListener(OPDF_UPLOAD_STATUS_EVENT, onStatus);
-    return () => window.removeEventListener(OPDF_UPLOAD_STATUS_EVENT, onStatus);
+    window.addEventListener(TPDF_UPLOAD_STATUS_EVENT, onStatus);
+    return () => window.removeEventListener(TPDF_UPLOAD_STATUS_EVENT, onStatus);
   }, []);
 
   if (state.status === "idle") return null;
@@ -31,8 +31,8 @@ export function ServerUploadBanner() {
 
   return (
     <div
-      data-opdf-upload-state={state.status}
-      data-opdf-upload-progress={percent}
+      data-tpdf-upload-state={state.status}
+      data-tpdf-upload-progress={percent}
       className="fixed bottom-12 left-4 z-[90] w-[min(440px,calc(100vw-32px))] rounded-lg border border-[var(--border-color)] bg-[var(--bg-toolbar)] px-3 py-2 shadow-xl"
       role={failed ? "alert" : "status"}
       aria-live="polite"
@@ -41,7 +41,7 @@ export function ServerUploadBanner() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="truncate font-semibold text-[var(--text-primary)]">
-              {uploading ? "Opening locally · uploading in background" : stored ? "Stored on OPDF Server" : "Upload paused"}
+              {uploading ? "Opening locally · uploading in background" : stored ? "Stored on TPDF Server" : "Upload paused"}
             </span>
             <span className="shrink-0 tabular-nums text-[var(--text-secondary)]">
               {uploading || failed ? `${percent}%` : "100%"}
@@ -70,7 +70,7 @@ export function ServerUploadBanner() {
           <button
             type="button"
             className="rounded border border-[var(--border-color)] px-2 py-1 text-[11px] font-medium hover:bg-[var(--ui-hover-bg)]"
-            onClick={() => window.dispatchEvent(new Event(OPDF_UPLOAD_CANCEL_EVENT))}
+            onClick={() => window.dispatchEvent(new Event(TPDF_UPLOAD_CANCEL_EVENT))}
           >
             Cancel upload
           </button>
@@ -78,7 +78,7 @@ export function ServerUploadBanner() {
           <button
             type="button"
             className="rounded bg-[var(--acrobat-blue)] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90"
-            onClick={() => window.dispatchEvent(new Event(OPDF_UPLOAD_RETRY_EVENT))}
+            onClick={() => window.dispatchEvent(new Event(TPDF_UPLOAD_RETRY_EVENT))}
           >
             Retry upload
           </button>

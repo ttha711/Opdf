@@ -12,7 +12,7 @@ async function buildPdf() {
 }
 
 test("closing the document tears down the viewer and engine-owned sidebar", async ({ page, request }) => {
-  const upload = await request.post("/api/opdf/documents?name=close-lifecycle.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=close-lifecycle.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: await buildPdf(),
   });
@@ -20,16 +20,16 @@ test("closing the document tears down the viewer and engine-owned sidebar", asyn
   const document = await upload.json();
 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
-  const viewer = page.locator("[data-opdf-engine='pdfium-wasm']");
+  const viewer = page.locator("[data-tpdf-engine='pdfium-wasm']");
   await expect(viewer).toBeVisible({ timeout: 30_000 });
 
   await openEmbedPdfSidebar(viewer);
 
   await clickApplicationMenuItem(page, "Close");
 
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toHaveCount(0);
-  await expect(page.locator("[data-opdf-native-editor='true']")).toHaveCount(0);
-  await expect(page.locator("[data-opdf-right-sidebar='open']")).toHaveCount(0);
-  await expect(page.locator(".opdf-side-panel--left")).toHaveCount(0);
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toHaveCount(0);
+  await expect(page.locator("[data-tpdf-native-editor='true']")).toHaveCount(0);
+  await expect(page.locator("[data-tpdf-right-sidebar='open']")).toHaveCount(0);
+  await expect(page.locator(".tpdf-side-panel--left")).toHaveCount(0);
   await expect(page.getByText("Open a PDF", { exact: false })).toBeVisible();
 });

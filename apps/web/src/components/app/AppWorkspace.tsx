@@ -123,7 +123,7 @@ export function AppWorkspace({
           {state.activeTool === "select" && selectedTextForEdit?.tabId === activeTab.id && selectedTextForEdit.documentKey === state.sourceIdentity ? (
             <button
               type="button"
-              data-opdf-action="edit-selected-text"
+              data-tpdf-action="edit-selected-text"
               aria-label="Edit selected PDF text"
               title="Edit selected PDF text"
               className="absolute right-4 top-4 z-30 rounded-md border border-[var(--acrobat-blue)] bg-white px-3 py-2 text-sm font-semibold text-[var(--acrobat-blue)] shadow-md"
@@ -187,21 +187,21 @@ export function AppWorkspace({
       {showRight ? (
         <button
           type="button"
-          className="opdf-right-panel-backdrop"
-          data-opdf-action="right-panel-backdrop"
+          className="tpdf-right-panel-backdrop"
+          data-tpdf-action="right-panel-backdrop"
           aria-label="Close right panel"
           onClick={() => setIsRightCollapsed(true)}
         />
       ) : null}
       <div
         style={{ gridColumn: 3, display: showRight ? "block" : "none" }}
-        className="opdf-side-panel opdf-side-panel--right relative h-full min-h-0 overflow-hidden"
-        data-opdf-right-sidebar={showRight ? "open" : "closed"}
+        className="tpdf-side-panel tpdf-side-panel--right relative h-full min-h-0 overflow-hidden"
+        data-tpdf-right-sidebar={showRight ? "open" : "closed"}
       >
         <button
           type="button"
-          className="opdf-panel-collapse"
-          data-opdf-action="collapse-right-panel"
+          className="tpdf-panel-collapse"
+          data-tpdf-action="collapse-right-panel"
           onClick={() => setIsRightCollapsed(true)}
           title="Collapse right panel"
         >
@@ -287,7 +287,7 @@ export function AppWorkspace({
         <button
           type="button"
           className="absolute right-0 top-1/2 z-30 flex h-16 w-5 -translate-y-1/2 items-center justify-center rounded-l bg-[var(--acrobat-blue)] text-white"
-          data-opdf-action="expand-right-panel"
+          data-tpdf-action="expand-right-panel"
           onClick={() => setIsRightCollapsed(false)}
           title={state.activeTool === "edit-content" ? "Open advanced edit settings" : "Expand right sidebar"}
         >

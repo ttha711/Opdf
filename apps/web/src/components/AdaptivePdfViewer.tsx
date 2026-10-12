@@ -10,17 +10,17 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   const serverSource = (props.sourceIdentity || "").startsWith("server://");
   const [available, setAvailable] = useState(false);
   const [preference, setPreference] = useState<"auto" | "full" | "remote">(() => {
-    const value = window.localStorage.getItem("opdf-render-mode");
+    const value = window.localStorage.getItem("tpdf-render-mode");
     return value === "full" || value === "remote" ? value : "auto";
   });
 
   useEffect(() => {
-    if (!serverSource || window.__OPDF_RUNTIME__ !== "server") {
+    if (!serverSource || window.__TPDF_RUNTIME__ !== "server") {
       setAvailable(false);
       return;
     }
     const controller = new AbortController();
-    fetch((window.__OPDF_SERVER_BASE__ || "/api/opdf") + "/health", { signal: controller.signal })
+    fetch((window.__TPDF_SERVER_BASE__ || "/api/tpdf") + "/health", { signal: controller.signal })
       .then((response) => response.ok ? response.json() : null)
       .then((value) => { if (!controller.signal.aborted) setAvailable(Boolean(value?.capabilities?.remoteRendering)); })
       .catch(() => { if (!controller.signal.aborted) setAvailable(false); });
@@ -33,7 +33,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   const switchMode = () => {
     const next = remote ? "full" : "remote";
     setPreference(next);
-    window.localStorage.setItem("opdf-render-mode", next);
+    window.localStorage.setItem("tpdf-render-mode", next);
   };
 
   return (
@@ -49,7 +49,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
         </>
       )}
       {serverSource && available && !isEditing ? (
-        <button type="button" data-opdf-action="toggle-remote-render"
+        <button type="button" data-tpdf-action="toggle-remote-render"
           aria-label={remote ? "Use full PDF editor" : "Use lightweight remote rendering"}
           onClick={switchMode}
           style={{

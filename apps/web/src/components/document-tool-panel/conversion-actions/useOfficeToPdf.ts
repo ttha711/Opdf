@@ -1,4 +1,4 @@
-import { isOpdfServerRuntime, useOpdfBridge } from "../../../hooks/useOpdfBridge";
+import { isTpdfServerRuntime, useTpdfBridge } from "../../../hooks/useTpdfBridge";
 import type React from "react";
 
 interface UseOfficeToPdfArgs {
@@ -13,7 +13,7 @@ interface UseOfficeToPdfArgs {
 }
 
 export function useOfficeToPdf(args: UseOfficeToPdfArgs) {
-  const bridge = useOpdfBridge();
+  const bridge = useTpdfBridge();
   const {
     activeToolId,
     officePageSize,
@@ -48,8 +48,8 @@ export function useOfficeToPdf(args: UseOfficeToPdfArgs) {
       const isImage = ["image/png", "image/jpeg"].includes(file.type) || /\.(png|jpe?g)$/i.test(file.name);
 
       if (!isTxt && !isImage) {
-        if (!isOpdfServerRuntime() || !bridge.convertOfficeToPdf) {
-          throw new Error("Office → PDF requires OPDF Server with LibreOffice installed.");
+        if (!isTpdfServerRuntime() || !bridge.convertOfficeToPdf) {
+          throw new Error("Office → PDF requires TPDF Server with LibreOffice installed.");
         }
         setViewerError("Converting Office document with LibreOffice...");
         const output = await bridge.convertOfficeToPdf(new Uint8Array(await file.arrayBuffer()), file.name);

@@ -153,7 +153,7 @@ export function PdfDrawingWorkspace({ getDocumentBytes, fileName, onClose }: {
   const section="rounded border border-[var(--border-color)] p-2";
   const control="rounded border border-[var(--border-color)] bg-[var(--bg-panel)] px-2 py-1 text-xs";
   return (
-    <div role="dialog" aria-modal="true" aria-label="Drawing layers and CAD snap" data-opdf-drawing-workspace="true"
+    <div role="dialog" aria-modal="true" aria-label="Drawing layers and CAD snap" data-tpdf-drawing-workspace="true"
       className="fixed inset-0 z-[9995] flex flex-col bg-[var(--bg-panel)] text-[var(--text-primary)]">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-color)] px-4 py-2">
         <div><h2 className="text-base font-bold">Drawing layers & CAD snap</h2>
@@ -179,7 +179,7 @@ export function PdfDrawingWorkspace({ getDocumentBytes, fileName, onClose }: {
             </div>
             <div className="max-h-44 space-y-1 overflow-auto">
               {layers.map(layer=><label key={layer.id} className="flex items-center gap-2">
-                <input type="checkbox" data-opdf-ocg={layer.id} checked={layer.visible}
+                <input type="checkbox" data-tpdf-ocg={layer.id} checked={layer.visible}
                   onChange={e=>toggle(layer.id,e.target.checked)}/>
                 <span className="min-w-0 break-all">{layer.name}</span>
               </label>)}
@@ -225,7 +225,7 @@ export function PdfDrawingWorkspace({ getDocumentBytes, fileName, onClose }: {
           {busy&&<p role="status">Loading drawing layers and vectors…</p>}
           {error&&<p role="alert" className="p-2 text-red-600">{error}</p>}
           {viewport&&<div className="relative mx-auto bg-white shadow-lg" style={{width:viewport.width,height:viewport.height}}>
-            <canvas ref={canvas} data-opdf-layer-canvas="true" aria-label="Live layered PDF drawing"/>
+            <canvas ref={canvas} data-tpdf-layer-canvas="true" aria-label="Live layered PDF drawing"/>
             <CadSnapOverlay key={index+"-"+mode} viewport={viewport} segments={displaySegments}
               ready={segments.length>0} active={snap} snapping={snapping} options={options} tolerance={tolerance}
               mode={mode} mmPerPoint={mmPerPoint} unit={unit} onLength={setLastLength}/>

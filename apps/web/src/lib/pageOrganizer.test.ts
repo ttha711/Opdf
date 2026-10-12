@@ -1,6 +1,6 @@
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it, vi } from "vitest";
-import { createMockBridge } from "../hooks/opdf-bridge/mockBridge";
+import { createMockBridge } from "../hooks/tpdf-bridge/mockBridge";
 import { applyPagePlan, moveSelectedPages, validatePagePlan } from "./pageOrganizer";
 
 async function fixture() {
@@ -24,7 +24,7 @@ describe("Page Organizer draft", () => {
     expect(() => validatePagePlan({order:[1,2,3],removed:[],rotations:{2:42}},3)).toThrow();
   });
 
-  it("applies page ordering, deletion and rotation with existing OPDF bridge", async () => {
+  it("applies page ordering, deletion and rotation with existing TPDF bridge", async () => {
     const bridge = createMockBridge();
     const bytes = await fixture();
     const result = await applyPagePlan(bytes, {

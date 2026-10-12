@@ -32,5 +32,5 @@ export function htmlToBlocks(html: string): EditorBlock[] {
 
 export function blocksToHtml(blocks: EditorBlock[]): string {
   const body = blocks.map((b) => b.html).join("\n");
-  return `<!doctype html><html><head><meta charset="UTF-8"><title>OPDF Live Editor</title></head><body>${body}</body></html>`;
+  return `<!doctype html><html><head><meta charset="UTF-8"><title>TPDF Live Editor</title></head><body>${body}</body></html>`;
 }

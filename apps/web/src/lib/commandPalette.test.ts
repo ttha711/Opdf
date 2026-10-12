@@ -30,7 +30,7 @@ describe("PDF command palette registry", () => {
   it("does not expose full-access panels in the public viewer", () => {
     const protect = PALETTE_COMMANDS.find(command => command.id === "protect")!;
     const note = PALETTE_COMMANDS.find(command => command.id === "note")!;
-    expect(paletteUnavailableReason(protect, true, true)).toContain("OPDF Server");
+    expect(paletteUnavailableReason(protect, true, true)).toContain("TPDF Server");
     expect(paletteUnavailableReason(note, true, true)).toBeNull();
   });
 });

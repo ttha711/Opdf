@@ -27,19 +27,19 @@ async function waitForHealth() {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`${BASE}/api/opdf/health`);
+      const response = await fetch(`${BASE}/api/tpdf/health`);
       if (response.ok) return response.json();
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error("OPDF Server did not become healthy.");
+  throw new Error("TPDF Server did not become healthy.");
 }
 
 function uploadPdf(filePath, name) {
   return new Promise((resolve, reject) => {
     const input = createReadStream(filePath);
     const request = http.request(
-      `${BASE}/api/opdf/documents?name=${encodeURIComponent(name)}`,
+      `${BASE}/api/tpdf/documents?name=${encodeURIComponent(name)}`,
       { method: "POST", headers: { "content-type": "application/pdf" } },
       (response) => {
         const chunks = [];
@@ -61,7 +61,7 @@ function uploadPdf(filePath, name) {
 }
 
 async function assertRange(id, header, expectedLength, expectedTotal, label) {
-  const response = await fetch(`${BASE}/api/opdf/documents/${id}`, {
+  const response = await fetch(`${BASE}/api/tpdf/documents/${id}`, {
     headers: { Range: header },
   });
   assert(response.status === 206, `${label}: expected HTTP 206, got ${response.status}`);
@@ -72,16 +72,16 @@ async function assertRange(id, header, expectedLength, expectedTotal, label) {
   return bytes;
 }
 
-const workDir = await mkdtemp(join(tmpdir(), "opdf-large-server-"));
+const workDir = await mkdtemp(join(tmpdir(), "tpdf-large-server-"));
 const dataDir = join(workDir, "data");
-const server = spawn(process.execPath, ["server/opdf-server.mjs"], {
+const server = spawn(process.execPath, ["server/tpdf-server.mjs"], {
   cwd: process.cwd(),
   env: {
     ...process.env,
-    OPDF_PORT: String(PORT),
-    OPDF_HOST: HOST,
-    OPDF_DATA_DIR: dataDir,
-    OPDF_MAX_UPLOAD_BYTES: String(600 * MiB),
+    TPDF_PORT: String(PORT),
+    TPDF_HOST: HOST,
+    TPDF_DATA_DIR: dataDir,
+    TPDF_MAX_UPLOAD_BYTES: String(600 * MiB),
   },
   stdio: ["ignore", "pipe", "pipe"],
   windowsHide: true,
@@ -119,7 +119,7 @@ try {
     const tail = await assertRange(uploaded.id, `bytes=${tailStart}-${info.size - 1}`, tailLength, info.size, `${targetMb} MB tail range`);
     assert(tail.includes(Buffer.from("startxref")), `${targetMb} MB tail range does not contain startxref`);
 
-    const stored = await fetch(`${BASE}/api/opdf/documents/${uploaded.id}`, { headers: { Range: "bytes=0-4" } });
+    const stored = await fetch(`${BASE}/api/tpdf/documents/${uploaded.id}`, { headers: { Range: "bytes=0-4" } });
     assert(stored.status === 206, `${targetMb} MB persisted document is not range-readable`);
 
     await rm(filePath, { force: true });

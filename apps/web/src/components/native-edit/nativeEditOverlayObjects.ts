@@ -1,4 +1,4 @@
-import type { PdfContentObject } from "@opdf/core";
+import type { PdfContentObject } from "@tpdf/core";
 
 // Keep the DOM bounded on complex CAD plans while preserving hit targets
 // across the entire sheet, not simply the first 500 objects in PDF order.

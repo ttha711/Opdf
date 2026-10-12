@@ -30,10 +30,10 @@ describe("advanced PDF tools", () => {
     const fields = await inspectFormFields(source);
     expect(fields.map((field) => field.name)).toEqual(["name", "approved"]);
 
-    const filled = await fillFormFields(source, { name: "OPDF", approved: true });
+    const filled = await fillFormFields(source, { name: "TPDF", approved: true });
     const loaded = await PDFDocument.load(filled);
     const loadedForm = loaded.getForm();
-    expect((loadedForm.getTextField("name") as PDFTextField).getText()).toBe("OPDF");
+    expect((loadedForm.getTextField("name") as PDFTextField).getText()).toBe("TPDF");
     expect((loadedForm.getCheckBox("approved") as PDFCheckBox).isChecked()).toBe(true);
   });
 

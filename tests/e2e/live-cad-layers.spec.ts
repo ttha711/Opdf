@@ -68,6 +68,6 @@ test("toggle real PDF OCG pixels and snap to CAD vector endpoints",async({page})
   await expect(workspace.locator('[data-opdf-cad-overlay] text').filter({hasText:"endpoint"})).toBeVisible();
   await page.mouse.click(rect!.x+24,rect!.y+180);
   await page.mouse.click(rect!.x+78,rect!.y+180);
-  await expect(workspace.locator('[data-opdf-cad-overlay] circle')).toHaveCount(2);
+  await expect(workspace.locator('[data-opdf-cad-overlay] circle[fill="#e11d48"]')).toHaveCount(2);
   await expect(workspace.locator('[data-opdf-cad-overlay]')).toContainText("0.021 m");
 });

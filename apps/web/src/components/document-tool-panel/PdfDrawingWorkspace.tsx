@@ -8,7 +8,7 @@ import { CadSnapOverlay } from "./CadSnapOverlay";
 GlobalWorkerOptions.workerSrc = workerSrc;
 type Layer = { id: string; name: string; visible: boolean };
 type Config = {
-  getGroups: () => Record<string, { name?: string; locked?: boolean }> | null;
+  getGroups: () => Record<string, { name?: string; locked?: boolean; visible: boolean }> | null;
   isVisible: (group: {id:string}) => boolean;
   setVisibility: (id:string, visible:boolean, preserveRB?:boolean) => void;
 };
@@ -63,7 +63,7 @@ export function PdfDrawingWorkspace({ getDocumentBytes, fileName, onClose }: {
         if (cancelled) return;
         const groups=ocg.getGroups() ?? {};
         setLayers(Object.entries(groups).map(([id,group]) => ({
-          id, name:group.name || "Unnamed layer", visible:Boolean(ocg.isVisible({id})),
+          id, name:group.name || "Unnamed layer", visible:Boolean(group.visible),
         })));
         setConfig(ocg);
         setPdf(loaded);
@@ -136,13 +136,13 @@ export function PdfDrawingWorkspace({ getDocumentBytes, fileName, onClose }: {
     config.setVisibility(id,visible);
     const groups=config.getGroups()??{};
     setLayers(Object.entries(groups).map(([groupId,group])=>({
-      id:groupId,name:group.name||"Unnamed layer",visible:Boolean(config.isVisible({id:groupId})),
+      id:groupId,name:group.name||"Unnamed layer",visible:Boolean(group.visible),
     })));
     setRevision(value=>value+1);
   };
   const setAll=(visible:boolean)=>{for(const layer of layers)config?.setVisibility(layer.id,visible);if(config){
     const groups=config.getGroups()??{};
-    setLayers(Object.entries(groups).map(([id,group])=>({id,name:group.name||"Unnamed layer",visible:Boolean(config.isVisible({id}))})));
+    setLayers(Object.entries(groups).map(([id,group])=>({id,name:group.name||"Unnamed layer",visible:Boolean(group.visible)})));
     setRevision(v=>v+1);
   }};
   const calibrate=()=>{

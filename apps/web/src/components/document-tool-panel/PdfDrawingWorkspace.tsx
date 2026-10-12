@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy, type PDFPageProxy } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
-import { calibrateMmPerPdfPoint, formatMillimeters, presetMmPerPdfPoint } from "../../lib/measurement";
+import { calibrateMmPerPdfPoint, presetMmPerPdfPoint } from "../../lib/measurement";
 import { extractPdfPathSegments, type Segment, type SnapOptions } from "../../lib/cadVectorSnap";
 import { CadSnapOverlay } from "./CadSnapOverlay";
 

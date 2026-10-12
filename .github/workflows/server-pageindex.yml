@@ -1,0 +1,25 @@
+name: Server PageIndex
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/tpdf-pageindex*'
+      - 'server/workers/pageindex_worker.py'
+      - 'server/tpdf-server.mjs'
+      - '.github/workflows/server-pageindex.yml'
+  workflow_dispatch:
+jobs:
+  pageindex-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check server/tpdf-pageindex.mjs
+      - run: node --check server/tpdf-server.mjs
+      - run: node --test server/tpdf-pageindex.smoke.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m py_compile server/workers/pageindex_worker.py

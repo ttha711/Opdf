@@ -41,7 +41,7 @@ jobs:
       - name: Fetch and verify pinned PDFs from original sources
         run: node scripts/fixtures/fetch-real-cad-pdfs.mjs
         env:
-          OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures
+          TPDF_REAL_CAD_FIXTURES_DIR: .tpdf-cad-fixtures
       - run: npx playwright install chromium --with-deps
       - name: Test native PDF editor on real vector engineering plans
         shell: bash
@@ -58,4 +58,4 @@ jobs:
           done
         env:
           CI: 'true'
-          OPDF_REAL_CAD_FIXTURES_DIR: .opdf-cad-fixtures
+          TPDF_REAL_CAD_FIXTURES_DIR: .tpdf-cad-fixtures

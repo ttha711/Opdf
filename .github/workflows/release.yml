@@ -20,7 +20,7 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm run typecheck
-      - run: npm run test -w @opdf/web
+      - run: npm run test -w @tpdf/web
       - run: npm run build
       - run: npm run server-smoke
       - run: npm run backup-smoke
@@ -47,7 +47,7 @@ jobs:
       - name: Install LibreOffice
         shell: powershell
         run: choco install libreoffice-fresh -y --no-progress
-      - name: Build OPDF Server
+      - name: Build TPDF Server
         run: npm run server-build
       - name: Verify Word Excel PowerPoint to PDF
         shell: powershell
@@ -56,7 +56,7 @@ jobs:
           if (-not (Test-Path $soffice)) {
             throw "LibreOffice soffice.exe was not found at $soffice"
           }
-          $env:OPDF_LIBREOFFICE_PATH = $soffice
+          $env:TPDF_LIBREOFFICE_PATH = $soffice
           node scripts/office-conversion-smoke.mjs
 
   hot-update:
@@ -69,8 +69,8 @@ jobs:
           node-version: "22"
           cache: "npm"
       - run: npm ci
-      - run: npm run build -w @opdf/core
-      - run: npm run build -w @opdf/web
+      - run: npm run build -w @tpdf/core
+      - run: npm run build -w @tpdf/web
       - name: Build hot-update bundle and manifest
         shell: bash
         run: |
@@ -95,13 +95,13 @@ jobs:
                 version,
                 url: "./web.zip",
                 sha256,
-                description: "OPDF web hot-update bundle."
+                description: "TPDF web hot-update bundle."
               }, null, 2) + "\n"
             );
           ' "$VERSION" "$SHA256"
       - uses: actions/upload-artifact@v4
         with:
-          name: opdf-hot-update
+          name: tpdf-hot-update
           path: hot-update/*
           if-no-files-found: error
           retention-days: 14
@@ -149,7 +149,7 @@ jobs:
       - run: npm run desktop-package
       - uses: actions/upload-artifact@v4
         with:
-          name: opdf-${{ matrix.artifact }}
+          name: tpdf-${{ matrix.artifact }}
           path: ${{ matrix.package_glob }}
           if-no-files-found: error
           retention-days: 14
@@ -161,7 +161,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: opdf-*
+          pattern: tpdf-*
           path: release-assets
           merge-multiple: true
       - name: Publish GitHub Release

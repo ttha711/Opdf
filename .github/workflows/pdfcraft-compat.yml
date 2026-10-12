@@ -4,8 +4,8 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "server/opdf-pdfcraft-adapter.mjs"
-      - "server/opdf-server.mjs"
+      - "server/tpdf-pdfcraft-adapter.mjs"
+      - "server/tpdf-server.mjs"
       - "tests/cli/pdfcraft-adapter.test.mjs"
       - "scripts/pdfcraft-integration-smoke.mjs"
       - ".github/workflows/pdfcraft-compat.yml"
@@ -42,5 +42,5 @@ jobs:
         run: node --test tests/cli/pdfcraft-adapter.test.mjs
       - name: Test real PdfCraft CLI against generated PDF
         env:
-          OPDF_PDFCRAFT_BIN: ${{ github.workspace }}/pdfcraft-upstream/target/release/pdfcraft-cli
+          TPDF_PDFCRAFT_BIN: ${{ github.workspace }}/pdfcraft-upstream/target/release/pdfcraft-cli
         run: node scripts/pdfcraft-integration-smoke.mjs

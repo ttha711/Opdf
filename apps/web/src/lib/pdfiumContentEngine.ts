@@ -42,6 +42,11 @@ async function getPdfium(): Promise<PdfiumModule> {
   return pdfiumPromise;
 }
 
+/** Initialize PDFium while the document is being read, before text editing is requested. */
+export async function preloadPdfiumContentEditingEngine(): Promise<void> {
+  await getPdfium();
+}
+
 function malloc(module: PdfiumModule, bytes: number) {
   return module.pdfium.wasmExports.malloc(bytes);
 }

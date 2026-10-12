@@ -25,6 +25,33 @@ import {
   matrixIsIdentity,
   type NativeEditDragState,
 } from "./nativeEditPointerTransform";
+
+function findTextObjectAtPoint(objects: PdfContentObject[], x: number, y: number) {
+  const pageWidth = objects[0]?.pageWidth;
+  const pageHeight = objects[0]?.pageHeight;
+  if (!pageWidth || !pageHeight) return null;
+  const point = { x: x * pageWidth, y: (1 - y) * pageHeight };
+  const tolerance = Math.max(pageWidth, pageHeight) * 0.01;
+  let closest: { object: PdfContentObject; score: number } | null = null;
+
+  for (const object of objects) {
+    if (object.kind !== "text" || !nativeEditObjectIsEditable(object)) continue;
+    const geometry = geometryForObject(object);
+    const dx = point.x - geometry.center.x;
+    const dy = point.y - geometry.center.y;
+    const alongX = Math.abs(dx * geometry.u.x + dy * geometry.u.y);
+    const alongY = Math.abs(dx * geometry.v.x + dy * geometry.v.y);
+    const outsideX = Math.max(0, alongX - geometry.width / 2);
+    const outsideY = Math.max(0, alongY - geometry.height / 2);
+    const distance = Math.hypot(outsideX, outsideY);
+    if (distance > tolerance) continue;
+    const score = distance * 1000 + Math.hypot(dx, dy);
+    if (!closest || score < closest.score) closest = { object, score };
+  }
+
+  return closest?.object ?? null;
+}
+
 type Props = {
   pageIndex: number;
   enabled: boolean;
@@ -62,9 +89,11 @@ export function NativeEditPageOverlay({
         if (cancelled) return;
         setObjects(next);
         const pending = consumeNativeInlineTextEdit(pageIndex);
-        const target = pending ? next.find((item) =>
-          item.kind === "text" && (item.text ?? "").includes(pending.text)
-        ) : null;
+        const target = pending
+          ? "text" in pending
+            ? next.find((item) => item.kind === "text" && (item.text ?? "").includes(pending.text))
+            : findTextObjectAtPoint(next, pending.x, pending.y)
+          : null;
         if (target) {
           setSelectedId(target.id);
           setEditingText(target.text ?? "");

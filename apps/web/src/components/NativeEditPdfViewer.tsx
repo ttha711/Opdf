@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPluginRegistration } from "@embedpdf/core";
 import { EmbedPDF } from "@embedpdf/core/react";
-import { usePdfiumEngine } from "@embedpdf/engines/react";
 import {
   DocumentContent,
   DocumentManagerPluginPackage,
@@ -12,6 +11,7 @@ import { ViewportPluginPackage } from "@embedpdf/plugin-viewport/react";
 import { ZoomMode, ZoomPluginPackage } from "@embedpdf/plugin-zoom/react";
 import type { PdfViewerProps } from "./PdfViewer.types";
 import { getServerDocumentUrl } from "../lib/documentSource";
+import type { NativeEditEngine } from "./native-edit/NativeEditEnginePreloader";
 import { NativeEditDocument } from "./native-edit/NativeEditDocument";
 import { NativeEditDocumentRevisionBridge } from "./native-edit/NativeEditDocumentRevisionBridge";
 import { NativeEditPaintShield } from "./native-edit/NativeEditPaintShield";
@@ -30,8 +30,8 @@ export function NativeEditPdfViewer({
   onError,
   onActivePageChange,
   onViewerScaleChange,
-}: PdfViewerProps) {
-  const { engine, isLoading, error: engineError } = usePdfiumEngine();
+  engine,
+}: PdfViewerProps & { engine: NativeEditEngine }) {
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const initialSourceUrlRef = useRef<string | null>(null);
   const serverUrl = useMemo(
@@ -51,10 +51,6 @@ export function NativeEditPdfViewer({
     setLocalUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [data, sourceBlob]);
-
-  useEffect(() => {
-    if (engineError) onError?.(engineError.message);
-  }, [engineError, onError]);
 
   const sourceUrl = localUrl ?? serverUrl;
   if (!initialSourceUrlRef.current && sourceUrl) {
@@ -89,12 +85,6 @@ export function NativeEditPdfViewer({
 
   if (!sourceUrl || !initialSourceUrl) {
     return <div className="native-edit-error">No PDF source is available for editing.</div>;
-  }
-  if (isLoading || !engine) {
-    return <div className="native-edit-loading">Loading native PDF editor…</div>;
-  }
-  if (engineError) {
-    return <div className="native-edit-error">{engineError.message}</div>;
   }
   if (!getDocumentBytes) {
     return <div className="native-edit-error">Native editor bytes provider is unavailable.</div>;

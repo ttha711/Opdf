@@ -13,13 +13,16 @@ type SelectionListener = (selection: NativeEditSelection) => void;
 type InlineTextEditRequestListener = (request: NativeInlineTextEditRequest) => void;
 type PatchApplier = (patches: PdfContentPatch[], successMessage: string) => Promise<Uint8Array | null>;
 type InlineCommitter = () => Promise<Uint8Array | null>;
+type PendingInlineTextEdit =
+  | { pageIndex: number; text: string }
+  | { pageIndex: number; x: number; y: number };
 
 const selectionListeners = new Set<SelectionListener>();
 const inlineTextEditRequestListeners = new Set<InlineTextEditRequestListener>();
 let currentSelection: NativeEditSelection | null = null;
 let patchApplier: PatchApplier | null = null;
 let inlineCommitter: InlineCommitter | null = null;
-let pendingInlineText: { pageIndex: number; text: string } | null = null;
+let pendingInlineText: PendingInlineTextEdit | null = null;
 
 export function emitNativeEditSelection(selection: NativeEditSelection) {
   currentSelection = selection;
@@ -47,6 +50,10 @@ export function registerNativeEditSelectionListener(listener: SelectionListener)
 
 export function requestNativeInlineTextEdit(pageIndex: number, text: string) {
   pendingInlineText = { pageIndex, text: text.trim() };
+}
+
+export function requestNativeInlineTextEditAtPoint(pageIndex: number, x: number, y: number) {
+  pendingInlineText = { pageIndex, x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
 }
 
 export function consumeNativeInlineTextEdit(pageIndex: number) {

@@ -6,6 +6,11 @@
   background: var(--viewer-bg, #e8eaed);
 }
 
+/* Keep the reader's current page visible while the edit document is opening. */
+.native-edit-surface:has(.native-edit-loading) {
+  background: transparent;
+}
+
 .native-edit-page {
   position: relative;
   background: #fff;

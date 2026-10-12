@@ -73,7 +73,7 @@ test("native Edit PDF edits vector geometry and crops/duplicates images", async 
 
   const editor = page.locator("[data-tpdf-native-editor='true']");
   await expect(editor).toBeVisible();
-  const objectButtons = editor.locator(".native-content-editor__objects button");
+  const objectButtons = editor.locator(".native-content-editor__objects button[data-tpdf-object-kind]");
   await expect(objectButtons.filter({ hasText: "PATH" }).first()).toBeVisible({ timeout: 20_000 });
   await expect(objectButtons.filter({ hasText: "IMAGE" }).first()).toBeVisible({ timeout: 20_000 });
 
@@ -101,8 +101,8 @@ test("native Edit PDF edits vector geometry and crops/duplicates images", async 
   await expandAdvancedEditPanel(page);
 
   const reopened = page.locator("[data-tpdf-native-editor='true']");
-  await expect(reopened.locator(".native-content-editor__objects button").filter({ hasText: "PATH" })).toHaveCount(2, { timeout: 20_000 });
-  await expect(reopened.locator(".native-content-editor__objects button").filter({ hasText: "IMAGE" })).toHaveCount(2, { timeout: 20_000 });
+  await expect(reopened.locator(".native-content-editor__objects button[data-tpdf-object-kind='path']")).toHaveCount(2, { timeout: 20_000 });
+  await expect(reopened.locator(".native-content-editor__objects button[data-tpdf-object-kind='image']")).toHaveCount(2, { timeout: 20_000 });
 });
 
 

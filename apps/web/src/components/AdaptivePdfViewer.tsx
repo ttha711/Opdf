@@ -1,14 +1,19 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { PdfViewerProps } from "./PdfViewer.types";
 import { PdfViewer } from "./PdfViewer";
 import { NativeEditPdfViewer } from "./NativeEditPdfViewer";
+import { NativeEditEnginePreloader, type NativeEditEngine } from "./native-edit/NativeEditEnginePreloader";
 import { RemotePdfViewer } from "./RemotePdfViewer";
+import { preloadPdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 
 // Keep the existing fast local PDFium viewer untouched on desktop.
 export function AdaptivePdfViewer(props: PdfViewerProps) {
   const isEditing = props.activeTool === "edit-content";
   const serverSource = (props.sourceIdentity || "").startsWith("server://");
   const [available, setAvailable] = useState(false);
+  const [hasOpenedDocument, setHasOpenedDocument] = useState(false);
+  const [nativeEditEngine, setNativeEditEngine] = useState<NativeEditEngine | null>(null);
+  const [nativeEditEngineError, setNativeEditEngineError] = useState<Error | null>(null);
   const [preference, setPreference] = useState<"auto" | "full" | "remote">(() => {
     const value = window.localStorage.getItem("tpdf-render-mode");
     return value === "full" || value === "remote" ? value : "auto";
@@ -27,6 +32,33 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
     return () => controller.abort();
   }, [serverSource]);
 
+  const handleViewerReady = useCallback(() => {
+    setHasOpenedDocument(true);
+    props.onViewerReady?.();
+  }, [props.onViewerReady]);
+
+  useEffect(() => {
+    if (!hasOpenedDocument) return;
+    let timer: number | null = null;
+    let idleId: number | null = null;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const preload = () => {
+      void preloadPdfiumContentEditingEngine().catch(() => undefined);
+    };
+    if (idleWindow.requestIdleCallback) {
+      idleId = idleWindow.requestIdleCallback(preload, { timeout: 1500 });
+    } else {
+      timer = window.setTimeout(preload, 0);
+    }
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      if (idleId !== null) idleWindow.cancelIdleCallback?.(idleId);
+    };
+  }, [hasOpenedDocument]);
+
   const mobile = window.matchMedia("(max-width: 800px)").matches;
   const remote = !isEditing && serverSource && available && (preference === "remote" || (preference === "auto" && mobile));
 
@@ -41,11 +73,25 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
       {remote ? <RemotePdfViewer {...props} /> : (
         <>
           <div className="absolute inset-0"
-            style={{ visibility: isEditing ? "hidden" : "visible", pointerEvents: isEditing ? "none" : "auto" }}
+            style={{ visibility: "visible", pointerEvents: isEditing ? "none" : "auto" }}
             aria-hidden={isEditing}>
-            <PdfViewer {...props} />
+            <PdfViewer {...props} onViewerReady={handleViewerReady} />
           </div>
-          {isEditing ? <div className="absolute inset-0"><NativeEditPdfViewer {...props} /></div> : null}
+          {hasOpenedDocument ? <NativeEditEnginePreloader
+            onEngineReady={setNativeEditEngine}
+            onError={setNativeEditEngineError}
+          /> : null}
+          {isEditing ? (
+            <div className="absolute inset-0">
+              {nativeEditEngine ? (
+                <NativeEditPdfViewer {...props} engine={nativeEditEngine} />
+              ) : nativeEditEngineError ? (
+                <div className="native-edit-error" role="alert">{nativeEditEngineError.message}</div>
+              ) : (
+                <div className="native-edit-loading" style={{ background: "transparent" }}>Loading native PDF editor…</div>
+              )}
+            </div>
+          ) : null}
         </>
       )}
       {serverSource && available && !isEditing ? (

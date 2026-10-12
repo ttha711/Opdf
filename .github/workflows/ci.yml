@@ -49,7 +49,6 @@ jobs:
         run: npm run server-reliability
       - if: github.event_name == 'push'
         run: npm run backup-smoke
-      - if: github.event_name == 'push'
       - if: github.event_name == 'pull_request'
         run: npm run build -w @tpdf/desktop
       - run: node apps/desktop/dist/main/storage-migration.smoke.js

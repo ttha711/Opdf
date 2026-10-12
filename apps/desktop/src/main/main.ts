@@ -1,3 +1,4 @@
+// tpdf-file-size-allow: legacy Electron IPC/bootstrap coordinator; the rename adds only guarded startup data migration, and extracting all existing IPC handlers is a separate refactor.
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { extname, join, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -7,6 +8,7 @@ import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { inspectP12Certificate, inspectPdfSignatures, signPdfWithP12, type P12SignOptions } from "./pdf-signature.js";
+import { migrateDesktopStorage } from "./storage-migration.js";
 import {
   AnnotationService,
   DocumentService,
@@ -992,7 +994,13 @@ if (remoteDebugPort) {
   app.commandLine.appendSwitch("remote-debugging-port", remoteDebugPort);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  try {
+    const migration = await migrateDesktopStorage(homedir());
+    if (migration === "migrated") console.info("TPDF desktop settings copied from legacy profile.");
+  } catch (error) {
+    console.error("TPDF could not migrate existing desktop settings:", error);
+  }
   void loadDeviceAuthState().finally(() => {
     if (getAiGatewayBaseUrl()) {
       void ensureDeviceToken().catch(() => {

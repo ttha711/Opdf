@@ -18,6 +18,7 @@ const ALL_TOOL_IDS = [
   "compress-pdf",
   "merge-pdf",
   "split-pdf",
+  "drawing-workspace",
   "organize-pages",
   "rotate-pdf",
   "delete-pages",
@@ -125,6 +126,7 @@ test("All Tools dashboard exposes the complete 28-tool contract", async ({ page 
 const PANEL_TOOL_IDS = [
   "pdf-to-png",
   "pdf-to-jpeg",
+  "drawing-workspace",
   "organize-pages",
   "merge-pdf",
   "split-pdf",

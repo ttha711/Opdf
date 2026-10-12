@@ -11,6 +11,7 @@ import { useConversionActions } from "./document-tool-panel/useConversionActions
 import { BasicPdfToolsPanel } from "./document-tool-panel/BasicPdfToolsPanel";
 import { DocumentHealthPanel } from "./document-tool-panel/DocumentHealthPanel";
 import { PageOrganizer } from "./document-tool-panel/PageOrganizer";
+import { PdfDrawingWorkspace } from "./document-tool-panel/PdfDrawingWorkspace";
 
 export function DocumentToolPanel({
   activeToolId,
@@ -30,6 +31,7 @@ export function DocumentToolPanel({
 }: DocumentToolPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [organizerOpen, setOrganizerOpen] = useState(false);
+  const [drawingWorkspaceOpen, setDrawingWorkspaceOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [imgFormat, setImgFormat] = useState<"png" | "jpg">("png");
@@ -311,11 +313,13 @@ export function DocumentToolPanel({
           />
         ) : null}
 
+        {activeToolId === "drawing-workspace" && <button type="button" data-opdf-action="open-drawing-workspace" onClick={() => setDrawingWorkspaceOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open drawing workspace</button>}
         {activeToolId === "organize-pages" && <button type="button" data-opdf-action="open-page-organizer" title="Organize all pages" onClick={() => setOrganizerOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open page grid</button>}
         {activeToolId === "fill-form" && <FillFormPanel />}
         {activeToolId === "document-health" && <DocumentHealthPanel sourceIdentity={sourceIdentity} />}
       </div>
 
+      {activeToolId === "drawing-workspace" && drawingWorkspaceOpen && <PdfDrawingWorkspace fileName={fileName} getDocumentBytes={getDocumentBytes} onClose={() => setDrawingWorkspaceOpen(false)} />}
       {activeToolId === "organize-pages" && organizerOpen && <PageOrganizer totalPages={totalPages} fileName={fileName} getDocumentBytes={getDocumentBytes} bridge={bridge} replaceDocumentBytes={replaceDocumentBytes} onClose={() => setOrganizerOpen(false)} />}
       <div className="absolute bottom-6 left-4 right-4 p-2.5 rounded bg-[var(--ui-muted-bg)] border border-[var(--border-color)] text-[10px] text-[var(--text-secondary)] leading-normal flex gap-2 items-start">
         <span className="text-[12px] relative top-px">🔒</span>

@@ -1,3 +1,4 @@
+// tpdf-file-size-allow: legacy Electron IPC/bootstrap coordinator; the rename adds only guarded startup data migration, and extracting all existing IPC handlers is a separate refactor.
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { extname, join, resolve } from "node:path";
 import { homedir } from "node:os";

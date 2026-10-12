@@ -79,11 +79,15 @@ const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 export function snapToVector(segments: Segment[], near: Point, tolerance: number, options: SnapOptions): SnapHit | null {
   if (!Number.isFinite(tolerance) || tolerance <= 0 || segments.length === 0) return null;
   let best: SnapHit | null = null;
+  const penalty: Record<SnapKind, number> = {
+    endpoint: 0, intersection: 0, midpoint: tolerance * 0.2, path: tolerance * 0.75,
+  };
   const offer = (point: Point, kind: SnapKind) => {
     const d = distance(near, point);
-    const priority = { endpoint: 0, intersection: 1, midpoint: 2, path: 3 }[kind];
-    if (d <= tolerance && (!best || d < best.distance - 0.001 ||
-      (Math.abs(d - best.distance) <= 0.001 && priority < { endpoint: 0, intersection: 1, midpoint: 2, path: 3 }[best.kind])))
+    const score = d + penalty[kind];
+    const bestScore = best ? best.distance + penalty[best.kind] : Infinity;
+    if (d <= tolerance && (score < bestScore - 0.001 ||
+      (Math.abs(score - bestScore) <= 0.001 && kind === "endpoint")))
       best = { point, kind, distance: d };
   };
   const nearby = segments.filter(({a,b}) =>

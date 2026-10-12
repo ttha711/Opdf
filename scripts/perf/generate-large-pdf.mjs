@@ -10,7 +10,7 @@ function readArg(name, fallback) {
 
 const targetMb = Math.max(1, Number(readArg("mb", "250")));
 const pageCount = Math.max(1, Number(readArg("pages", "300")));
-const outPath = resolve(readArg("out", `tmp/tpdf-stress-${targetMb}mb-${pageCount}pages.pdf`));
+const outPath = resolve(readArg("out", `.tpdf-cad-fixtures/tpdf-stress-${targetMb}mb-${pageCount}pages.pdf`));
 const targetBytes = Math.floor(targetMb * 1024 * 1024);
 
 const doc = await PDFDocument.create();

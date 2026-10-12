@@ -38,7 +38,16 @@ export function NativeEditDocumentRevisionBridge({
       const previousId = documentManager.getActiveDocumentId();
       const documentId = `${baseDocumentId}-r${sequenceRef.current++}`;
 
-      if (data) {
+      // After an edit, NativeEditPdfViewer already exposes the updated bytes as
+      // a Blob URL. Reopen that URL instead of slicing another full-sized
+      // ArrayBuffer for large PDFs.
+      if (data && sourceUrl.startsWith("blob:")) {
+        await documentManager.openDocumentUrl({
+          url: sourceUrl,
+          documentId,
+          autoActivate: false,
+        }).toPromise();
+      } else if (data) {
         await documentManager.openDocumentBuffer({
           buffer: exactArrayBuffer(data),
           name: "edited.pdf",

@@ -839,7 +839,9 @@ function saveDocument(module: PdfiumModule, docPtr: number): Uint8Array {
     try {
       const copied = module.PDFiumExt_GetFileWriterData(writer, ptr, size);
       if (!copied) throw new Error("PDFium failed to copy edited PDF bytes.");
-      return new Uint8Array(module.pdfium.HEAPU8.slice(ptr, ptr + size));
+      // HEAPU8.slice already returns an owned copy. Wrapping it in another
+      // Uint8Array copied the entire edited PDF a second time.
+      return module.pdfium.HEAPU8.slice(ptr, ptr + size);
     } finally {
       free(module, ptr);
     }

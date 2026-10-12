@@ -4,7 +4,10 @@ import { PdfViewer } from "./PdfViewer";
 import { NativeEditPdfViewer } from "./NativeEditPdfViewer";
 import { NativeEditEnginePreloader, type NativeEditEngine } from "./native-edit/NativeEditEnginePreloader";
 import { RemotePdfViewer } from "./RemotePdfViewer";
+import { getServerDocumentUrl } from "../lib/documentSource";
 import { preloadPdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
+
+const LARGE_DOCUMENT_BYTES = 100 * 1024 * 1024;
 
 // Keep the existing fast local PDFium viewer untouched on desktop.
 export function AdaptivePdfViewer(props: PdfViewerProps) {
@@ -12,12 +15,48 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   const serverSource = (props.sourceIdentity || "").startsWith("server://");
   const [available, setAvailable] = useState(false);
   const [hasOpenedDocument, setHasOpenedDocument] = useState(false);
+  const [documentSizeBytes, setDocumentSizeBytes] = useState<number | null>(null);
   const [nativeEditEngine, setNativeEditEngine] = useState<NativeEditEngine | null>(null);
   const [nativeEditEngineError, setNativeEditEngineError] = useState<Error | null>(null);
   const [preference, setPreference] = useState<"auto" | "full" | "remote">(() => {
     const value = window.localStorage.getItem("tpdf-render-mode");
     return value === "full" || value === "remote" ? value : "auto";
   });
+
+  useEffect(() => {
+    const localSize = props.sourceBlob?.size ?? props.data?.byteLength ?? null;
+    if (localSize !== null) {
+      setDocumentSizeBytes(localSize);
+      return;
+    }
+    const documentUrl = getServerDocumentUrl(props.sourceIdentity || "");
+    if (!documentUrl) {
+      setDocumentSizeBytes(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setDocumentSizeBytes(null);
+    fetch(documentUrl, { method: "HEAD", signal: controller.signal })
+      .then((response) => {
+        const size = Number(response.headers.get("content-length"));
+        if (response.ok && Number.isFinite(size) && size > 0 && !controller.signal.aborted) {
+          setDocumentSizeBytes(size);
+        }
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [props.data, props.sourceBlob, props.sourceIdentity]);
+
+  const shouldPreloadEditEngines = hasOpenedDocument && (
+    isEditing || (documentSizeBytes !== null && documentSizeBytes < LARGE_DOCUMENT_BYTES)
+  );
+
+  useEffect(() => {
+    if (shouldPreloadEditEngines) return;
+    setNativeEditEngine(null);
+    setNativeEditEngineError(null);
+  }, [shouldPreloadEditEngines]);
 
   useEffect(() => {
     if (!serverSource || window.__TPDF_RUNTIME__ !== "server") {
@@ -38,7 +77,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   }, [props.onViewerReady]);
 
   useEffect(() => {
-    if (!hasOpenedDocument) return;
+    if (!shouldPreloadEditEngines) return;
     let timer: number | null = null;
     let idleId: number | null = null;
     const idleWindow = window as Window & {
@@ -57,7 +96,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
       if (timer !== null) window.clearTimeout(timer);
       if (idleId !== null) idleWindow.cancelIdleCallback?.(idleId);
     };
-  }, [hasOpenedDocument]);
+  }, [shouldPreloadEditEngines]);
 
   const mobile = window.matchMedia("(max-width: 800px)").matches;
   const remote = !isEditing && serverSource && available && (preference === "remote" || (preference === "auto" && mobile));
@@ -77,7 +116,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
             aria-hidden={isEditing}>
             <PdfViewer {...props} onViewerReady={handleViewerReady} />
           </div>
-          {hasOpenedDocument ? <NativeEditEnginePreloader
+          {shouldPreloadEditEngines ? <NativeEditEnginePreloader
             onEngineReady={setNativeEditEngine}
             onError={setNativeEditEngineError}
           /> : null}

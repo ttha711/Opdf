@@ -24,6 +24,7 @@ export const PALETTE_COMMANDS: PaletteCommand[] = [
   { id: "redact", title: "Redaction tool", group: "Review", icon: "redact", keywords: "blackout mask", requiresDocument: true, tool: "redact-tool" },
   { id: "signature", title: "Draw signature", group: "Review", icon: "signature", keywords: "handwritten annotate", requiresDocument: true, tool: "signature-tool" },
   { id: "tools", title: "All tools", group: "Document", icon: "tools", keywords: "dashboard browse catalog", needsFullAccess: true, tool: "open-tools-dashboard" },
+  { id: "drawing", title: "Drawing layers and CAD snap", group: "Editing", icon: "page", keywords: "ocg cad layers on off visible hidden vector snap endpoint midpoint measure drawing", requiresDocument: true, needsFullAccess: true, tool: "open-tool-panel", toolId: "drawing-workspace" },
   { id: "organize", title: "Organize pages", group: "Pages", icon: "page", keywords: "grid reorder thumbnails drag arrange", requiresDocument: true, needsFullAccess: true, tool: "open-tool-panel", toolId: "organize-pages" },
   { id: "rotate", title: "Rotate pages", group: "Pages", icon: "rotate-right", keywords: "turn orientation", requiresDocument: true, needsFullAccess: true, tool: "open-tool-panel", toolId: "rotate-pdf" },
   { id: "split", title: "Split PDF", group: "Pages", icon: "split", keywords: "divide", requiresDocument: true, needsFullAccess: true, tool: "open-tool-panel", toolId: "split-pdf" },

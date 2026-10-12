@@ -40,7 +40,7 @@ export function PdfDrawingWorkspace({ getDocumentBytes, fileName, onClose }: {
   const [lastLength, setLastLength] = useState(0);
   const [knownDistance, setKnownDistance] = useState("");
   const canvas = useRef<HTMLCanvasElement|null>(null);
-  const currentViewport = useMemo(() => page?.getViewport({scale:zoom,rotation}) ?? null,[page,zoom,rotation]);
+  const currentViewport = useMemo(() => page?.getViewport({scale:zoom,rotation:(page.rotate+rotation)%360}) ?? null,[page,zoom,rotation]);
   const mmPerPoint = calibration ?? presetMmPerPdfPoint(drawingScale);
   const hidden = layers.some(layer => !layer.visible);
   const snapping = snap && !hidden && segments.length > 0;
@@ -213,7 +213,7 @@ export function PdfDrawingWorkspace({ getDocumentBytes, fileName, onClose }: {
                 <option value="m">m</option><option value="cm">cm</option><option value="mm">mm</option>
               </select>
             </label>
-            <p>Current factor: {formatMillimeters(mmPerPoint,unit)} / PDF point</p>
+            <p>Current factor: {mmPerPoint.toFixed(4)} mm / PDF point</p>
             <label>Known distance ({unit})
               <input className={control+" mt-1 w-full"} type="number" min="0" step="any" value={knownDistance} onChange={e=>setKnownDistance(e.target.value)}/>
             </label>

@@ -15,6 +15,7 @@
     "typecheck": "npm run build --workspace=@tpdf/core && npm run typecheck --workspace=@tpdf/web && npm run typecheck --workspace=@tpdf/desktop && npm run typecheck --workspace=@tpdf/editor",
     "lint": "npm run typecheck",
     "check:english-ui": "node scripts/check-english-ui.mjs",
+    "check:branding": "node scripts/check-branding.mjs",
     "web-dev": "npm run dev --workspace=@tpdf/web",
     "editor-dev": "npm run dev --workspace=@tpdf/editor",
     "editor-build": "npm run build --workspace=@tpdf/editor",

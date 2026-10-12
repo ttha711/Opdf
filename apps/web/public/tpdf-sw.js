@@ -1,4 +1,6 @@
 const CACHE_PREFIX = "tpdf-app-";
+// Retire app-shell caches created before the product rename.
+const LEGACY_CACHE_PREFIX = "opdf-app-";
 const build = new URL(self.location.href).searchParams.get("build") || "unknown";
 const CACHE_NAME = CACHE_PREFIX + build;
 const scopeUrl = new URL(self.registration.scope);
@@ -54,7 +56,7 @@ self.addEventListener("activate", (event) => {
     const names = await caches.keys();
     await Promise.all(
       names
-        .filter((name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
+        .filter((name) => (name.startsWith(LEGACY_CACHE_PREFIX) || name.startsWith(CACHE_PREFIX)) && name !== CACHE_NAME)
         .map((name) => caches.delete(name)),
     );
     await self.clients.claim();

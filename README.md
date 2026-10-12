@@ -57,6 +57,10 @@ Signature inspection is intentionally conservative: it reports structure and cer
 - Platform dependencies required by Electron packaging.
 - LibreOffice/Python are optional and only required by conversion paths that explicitly use them.
 
+## Upgrading existing installations
+
+After the repository rename to [ttha711/Tpdf](https://github.com/ttha711/Tpdf), follow the [upgrade checklist](docs/TPDF_UPGRADE.md) before restarting an existing server. Rename environment-variable keys **without changing existing data storage paths, S3 prefixes, or encryption secrets**. The desktop app copies legacy recent-document and annotation settings on first launch when the new store does not exist.
+
 ## Server / browser runtime
 
 TPDF now supports a server runtime in addition to Electron Desktop. The same `apps/web` UI automatically selects an HTTP bridge when served by TPDF Server.

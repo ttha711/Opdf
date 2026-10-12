@@ -4,8 +4,8 @@ import { snapToVector, type Point, type Segment, type SnapKind, type SnapOptions
 
 export type ViewportMap = {
   width: number; height: number;
-  convertToViewportPoint: (x: number,y: number) => [number,number];
-  convertToPdfPoint: (x: number,y: number) => [number,number];
+  convertToViewportPoint: (x: number,y: number) => number[];
+  convertToPdfPoint: (x: number,y: number) => number[];
 };
 
 export function CadSnapOverlay({

@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PdfViewerProps } from "./PdfViewer.types";
 import { getServerDocumentUrl } from "../lib/documentSource";
+import { RemoteTileLoader } from "../lib/remoteTileLoader";
 
 type PageSize = { width: number; height: number };
 type PageLayout = PageSize & { index: number; top: number; left: number; scale: number };
 type Tile = { key: string; src: string; left: number; top: number; width: number; height: number };
 const TILE = 512;
 const GAP = 18;
+const MAX_MOUNTED_TILES = 96;
+const OVERSCAN_VIEWPORT = 0.35;
 const LEVELS = [0.25, 0.5, 1, 2, 4, 8] as const;
 
 function levelFor(scale: number) {
@@ -42,6 +45,8 @@ export function RemotePdfViewer(props: PdfViewerProps & { onRequestFull?: () => 
   const [pages, setPages] = useState<PageSize[]>([]);
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState("");
+  const [, refreshTiles] = useState(0);
+  const tileLoaderRef = useRef<RemoteTileLoader | null>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [viewport, setViewport] = useState({ width: 360, height: 620 });
   const scroller = useRef<HTMLDivElement>(null);
@@ -104,16 +109,48 @@ export function RemotePdfViewer(props: PdfViewerProps & { onRequestFull?: () => 
 
   const visibleTiles = useMemo(() => {
     if (!base || !layouts.pages.length) return [];
-    const start = position.y - viewport.height;
-    const end = position.y + viewport.height * 2;
-    return layouts.pages.flatMap((layout) => {
-      const top = layout.top;
-      const bottom = top + layout.height * layout.scale;
-      if (bottom < start || top > end) return [];
+    const start = position.y - viewport.height * OVERSCAN_VIEWPORT;
+    const end = position.y + viewport.height * (1 + OVERSCAN_VIEWPORT);
+    const centerX = position.x + viewport.width / 2;
+    const centerY = position.y + viewport.height / 2;
+    const tiles = layouts.pages.flatMap((layout) => {
+      const bottom = layout.top + layout.height * layout.scale;
+      if (bottom < start || layout.top > end) return [];
       return makeTiles(base, layout, levelFor(layout.scale), layout.scale, position, viewport)
-        .map((tile) => ({ ...tile, pageIndex: layout.index, pageLeft: layout.left, pageTop: layout.top }));
-    }).slice(0, 96);
-  }, [base, layouts, position, viewport, zoom]);
+        .map((tile) => {
+          const left = layout.left + tile.left;
+          const top = layout.top + tile.top;
+          const inViewport = left < position.x + viewport.width && left + tile.width > position.x &&
+            top < position.y + viewport.height && top + tile.height > position.y;
+          const distance = Math.abs(left + tile.width / 2 - centerX) +
+            Math.abs(top + tile.height / 2 - centerY);
+          return { ...tile, pageIndex: layout.index, pageLeft: layout.left,
+            pageTop: layout.top, inViewport, distance };
+        });
+    });
+    // The old page-order slice could queue overscan ahead of the visible sheet.
+    return tiles.sort((a, b) => Number(b.inViewport) - Number(a.inViewport) ||
+      a.distance - b.distance).slice(0, MAX_MOUNTED_TILES);
+  }, [base, layouts, position, viewport]);
+
+  // Use fetch/AbortController instead of direct <img src=tileEndpoint>.
+  // Chromium may keep an image GET alive after its element leaves the DOM.
+  useEffect(() => {
+    const loader = new RemoteTileLoader(
+      () => refreshTiles((count) => count + 1),
+      (message) => setError(message),
+      { concurrency: 6 },
+    );
+    tileLoaderRef.current = loader;
+    return () => {
+      loader.close();
+      if (tileLoaderRef.current === loader) tileLoaderRef.current = null;
+    };
+  }, [base]);
+
+  useEffect(() => {
+    tileLoaderRef.current?.update(visibleTiles.map((tile) => tile.src));
+  }, [visibleTiles]);
 
   function updatePosition(el: HTMLDivElement) {
     if (frameRef.current !== null) return;
@@ -171,7 +208,10 @@ export function RemotePdfViewer(props: PdfViewerProps & { onRequestFull?: () => 
       <div style={{ position: "relative", width: layouts.contentWidth, height: layouts.height, minWidth: "100%" }}>
         {layouts.pages.map((layout) => <div key={layout.index} data-tpdf-remote-page-index={layout.index} style={{ position: "absolute", left: layout.left, top: layout.top,
           width: layout.width * layout.scale, height: layout.height * layout.scale, background: "white", overflow: "hidden", boxShadow: "0 2px 7px #0003" }} />)}
-        {visibleTiles.map((tile) => <img key={tile.key} src={tile.src} alt="" draggable={false}
+        {visibleTiles.map((tile) => <img key={tile.key} src={tileLoaderRef.current?.get(tile.src)}
+          data-tpdf-tile-url={tile.src} data-tpdf-tile-page={tile.pageIndex}
+          data-tpdf-tile-level={new URL(tile.src, window.location.href).searchParams.get("level")}
+          alt="" draggable={false}
           onError={() => setError("A PDF tile could not be rendered.")}
           onLoad={() => { if (!readyRef.current) { readyRef.current = true; props.onViewerReady?.(); } }}
           style={{ position: "absolute", left: tile.pageLeft + tile.left, top: tile.pageTop + tile.top,

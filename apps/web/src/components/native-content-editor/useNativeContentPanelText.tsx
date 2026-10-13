@@ -30,7 +30,7 @@ export function useNativeContentPanelText({ selected, objects, readOnly, apply }
           if (/[^\x00-\x7F]/.test(text)) {
             patches.push({
               type: "style-text", objectId: editingObject.id,
-              fontFamily: "__opdf_unicode__", fontSize: editingObject.fontSize,
+              fontFamily: "__tpdf_unicode__", fontSize: editingObject.fontSize,
             });
           }
           patches.push({ type: "replace-text", objectId: editingObject.id, text });

@@ -7,6 +7,24 @@ const scopeUrl = new URL(self.registration.scope);
 const shellUrl = new URL("./", scopeUrl).href;
 const manifestUrl = new URL("asset-manifest.json", scopeUrl).href;
 
+function shellAssetPaths(manifest) {
+  const entry = Object.values(manifest).find((item) => item?.isEntry && item.src === "index.html");
+  if (!entry) return [];
+  const visited = new Set();
+  const paths = new Set();
+  const visit = (item) => {
+    if (!item || visited.has(item)) return;
+    visited.add(item);
+    if (item.file && !item.file.endsWith(".map")) paths.add(item.file);
+    for (const css of item.css || []) {
+      if (!css.endsWith(".map")) paths.add(css);
+    }
+    for (const imported of item.imports || []) visit(manifest[imported]);
+  };
+  visit(entry);
+  return [...paths];
+}
+
 async function cacheResponse(cache, request, response) {
   if (!response || !response.ok) return response;
   await cache.put(request, response.clone());
@@ -28,14 +46,7 @@ async function precacheAppShell() {
 
   await cache.put(manifestUrl, manifestResponse.clone());
   const manifest = await manifestResponse.json();
-  const paths = new Set();
-  for (const entry of Object.values(manifest)) {
-    if (entry?.file) paths.add(entry.file);
-    for (const css of entry?.css || []) paths.add(css);
-    for (const asset of entry?.assets || []) paths.add(asset);
-  }
-
-  await Promise.all([...paths].map(async (path) => {
+  await Promise.all(shellAssetPaths(manifest).map(async (path) => {
     if (!path || path.endsWith(".map")) return;
     const url = new URL(path, scopeUrl).href;
     try {

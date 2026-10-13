@@ -24,7 +24,7 @@ async function visibleZoomTileState(page: Page, previousLevel: number) {
         rect.bottom > viewport.top && rect.top < viewport.bottom;
     });
     const currentLevel = visible.filter((img) =>
-      Number(new URL(img.dataset.tpdfTileUrl!).searchParams.get("level")) > minimumLevel
+      Number(new URL(img.dataset.tpdfTileUrl!, location.href).searchParams.get("level")) > minimumLevel
     );
     const decoded = currentLevel.filter((img) => img.complete && img.naturalWidth > 0).length;
     const failed = currentLevel.filter((img) => img.complete && img.naturalWidth === 0).length;
@@ -115,7 +115,7 @@ test("two cold large-PDF opens use measured tile GETs, not full-file GETs", asyn
         await page.waitForFunction(() => {
           return [...document.querySelectorAll<HTMLImageElement>('[data-tpdf-remote-viewer="true"] img[data-tpdf-tile-url]')]
             .some((img) => img.dataset.tpdfTileUrl?.includes("/render/tile") &&
-              new URL(img.dataset.tpdfTileUrl!).searchParams.get("page") === "149" &&
+              new URL(img.dataset.tpdfTileUrl!, location.href).searchParams.get("page") === "149" &&
               img.complete && img.naturalWidth > 0);
         }, null, { timeout: 90_000 });
 

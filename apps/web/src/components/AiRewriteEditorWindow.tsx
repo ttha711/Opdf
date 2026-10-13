@@ -417,6 +417,7 @@ export function AiRewriteEditorWindow() {
           </button>
           <button
             type="button"
+            aria-controls="tpdf-ai-rewrite-file-input"
             onClick={() => fileInputRef.current?.click()}
             disabled={isConverting || isLoadingFile}
             style={{ border: "1px solid #cbd5e1", padding: "6px 10px", borderRadius: 8, cursor: "pointer", background: "#fff" }}
@@ -425,7 +426,9 @@ export function AiRewriteEditorWindow() {
           </button>
           <input
             ref={fileInputRef}
+            id="tpdf-ai-rewrite-file-input"
             type="file"
+            aria-label="Choose a PDF, HTML or text file to edit"
             accept=".pdf,.html,.htm,.txt"
             style={{ display: "none" }}
             onChange={(e) => e.target.files?.[0] && void handleFile(e.target.files[0])}
@@ -493,7 +496,7 @@ export function AiRewriteEditorWindow() {
         <div style={{ position: "fixed", left: contextUI.x, top: contextUI.y, zIndex: 1000, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 8, padding: 8, display: "flex", gap: 6 }}>
           <input value={contextPrompt} onChange={(e) => setContextPrompt(e.target.value)} placeholder="Instruction for selected text..." style={{ width: 260 }} />
           <button type="button" onClick={() => void runContextEdit()}>OK</button>
-          <button type="button" onClick={() => setContextUI(null)}>×</button>
+          <button type="button" aria-label="Close instruction box" onClick={() => setContextUI(null)}>×</button>
         </div>
       ) : null}
       <textarea readOnly value={blocksToHtml(blocks)} style={{ display: "none" }} />

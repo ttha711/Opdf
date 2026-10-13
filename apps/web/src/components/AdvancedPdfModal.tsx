@@ -176,7 +176,7 @@ export function AdvancedPdfModal({
       <div className="premium-modal flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden">
         <div className="premium-modal-header">
           <div className="premium-modal-title">Advanced PDF</div>
-          <button data-tpdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
+          <button data-tpdf-action="close-dialog" type="button" aria-label="Close dialog" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
         </div>
 
         <div className="flex border-b border-[var(--border-color)] px-4 pt-2">

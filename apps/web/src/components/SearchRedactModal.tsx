@@ -88,7 +88,7 @@ export function SearchRedactModal({
       <div className="premium-modal flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden">
         <div className="premium-modal-header">
           <div className="premium-modal-title">Search & Secure Redact</div>
-          <button data-tpdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
+          <button data-tpdf-action="close-dialog" type="button" aria-label="Close dialog" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
         </div>
 
         <div className="premium-modal-body min-h-0 overflow-auto">

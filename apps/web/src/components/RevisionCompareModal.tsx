@@ -288,10 +288,10 @@ export function RevisionCompareModal({
           <button type="button" onClick={() => void exportReport()} className="rounded border border-slate-500 px-3 py-1.5 text-xs font-semibold">Export report</button>
         ) : null}
         <div className="flex items-center gap-1 rounded border border-slate-700 bg-slate-800 px-1.5 py-1">
-          <button type="button" className="px-2 text-xs" onClick={() => setPageNumber((value) => Math.max(1, value - 1))}>‹</button>
-          <input type="number" min={1} max={Math.max(1, maxPage)} value={safePage} onChange={(event) => setPageNumber(Math.min(Math.max(1, Number(event.target.value) || 1), Math.max(1, maxPage)))} className="w-14 rounded bg-slate-950 px-1 py-0.5 text-center text-xs" />
+          <button type="button" aria-label="Previous page" className="px-2 text-xs" onClick={() => setPageNumber((value) => Math.max(1, value - 1))}>‹</button>
+          <input type="number" aria-label="Page number" min={1} max={Math.max(1, maxPage)} value={safePage} onChange={(event) => setPageNumber(Math.min(Math.max(1, Number(event.target.value) || 1), Math.max(1, maxPage)))} className="w-14 rounded bg-slate-950 px-1 py-0.5 text-center text-xs" />
           <span className="text-[11px] text-slate-400">/ {Math.max(1, maxPage)}</span>
-          <button type="button" className="px-2 text-xs" onClick={() => setPageNumber((value) => Math.min(Math.max(1, maxPage), value + 1))}>›</button>
+          <button type="button" aria-label="Next page" className="px-2 text-xs" onClick={() => setPageNumber((value) => Math.min(Math.max(1, maxPage), value + 1))}>›</button>
         </div>
         <button data-tpdf-action="close-dialog" type="button" className="rounded bg-white px-3 py-1.5 text-xs font-bold text-slate-900" onClick={onClose}>Close</button>
       </header>

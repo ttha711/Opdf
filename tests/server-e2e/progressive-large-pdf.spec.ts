@@ -9,7 +9,7 @@ import { auditPdfTraffic } from "../helpers/pdfNetworkAudit";
 
 const execFileAsync = promisify(execFile);
 const DOCUMENT_SIZE = 112 * 1024 * 1024;
-const TILE_SELECTOR = '[data-tpdf-remote-viewer="true"] img[src*="/render/tile"]';
+const TILE_SELECTOR = '[data-tpdf-remote-viewer="true"] img[data-tpdf-tile-url]';
 const SCROLLER_SELECTOR = '[data-tpdf-remote-scroller="true"]';
 
 async function visibleZoomTileState(page: Page, previousLevel: number) {
@@ -24,7 +24,7 @@ async function visibleZoomTileState(page: Page, previousLevel: number) {
         rect.bottom > viewport.top && rect.top < viewport.bottom;
     });
     const currentLevel = visible.filter((img) =>
-      Number(new URL(img.currentSrc || img.src).searchParams.get("level")) > minimumLevel
+      Number(new URL(img.dataset.tpdfTileUrl!).searchParams.get("level")) > minimumLevel
     );
     const decoded = currentLevel.filter((img) => img.complete && img.naturalWidth > 0).length;
     const failed = currentLevel.filter((img) => img.complete && img.naturalWidth === 0).length;
@@ -32,7 +32,7 @@ async function visibleZoomTileState(page: Page, previousLevel: number) {
       ready: visible.length > 0 && currentLevel.length === visible.length &&
         decoded === currentLevel.length && failed === 0,
       visible: visible.length, decoded, failed,
-      urls: currentLevel.map((img) => img.currentSrc || img.src),
+      urls: currentLevel.map((img) => img.dataset.tpdfTileUrl!),
     };
   }, { scrollerSelector: SCROLLER_SELECTOR, tileSelector: TILE_SELECTOR, minimumLevel: previousLevel });
 }
@@ -111,9 +111,9 @@ test("two cold large-PDF opens use measured tile GETs, not full-file GETs", asyn
         const distantPage = page.locator('[data-tpdf-remote-page-index="149"]');
         await distantPage.scrollIntoViewIfNeeded({ timeout: 30_000 });
         await page.waitForFunction(() => {
-          return [...document.querySelectorAll<HTMLImageElement>('[data-tpdf-remote-viewer="true"] img')]
-            .some((img) => img.src.includes("/render/tile") &&
-              new URL(img.src).searchParams.get("page") === "149" &&
+          return [...document.querySelectorAll<HTMLImageElement>('[data-tpdf-remote-viewer="true"] img[data-tpdf-tile-url]')]
+            .some((img) => img.dataset.tpdfTileUrl?.includes("/render/tile") &&
+              new URL(img.dataset.tpdfTileUrl!).searchParams.get("page") === "149" &&
               img.complete && img.naturalWidth > 0);
         }, null, { timeout: 90_000 });
 
@@ -139,17 +139,17 @@ test("two cold large-PDF opens use measured tile GETs, not full-file GETs", asyn
         expect(liveTransfers.completed).toBeGreaterThan(0);
         expect(liveTransfers.failed).toBe(0);
         expect(liveTransfers.canceled).toBe(0);
-        // Old tiles are removed during scroll/zoom; their network requests
-        // should complete or cancel rather than accumulate without a bound.
-        // At most 96 image elements may be mounted at a time.
+        // The browser now caps tile fetches at 6 and aborts stale fetches.
+        // Allow a small CDP event-order margin, but not the old 142 pending
+        // requests after a distant jump/zoom.
         await expect.poll(() => audit.snapshot().pendingTileGets, {
           timeout: 90_000, intervals: [500, 1000, 2000, 5000],
-        }).toBeLessThanOrEqual(96);
+        }).toBeLessThanOrEqual(8);
         const final = audit.snapshot();
         expect(final.documentGetCount).toBe(0);
         expect(final.fullDocumentGetCount).toBe(0);
         expect(final.totalPdfGetWireBytes).toBeLessThan(bytes / 4);
-        expect(await remote.locator('img[src*="/render/tile"]').count()).toBeLessThanOrEqual(96);
+        expect(await remote.locator('img[data-tpdf-tile-url]').count()).toBeLessThanOrEqual(96);
 
         const evidence = { round, fixtureBytes: bytes, firstPageMs, firstTileSample: first,
           visibleZoomTiles: zoomTiles, visibleZoomTransfers: liveTransfers, afterScrollZoom: final };

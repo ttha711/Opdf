@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { embedPdfSidebarPanel, openEmbedPdfSidebar } from "../helpers/embedpdf";
 import { clickApplicationMenuItem } from "../helpers/app-menu";
+import { auditPdfTraffic } from "../helpers/pdfNetworkAudit";
 
 
 test("TPDF Server serves the full web runtime", async ({ page, request }) => {
@@ -198,12 +199,9 @@ test("large persisted PDFs use one PDFium viewer with toolbar and sidebar", asyn
   expect(upload.ok()).toBeTruthy();
   const stored = await upload.json() as { filePath: string };
 
-  const headRequests: string[] = [];
-  page.on("request", (request) => {
-    if (request.method() === "HEAD" && request.url().includes("/api/tpdf/documents/")) {
-      headRequests.push(request.url());
-    }
-  });
+  const id = /^server:\/\/([0-9a-f-]{36})\//i.exec(stored.filePath)?.[1];
+  expect(id).toBeTruthy();
+  const audit = await auditPdfTraffic(page, id!);
 
   await page.goto(`/?open=${encodeURIComponent(stored.filePath)}`);
   const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
@@ -214,7 +212,14 @@ test("large persisted PDFs use one PDFium viewer with toolbar and sidebar", asyn
   // handoff. The same PDFium shell owns page rendering and the editing chrome.
   await expect(page.locator('[data-tpdf-progressive-viewer="true"]')).toHaveCount(0);
   await expect(page.locator('[data-tpdf-engine="pdfjs-range"]')).toHaveCount(0);
-  expect(headRequests).toEqual([]);
+  // HEAD is an intentional Content-Length probe on main 4e4c7a0, not a
+  // forbidden download. Observe actual GETs and wire bytes independently.
+  await expect.poll(() => audit.snapshot().documentGetCount).toBeGreaterThan(0);
+  await expect.poll(() => audit.snapshot().documentGetWireBytes).toBeGreaterThan(0);
+  const traffic = audit.snapshot();
+  expect(traffic.headCount).toBeGreaterThan(0);
+  expect(traffic.documentGetStatuses.some((status) => status === 200 || status === 206)).toBe(true);
+  console.log("Small PDFium baseline HTTP traffic:", JSON.stringify(traffic));
 
   await expect(viewer.getByRole("button", { name: "View", exact: true })).toBeVisible();
   await expect(viewer.getByRole("button", { name: "Annotate", exact: true })).toBeVisible();

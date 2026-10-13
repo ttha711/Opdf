@@ -19,10 +19,10 @@ test.beforeEach(async ({}, testInfo) => {
 test("Watermark writes visible text into every exported PDF page", async ({ page }) => {
   await loadToolFixture(page);
   await openDashboardTool(page, "watermark-pdf");
-  const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="watermark-pdf"]');
-  await panel.locator('[data-opdf-field="watermark-text"]').fill("WM-CHECK");
-  await panel.locator('[data-opdf-field="watermark-size"]').fill("20");
-  await panel.locator('[data-opdf-action="watermark-run"]').click();
+  const panel = page.locator('[data-tpdf-panel="tool"][data-tpdf-tool="watermark-pdf"]');
+  await panel.locator('[data-tpdf-field="watermark-text"]').fill("WM-CHECK");
+  await panel.locator('[data-tpdf-field="watermark-size"]').fill("20");
+  await panel.locator('[data-tpdf-action="watermark-run"]').click();
   await waitForStatusText(page, /Watermark stamped|Watermark applied/i);
 
   const textPages = await extractPdfTextPages(await exportCurrentPdf(page));
@@ -33,11 +33,11 @@ test("Watermark writes visible text into every exported PDF page", async ({ page
 test("Page Numbers writes the configured sequence into the PDF", async ({ page }) => {
   await loadToolFixture(page);
   await openDashboardTool(page, "page-numbers");
-  const panel = page.locator('[data-opdf-panel="markup"][data-opdf-tool="page-numbers"]');
-  await panel.locator('[data-opdf-field="markup-prefix"]').fill("PN-");
-  await panel.locator('[data-opdf-field="markup-start"]').fill("7");
-  await panel.locator('[data-opdf-action="markup-apply"]').click();
-  await expect(panel).toHaveAttribute("data-opdf-apply-sequence", "1", { timeout: 10_000 });
+  const panel = page.locator('[data-tpdf-panel="markup"][data-tpdf-tool="page-numbers"]');
+  await panel.locator('[data-tpdf-field="markup-prefix"]').fill("PN-");
+  await panel.locator('[data-tpdf-field="markup-start"]').fill("7");
+  await panel.locator('[data-tpdf-action="markup-apply"]').click();
+  await expect(panel).toHaveAttribute("data-tpdf-apply-sequence", "1", { timeout: 10_000 });
 
   const textPages = await extractPdfTextPages(await exportCurrentPdf(page));
   expect(textPages[0]).toContain("PN-7");
@@ -46,16 +46,16 @@ test("Page Numbers writes the configured sequence into the PDF", async ({ page }
 });
 
 for (const [label, tool, marker] of [
-  ["Header...", "header", "OPDF-HEADER-CHECK"],
-  ["Footer...", "footer", "OPDF-FOOTER-CHECK"],
+  ["Header...", "header", "TPDF-HEADER-CHECK"],
+  ["Footer...", "footer", "TPDF-FOOTER-CHECK"],
 ] as const) {
   test(`${tool} writes configured text into every PDF page`, async ({ page }) => {
     await loadToolFixture(page);
     await clickApplicationMenuItem(page, label);
-    const panel = page.locator(`[data-opdf-panel="markup"][data-opdf-tool="${tool}"]`);
-    await panel.locator('[data-opdf-field="markup-text"]').fill(marker);
-    await panel.locator('[data-opdf-action="markup-apply"]').click();
-    await expect(panel).toHaveAttribute("data-opdf-apply-sequence", "1", { timeout: 10_000 });
+    const panel = page.locator(`[data-tpdf-panel="markup"][data-tpdf-tool="${tool}"]`);
+    await panel.locator('[data-tpdf-field="markup-text"]').fill(marker);
+    await panel.locator('[data-tpdf-action="markup-apply"]').click();
+    await expect(panel).toHaveAttribute("data-tpdf-apply-sequence", "1", { timeout: 10_000 });
 
     const textPages = await extractPdfTextPages(await exportCurrentPdf(page));
     expect(textPages).toHaveLength(3);
@@ -66,11 +66,11 @@ for (const [label, tool, marker] of [
 test("Bates Numbering writes a unique sequential identifier on every page", async ({ page }) => {
   await loadToolFixture(page);
   await clickApplicationMenuItem(page, "Bates Numbering...");
-  const panel = page.locator('[data-opdf-panel="markup"][data-opdf-tool="bates"]');
-  await panel.locator('[data-opdf-field="markup-prefix"]').fill("BAT-");
-  await panel.locator('[data-opdf-field="markup-start"]').fill("42");
-  await panel.locator('[data-opdf-action="markup-apply"]').click();
-  await expect(panel).toHaveAttribute("data-opdf-apply-sequence", "1", { timeout: 10_000 });
+  const panel = page.locator('[data-tpdf-panel="markup"][data-tpdf-tool="bates"]');
+  await panel.locator('[data-tpdf-field="markup-prefix"]').fill("BAT-");
+  await panel.locator('[data-tpdf-field="markup-start"]').fill("42");
+  await panel.locator('[data-tpdf-action="markup-apply"]').click();
+  await expect(panel).toHaveAttribute("data-tpdf-apply-sequence", "1", { timeout: 10_000 });
 
   const textPages = await extractPdfTextPages(await exportCurrentPdf(page));
   expect(textPages[0]).toContain("BAT-000042");
@@ -85,7 +85,7 @@ for (const [toolId, extension] of [
   test(`${toolId} downloads a ZIP containing one real image per PDF page`, async ({ page }) => {
     await loadToolFixture(page);
     await openDashboardTool(page, toolId);
-    const panel = page.locator(`[data-opdf-panel="tool"][data-opdf-tool="${toolId}"]`);
+    const panel = page.locator(`[data-tpdf-panel="tool"][data-tpdf-tool="${toolId}"]`);
 
     const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
     await panel.getByRole("button", { name: new RegExp(`Convert to ${extension === "png" ? "PNG" : "JPG"}`, "i") }).click();
@@ -115,13 +115,13 @@ for (const [toolId, expectedExtension] of [
     await loadToolFixture(page);
     await openAllTools(page);
     const downloadPromise = page.waitForEvent("download", { timeout: 20_000 });
-    await page.locator(`[data-opdf-tool-card="${toolId}"]`).click();
+    await page.locator(`[data-tpdf-tool-card="${toolId}"]`).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename().toLowerCase().endsWith(expectedExtension)).toBeTruthy();
     const text = (await downloadBuffer(download)).toString("utf8");
-    expect(text).toContain("OPDF TOOL PAGE ONE KEEP");
-    expect(text).toContain("OPDF TOOL PAGE TWO DELETE");
-    expect(text).toContain("OPDF TOOL PAGE THREE KEEP");
+    expect(text).toContain("TPDF TOOL PAGE ONE KEEP");
+    expect(text).toContain("TPDF TOOL PAGE TWO DELETE");
+    expect(text).toContain("TPDF TOOL PAGE THREE KEEP");
   });
 }
 
@@ -129,7 +129,7 @@ test("Image to PDF creates a valid PDF with the source image dimensions", async 
   await loadToolFixture(page);
   await openAllTools(page);
   const chooserPromise = page.waitForEvent("filechooser", { timeout: 10_000 });
-  await page.locator('[data-opdf-tool-card="image-to-pdf"]').click();
+  await page.locator('[data-tpdf-tool-card="image-to-pdf"]').click();
   const chooser = await chooserPromise;
   await chooser.setFiles({
     name: "pixel.png",
@@ -139,7 +139,7 @@ test("Image to PDF creates a valid PDF with the source image dimensions", async 
       "base64",
     ),
   });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "1", {
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute("data-tpdf-total-pages", "1", {
     timeout: 20_000,
   });
 
@@ -153,18 +153,18 @@ test("TXT to PDF creates a valid PDF containing the source text", async ({ page 
   await loadToolFixture(page);
   await openAllTools(page);
   const chooserPromise = page.waitForEvent("filechooser", { timeout: 10_000 });
-  await page.locator('[data-opdf-tool-card="txt-to-pdf"]').click();
+  await page.locator('[data-tpdf-tool-card="txt-to-pdf"]').click();
   const chooser = await chooserPromise;
   await chooser.setFiles({
     name: "tool-input.txt",
     mimeType: "text/plain",
-    buffer: Buffer.from("OPDF TXT TO PDF OUTPUT CHECK\nSecond line"),
+    buffer: Buffer.from("TPDF TXT TO PDF OUTPUT CHECK\nSecond line"),
   });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "1", {
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute("data-tpdf-total-pages", "1", {
     timeout: 20_000,
   });
 
   const outputBytes = await exportCurrentPdf(page);
   expect((await PDFDocument.load(outputBytes)).getPageCount()).toBe(1);
-  expect((await extractPdfTextPages(outputBytes))[0]).toContain("OPDF TXT TO PDF OUTPUT CHECK");
+  expect((await extractPdfTextPages(outputBytes))[0]).toContain("TPDF TXT TO PDF OUTPUT CHECK");
 });

@@ -50,7 +50,7 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
     buffer: pdf,
   });
 
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+120/i, { timeout: 30_000 });
 
   // The built-in PDFium toolbar is the single familiar annotation surface.
@@ -63,7 +63,7 @@ test("opens and navigates a many-sheet technical PDF", async ({ page }) => {
   // The engine-owned sidebar is the single page-navigation sidebar.
   await openEmbedPdfSidebar(viewer);
 
-  // Measurement remains an OPDF-specific tool, launched from the unified
+  // Measurement remains an TPDF-specific tool, launched from the unified
   // application menu instead of a second annotation toolbar.
   await clickApplicationMenuPath(page, ["Tools", "Edit & Review", "Measure Drawing"]);
   await expect(page.getByText("Measure", { exact: true })).toBeVisible();

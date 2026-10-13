@@ -4,8 +4,8 @@ import { embedPdfSidebarPanel, openEmbedPdfSidebar } from "../helpers/embedpdf";
 import { clickApplicationMenuItem } from "../helpers/app-menu";
 
 
-test("OPDF Server serves the full web runtime", async ({ page, request }) => {
-  const health = await request.get("/api/opdf/health");
+test("TPDF Server serves the full web runtime", async ({ page, request }) => {
+  const health = await request.get("/api/tpdf/health");
   expect(health.ok()).toBeTruthy();
   await expect(health.json()).resolves.toMatchObject({
     ok: true,
@@ -14,11 +14,11 @@ test("OPDF Server serves the full web runtime", async ({ page, request }) => {
 
   const appShell = await request.get("/");
   const html = await appShell.text();
-  expect(html).toContain('<meta name="opdf-runtime" content="server">');
-  expect(html).not.toContain('src="/opdf-runtime.js"');
+  expect(html).toContain('<meta name="tpdf-runtime" content="server">');
+  expect(html).not.toContain('src="/tpdf-runtime.js"');
   const runtimeRequests: string[] = [];
   page.on("request", (req) => {
-    if (req.url().endsWith("/opdf-runtime.js")) runtimeRequests.push(req.url());
+    if (req.url().endsWith("/tpdf-runtime.js")) runtimeRequests.push(req.url());
   });
 
   await page.goto("/");
@@ -26,14 +26,14 @@ test("OPDF Server serves the full web runtime", async ({ page, request }) => {
   expect(runtimeRequests).toEqual([]);
 
   const runtime = await page.evaluate(() => ({
-    mode: window.__OPDF_RUNTIME__,
-    base: window.__OPDF_SERVER_BASE__,
-    hasDesktopBridge: Boolean(window.opdf),
+    mode: window.__TPDF_RUNTIME__,
+    base: window.__TPDF_SERVER_BASE__,
+    hasDesktopBridge: Boolean(window.tpdf),
   }));
 
   expect(runtime).toEqual({
     mode: "server",
-    base: "/api/opdf",
+    base: "/api/tpdf",
     hasDesktopBridge: false,
   });
 
@@ -56,7 +56,7 @@ test("OPDF Server serves the full web runtime", async ({ page, request }) => {
 
 
 test("cached app shell reopens offline and accepts a local PDF", async ({ page, context, request }) => {
-  const worker = await request.get("/opdf-sw.js");
+  const worker = await request.get("/tpdf-sw.js");
   expect(worker.ok()).toBeTruthy();
   expect(worker.headers()["cache-control"]).toContain("no-cache");
 
@@ -73,7 +73,7 @@ test("cached app shell reopens offline and accepts a local PDF", async ({ page, 
   try {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
-    await expect.poll(() => page.evaluate(() => window.__OPDF_RUNTIME__)).toBe("server");
+    await expect.poll(() => page.evaluate(() => window.__TPDF_RUNTIME__)).toBe("server");
 
     const pdf = await PDFDocument.create();
     const sheet = pdf.addPage([612, 792]);
@@ -85,9 +85,9 @@ test("cached app shell reopens offline and accepts a local PDF", async ({ page, 
       buffer: Buffer.from(await pdf.save()),
     });
 
-    const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+    const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
     await expect(viewer).toBeVisible({ timeout: 30_000 });
-    await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy");
+    await expect(viewer).toHaveAttribute("data-tpdf-source", "working-copy");
     await expect(page.getByTestId("status-bar").getByText(/Offline .* PDF is open locally/i)).toBeVisible();
   } finally {
     await context.setOffline(false);
@@ -95,10 +95,10 @@ test("cached app shell reopens offline and accepts a local PDF", async ({ page, 
 });
 
 
-test("production open URLs use the OPDF document API and never Vite /@fs", async ({ page, request }) => {
+test("production open URLs use the TPDF document API and never Vite /@fs", async ({ page, request }) => {
   const pdf = await PDFDocument.create();
   pdf.addPage([612, 792]);
-  const upload = await request.post("/api/opdf/documents?name=api-open.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=api-open.pdf", {
     headers: { "content-type": "application/pdf" },
     data: Buffer.from(await pdf.save()),
   });
@@ -110,14 +110,14 @@ test("production open URLs use the OPDF document API and never Vite /@fs", async
     if (request.url().includes("/@fs/")) viteFsRequests.push(request.url());
   });
 
-  await page.goto(`/?open=${encodeURIComponent(`/api/opdf/documents/${stored.id}`)}`);
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 30_000 });
+  await page.goto(`/?open=${encodeURIComponent(`/api/tpdf/documents/${stored.id}`)}`);
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/Page\s+1\s+of\s+1/i)).toBeVisible({ timeout: 30_000 });
   expect(viteFsRequests).toEqual([]);
 });
 
 
-test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", async ({ page, request }) => {
+test("TPDF Server opens a persisted PDF directly in the PDFium web viewer", async ({ page, request }) => {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   for (let index = 0; index < 24; index += 1) {
@@ -131,7 +131,7 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   }
 
   const bytes = Buffer.from(await pdf.save());
-  const upload = await request.post("/api/opdf/documents?name=server-drawing.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=server-drawing.pdf", {
     headers: { "content-type": "application/pdf" },
     data: bytes,
   });
@@ -139,9 +139,9 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   const stored = await upload.json() as { filePath: string };
 
   await page.goto(`/?open=${encodeURIComponent(stored.filePath)}`);
-  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
   await expect(viewer).toBeVisible({ timeout: 30_000 });
-  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "server");
   await expect(page.getByText(/Page\s+1\s+of\s+24/i)).toBeVisible({ timeout: 30_000 });
 
   // Read-only tools should consume the persisted server URL directly instead
@@ -151,7 +151,7 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   await redactModal.getByPlaceholder("Text to redact…").fill("SERVER DRAWING SHEET 24");
   await redactModal.getByRole("button", { name: "Search all pages", exact: true }).click();
   await expect(redactModal).toContainText("1 match(es) found", { timeout: 30_000 });
-  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "server");
   await redactModal.locator(".premium-modal-header").getByRole("button").click();
 
   // Opening Split/Merge should stay metadata-only. Large server PDFs are
@@ -159,13 +159,13 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   await clickApplicationMenuItem(page, "Split PDF...");
   const splitPanel = page.locator("aside.acrobat-tool-panel").filter({ hasText: "Advanced Split Document" });
   await expect(splitPanel).toBeVisible();
-  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "server");
   await splitPanel.getByTitle("Close tool").click();
 
   await clickApplicationMenuItem(page, "Merge PDFs...");
   const mergePanel = page.locator("aside.acrobat-tool-panel").filter({ hasText: "Advanced Merge Documents" });
   await expect(mergePanel).toBeVisible();
-  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "server");
   await mergePanel.getByTitle("Close tool").click();
 
   // Structural edits on stored server PDFs persist immediately without
@@ -176,7 +176,7 @@ test("OPDF Server opens a persisted PDF directly in the PDFium web viewer", asyn
   await clickApplicationMenuItem(page, "Rotate All Pages Right");
   const mutationResponse = await mutationResponsePromise;
   expect(mutationResponse.ok()).toBeTruthy();
-  await expect(viewer).toHaveAttribute("data-opdf-source", "server", { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "server", { timeout: 30_000 });
   await expect(page.getByText(/Page\s+1\s+of\s+24/i)).toBeVisible({ timeout: 30_000 });
 });
 
@@ -187,7 +187,7 @@ test("large persisted PDFs use one PDFium viewer with toolbar and sidebar", asyn
   sheet.drawText("LARGE SERVER VIEWER SHELL", { x: 48, y: 520, size: 20 });
   const bytes = Buffer.from(await pdf.save());
 
-  const upload = await request.post("/api/opdf/documents?name=large-viewer-shell.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=large-viewer-shell.pdf", {
     headers: { "content-type": "application/pdf" },
     data: bytes,
   });
@@ -196,20 +196,20 @@ test("large persisted PDFs use one PDFium viewer with toolbar and sidebar", asyn
 
   const headRequests: string[] = [];
   page.on("request", (request) => {
-    if (request.method() === "HEAD" && request.url().includes("/api/opdf/documents/")) {
+    if (request.method() === "HEAD" && request.url().includes("/api/tpdf/documents/")) {
       headRequests.push(request.url());
     }
   });
 
   await page.goto(`/?open=${encodeURIComponent(stored.filePath)}`);
-  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
   await expect(viewer).toBeVisible({ timeout: 30_000 });
-  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "server");
 
   // The server path must not create a temporary PDF.js preview or progressive
   // handoff. The same PDFium shell owns page rendering and the editing chrome.
-  await expect(page.locator('[data-opdf-progressive-viewer="true"]')).toHaveCount(0);
-  await expect(page.locator('[data-opdf-engine="pdfjs-range"]')).toHaveCount(0);
+  await expect(page.locator('[data-tpdf-progressive-viewer="true"]')).toHaveCount(0);
+  await expect(page.locator('[data-tpdf-engine="pdfjs-range"]')).toHaveCount(0);
   expect(headRequests).toEqual([]);
 
   await expect(viewer.getByRole("button", { name: "View", exact: true })).toBeVisible();
@@ -225,20 +225,20 @@ test("server persists page reorder mutations", async ({ request }) => {
   pdf.addPage([300, 400]);
   pdf.addPage([400, 500]);
   pdf.addPage([500, 600]);
-  const upload = await request.post("/api/opdf/documents?name=reorder-pages.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=reorder-pages.pdf", {
     headers: { "content-type": "application/pdf" },
     data: Buffer.from(await pdf.save()),
   });
   expect(upload.ok()).toBeTruthy();
   const stored = await upload.json() as { id: string };
 
-  const reorder = await request.post(`/api/opdf/documents/${stored.id}/mutations`, {
+  const reorder = await request.post(`/api/tpdf/documents/${stored.id}/mutations`, {
     headers: { "content-type": "application/json" },
     data: { type: "reorder-pages", pageOrder: [3, 1, 2] },
   });
   expect(reorder.ok()).toBeTruthy();
 
-  const response = await request.get(`/api/opdf/documents/${stored.id}`);
+  const response = await request.get(`/api/tpdf/documents/${stored.id}`);
   expect(response.ok()).toBeTruthy();
   const reordered = await PDFDocument.load(Buffer.from(await response.body()));
 
@@ -254,20 +254,20 @@ test("server persists duplicate page mutations", async ({ request }) => {
   pdf.addPage([300, 400]);
   pdf.addPage([400, 500]);
   pdf.addPage([500, 600]);
-  const upload = await request.post("/api/opdf/documents?name=duplicate-pages.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=duplicate-pages.pdf", {
     headers: { "content-type": "application/pdf" },
     data: Buffer.from(await pdf.save()),
   });
   expect(upload.ok()).toBeTruthy();
   const stored = await upload.json() as { id: string };
 
-  const duplicate = await request.post(`/api/opdf/documents/${stored.id}/mutations`, {
+  const duplicate = await request.post(`/api/tpdf/documents/${stored.id}/mutations`, {
     headers: { "content-type": "application/json" },
     data: { type: "duplicate-pages", pageNumbers: [2] },
   });
   expect(duplicate.ok()).toBeTruthy();
 
-  const response = await request.get(`/api/opdf/documents/${stored.id}`);
+  const response = await request.get(`/api/tpdf/documents/${stored.id}`);
   expect(response.ok()).toBeTruthy();
   const result = await PDFDocument.load(Buffer.from(await response.body()));
 

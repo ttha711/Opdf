@@ -1,6 +1,6 @@
 # Large PDF Performance Harness
 
-OPDF keeps giant binary fixtures out of Git. Generate stress PDFs locally instead.
+TPDF keeps giant binary fixtures out of Git. Generate stress PDFs locally instead.
 
 ## Generate drawing-set stress files
 

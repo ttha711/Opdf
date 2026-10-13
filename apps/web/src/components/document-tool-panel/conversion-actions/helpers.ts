@@ -40,9 +40,9 @@ export const downloadFile = async (
   const rawBytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
   const bytes = new Uint8Array(rawBytes.byteLength);
   bytes.set(rawBytes);
-  if ((window as any).opdf && typeof (window as any).opdf.saveFile === "function") {
+  if ((window as any).tpdf && typeof (window as any).tpdf.saveFile === "function") {
     try {
-      await (window as any).opdf.saveFile(bytes, defaultName, extensions);
+      await (window as any).tpdf.saveFile(bytes, defaultName, extensions);
       return;
     } catch (err) {
       console.error("Native save failed, falling back to browser download:", err);

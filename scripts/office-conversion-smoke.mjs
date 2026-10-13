@@ -7,27 +7,27 @@ import * as XLSX from "xlsx";
 import PptxGenJS from "pptxgenjs";
 import { PDFDocument } from "pdf-lib";
 
-const port = Number(process.env.OPDF_OFFICE_SMOKE_PORT || 8791);
+const port = Number(process.env.TPDF_OFFICE_SMOKE_PORT || 8791);
 const origin = `http://127.0.0.1:${port}`;
-const dataDir = await mkdtemp(join(tmpdir(), "opdf-office-smoke-"));
+const dataDir = await mkdtemp(join(tmpdir(), "tpdf-office-smoke-"));
 
 async function waitForServer() {
   let lastError;
   for (let attempt = 0; attempt < 80; attempt += 1) {
     try {
-      const response = await fetch(`${origin}/api/opdf/health`);
+      const response = await fetch(`${origin}/api/tpdf/health`);
       if (response.ok) return;
     } catch (error) {
       lastError = error;
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw lastError || new Error("OPDF Server did not become ready.");
+  throw lastError || new Error("TPDF Server did not become ready.");
 }
 
 async function convertPdfToOffice(format, bytes) {
   const response = await fetch(
-    `${origin}/api/opdf/operations/convert-office?format=${encodeURIComponent(format)}`,
+    `${origin}/api/tpdf/operations/convert-office?format=${encodeURIComponent(format)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/pdf" },
@@ -47,7 +47,7 @@ async function convertPdfToOffice(format, bytes) {
 
 async function convert(name, bytes) {
   const response = await fetch(
-    `${origin}/api/opdf/operations/office-to-pdf?name=${encodeURIComponent(name)}`,
+    `${origin}/api/tpdf/operations/office-to-pdf?name=${encodeURIComponent(name)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/octet-stream" },
@@ -67,15 +67,15 @@ async function convert(name, bytes) {
   console.log(`PASS ${name} -> PDF (${output.byteLength} bytes, ${pdf.getPageCount()} page(s))`);
 }
 
-const child = spawn(process.execPath, ["server/opdf-server.mjs"], {
+const child = spawn(process.execPath, ["server/tpdf-server.mjs"], {
   cwd: process.cwd(),
   windowsHide: true,
   stdio: ["ignore", "inherit", "inherit"],
   env: {
     ...process.env,
-    OPDF_HOST: "127.0.0.1",
-    OPDF_PORT: String(port),
-    OPDF_DATA_DIR: dataDir,
+    TPDF_HOST: "127.0.0.1",
+    TPDF_PORT: String(port),
+    TPDF_DATA_DIR: dataDir,
   },
 });
 
@@ -85,7 +85,7 @@ try {
   const word = new Document({
     sections: [{
       children: [
-        new Paragraph("OPDF Word to PDF smoke test"),
+        new Paragraph("TPDF Word to PDF smoke test"),
         new Paragraph("This content must survive a real LibreOffice conversion."),
       ],
     }],
@@ -94,7 +94,7 @@ try {
 
   const workbook = XLSX.utils.book_new();
   const worksheet = XLSX.utils.aoa_to_sheet([
-    ["OPDF Excel to PDF smoke test", "Value"],
+    ["TPDF Excel to PDF smoke test", "Value"],
     ["Structural beam", 300],
     ["MEP load", 125],
   ]);
@@ -104,7 +104,7 @@ try {
 
   const pptx = new PptxGenJS();
   const slide = pptx.addSlide();
-  slide.addText("OPDF PowerPoint to PDF smoke test", { x: 0.8, y: 0.8, w: 8, h: 0.8 });
+  slide.addText("TPDF PowerPoint to PDF smoke test", { x: 0.8, y: 0.8, w: 8, h: 0.8 });
   slide.addText("LibreOffice conversion path", { x: 0.8, y: 2, w: 8, h: 0.6 });
   const pptBuffer = await pptx.write({ outputType: "arraybuffer" });
   if (!(pptBuffer instanceof ArrayBuffer)) throw new Error("Unable to generate PowerPoint smoke input.");
@@ -112,7 +112,7 @@ try {
 
   const sourcePdf = await PDFDocument.create();
   const sourcePage = sourcePdf.addPage([612, 792]);
-  sourcePage.drawText("OPDF PDF to Office smoke test", { x: 72, y: 700, size: 18 });
+  sourcePage.drawText("TPDF PDF to Office smoke test", { x: 72, y: 700, size: 18 });
   sourcePage.drawText("Structural beam 300 | MEP load 125", { x: 72, y: 660, size: 12 });
   const sourcePdfBytes = new Uint8Array(await sourcePdf.save());
 

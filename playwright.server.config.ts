@@ -13,13 +13,13 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run server-build && npm run server-start",
-    url: "http://127.0.0.1:8787/api/opdf/health",
+    url: "http://127.0.0.1:8787/api/tpdf/health",
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
     env: {
-      OPDF_HOST: "127.0.0.1",
-      OPDF_PORT: "8787",
-      OPDF_DATA_DIR: ".opdf-e2e-data",
+      TPDF_HOST: "127.0.0.1",
+      TPDF_PORT: "8787",
+      TPDF_DATA_DIR: ".tpdf-e2e-data",
     },
   },
   projects: [

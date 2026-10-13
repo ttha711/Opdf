@@ -1,0 +1,46 @@
+name: PdfCraft Read-only Compatibility
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server/tpdf-pdfcraft-adapter.mjs"
+      - "server/tpdf-server.mjs"
+      - "tests/cli/pdfcraft-adapter.test.mjs"
+      - "scripts/pdfcraft-integration-smoke.mjs"
+      - ".github/workflows/pdfcraft-compat.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-rust-cli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: pdfcraft-upstream -> target
+          key: pdfcraft-bbbe600
+      - run: npm ci
+      - name: Fetch reviewed PdfCraft commit
+        run: |
+          git clone https://github.com/storytold/pdfcraft.git pdfcraft-upstream
+          git -C pdfcraft-upstream checkout bbbe60015c571ebfc39708ee07777b89e267122a
+          test "$(git -C pdfcraft-upstream rev-parse HEAD)" = "bbbe60015c571ebfc39708ee07777b89e267122a"
+      - name: Build read-only CLI without MCP
+        working-directory: pdfcraft-upstream
+        run: cargo build --locked --release -p pdfcraft-cli --no-default-features
+      - name: Test fake CLI error and isolation cases
+        run: node --test tests/cli/pdfcraft-adapter.test.mjs
+      - name: Test real PdfCraft CLI against generated PDF
+        env:
+          TPDF_PDFCRAFT_BIN: ${{ github.workspace }}/pdfcraft-upstream/target/release/pdfcraft-cli
+        run: node scripts/pdfcraft-integration-smoke.mjs

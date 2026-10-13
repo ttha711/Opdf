@@ -1,17 +1,17 @@
-# OPDF engine coverage — EmbedPDF/PDFium 2.15.1
+# TPDF engine coverage — EmbedPDF/PDFium 2.15.1
 
-This inventory distinguishes **library primitives**, **existing OPDF adapters**, and **user-facing actions**. A plugin does not automatically mean there should be one dashboard card for every API method.
+This inventory distinguishes **library primitives**, **existing TPDF adapters**, and **user-facing actions**. A plugin does not automatically mean there should be one dashboard card for every API method.
 
 ## Runtime and ownership
 
 - **Embedded PDF engine**: `@embedpdf/react-pdf-viewer` 2.15.1 provides the PDFium-backed viewer and built-in chrome; `apps/web/src/components/PdfViewer.tsx`.
 - **Viewer command adapter**: `apps/web/src/lib/viewer-runtime.ts` registers document-scoped zoom, rotation, navigation, undo/redo and command dispatch.
-- **PDF mutation and exports**: `apps/web/src/hooks/useOpdfBridge.ts`, `apps/web/src/hooks/document-actions/`, and `apps/web/src/lib/pdfAdvanced.ts` select browser / OPDF Server / Desktop implementations.
+- **PDF mutation and exports**: `apps/web/src/hooks/useTpdfBridge.ts`, `apps/web/src/hooks/document-actions/`, and `apps/web/src/lib/pdfAdvanced.ts` select browser / TPDF Server / Desktop implementations.
 - **Unified discoverability**: `apps/web/src/lib/allToolsCatalog.ts` is the dashboard catalogue; `apps/web/src/agent/definitions.ts` defines AI-accessible operations. These are *two related surfaces*, not synonymous lists.
 
 ## Verified coverage (from source)
 
-| Area | Viewer plugin/adaptor | Existing OPDF functionality | Next integration priority |
+| Area | Viewer plugin/adaptor | Existing TPDF functionality | Next integration priority |
 | --- | --- | --- | --- |
 | Document display | PDFium, document-manager, render, viewport | Embedded viewer, open/close, page count | Keep existing viewer |
 | Navigation | scroll, thumbnail | Page navigation and thumbnails | Keep built-in UI; avoid duplicates |
@@ -22,12 +22,12 @@ This inventory distinguishes **library primitives**, **existing OPDF adapters**,
 | Redaction | redaction | Viewer redaction and secure-search workflow | Verify exported content is removed |
 | Export | export | Save copy and modified document bytes | Test persistence across reload |
 | Capture | capture | Area selection used by content editor | Test coordinate alignment |
-| Structural edits | OPDF bridge/pdf-lib | Merge, split, insert, delete, extract, crop and rotate pages | Add round-trip tests |
+| Structural edits | TPDF bridge/pdf-lib | Merge, split, insert, delete, extract, crop and rotate pages | Add round-trip tests |
 | Text conversion | PDF.js extraction | PDF → TXT/XML/HTML/RTF | Label text-first output; do not promise layout preservation |
-| Office conversion | OPDF Server/Desktop bridge | PDF ↔ DOCX/XLSX/PPTX, RTF → PDF | Disable without converter; integration tests |
-| PDF/A | OPDF bridge | Only where `capabilities.pdfA === true` | Validate PDF/A output on supported runtime |
+| Office conversion | TPDF Server/Desktop bridge | PDF ↔ DOCX/XLSX/PPTX, RTF → PDF | Disable without converter; integration tests |
+| PDF/A | TPDF bridge | Only where `capabilities.pdfA === true` | Validate PDF/A output on supported runtime |
 | Advanced document features | pdf-lib | Outlines/bookmarks, URL and internal links, form editing | Expose existing advanced modal |
-| Measurement | OPDF viewer overlay | Distance/perimeter/area with calibration | Keep custom UX over engine page geometry |
+| Measurement | TPDF viewer overlay | Distance/perimeter/area with calibration | Keep custom UX over engine page geometry |
 
 ## Follow-up feature candidates — not yet verified as implemented
 
@@ -41,6 +41,6 @@ This inventory distinguishes **library primitives**, **existing OPDF adapters**,
 
 1. Define a stable ID, user-facing label, runtime capability and route to an **actual** engine handler.
 2. A tool requiring runtime support must be disabled with a specific explanation when support is absent.
-3. Prefer the EmbedPDF document-scoped plugin API for changes to viewer state; use the OPDF document bridge for file mutations.
+3. Prefer the EmbedPDF document-scoped plugin API for changes to viewer state; use the TPDF document bridge for file mutations.
 4. Cover one successful execution, one unsupported runtime and save/reload persistence when relevant.
 5. Keep the tool catalogue and agent/tool coverage tests synchronized; do not advertise unimplemented functions.

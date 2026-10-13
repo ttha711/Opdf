@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { useOpdfBridge } from "../useOpdfBridge";
+import type { useTpdfBridge } from "../useTpdfBridge";
 import type { DocumentTool } from "../../lib/document-tools";
 import { parsePageList } from "../../lib/document-tools";
 import type { DocumentToolOptions, MarkupTool, MarkupOptions } from "./types";
@@ -18,7 +18,7 @@ export function useDocumentToolsAction({
   setShowInsertModal,
   runConfiguredMarkupTool,
 }: {
-  bridge: ReturnType<typeof useOpdfBridge>;
+  bridge: ReturnType<typeof useTpdfBridge>;
   fileName: string;
   docBytes: Uint8Array | null;
   sourceIdentity: string;
@@ -48,7 +48,7 @@ export function useDocumentToolsAction({
         const degrees = activeTool === "rotate-all-left" ? -90 : 90;
         if (sourceIdentity.startsWith("server://") && bridge.mutateStoredDocument) {
           const result = await bridge.mutateStoredDocument(sourceIdentity, { type: "rotate-pages", degrees });
-          window.dispatchEvent(new CustomEvent("opdf:server-document-mutated", { detail: { sourceIdentity, updatedAt: result.updatedAt } }));
+          window.dispatchEvent(new CustomEvent("tpdf:server-document-mutated", { detail: { sourceIdentity, updatedAt: result.updatedAt } }));
           return;
         }
         const bytes = (await getDocumentBytes()) ?? docBytes;

@@ -44,12 +44,12 @@ async function waitForHealth() {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`${BASE}/api/opdf/health`);
+      const response = await fetch(`${BASE}/api/tpdf/health`);
       if (response.ok) return response.json();
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error("OPDF Server did not become healthy.");
+  throw new Error("TPDF Server did not become healthy.");
 }
 
 async function downloadPdf(url, outputPath) {
@@ -57,7 +57,7 @@ async function downloadPdf(url, outputPath) {
   const response = await fetch(url, {
     redirect: "follow",
     headers: {
-      "user-agent": "Mozilla/5.0 OPDF real-world benchmark",
+      "user-agent": "Mozilla/5.0 TPDF real-world benchmark",
       accept: "application/pdf,*/*;q=0.8",
     },
   });
@@ -96,7 +96,7 @@ function uploadPdf(filePath, fileName) {
     const info = await stat(filePath);
     const input = createReadStream(filePath);
     const request = http.request(
-      `${BASE}/api/opdf/documents?name=${encodeURIComponent(fileName)}`,
+      `${BASE}/api/tpdf/documents?name=${encodeURIComponent(fileName)}`,
       {
         method: "POST",
         headers: {
@@ -124,7 +124,7 @@ function uploadPdf(filePath, fileName) {
 }
 
 async function checkRange(id, totalBytes) {
-  const response = await fetch(`${BASE}/api/opdf/documents/${id}`, {
+  const response = await fetch(`${BASE}/api/tpdf/documents/${id}`, {
     headers: { Range: "bytes=0-65535" },
   });
   assert(response.status === 206, `Expected server HTTP 206, got ${response.status}`);
@@ -135,16 +135,16 @@ async function checkRange(id, totalBytes) {
   assert(bytes.subarray(0, 5).toString("ascii") === "%PDF-", "Range response does not start with PDF header");
 }
 
-const workDir = await mkdtemp(join(tmpdir(), "opdf-real-world-"));
+const workDir = await mkdtemp(join(tmpdir(), "tpdf-real-world-"));
 const dataDir = join(workDir, "server-data");
-const server = spawn(process.execPath, ["server/opdf-server.mjs"], {
+const server = spawn(process.execPath, ["server/tpdf-server.mjs"], {
   cwd: process.cwd(),
   env: {
     ...process.env,
-    OPDF_HOST: HOST,
-    OPDF_PORT: String(PORT),
-    OPDF_DATA_DIR: dataDir,
-    OPDF_MAX_UPLOAD_BYTES: String(350 * MiB),
+    TPDF_HOST: HOST,
+    TPDF_PORT: String(PORT),
+    TPDF_DATA_DIR: dataDir,
+    TPDF_MAX_UPLOAD_BYTES: String(350 * MiB),
   },
   stdio: ["ignore", "pipe", "pipe"],
   windowsHide: true,
@@ -157,7 +157,7 @@ let browser;
 const results = [];
 try {
   const health = await waitForHealth();
-  assert(health.runtime === "server", "Expected OPDF server runtime");
+  assert(health.runtime === "server", "Expected TPDF server runtime");
   browser = await chromium.launch({ headless: true });
 
   for (const testCase of CASES) {

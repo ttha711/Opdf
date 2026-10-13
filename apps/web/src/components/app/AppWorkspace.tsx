@@ -1,3 +1,4 @@
+// tpdf-file-size-allow: legacy workspace shell composes all tools and routes; this change only adds the reader-to-editor handoff, while splitting the shell is a separate refactor.
 import { useState } from "react";
 import { AdaptivePdfViewer } from "../AdaptivePdfViewer";
 import { AiAssistantPanel } from "../AiAssistantPanel";
@@ -12,10 +13,33 @@ import { MergeModal } from "../MergeModal";
 import { SplitModal } from "../SplitModal";
 import type { MarkupTool } from "../../hooks/useDocumentActions";
 import { useNativeEditBytes } from "../../hooks/useNativeEditBytes";
-import { commitPendingNativeInlineEdit, requestNativeInlineTextEdit } from "../../lib/nativeEditRuntime";
+import {
+  commitPendingNativeInlineEdit,
+  requestNativeInlineTextEdit,
+  requestNativeInlineTextEditAtPoint,
+} from "../../lib/nativeEditRuntime";
 
 type Controllers = ReturnType<typeof import("../../hooks/useAppControllers").useAppControllers>;
 type Sidebars = ReturnType<typeof import("../../hooks/useResizableSidebars").useResizableSidebars>;
+
+function pdfPointFromViewerDoubleClick(event: React.MouseEvent<HTMLElement>) {
+  const viewer = event.currentTarget.querySelector("embedpdf-container") as HTMLElement & { shadowRoot?: ShadowRoot } | null;
+  const root = viewer?.shadowRoot;
+  if (!root) return null;
+
+  const candidates = [...root.querySelectorAll<HTMLElement>("img,canvas")]
+    .map((element) => element.getBoundingClientRect())
+    .filter((rect) => rect.width >= 80 && rect.height >= 80 &&
+      event.clientX >= rect.left && event.clientX <= rect.right &&
+      event.clientY >= rect.top && event.clientY <= rect.bottom)
+    .sort((a, b) => a.width * a.height - b.width * b.height);
+  const pageRect = candidates[0];
+  if (!pageRect) return null;
+  return {
+    x: (event.clientX - pageRect.left) / pageRect.width,
+    y: (event.clientY - pageRect.top) / pageRect.height,
+  };
+}
 
 type Props = {
   controllers: Controllers;
@@ -69,7 +93,6 @@ export function AppWorkspace({
     isDraggingRight,
     setIsDraggingRight,
   } = sidebars;
-
   const [selectedTextForEdit, setSelectedTextForEdit] = useState<{ text: string; page: number; tabId: string; documentKey: string } | null>(null);
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
   const getNativeEditBytes = useNativeEditBytes(state);
@@ -113,6 +136,10 @@ export function AppWorkspace({
             if (state.activeTool !== "select" || (event.target instanceof Element && event.target.closest("button,a,input,textarea,[role='button']"))) return;
             const text = window.getSelection()?.toString().trim() ?? "";
             if (text) requestNativeInlineTextEdit(state.page - 1, text);
+            else {
+              const point = pdfPointFromViewerDoubleClick(event);
+              if (point) requestNativeInlineTextEditAtPoint(state.page - 1, point.x, point.y);
+            }
             setSelectedTextForEdit(null); state.setActiveTool("edit-content");
           }}
           aria-label="PDF viewer area"
@@ -124,7 +151,7 @@ export function AppWorkspace({
           {state.activeTool === "select" && selectedTextForEdit?.tabId === activeTab.id && selectedTextForEdit.documentKey === state.sourceIdentity ? (
             <button
               type="button"
-              data-opdf-action="edit-selected-text"
+              data-tpdf-action="edit-selected-text"
               aria-label="Edit selected PDF text"
               title="Edit selected PDF text"
               className="absolute right-4 top-4 z-30 rounded-md border border-[var(--acrobat-blue)] bg-white px-3 py-2 text-sm font-semibold text-[var(--acrobat-blue)] shadow-md"
@@ -188,21 +215,21 @@ export function AppWorkspace({
       {showRight ? (
         <button
           type="button"
-          className="opdf-right-panel-backdrop"
-          data-opdf-action="right-panel-backdrop"
+          className="tpdf-right-panel-backdrop"
+          data-tpdf-action="right-panel-backdrop"
           aria-label="Close right panel"
           onClick={() => setIsRightCollapsed(true)}
         />
       ) : null}
       <div
         style={{ gridColumn: 3, display: showRight ? "block" : "none" }}
-        className="opdf-side-panel opdf-side-panel--right relative h-full min-h-0 overflow-hidden"
-        data-opdf-right-sidebar={showRight ? "open" : "closed"}
+        className="tpdf-side-panel tpdf-side-panel--right relative h-full min-h-0 overflow-hidden"
+        data-tpdf-right-sidebar={showRight ? "open" : "closed"}
       >
         <button
           type="button"
-          className="opdf-panel-collapse"
-          data-opdf-action="collapse-right-panel"
+          className="tpdf-panel-collapse"
+          data-tpdf-action="collapse-right-panel"
           onClick={() => setIsRightCollapsed(true)}
           title="Collapse right panel"
         >
@@ -241,6 +268,7 @@ export function AppWorkspace({
           <DocumentToolPanel
             activeToolId={state.activeDashboardTool}
             fileName={state.fileName}
+            sourceIdentity={state.sourceIdentity}
             docBytes={state.docBytes}
             sourceBlob={state.sourceBlob}
             getDocumentBytes={materializeDocumentBytes}
@@ -287,7 +315,7 @@ export function AppWorkspace({
         <button
           type="button"
           className="absolute right-0 top-1/2 z-30 flex h-16 w-5 -translate-y-1/2 items-center justify-center rounded-l bg-[var(--acrobat-blue)] text-white"
-          data-opdf-action="expand-right-panel"
+          data-tpdf-action="expand-right-panel"
           onClick={() => setIsRightCollapsed(false)}
           title={state.activeTool === "edit-content" ? "Open advanced edit settings" : "Expand right sidebar"}
         >

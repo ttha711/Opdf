@@ -18,7 +18,7 @@ describe("StatusBar page indicator", () => {
     const html = renderToStaticMarkup(<StatusBar {...baseProps} />);
 
     expect(html).toContain("Loading pages...");
-    expect(html).toContain('data-opdf-page-loading="true"');
+    expect(html).toContain('data-tpdf-page-loading="true"');
     expect(html).toContain('aria-label="Loading document pages"');
     expect(html).not.toContain("Page <strong>1</strong> of <strong>0</strong>");
   });
@@ -29,7 +29,7 @@ describe("StatusBar page indicator", () => {
       <StatusBar {...baseProps} totalPages={3} />,
     );
 
-    expect(html).toContain('data-opdf-action="toggle-page-filmstrip"');
+    expect(html).toContain('data-tpdf-action="toggle-page-filmstrip"');
     expect(html).toContain("▣ Pages");
     expect(html).toContain('aria-expanded="false"');
   });
@@ -40,7 +40,7 @@ describe("StatusBar page indicator", () => {
     );
 
     expect(html).toContain("Page <strong>1</strong> of <strong>12</strong>");
-    expect(html).toContain('data-opdf-page-loading="false"');
+    expect(html).toContain('data-tpdf-page-loading="false"');
     expect(html).not.toContain("Loading pages...");
   });
 });

@@ -29,7 +29,7 @@ async function makeCompressiblePdf() {
   for (let pageNumber = 1; pageNumber <= 12; pageNumber += 1) {
     const page = pdf.addPage([612, 792]);
     for (let row = 0; row < 45; row += 1) {
-      page.drawText(`OPDF COMPRESSION CHECK PAGE ${pageNumber} ROW ${row} REPETITIVE CONTENT`, {
+      page.drawText(`TPDF COMPRESSION CHECK PAGE ${pageNumber} ROW ${row} REPETITIVE CONTENT`, {
         x: 36,
         y: 750 - row * 15,
         size: 8,
@@ -40,7 +40,7 @@ async function makeCompressiblePdf() {
   return Buffer.from(await pdf.save({ useObjectStreams: false }));
 }
 
-test.describe("full OPDF Server tool UI", () => {
+test.describe("full TPDF Server tool UI", () => {
   test("PDF to Word/Excel/PowerPoint uses the real server converter and downloads valid Office packages", async ({ page }) => {
     await loadToolFixture(page);
     for (const [toolId, format] of [
@@ -49,14 +49,14 @@ test.describe("full OPDF Server tool UI", () => {
       ["pdf-to-ppt", "pptx"],
     ] as const) {
       await openDashboardTool(page, toolId);
-      const panel = page.locator(`[data-opdf-panel="tool"][data-opdf-tool="${toolId}"]`);
+      const panel = page.locator(`[data-tpdf-panel="tool"][data-tpdf-tool="${toolId}"]`);
       const downloadPromise = page.waitForEvent("download", { timeout: 90_000 });
       await panel.getByRole("button", { name: "Export File", exact: true }).click();
       const download = await downloadPromise;
       expect(download.suggestedFilename().toLowerCase().endsWith(`.${format}`)).toBeTruthy();
       const bytes = await downloadBuffer(download);
       assertOfficePackage(new Uint8Array(bytes), format);
-      await panel.locator('[data-opdf-action="close-tool"]').click();
+      await panel.locator('[data-tpdf-action="close-tool"]').click();
     }
   });
 
@@ -70,7 +70,7 @@ test.describe("full OPDF Server tool UI", () => {
       ["ppt-to-pdf", fixtures.pptx],
     ] as const) {
       await openDashboardTool(page, toolId);
-      const panel = page.locator(`[data-opdf-panel="tool"][data-opdf-tool="${toolId}"]`);
+      const panel = page.locator(`[data-tpdf-panel="tool"][data-tpdf-tool="${toolId}"]`);
       const chooserPromise = page.waitForEvent("filechooser", { timeout: 10_000 });
       await panel.getByRole("button", { name: "Select File & Convert", exact: true }).click();
       const chooser = await chooserPromise;
@@ -84,13 +84,13 @@ test.describe("full OPDF Server tool UI", () => {
       await expect(page.locator(`.tab-item[title="${convertedName}"]`)).toBeVisible({
         timeout: 90_000,
       });
-      await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 90_000 });
+      await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 90_000 });
       const output = await saveCurrentRawPdf(page);
       const pdf = await PDFDocument.load(output);
       expect(pdf.getPageCount()).toBeGreaterThan(0);
       const text = (await extractPdfTextPages(output)).join(" ");
       expect(text).toContain(fixture.marker);
-      const close = panel.locator('[data-opdf-action="close-tool"]');
+      const close = panel.locator('[data-tpdf-action="close-tool"]');
       if (await close.isVisible().catch(() => false)) await close.click();
     }
   });
@@ -99,9 +99,9 @@ test.describe("full OPDF Server tool UI", () => {
     const source = await makeCompressiblePdf();
     await loadToolFixture(page, source, "compressible.pdf");
     await openDashboardTool(page, "compress-pdf");
-    const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="compress-pdf"]');
-    await panel.locator('[data-opdf-action="compress-run"]').click();
-    await expect(page.locator('[data-opdf-region="status-bar"]')).toContainText("PDF optimized successfully.", {
+    const panel = page.locator('[data-tpdf-panel="tool"][data-tpdf-tool="compress-pdf"]');
+    await panel.locator('[data-tpdf-action="compress-run"]').click();
+    await expect(page.locator('[data-tpdf-region="status-bar"]')).toContainText("PDF optimized successfully.", {
       timeout: 60_000,
     });
 
@@ -114,23 +114,23 @@ test.describe("full OPDF Server tool UI", () => {
   test("Protect then Unlock PDF works from the UI with the real server encryption engine", async ({ page }) => {
     await loadToolFixture(page);
     await openDashboardTool(page, "protect-pdf");
-    let panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="protect-pdf"]');
+    let panel = page.locator('[data-tpdf-panel="tool"][data-tpdf-tool="protect-pdf"]');
     await panel.getByLabel("New password").fill("viewer-pass");
     await panel.getByLabel("Confirm password").fill("viewer-pass");
     await panel.getByRole("button", { name: "Protect PDF", exact: true }).click();
-    await expect(page.locator('[data-opdf-region="status-bar"]')).toContainText("Password protection applied", {
+    await expect(page.locator('[data-tpdf-region="status-bar"]')).toContainText("Password protection applied", {
       timeout: 30_000,
     });
 
     const protectedBytes = await saveCurrentRawPdf(page);
     await expect(PDFDocument.load(protectedBytes)).rejects.toThrow();
 
-    await panel.locator('[data-opdf-action="close-tool"]').click();
+    await panel.locator('[data-tpdf-action="close-tool"]').click();
     await openDashboardTool(page, "unlock-pdf");
-    panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="unlock-pdf"]');
+    panel = page.locator('[data-tpdf-panel="tool"][data-tpdf-tool="unlock-pdf"]');
     await panel.getByLabel("Current password").fill("viewer-pass");
     await panel.getByRole("button", { name: "Unlock PDF", exact: true }).click();
-    await expect(page.locator('[data-opdf-region="status-bar"]')).toContainText("PDF unlocked", {
+    await expect(page.locator('[data-tpdf-region="status-bar"]')).toContainText("PDF unlocked", {
       timeout: 30_000,
     });
 
@@ -143,33 +143,33 @@ test.describe("full OPDF Server tool UI", () => {
     await loadToolFixture(page);
     await openAllTools(page);
     const downloadPromise = page.waitForEvent("download", { timeout: 60_000 });
-    await page.locator('[data-opdf-tool-card="ocr-pdf"]').click();
+    await page.locator('[data-tpdf-tool-card="ocr-pdf"]').click();
     const download = await downloadPromise;
     expect(download.suggestedFilename().toLowerCase().startsWith("ocr-")).toBeTruthy();
     const bytes = await downloadBuffer(download);
     const output = await PDFDocument.load(bytes);
     expect(output.getPageCount()).toBe(3);
     const text = (await extractPdfTextPages(bytes)).join(" ");
-    expect(text).toContain("OPDF TOOL PAGE ONE KEEP");
+    expect(text).toContain("TPDF TOOL PAGE ONE KEEP");
   });
 
   test("Digital Sign verifies a P12, signs through server API, and inspects the signed PDF", async ({ page }) => {
     test.setTimeout(120_000);
     await loadToolFixture(page);
     await openDashboardTool(page, "sign-pdf");
-    let dialog = page.locator('[data-opdf-dialog="digital-signature"]');
+    let dialog = page.locator('[data-tpdf-dialog="digital-signature"]');
     await expect(dialog).toBeVisible();
 
-    const passphrase = "opdf-ci";
+    const passphrase = "tpdf-ci";
     await dialog.locator('input[type="file"]').setInputFiles({
-      name: "opdf-ci.p12",
+      name: "tpdf-ci.p12",
       mimeType: "application/x-pkcs12",
       buffer: buildTestP12(passphrase),
     });
     await dialog.getByPlaceholder("Certificate password").fill(passphrase);
     await dialog.getByRole("button", { name: "Verify certificate", exact: true }).click();
-    await expect(dialog).toContainText("OPDF Server UI CI", { timeout: 30_000 });
-    await dialog.getByLabel("Reason").fill("OPDF CI server UI approval");
+    await expect(dialog).toContainText("TPDF Server UI CI", { timeout: 30_000 });
+    await dialog.getByLabel("Reason").fill("TPDF CI server UI approval");
     await dialog.getByRole("button", { name: "Digitally sign PDF", exact: true }).click();
     await expect(dialog).toHaveCount(0, { timeout: 60_000 });
 
@@ -179,10 +179,10 @@ test.describe("full OPDF Server tool UI", () => {
     expect(raw.includes(Buffer.from("/SubFilter /adbe.pkcs7.detached"))).toBeTruthy();
 
     await openDashboardTool(page, "sign-pdf");
-    dialog = page.locator('[data-opdf-dialog="digital-signature"]');
+    dialog = page.locator('[data-tpdf-dialog="digital-signature"]');
     await dialog.getByRole("button", { name: "Inspect existing", exact: true }).click();
     await dialog.getByRole("button", { name: "Inspect signatures", exact: true }).click();
     await expect(dialog).toContainText("Signature 1", { timeout: 30_000 });
-    await expect(dialog).toContainText("OPDF Server UI CI", { timeout: 30_000 });
+    await expect(dialog).toContainText("TPDF Server UI CI", { timeout: 30_000 });
   });
 });

@@ -6,14 +6,14 @@ import { buildFormPdf, buildObjectPdf, buildRotatedTextPdf, buildTextPdf } from 
 test.setTimeout(90_000);
 
 async function expandAdvancedEditPanel(page: Page) {
-  const expand = page.locator("[data-opdf-action='expand-right-panel']");
+  const expand = page.locator("[data-tpdf-action='expand-right-panel']");
   await expect(expand).toBeVisible({ timeout: 20_000 });
   await expand.click();
-  await expect(page.locator("[data-opdf-native-editor='true']")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-tpdf-native-editor='true']")).toBeVisible({ timeout: 20_000 });
 }
 
 test("native Edit PDF changes existing text and survives save/reload", async ({ page, request }) => {
-  const upload = await request.post("/api/opdf/documents?name=native-edit.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=native-edit.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: await buildTextPdf(),
   });
@@ -21,45 +21,45 @@ test("native Edit PDF changes existing text and survives save/reload", async ({ 
   const document = await upload.json();
 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
-  await expect(page.locator("[data-opdf-engine=\'pdfium-wasm\']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine=\'pdfium-wasm\']")).toBeVisible({ timeout: 30_000 });
 
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
-  const editor = page.locator("[data-opdf-native-editor=\'true\']");
+  const editor = page.locator("[data-tpdf-native-editor=\'true\']");
   await expect(editor).toBeVisible();
-  const originalObject = editor.locator(".native-content-editor__objects button").filter({ hasText: "Original OPDF text" }).first();
+  const originalObject = editor.locator(".native-content-editor__objects button").filter({ hasText: "Original TPDF text" }).first();
   await expect(originalObject).toBeVisible({ timeout: 20_000 });
 
   await expect(editor.locator("textarea")).toHaveCount(0);
-  await replaceNativeTextFromCanvas(page, editor, originalObject, "Edited OPDF native text");
+  await replaceNativeTextFromCanvas(page, editor, originalObject, "Edited TPDF native text");
 
   await editor.getByRole("button", { name: "Undo" }).click();
-  await expect(editor.locator(".native-content-editor__objects button").filter({ hasText: "Original OPDF text" }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(editor.locator(".native-content-editor__objects button").filter({ hasText: "Original TPDF text" }).first()).toBeVisible({ timeout: 20_000 });
   await editor.getByRole("button", { name: "Redo" }).click();
-  await expect(editor.locator(".native-content-editor__objects button").filter({ hasText: "Edited OPDF native text" }).first()).toBeVisible({ timeout: 20_000 });
+  await expect(editor.locator(".native-content-editor__objects button").filter({ hasText: "Edited TPDF native text" }).first()).toBeVisible({ timeout: 20_000 });
 
   await editor.getByRole("button", { name: "Duplicate" }).click();
   await expect(
-    editor.locator(".native-content-editor__objects button").filter({ hasText: "Edited OPDF native text" }),
+    editor.locator(".native-content-editor__objects button").filter({ hasText: "Edited TPDF native text" }),
   ).toHaveCount(2, { timeout: 20_000 });
 
   await saveServerDocumentAndWait(page);
   await page.waitForTimeout(500);
   await page.reload();
-  await expect(page.locator("[data-opdf-engine=\'pdfium-wasm\']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine=\'pdfium-wasm\']")).toBeVisible({ timeout: 30_000 });
 
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
-  const reopened = page.locator("[data-opdf-native-editor=\'true\']");
+  const reopened = page.locator("[data-tpdf-native-editor=\'true\']");
   await expect(
-    reopened.locator(".native-content-editor__objects button").filter({ hasText: "Edited OPDF native text" }),
+    reopened.locator(".native-content-editor__objects button").filter({ hasText: "Edited TPDF native text" }),
   ).toHaveCount(2, { timeout: 20_000 });
-  await expect(reopened.getByText("Original OPDF text", { exact: false })).toHaveCount(0);
+  await expect(reopened.getByText("Original TPDF text", { exact: false })).toHaveCount(0);
 });
 
 
 test("native Edit PDF edits vector geometry and crops/duplicates images", async ({ page, request }) => {
-  const upload = await request.post("/api/opdf/documents?name=native-objects.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=native-objects.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: await buildObjectPdf(),
   });
@@ -67,13 +67,13 @@ test("native Edit PDF edits vector geometry and crops/duplicates images", async 
   const document = await upload.json();
 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
 
-  const editor = page.locator("[data-opdf-native-editor='true']");
+  const editor = page.locator("[data-tpdf-native-editor='true']");
   await expect(editor).toBeVisible();
-  const objectButtons = editor.locator(".native-content-editor__objects button");
+  const objectButtons = editor.locator(".native-content-editor__objects button[data-tpdf-object-kind]");
   await expect(objectButtons.filter({ hasText: "PATH" }).first()).toBeVisible({ timeout: 20_000 });
   await expect(objectButtons.filter({ hasText: "IMAGE" }).first()).toBeVisible({ timeout: 20_000 });
 
@@ -96,18 +96,18 @@ test("native Edit PDF edits vector geometry and crops/duplicates images", async 
 
   await saveServerDocumentAndWait(page);
   await page.reload();
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
 
-  const reopened = page.locator("[data-opdf-native-editor='true']");
-  await expect(reopened.locator(".native-content-editor__objects button").filter({ hasText: "PATH" })).toHaveCount(2, { timeout: 20_000 });
-  await expect(reopened.locator(".native-content-editor__objects button").filter({ hasText: "IMAGE" })).toHaveCount(2, { timeout: 20_000 });
+  const reopened = page.locator("[data-tpdf-native-editor='true']");
+  await expect(reopened.locator(".native-content-editor__objects button[data-tpdf-object-kind='path']")).toHaveCount(2, { timeout: 20_000 });
+  await expect(reopened.locator(".native-content-editor__objects button[data-tpdf-object-kind='image']")).toHaveCount(2, { timeout: 20_000 });
 });
 
 
 test("native Edit PDF can add a new PDFium text object and persist it", async ({ page, request }) => {
-  const upload = await request.post("/api/opdf/documents?name=native-add-text.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=native-add-text.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: await buildTextPdf(),
   });
@@ -115,28 +115,28 @@ test("native Edit PDF can add a new PDFium text object and persist it", async ({
   const document = await upload.json();
 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
 
-  const editor = page.locator("[data-opdf-native-editor='true']");
+  const editor = page.locator("[data-tpdf-native-editor='true']");
   await editor.getByRole("button", { name: "+ Text" }).click();
   await expect(editor.getByText("Native text object added.")).toBeVisible({ timeout: 20_000 });
   await expect(editor.locator(".native-content-editor__objects button").filter({ hasText: "New text" })).toHaveCount(1, { timeout: 20_000 });
 
   await saveServerDocumentAndWait(page);
   await page.reload();
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
 
-  const reopened = page.locator("[data-opdf-native-editor='true']");
+  const reopened = page.locator("[data-tpdf-native-editor='true']");
   await expect(reopened.locator(".native-content-editor__objects button").filter({ hasText: "New text" })).toHaveCount(1, { timeout: 20_000 });
 });
 
 
 test("native Edit PDF deep-edits Form XObject text, path and image and persists it", async ({ page, request }) => {
-  const upload = await request.post("/api/opdf/documents?name=native-form.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=native-form.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: buildFormPdf(),
   });
@@ -144,17 +144,17 @@ test("native Edit PDF deep-edits Form XObject text, path and image and persists 
   const document = await upload.json();
 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
 
-  const editor = page.locator("[data-opdf-native-editor='true']");
-  const form = editor.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='form']").first();
+  const editor = page.locator("[data-tpdf-native-editor='true']");
+  const form = editor.locator("[data-tpdf-object-depth='0'][data-tpdf-object-kind='form']").first();
   await expect(form).toBeVisible({ timeout: 20_000 });
 
-  const nestedText = editor.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='text']").filter({ hasText: "Form child text" }).first();
-  const nestedPath = editor.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='path']").first();
-  const nestedImage = editor.locator("[data-opdf-object-depth='1'][data-opdf-object-kind='image']").first();
+  const nestedText = editor.locator("[data-tpdf-object-depth='1'][data-tpdf-object-kind='text']").filter({ hasText: "Form child text" }).first();
+  const nestedPath = editor.locator("[data-tpdf-object-depth='1'][data-tpdf-object-kind='path']").first();
+  const nestedImage = editor.locator("[data-tpdf-object-depth='1'][data-tpdf-object-kind='image']").first();
   await expect(nestedText).toBeVisible({ timeout: 20_000 });
   await expect(nestedPath).toBeVisible({ timeout: 20_000 });
   await expect(nestedImage).toBeVisible({ timeout: 20_000 });
@@ -164,36 +164,36 @@ test("native Edit PDF deep-edits Form XObject text, path and image and persists 
   await expect(editor.getByText("Persistent Form edit")).toBeVisible();
   await expect(editor.getByLabel("Font size")).toBeEnabled();
   await replaceNativeTextFromCanvas(page, editor, nestedText, "Edited inside Form");
-  const promotedText = editor.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='text']").filter({ hasText: "Edited inside Form" }).first();
+  const promotedText = editor.locator("[data-tpdf-object-depth='0'][data-tpdf-object-kind='text']").filter({ hasText: "Edited inside Form" }).first();
   await expect(promotedText).toBeVisible({ timeout: 20_000 });
 
   await nestedPath.click();
   await editor.getByLabel("Blend mode").selectOption("Multiply");
   await editor.getByRole("button", { name: "Apply blend mode" }).click();
   await expect(editor.getByText("Blend mode set to Multiply.")).toBeVisible({ timeout: 20_000 });
-  await expect(editor.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='path']").first()).toBeVisible({ timeout: 20_000 });
+  await expect(editor.locator("[data-tpdf-object-depth='0'][data-tpdf-object-kind='path']").first()).toBeVisible({ timeout: 20_000 });
 
-  const beforeImageBounds = await nestedImage.getAttribute("data-opdf-bounds");
+  const beforeImageBounds = await nestedImage.getAttribute("data-tpdf-bounds");
   await nestedImage.click();
   await editor.getByRole("button", { name: "→" }).click();
   await expect(editor.getByText("Object moved.")).toBeVisible({ timeout: 20_000 });
-  const movedImage = editor.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='image']").first();
+  const movedImage = editor.locator("[data-tpdf-object-depth='0'][data-tpdf-object-kind='image']").first();
   await expect(movedImage).toBeVisible({ timeout: 20_000 });
-  await expect(movedImage).not.toHaveAttribute("data-opdf-bounds", beforeImageBounds ?? "", { timeout: 20_000 });
+  await expect(movedImage).not.toHaveAttribute("data-tpdf-bounds", beforeImageBounds ?? "", { timeout: 20_000 });
 
   await saveServerDocumentAndWait(page);
   await page.reload();
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
 
-  const reopened = page.locator("[data-opdf-native-editor='true']");
-  const editedText = reopened.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='text']").filter({ hasText: "Edited inside Form" });
+  const reopened = page.locator("[data-tpdf-native-editor='true']");
+  const editedText = reopened.locator("[data-tpdf-object-depth='0'][data-tpdf-object-kind='text']").filter({ hasText: "Edited inside Form" });
   await expect(editedText).toHaveCount(1, { timeout: 20_000 });
   await expect(reopened.getByText("Form child text", { exact: false })).toHaveCount(0);
-  await expect(reopened.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='path']")).toHaveCount(1);
-  await expect(reopened.locator("[data-opdf-object-depth='0'][data-opdf-object-kind='image']")).toHaveCount(1);
-  await expect(reopened.locator("[data-opdf-object-depth='1']")).toHaveCount(0);
+  await expect(reopened.locator("[data-tpdf-object-depth='0'][data-tpdf-object-kind='path']")).toHaveCount(1);
+  await expect(reopened.locator("[data-tpdf-object-depth='0'][data-tpdf-object-kind='image']")).toHaveCount(1);
+  await expect(reopened.locator("[data-tpdf-object-depth='1']")).toHaveCount(0);
 
   await editedText.click();
   await reopened.getByRole("button", { name: "Delete object" }).click();
@@ -202,11 +202,11 @@ test("native Edit PDF deep-edits Form XObject text, path and image and persists 
   await page.reload();
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
-  await expect(page.locator("[data-opdf-native-editor='true'] [data-opdf-object-kind='text']").filter({ hasText: "Edited inside Form" })).toHaveCount(0, { timeout: 20_000 });
+  await expect(page.locator("[data-tpdf-native-editor='true'] [data-tpdf-object-kind='text']").filter({ hasText: "Edited inside Form" })).toHaveCount(0, { timeout: 20_000 });
 });
 
 test("native Edit PDF exposes PDFium rotated bounds for precise selection", async ({ page, request }) => {
-  const upload = await request.post("/api/opdf/documents?name=native-rotated.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=native-rotated.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: await buildRotatedTextPdf(),
   });
@@ -214,19 +214,19 @@ test("native Edit PDF exposes PDFium rotated bounds for precise selection", asyn
   const document = await upload.json();
 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
 
-  const editor = page.locator("[data-opdf-native-editor='true']");
-  const rotated = editor.locator("[data-opdf-rotated-bounds='true']").filter({ hasText: "Rotated OPDF text" }).first();
+  const editor = page.locator("[data-tpdf-native-editor='true']");
+  const rotated = editor.locator("[data-tpdf-rotated-bounds='true']").filter({ hasText: "Rotated TPDF text" }).first();
   await expect(rotated).toBeVisible({ timeout: 20_000 });
   await rotated.click();
-  await expect(editor.locator("[data-opdf-rotated-selection='true']")).toBeVisible();
+  await expect(editor.locator("[data-tpdf-rotated-selection='true']")).toBeVisible();
 });
 
 test("native Edit PDF writes PDFium blend mode into saved PDF", async ({ page, request }) => {
-  const upload = await request.post("/api/opdf/documents?name=native-blend.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=native-blend.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: await buildTextPdf(),
   });
@@ -234,18 +234,18 @@ test("native Edit PDF writes PDFium blend mode into saved PDF", async ({ page, r
   const document = await upload.json();
 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
   await expandAdvancedEditPanel(page);
 
-  const editor = page.locator("[data-opdf-native-editor='true']");
-  await editor.locator(".native-content-editor__objects button").filter({ hasText: "Original OPDF text" }).first().click();
+  const editor = page.locator("[data-tpdf-native-editor='true']");
+  await editor.locator(".native-content-editor__objects button").filter({ hasText: "Original TPDF text" }).first().click();
   await editor.getByLabel("Blend mode").selectOption("Multiply");
   await editor.getByRole("button", { name: "Apply blend mode" }).click();
   await expect(editor.getByText("Blend mode set to Multiply.")).toBeVisible({ timeout: 20_000 });
 
   await saveServerDocumentAndWait(page);
-  const saved = await request.get(`/api/opdf/documents/${document.id}`);
+  const saved = await request.get(`/api/tpdf/documents/${document.id}`);
   expect(saved.status()).toBe(200);
   const bytes = Buffer.from(await saved.body()).toString("latin1");
   expect(bytes).toMatch(/\/BM\s*\/Multiply|\/BM\/Multiply/);

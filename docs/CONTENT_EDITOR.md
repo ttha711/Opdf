@@ -1,8 +1,8 @@
-# OPDF Native Content Editor
+# TPDF Native Content Editor
 
 ## Product target
 
-OPDF must support editing the **existing PDF page content**, not merely placing annotations over it.
+TPDF must support editing the **existing PDF page content**, not merely placing annotations over it.
 
 The finished editor must let a user:
 
@@ -24,7 +24,7 @@ The finished editor must let a user:
 The viewer and content editor are separate layers.
 
 1. **Viewer** — EmbedPDF remains responsible for rendering, navigation, selection, annotations, forms, and large-document viewing.
-2. **Content editing model** — `PdfContentObject` and `PdfContentPatch` are OPDF-owned contracts. UI code talks only to these contracts.
+2. **Content editing model** — `PdfContentObject` and `PdfContentPatch` are TPDF-owned contracts. UI code talks only to these contracts.
 3. **Native content engine** — an adapter implements page-object inspection and mutation. It must edit PDF page objects/content streams and serialize a valid PDF.
 4. **Editor overlay** — uses engine object bounds/matrices to render selection handles and in-place text controls over the viewer.
 5. **History** — edits are commands/patches, enabling undo/redo and deterministic tests.
@@ -82,7 +82,7 @@ The project is not considered complete merely because Add Text works. Native Edi
 The current branch implements the native editor with direct `@embedpdf/pdfium` page-object mutation:
 
 - text/image/path object inspection with bounds and transforms;
-- existing text replacement, font size/color, standard fonts and OPDF Unicode/Vietnamese font embedding;
+- existing text replacement, font size/color, standard fonts and TPDF Unicode/Vietnamese font embedding;
 - move, resize, rotate, duplicate and delete for supported native objects;
 - image replacement and bitmap crop;
 - path fill/stroke/stroke-width editing;
@@ -123,13 +123,13 @@ The external WSDOT workflow is intentionally separate from the deterministic CI 
 
 ## PDFium capability policy
 
-OPDF now treats PDFium as the primary source of truth for native page-object capabilities. New capabilities are exposed with runtime feature detection so a missing optional export in a particular WASM build does not break the editor. The editor should prefer a PDFium primitive over reimplementing the same PDF operation in JavaScript whenever that primitive is available and serializes cleanly through `FPDFPage_GenerateContent` + the existing PDFium writer.
+TPDF now treats PDFium as the primary source of truth for native page-object capabilities. New capabilities are exposed with runtime feature detection so a missing optional export in a particular WASM build does not break the editor. The editor should prefer a PDFium primitive over reimplementing the same PDF operation in JavaScript whenever that primitive is available and serializes cleanly through `FPDFPage_GenerateContent` + the existing PDFium writer.
 
 
 ## Form XObject editing rules
 
 PDFium exposes Form XObject enumeration and removal through `FPDFFormObj_CountObjects`, `FPDFFormObj_GetObject`, and `FPDFFormObj_RemoveObject`. However, arbitrary in-memory mutations to a Form child are not sufficient for persistence: PDFium regenerates a Form stream only when that Form holder has a dirty content stream.
 
-For a child directly inside a page-level Form, OPDF uses a persistence-safe promotion flow. It clones the supported text/image/path child as a page object, composes the Form matrix with the child's matrix so the visual position is preserved, inserts the clone through the normal PDFium page-object API, then removes the original Form child with `FPDFFormObj_RemoveObject`. The removal marks the Form stream dirty, while the promoted object is a normal dirty page object, so `FPDFPage_GenerateContent` serializes both sides of the structural change. The requested edit is then applied to the promoted object.
+For a child directly inside a page-level Form, TPDF uses a persistence-safe promotion flow. It clones the supported text/image/path child as a page object, composes the Form matrix with the child's matrix so the visual position is preserved, inserts the clone through the normal PDFium page-object API, then removes the original Form child with `FPDFFormObj_RemoveObject`. The removal marks the Form stream dirty, while the promoted object is a normal dirty page object, so `FPDFPage_GenerateContent` serializes both sides of the structural change. The requested edit is then applied to the promoted object.
 
 This intentionally changes that edited object's internal structure from Form-child to page-level content. Forms nested more than one level are still fully inspectable but are read-only: PDFium does not expose enough public APIs to persist arbitrary deep child mutation safely without rewriting PDF content streams outside PDFium.

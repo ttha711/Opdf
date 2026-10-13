@@ -2,7 +2,7 @@ import { computeBlobHash } from "./web-storage";
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const SERVER_IDENTITY_RE = new RegExp(`^server:\\/\\/(${UUID})\\/(.+)$`, "i");
-const API_DOCUMENT_RE = new RegExp(`(?:^|/)api/opdf/documents/(${UUID})(?:/|$)`, "i");
+const API_DOCUMENT_RE = new RegExp(`(?:^|/)api/tpdf/documents/(${UUID})(?:/|$)`, "i");
 const STORAGE_DOCUMENT_RE = new RegExp(`(?:^|[\\\\/])documents[\\\\/](${UUID})(?:[\\\\/]|$)`, "i");
 
 function safeDecode(value: string) {
@@ -30,7 +30,7 @@ export function normalizeServerDocumentReference(reference: string) {
 
   let pathname = reference;
   try {
-    pathname = new URL(reference, "https://opdf.invalid").pathname;
+    pathname = new URL(reference, "https://tpdf.invalid").pathname;
   } catch {
     // Keep the raw reference for local storage-path matching.
   }

@@ -3,8 +3,8 @@ export type PdfSource = Blob | Uint8Array | string | null;
 export function getServerDocumentUrl(
   identity: string,
   baseUrl = typeof window !== "undefined"
-    ? (window.__OPDF_SERVER_BASE__ || "/api/opdf")
-    : "/api/opdf",
+    ? (window.__TPDF_SERVER_BASE__ || "/api/tpdf")
+    : "/api/tpdf",
 ) {
   const match = /^server:\/\/([0-9a-f-]{36})\//i.exec(identity);
   if (!match) return null;

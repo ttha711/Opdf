@@ -4,7 +4,7 @@ export async function buildTextPdf() {
   const doc = await PDFDocument.create();
   const page = doc.addPage([420, 300]);
   const font = await doc.embedFont(StandardFonts.Helvetica);
-  page.drawText("Original OPDF text", { x: 70, y: 180, size: 24, font });
+  page.drawText("Original TPDF text", { x: 70, y: 180, size: 24, font });
   return Buffer.from(await doc.save({ useObjectStreams: false }));
 }
 
@@ -33,7 +33,7 @@ export async function buildRotatedTextPdf() {
   const doc = await PDFDocument.create();
   const page = doc.addPage([420, 300]);
   const font = await doc.embedFont(StandardFonts.Helvetica);
-  page.drawText("Rotated OPDF text", {
+  page.drawText("Rotated TPDF text", {
     x: 90,
     y: 120,
     size: 28,

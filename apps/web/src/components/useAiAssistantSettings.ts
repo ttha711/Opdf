@@ -3,8 +3,8 @@ import type { EngineMode } from "./AiAssistantPanel.types";
 
 export function useAiAssistantSettings() {
   const [showSettings, setShowSettings] = useState(false);
-  const isServerRuntime = typeof window !== "undefined" && window.__OPDF_RUNTIME__ === "server";
-  const isDesktopRuntime = typeof window !== "undefined" && Boolean(window.opdf?.setAiConfig);
+  const isServerRuntime = typeof window !== "undefined" && window.__TPDF_RUNTIME__ === "server";
+  const isDesktopRuntime = typeof window !== "undefined" && Boolean(window.tpdf?.setAiConfig);
   const [engineMode, setEngineMode] = useState<EngineMode>(isServerRuntime ? "agent" : "local");
 
   // VITE_* values are browser-development fallbacks. Desktop secrets live in the main process.
@@ -16,9 +16,9 @@ export function useAiAssistantSettings() {
   const [iframeUrl, setIframeUrl] = useState("http://localhost:3005");
 
   const syncAiConfigToDesktop = async (nextMode: EngineMode, nextUrl: string, nextKey: string) => {
-    if (nextMode === "agent" || !window.opdf?.setAiConfig) return;
+    if (nextMode === "agent" || !window.tpdf?.setAiConfig) return;
     try {
-      await window.opdf.setAiConfig({ mode: nextMode, difyUrl: nextUrl, difyKey: nextKey });
+      await window.tpdf.setAiConfig({ mode: nextMode, difyUrl: nextUrl, difyKey: nextKey });
     } catch (error) {
       console.warn("Failed to sync AI config to desktop main process:", error);
     }
@@ -30,19 +30,19 @@ export function useAiAssistantSettings() {
     let cancelled = false;
 
     const load = async () => {
-      let savedMode = localStorage.getItem("opdf_ai_mode");
-      let savedUrl = localStorage.getItem("opdf_dify_url") || "";
-      let savedKey = isDesktopRuntime || isServerRuntime ? "" : (localStorage.getItem("opdf_dify_key") || "");
-      const savedConvId = localStorage.getItem("opdf_dify_conv_id");
-      const savedIframeUrl = localStorage.getItem("opdf_iframe_url");
+      let savedMode = localStorage.getItem("tpdf_ai_mode");
+      let savedUrl = localStorage.getItem("tpdf_dify_url") || "";
+      let savedKey = isDesktopRuntime || isServerRuntime ? "" : (localStorage.getItem("tpdf_dify_key") || "");
+      const savedConvId = localStorage.getItem("tpdf_dify_conv_id");
+      const savedIframeUrl = localStorage.getItem("tpdf_iframe_url");
 
       const defaultUrl = import.meta.env.VITE_DIFY_API_URL || "https://api.dify.ai/v1";
       const defaultKey = isDesktopRuntime || isServerRuntime ? "" : (import.meta.env.VITE_DIFY_API_KEY || "");
 
       if (isDesktopRuntime) {
-        localStorage.removeItem("opdf_dify_key");
+        localStorage.removeItem("tpdf_dify_key");
         try {
-          const desktopConfig = await window.opdf?.getAiConfig?.();
+          const desktopConfig = await window.tpdf?.getAiConfig?.();
           if (desktopConfig) {
             savedMode = desktopConfig.mode;
             savedUrl = desktopConfig.difyUrl || savedUrl;
@@ -55,21 +55,21 @@ export function useAiAssistantSettings() {
 
       if (!savedUrl || savedUrl === "https://api.dify.ai/v1") {
         savedUrl = defaultUrl;
-        localStorage.setItem("opdf_dify_url", savedUrl);
+        localStorage.setItem("tpdf_dify_url", savedUrl);
       }
       if (!savedKey && defaultKey) {
         savedKey = defaultKey;
-        if (!isDesktopRuntime && !isServerRuntime) localStorage.setItem("opdf_dify_key", savedKey);
+        if (!isDesktopRuntime && !isServerRuntime) localStorage.setItem("tpdf_dify_key", savedKey);
       }
 
       if (isServerRuntime) {
         savedMode = "agent";
         savedKey = "";
-        localStorage.removeItem("opdf_dify_key");
+        localStorage.removeItem("tpdf_dify_key");
       } else {
         savedMode = savedMode || "local";
       }
-      localStorage.setItem("opdf_ai_mode", savedMode);
+      localStorage.setItem("tpdf_ai_mode", savedMode);
 
       if (cancelled) return;
       setEngineMode(savedMode as EngineMode);

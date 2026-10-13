@@ -16,7 +16,7 @@ async function createPdf(pageCount: number, prefix: string, revision = false) {
       size: 20,
       font,
     });
-    sheet.drawText("OPDF WEB SERVER REGRESSION", {
+    sheet.drawText("TPDF WEB SERVER REGRESSION", {
       x: 48,
       y: 500,
       size: 12,
@@ -43,7 +43,7 @@ async function createPdf(pageCount: number, prefix: string, revision = false) {
 }
 
 async function uploadPdf(request: APIRequestContext, name: string, bytes: Buffer) {
-  const upload = await request.post(`/api/opdf/documents?name=${encodeURIComponent(name)}`, {
+  const upload = await request.post(`/api/tpdf/documents?name=${encodeURIComponent(name)}`, {
     headers: { "content-type": "application/pdf" },
     data: bytes,
   });
@@ -53,9 +53,9 @@ async function uploadPdf(request: APIRequestContext, name: string, bytes: Buffer
 
 async function openStored(page: Page, filePath: string, pages: number) {
   await page.goto(`/?open=${encodeURIComponent(filePath)}`);
-  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
   await expect(viewer).toBeVisible({ timeout: 30_000 });
-  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "server");
   await expect(page.getByText(new RegExp(`Page\\s+1\\s+of\\s+${pages}`, "i"))).toBeVisible({ timeout: 30_000 });
   return viewer;
 }
@@ -65,14 +65,14 @@ test("server structural edits and secure redaction survive Save + reload", async
   const stored = await uploadPdf(request, "persist-workflow.pdf", await createPdf(6, "PERSIST"));
   const viewer = await openStored(page, stored.filePath, 6);
   const mutationResponsePromise = page.waitForResponse(
-    (response) => response.url().includes(`/api/opdf/documents/${stored.id}/mutations`) && response.request().method() === "POST",
+    (response) => response.url().includes(`/api/tpdf/documents/${stored.id}/mutations`) && response.request().method() === "POST",
   );
   await clickApplicationMenuItem(page, "Rotate All Pages Right");
   const mutationResponse = await mutationResponsePromise;
   expect(mutationResponse.ok()).toBeTruthy();
-  await expect(viewer).toHaveAttribute("data-opdf-source", "server", { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "server", { timeout: 30_000 });
 
-  const persistedRotation = await request.get(`/api/opdf/documents/${stored.id}`);
+  const persistedRotation = await request.get(`/api/tpdf/documents/${stored.id}`);
   expect(persistedRotation.ok()).toBeTruthy();
   const rotatedDoc = await PDFDocument.load(Buffer.from(await persistedRotation.body()));
   expect(rotatedDoc.getPage(0).getRotation().angle).toBe(90);
@@ -85,10 +85,10 @@ test("server structural edits and secure redaction survive Save + reload", async
   await redactModal.getByRole("button", { name: "Search all pages", exact: true }).click();
   await expect(redactModal).toContainText("1 match(es) found", { timeout: 30_000 });
   await redactModal.getByRole("button", { name: /Apply 1 secure redaction/i }).click();
-  await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy", { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "working-copy", { timeout: 30_000 });
 
   await saveServerDocumentAndWait(page);
-  await expect(page.getByText("Saved to OPDF Server.", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Saved to TPDF Server.", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
 
   await openStored(page, stored.filePath, 6);
   await clickApplicationMenuItem(page, "Search & Secure Redact...");
@@ -120,7 +120,7 @@ test("server compare, split and merge workflows execute end to end", async ({ pa
   await compare.getByRole("button", { name: "Detect changes", exact: true }).click();
   await expect(compare.getByText(/Changes \(\d+\)/)).toBeVisible({ timeout: 30_000 });
   await compare.getByRole("button", { name: "Close", exact: true }).click();
-  await expect(viewer).toHaveAttribute("data-opdf-source", "server");
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "server");
 
   await clickApplicationMenuItem(page, "Split PDF...");
   const splitPanel = page.locator("aside.acrobat-tool-panel").filter({ hasText: "Advanced Split Document" });
@@ -144,7 +144,7 @@ test("server compare, split and merge workflows execute end to end", async ({ pa
   });
   await expect(mergePanel).toContainText("Total: 4 pages");
   await mergePanel.getByRole("button", { name: "Merge & Load", exact: true }).click();
-  await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy", { timeout: 30_000 });
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "working-copy", { timeout: 30_000 });
   await expect(page.getByText(/Page\s+1\s+of\s+4/i)).toBeVisible({ timeout: 30_000 });
 });
 
@@ -163,7 +163,7 @@ test("server review annotations persist and browser export paths stay usable", a
     createdAt: now,
     updatedAt: now,
   }];
-  const put = await request.put(`/api/opdf/documents/${stored.id}/annotations`, {
+  const put = await request.put(`/api/tpdf/documents/${stored.id}/annotations`, {
     headers: { "content-type": "application/json" },
     data: { annotations },
   });
@@ -175,7 +175,7 @@ test("server review annotations persist and browser export paths stay usable", a
   await expect(page.getByText("RESOLVED", { exact: true })).toBeVisible();
 
   await expect.poll(async () => {
-    const savedAnnotations = await request.get(`/api/opdf/documents/${stored.id}/annotations`);
+    const savedAnnotations = await request.get(`/api/tpdf/documents/${stored.id}/annotations`);
     if (!savedAnnotations.ok()) return false;
     const rows = await savedAnnotations.json() as Array<{ payload?: Record<string, unknown> }>;
     return rows[0]?.payload?.reviewResolved === true;

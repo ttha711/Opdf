@@ -4,9 +4,9 @@ import * as XLSX from "xlsx";
 import PptxGenJS from "pptxgenjs";
 
 export async function buildOfficeFixtures() {
-  const wordMarker = "OPDF SERVER UI DOCX CHECK";
-  const excelMarker = "OPDF SERVER UI XLSX CHECK";
-  const pptMarker = "OPDF SERVER UI PPTX CHECK";
+  const wordMarker = "TPDF SERVER UI DOCX CHECK";
+  const excelMarker = "TPDF SERVER UI XLSX CHECK";
+  const pptMarker = "TPDF SERVER UI PPTX CHECK";
 
   const word = new Document({
     sections: [{ children: [new Paragraph(wordMarker), new Paragraph("Converted through real LibreOffice UI flow.")] }],
@@ -43,7 +43,7 @@ export async function buildOfficeFixtures() {
   } as const;
 }
 
-export function buildTestP12(passphrase = "opdf-ci") {
+export function buildTestP12(passphrase = "tpdf-ci") {
   const keys = forge.pki.rsa.generateKeyPair({ bits: 1024, e: 0x10001 });
   const cert = forge.pki.createCertificate();
   cert.publicKey = keys.publicKey;
@@ -51,8 +51,8 @@ export function buildTestP12(passphrase = "opdf-ci") {
   cert.validity.notBefore = new Date(Date.now() - 60_000);
   cert.validity.notAfter = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const attrs = [
-    { name: "commonName", value: "OPDF Server UI CI" },
-    { name: "organizationName", value: "OPDF" },
+    { name: "commonName", value: "TPDF Server UI CI" },
+    { name: "organizationName", value: "TPDF" },
     { name: "countryName", value: "VN" },
   ];
   cert.setSubject(attrs);

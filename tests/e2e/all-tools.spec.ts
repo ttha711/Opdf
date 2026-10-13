@@ -25,7 +25,7 @@ async function samplePdf() {
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   for (let pageNumber = 1; pageNumber <= 3; pageNumber += 1) {
     const page = pdf.addPage([612, 792]);
-    page.drawText(`OPDF ALL TOOLS PAGE ${pageNumber}`, { x: 72, y: 700, size: 20, font });
+    page.drawText(`TPDF ALL TOOLS PAGE ${pageNumber}`, { x: 72, y: 700, size: 20, font });
     page.drawText(pageNumber === 1 ? "SECRET-TOOLS-CHECK" : "Functional tool fixture", {
       x: 72,
       y: 650,
@@ -43,27 +43,27 @@ async function loadFixture(page: Page) {
     mimeType: "application/pdf",
     buffer: await samplePdf(),
   });
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "3", {
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute("data-tpdf-total-pages", "3", {
     timeout: 20_000,
   });
 }
 
 async function openDashboard(page: Page) {
-  const anyCard = page.locator("[data-opdf-tool-card]").first();
+  const anyCard = page.locator("[data-tpdf-tool-card]").first();
   if (await anyCard.isVisible().catch(() => false)) return;
 
   await clickApplicationMenuItem(page, "All Tools...");
-  await expect(page.locator("[data-opdf-tool-card]").first()).toBeVisible();
+  await expect(page.locator("[data-tpdf-tool-card]").first()).toBeVisible();
 }
 
 async function closeWorkingSurface(page: Page) {
-  const closeTool = page.locator('[data-opdf-action="close-tool"]:visible').first();
+  const closeTool = page.locator('[data-tpdf-action="close-tool"]:visible').first();
   if (await closeTool.isVisible().catch(() => false)) {
     await closeTool.click();
     return;
   }
-  const closeDialog = page.locator('[data-opdf-action="close-dialog"]:visible').first();
+  const closeDialog = page.locator('[data-tpdf-action="close-dialog"]:visible').first();
   if (await closeDialog.isVisible().catch(() => false)) {
     await closeDialog.click();
   }
@@ -73,23 +73,23 @@ test("All Tools dashboard exposes the complete 41-tool contract", async ({ page 
   await loadFixture(page);
   await openDashboard(page);
 
-  const cards = page.locator("[data-opdf-tool-card]");
+  const cards = page.locator("[data-tpdf-tool-card]");
   await expect(cards).toHaveCount(ALL_TOOL_IDS.length);
 
   const ids = await cards.evaluateAll((items) =>
-    items.map((item) => item.getAttribute("data-opdf-tool-card")).filter(Boolean).sort(),
+    items.map((item) => item.getAttribute("data-tpdf-tool-card")).filter(Boolean).sort(),
   );
   expect(ids).toEqual([...ALL_TOOL_IDS].sort());
 
   for (const id of ALL_TOOL_IDS) {
-    const card = page.locator(`[data-opdf-tool-card="${id}"]`);
+    const card = page.locator(`[data-tpdf-tool-card="${id}"]`);
     await expect(card).toHaveCount(1);
     if (BROWSER_UNAVAILABLE.has(id)) {
       await expect(card).toBeDisabled();
-      await expect(card).toHaveAttribute("data-opdf-tool-available", "false");
+      await expect(card).toHaveAttribute("data-tpdf-tool-available", "false");
     } else {
       await expect(card).toBeEnabled();
-      await expect(card).toHaveAttribute("data-opdf-tool-available", "true");
+      await expect(card).toHaveAttribute("data-tpdf-tool-available", "true");
     }
   }
 });
@@ -99,12 +99,12 @@ test("All Tools: search filters by intent and can reset without reopening", asyn
   await openDashboard(page);
   const search = page.getByRole("searchbox", { name: "Search PDF tools" });
   await search.fill("watermark");
-  await expect(page.locator("[data-opdf-tool-card]")).toHaveCount(1);
-  await expect(page.locator('[data-opdf-tool-card="watermark-pdf"]')).toBeVisible();
+  await expect(page.locator("[data-tpdf-tool-card]")).toHaveCount(1);
+  await expect(page.locator('[data-tpdf-tool-card="watermark-pdf"]')).toBeVisible();
   await search.fill("no-such-tool");
   await expect(page.getByText("No matching tools.", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Clear filters" }).click();
-  await expect(page.locator("[data-opdf-tool-card]")).toHaveCount(ALL_TOOL_IDS.length);
+  await expect(page.locator("[data-tpdf-tool-card]")).toHaveCount(ALL_TOOL_IDS.length);
 });
 
 const PANEL_TOOL_IDS = [
@@ -123,9 +123,9 @@ for (const id of PANEL_TOOL_IDS) {
   test(`All Tools: ${id} opens its working panel`, async ({ page }) => {
     await loadFixture(page);
     await openDashboard(page);
-    await page.locator(`[data-opdf-tool-card="${id}"]`).click();
+    await page.locator(`[data-tpdf-tool-card="${id}"]`).click();
     await expect(
-      page.locator(`[data-opdf-panel="tool"][data-opdf-tool="${id}"]`),
+      page.locator(`[data-tpdf-panel="tool"][data-tpdf-tool="${id}"]`),
     ).toBeVisible({ timeout: 10_000 });
   });
 }
@@ -133,9 +133,9 @@ for (const id of PANEL_TOOL_IDS) {
 test("All Tools: page-numbers opens the markup panel", async ({ page }) => {
   await loadFixture(page);
   await openDashboard(page);
-  await page.locator('[data-opdf-tool-card="page-numbers"]').click();
+  await page.locator('[data-tpdf-tool-card="page-numbers"]').click();
   await expect(
-    page.locator('[data-opdf-panel="markup"][data-opdf-tool="page-numbers"]'),
+    page.locator('[data-tpdf-panel="markup"][data-tpdf-tool="page-numbers"]'),
   ).toBeVisible({ timeout: 10_000 });
 });
 
@@ -147,8 +147,8 @@ for (const [id, dialog] of [
   test(`All Tools: ${id} opens ${dialog}`, async ({ page }) => {
     await loadFixture(page);
     await openDashboard(page);
-    await page.locator(`[data-opdf-tool-card="${id}"]`).click();
-    await expect(page.locator(`[data-opdf-dialog="${dialog}"]`)).toBeVisible({
+    await page.locator(`[data-tpdf-tool-card="${id}"]`).click();
+    await expect(page.locator(`[data-tpdf-dialog="${dialog}"]`)).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -159,7 +159,7 @@ for (const id of ["pdf-to-txt", "pdf-to-xml"] as const) {
     await loadFixture(page);
     await openDashboard(page);
     const downloadPromise = page.waitForEvent("download", { timeout: 20_000 });
-    await page.locator(`[data-opdf-tool-card="${id}"]`).click();
+    await page.locator(`[data-tpdf-tool-card="${id}"]`).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename().length).toBeGreaterThan(4);
     expect(await download.failure()).toBeNull();
@@ -170,7 +170,7 @@ test("All Tools: image-to-pdf converts a real PNG into a PDF", async ({ page }) 
   await loadFixture(page);
   await openDashboard(page);
   const chooserPromise = page.waitForEvent("filechooser", { timeout: 10_000 });
-  await page.locator('[data-opdf-tool-card="image-to-pdf"]').click();
+  await page.locator('[data-tpdf-tool-card="image-to-pdf"]').click();
   const chooser = await chooserPromise;
   await chooser.setFiles({
     name: "pixel.png",
@@ -180,8 +180,8 @@ test("All Tools: image-to-pdf converts a real PNG into a PDF", async ({ page }) 
       "base64",
     ),
   });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
-    "data-opdf-total-pages",
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute(
+    "data-tpdf-total-pages",
     "1",
     { timeout: 20_000 },
   );
@@ -191,15 +191,15 @@ test("All Tools: txt-to-pdf converts a real text file into a PDF", async ({ page
   await loadFixture(page);
   await openDashboard(page);
   const chooserPromise = page.waitForEvent("filechooser", { timeout: 10_000 });
-  await page.locator('[data-opdf-tool-card="txt-to-pdf"]').click();
+  await page.locator('[data-tpdf-tool-card="txt-to-pdf"]').click();
   const chooser = await chooserPromise;
   await chooser.setFiles({
     name: "tool-input.txt",
     mimeType: "text/plain",
-    buffer: Buffer.from("OPDF TXT TO PDF TOOL CHECK\nSecond line"),
+    buffer: Buffer.from("TPDF TXT TO PDF TOOL CHECK\nSecond line"),
   });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
-    "data-opdf-total-pages",
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute(
+    "data-tpdf-total-pages",
     "1",
     { timeout: 20_000 },
   );
@@ -208,7 +208,7 @@ test("All Tools: txt-to-pdf converts a real text file into a PDF", async ({ page
 test("All Tools: OCR entry is available in browser runtime", async ({ page }) => {
   await loadFixture(page);
   await openDashboard(page);
-  await expect(page.locator('[data-opdf-tool-card="ocr-pdf"]')).toBeEnabled();
+  await expect(page.locator('[data-tpdf-tool-card="ocr-pdf"]')).toBeEnabled();
 });
 
 
@@ -235,7 +235,7 @@ test("menu-only tools are all reachable from the real application menu", async (
   }
 
   await clickApplicationMenuItem(page, "Insert PDF...");
-  await expect(page.locator('[data-opdf-dialog="insert-pdf"]')).toBeVisible();
+  await expect(page.locator('[data-tpdf-dialog="insert-pdf"]')).toBeVisible();
   await closeWorkingSurface(page);
 
   for (const [label, tool] of [
@@ -244,17 +244,17 @@ test("menu-only tools are all reachable from the real application menu", async (
     ["Bates Numbering...", "bates"],
   ] as const) {
     await clickApplicationMenuItem(page, label);
-    await expect(page.locator(`[data-opdf-panel="markup"][data-opdf-tool="${tool}"]`)).toBeVisible();
+    await expect(page.locator(`[data-tpdf-panel="markup"][data-tpdf-tool="${tool}"]`)).toBeVisible();
     await closeWorkingSurface(page);
   }
 
   await clickApplicationMenuItem(page, "Measure Drawing");
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-active-tool", "measure");
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute("data-tpdf-active-tool", "measure");
   const closeMeasure = page.getByRole("button", { name: "Close measurement tool", exact: true });
   if (await closeMeasure.isVisible().catch(() => false)) await closeMeasure.click();
 
   await clickApplicationMenuItem(page, "Advanced PDF...");
-  await expect(page.locator('[data-opdf-dialog="advanced-pdf"]')).toBeVisible();
+  await expect(page.locator('[data-tpdf-dialog="advanced-pdf"]')).toBeVisible();
   await closeWorkingSurface(page);
 
   for (const label of ["Edit PDF Content", "AI Edit"] as const) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PdfContentObject } from "@opdf/core";
+import type { PdfContentObject } from "@tpdf/core";
 import {
   getNativeEditOverlayObjects,
   NATIVE_EDIT_OVERLAY_LIMIT,

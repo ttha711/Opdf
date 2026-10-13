@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
-import type { Annotation } from "@opdf/core";
-import { loadFullDraft, saveTabsList, loadTabsList, saveActiveTabId, loadActiveTabId, type OpdfTab } from "../lib/web-storage";
+import type { Annotation } from "@tpdf/core";
+import { loadFullDraft, saveTabsList, loadTabsList, saveActiveTabId, loadActiveTabId, type TpdfTab } from "../lib/web-storage";
 import type { ActiveTool } from "../lib/app-types";
-import { isOpdfServerRuntime } from "./useOpdfBridge";
+import { isTpdfServerRuntime } from "./useTpdfBridge";
 import { useGlobalKeyboardShortcuts } from "./useGlobalKeyboardShortcuts";
 
 type AppEffectsArgs = {
@@ -44,8 +44,8 @@ type AppEffectsArgs = {
   goNextPage: () => void;
 
   // NEW TABS ARGS
-  tabs: OpdfTab[];
-  setTabs: (v: OpdfTab[]) => void;
+  tabs: TpdfTab[];
+  setTabs: (v: TpdfTab[]) => void;
   activeTabId: string | null;
   setActiveTabId: (v: string | null) => void;
   isSwitchingRef: RefObject<boolean>;
@@ -133,7 +133,7 @@ export function useAppEffects(args: AppEffectsArgs) {
           const draft = await loadFullDraft();
           if (draft && draft.bytes && draft.state) {
             const newTabId = "tab_initial";
-            const newTab: OpdfTab = {
+            const newTab: TpdfTab = {
               id: newTabId,
               fileName: draft.state.fileName,
               docBytes: draft.bytes,
@@ -189,7 +189,7 @@ export function useAppEffects(args: AppEffectsArgs) {
           void saveActiveTabId(activeTabId);
         }
 
-        if (isOpdfServerRuntime() && bridge.writeSession) {
+        if (isTpdfServerRuntime() && bridge.writeSession) {
           const serverTabs = tabs
             .map((tab) => tab.sourceIdentity)
             .filter((value): value is string => Boolean(value?.startsWith("server://")));
@@ -214,7 +214,7 @@ export function useAppEffects(args: AppEffectsArgs) {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("opdf-theme", theme);
+    localStorage.setItem("tpdf-theme", theme);
   }, [theme]);
 
   useGlobalKeyboardShortcuts({

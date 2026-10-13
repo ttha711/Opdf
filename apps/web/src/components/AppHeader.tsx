@@ -1,12 +1,12 @@
 import type { ChangeEvent, Ref } from "react";
 import type { ActiveTool } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
-import type { OpdfTab } from "../lib/web-storage";
+import type { TpdfTab } from "../lib/web-storage";
 import { getEditorLaunchTitle } from "../lib/documentEditingExperience";
 import { redoNativeContentEdit, undoNativeContentEdit } from "../lib/nativeContentHistory";
-import { useOpdfBridge } from "../hooks/useOpdfBridge";
+import { useTpdfBridge } from "../hooks/useTpdfBridge";
 import { AiSparkIcon } from "./AiSparkIcon";
-import { OpdfIcon } from "./OpdfIcon";
+import { TpdfIcon } from "./TpdfIcon";
 import { SaveControl, RedoButton, UndoButton } from "./AppHeaderControls";
 import {
   buildCompactToolsMenuItems,
@@ -55,7 +55,7 @@ type AppHeaderProps = {
   saveState: "idle" | "saving" | "saved";
   autosaveEnabled: boolean;
   autosaveStatus: "idle" | "offline" | "retrying";
-  tabs: OpdfTab[];
+  tabs: TpdfTab[];
   activeTabId: string | null;
   activeGroupFilter: string | null;
   switchTab: (id: string) => void;
@@ -120,7 +120,7 @@ export function AppHeader(props: AppHeaderProps) {
     closeTabGroup,
     ungroupGroup,
   } = props;
-  const bridgeCapabilities = useOpdfBridge().capabilities;
+  const bridgeCapabilities = useTpdfBridge().capabilities;
   const effectiveEditMenuItems = activeTool === "edit-content"
     ? editMenuItems.map((item) =>
         item.kind === "action" && item.label === "Undo"
@@ -168,24 +168,24 @@ export function AppHeader(props: AppHeaderProps) {
     : redoAnnotations;
   return (
     <header
-      data-opdf-region="app-header"
-      className="opdf-app-header border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm"
+      data-tpdf-region="app-header"
+      className="tpdf-app-header border-b border-[var(--border-color)] bg-[var(--bg-toolbar)] shadow-sm"
       style={{ zIndex: "var(--z-dropdown)" }}
     >
-      <div className="opdf-topbar">
+      <div className="tpdf-topbar">
         <button
-          className="opdf-brand-home"
+          className="tpdf-brand-home"
           type="button"
           onClick={onGoHome}
           title="Home"
-          aria-label="Go to OPDF Home"
-          data-opdf-action="home"
+          aria-label="Go to TPDF Home"
+          data-tpdf-action="home"
         >
-          <OpdfIcon name="file-pdf" size={18} strokeWidth={1.9} />
-          <span>Opdf</span>
+          <TpdfIcon name="file-pdf" size={18} strokeWidth={1.9} />
+          <span>Tpdf</span>
         </button>
 
-        <div className="opdf-mobile-menu">
+        <div className="tpdf-mobile-menu">
           <MenuDropdown
             label="⋯"
             triggerIcon="more-horizontal"
@@ -197,7 +197,7 @@ export function AppHeader(props: AppHeaderProps) {
             triggerTitle="Application menu"
           />
         </div>
-        <div className="opdf-desktop-menus">
+        <div className="tpdf-desktop-menus">
           <MenuDropdown
             label="⋯"
             triggerIcon="more-horizontal"
@@ -210,17 +210,17 @@ export function AppHeader(props: AppHeaderProps) {
         </div>
 
         <button
-          className="opdf-theme-btn"
+          className="tpdf-theme-btn"
           aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-          data-opdf-action="toggle-theme"
+          data-tpdf-action="toggle-theme"
           onClick={toggleTheme}
           title={theme === "light" ? "Switch to Dark Mode (Ctrl+Shift+L)" : "Switch to Light Mode (Ctrl+Shift+L)"}
           type="button"
         >
-          {theme === "light" ? <OpdfIcon name="sun" size={18} /> : <OpdfIcon name="moon" size={18} />}
+          {theme === "light" ? <TpdfIcon name="sun" size={18} /> : <TpdfIcon name="moon" size={18} />}
         </button>
 
-        <div className="opdf-header-tabs">
+        <div className="tpdf-header-tabs">
           {tabs.length > 0 ? (
             <TabBar
               tabs={tabs}
@@ -235,19 +235,20 @@ export function AppHeader(props: AppHeaderProps) {
               closeTabGroup={closeTabGroup}
               ungroupGroup={ungroupGroup}
               openFile={openFile}
-              showItemInFolder={hasDesktopBridge ? (filePath) => window.opdf?.showItemInFolder?.(filePath) : undefined}
+              showItemInFolder={hasDesktopBridge ? (filePath) => window.tpdf?.showItemInFolder?.(filePath) : undefined}
             />
-          ) : <div className="opdf-header-tabs-empty" />}
+          ) : <div className="tpdf-header-tabs-empty" />}
         </div>
 
-        <div className="opdf-header-actions">
+        <div className="tpdf-header-actions">
+          <button type="button" data-tpdf-action="search-commands" className="tpdf-header-icon-btn tpdf-palette-trigger" title="Search commands (Ctrl/⌘ K)" aria-label="Search commands" onClick={() => window.dispatchEvent(new Event("tpdf:open-command-palette"))}><TpdfIcon name="search" size={18} /></button>
           {hasDocument ? (
             <>
               <UndoButton onClick={undo} />
               <RedoButton onClick={redo} />
               <SaveControl saveState={saveState} onSave={savePdf} autosaveEnabled={autosaveEnabled} autosaveStatus={autosaveStatus} />
               <button
-                data-opdf-action="edit-content"
+                data-tpdf-action="edit-content"
                 className="top-menu-btn"
                 type="button"
                 title="Edit PDF Content"
@@ -258,7 +259,7 @@ export function AppHeader(props: AppHeaderProps) {
             </>
           ) : null}
           <button
-            data-opdf-action="ai-edit"
+            data-tpdf-action="ai-edit"
             className="top-menu-btn"
             onClick={aiEdit}
             title={isPublic ? "Available in Local/Desktop only" : getEditorLaunchTitle()}
@@ -269,7 +270,7 @@ export function AppHeader(props: AppHeaderProps) {
           {!hasDesktopBridge ? (
             <input
               ref={fileInputRef}
-              id="opdf-header-pdf-picker"
+              id="tpdf-header-pdf-picker"
               aria-label="Choose PDF file to open"
               className="hidden-file-input"
               type="file"
@@ -279,15 +280,15 @@ export function AppHeader(props: AppHeaderProps) {
             />
           ) : null}
           <button
-            data-opdf-action="open-pdf"
-            aria-controls={!hasDesktopBridge ? "opdf-header-pdf-picker" : undefined}
+            data-tpdf-action="open-pdf"
+            aria-controls={!hasDesktopBridge ? "tpdf-header-pdf-picker" : undefined}
             aria-label="Open PDF document"
-            className="opdf-open-btn"
+            className="tpdf-open-btn"
             onClick={openFile}
             title="Open PDF"
             type="button"
           >
-            <OpdfIcon name="folder-open" size={18} />
+            <TpdfIcon name="folder-open" size={18} />
             <span>Open</span>
           </button>
         </div>

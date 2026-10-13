@@ -1,7 +1,7 @@
-import type { OcrJob } from "@opdf/core";
+import type { OcrJob } from "@tpdf/core";
 import type { Dispatch, SetStateAction } from "react";
 import type { DocumentTool } from "../lib/document-tools";
-import { useOpdfBridge } from "./useOpdfBridge";
+import { useTpdfBridge } from "./useTpdfBridge";
 import { useOcrAction } from "./document-actions/useOcrAction";
 import { useExportAction } from "./document-actions/useExportAction";
 import { useCommonActions } from "./document-actions/useCommonActions";
@@ -36,7 +36,7 @@ export function useDocumentActions({
   setShowMergeModal,
   setShowInsertModal,
 }: {
-  bridge: ReturnType<typeof useOpdfBridge>;
+  bridge: ReturnType<typeof useTpdfBridge>;
   hasDocument: boolean;
   hasDesktopBridge: boolean;
   fileName: string;

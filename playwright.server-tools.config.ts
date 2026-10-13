@@ -13,15 +13,15 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run server-build && npm run server-start",
-    url: "http://127.0.0.1:8792/api/opdf/health",
+    url: "http://127.0.0.1:8792/api/tpdf/health",
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,
     env: {
-      OPDF_HOST: "127.0.0.1",
-      OPDF_PORT: "8792",
-      OPDF_DATA_DIR: ".opdf-server-tools-data",
-      OPDF_CERTIFICATE_MASTER_KEY: "opdf-server-tools-ci-master-key-2026",
-      OPDF_PYTHON_PATH: process.platform === "win32" ? "python" : "python3",
+      TPDF_HOST: "127.0.0.1",
+      TPDF_PORT: "8792",
+      TPDF_DATA_DIR: ".tpdf-server-tools-data",
+      TPDF_CERTIFICATE_MASTER_KEY: "tpdf-server-tools-ci-master-key-2026",
+      TPDF_PYTHON_PATH: process.platform === "win32" ? "python" : "python3",
     },
   },
   projects: [

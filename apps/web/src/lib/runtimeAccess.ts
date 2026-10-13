@@ -28,7 +28,7 @@ export function hasFullWebAccess({
   isServerRuntime,
   hostname,
 }: WebAccessContext) {
-  // Runtime capability wins over deployment hostname. In particular, OPDF
+  // Runtime capability wins over deployment hostname. In particular, TPDF
   // Server remains the full web application when published behind a real
   // domain or authenticated reverse proxy.
   return hasDesktopBridge || isServerRuntime || isDevelopmentHostname(hostname);

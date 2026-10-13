@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { MenuItemDef } from "../components/MenuDropdown";
 import type { ActiveTool, ViewMode } from "../lib/app-types";
 import type { DocumentTool } from "../lib/document-tools";
-import type { BridgeCapabilities } from "../types/opdf";
+import type { BridgeCapabilities } from "../types/tpdf";
 
 const DESKTOP_ONLY_TITLE = "Available in the Desktop App only";
 

@@ -22,6 +22,9 @@ export function getDocumentToolName(activeToolId: string): string {
     case "merge-pdf": return "Advanced Merge Documents";
     case "watermark-pdf": return "Premium Watermark Tool";
     case "fill-form": return "Interactive Form Filler";
+    case "document-health": return "Document Health";
+    case "drawing-workspace": return "Live PDF Layers & CAD Snap";
+    case "organize-pages": return "Organize PDF Pages";
     case "rotate-pdf": return "Rotate PDF";
     case "delete-pages": return "Delete PDF Pages";
     case "extract-pages": return "Extract PDF Pages";

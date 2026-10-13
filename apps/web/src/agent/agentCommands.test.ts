@@ -114,6 +114,21 @@ describe("agent command registry", () => {
     expect(ctx.actions.setActiveDashboardTool).not.toHaveBeenCalled();
   });
 
+  it("analyzes saved PDF health via the read-only server endpoint", async () => {
+    const analyzeDocumentHealth = vi.fn(async () => ({ message: "Read-only PDF diagnostic complete." }));
+    const ctx = createContext({
+      actions: { ...createContext().actions, analyzeDocumentHealth },
+    });
+    const result = await executeAgentCommand({ tool: "analyze-document-health" }, ctx);
+    expect(result).toMatchObject({ status: "completed", message: "Read-only PDF diagnostic complete." });
+    expect(analyzeDocumentHealth).toHaveBeenCalledOnce();
+  });
+
+  it("does not pretend Document Health is available without the server action", async () => {
+    const result = await executeAgentCommand({ tool: "analyze-document-health" }, createContext());
+    expect(result.status).toBe("input_required");
+  });
+
   it("serializes commands through a queue", async () => {
     const order: string[] = [];
     const queue = createAgentCommandQueue(async (command) => {

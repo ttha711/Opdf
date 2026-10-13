@@ -23,25 +23,24 @@ jobs:
       - run: npm ci
       - name: Typecheck web (PR)
         if: github.event_name == 'pull_request'
-        run: npm run build -w @opdf/core && npm run typecheck -w @opdf/web
+        run: npm run build -w @tpdf/core && npm run typecheck -w @tpdf/web
       - name: Typecheck all (main)
         if: github.event_name == 'push'
         run: npm run typecheck
+      - run: npm run check:branding
       - run: npm run check:english-ui
       - run: npm run check:file-size
-      - if: github.event_name == 'push'
-        run: npm run test:cli
-      - run: npm run test -w @opdf/web
+      - run: npm run test:cli
+      - run: npm run test -w @tpdf/web
       - name: Build web (PR)
         if: github.event_name == 'pull_request'
-        run: npm run build -w @opdf/web
+        run: npm run build -w @tpdf/web
       - name: Build all (main)
         if: github.event_name == 'push'
         run: npm run build
       - if: github.event_name == 'push'
         run: npm run server-smoke
-      - if: github.event_name == 'push'
-        run: npm run server-auth-smoke
+      - run: npm run server-auth-smoke
       - if: github.event_name == 'push'
         run: npm run server-s3-smoke
       - if: github.event_name == 'push'
@@ -50,8 +49,10 @@ jobs:
         run: npm run server-reliability
       - if: github.event_name == 'push'
         run: npm run backup-smoke
-      - if: github.event_name == 'push'
-        run: node apps/desktop/dist/main/pdf-signature.smoke.js
+      - if: github.event_name == 'pull_request'
+        run: npm run build -w @tpdf/desktop
+      - run: node apps/desktop/dist/main/storage-migration.smoke.js
+      - run: node apps/desktop/dist/main/pdf-signature.smoke.js
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist
@@ -75,7 +76,7 @@ jobs:
           cache: "pip"
           cache-dependency-path: apps/desktop/tools/requirements.txt
       - run: npm ci
-      - run: npm run build --workspace=@opdf/core
+      - run: npm run build --workspace=@tpdf/core
       - run: sudo apt-get update && sudo apt-get install -y libreoffice
       - run: python -m pip install -r apps/desktop/tools/requirements.txt
       - run: node scripts/office-conversion-smoke.mjs
@@ -148,16 +149,16 @@ jobs:
           }
           & $soffice --version
       - run: python -m pip install -r apps/desktop/tools/requirements.txt
-      - run: npm run build --workspace=@opdf/core
-      - run: npm run build --workspace=@opdf/web
-      - run: npm run build --workspace=@opdf/desktop
-      - run: npm run prepare:webdist --workspace=@opdf/desktop
+      - run: npm run build --workspace=@tpdf/core
+      - run: npm run build --workspace=@tpdf/web
+      - run: npm run build --workspace=@tpdf/desktop
+      - run: npm run prepare:webdist --workspace=@tpdf/desktop
       - run: npx playwright test -c playwright.desktop.config.ts
         timeout-minutes: 12
         env:
           CI: true
-          OPDF_SOFFICE_PATH: 'C:\Program Files\LibreOffice\program\soffice.exe'
-      - run: npm run package --workspace=@opdf/desktop -- --win nsis
+          TPDF_SOFFICE_PATH: 'C:\Program Files\LibreOffice\program\soffice.exe'
+      - run: npm run package --workspace=@tpdf/desktop -- --win nsis
         timeout-minutes: 15
       - name: Verify Windows installer
         shell: pwsh
@@ -167,7 +168,7 @@ jobs:
           Write-Host "Installer: $($installer.FullName) ($($installer.Length) bytes)"
       - uses: actions/upload-artifact@v4
         with:
-          name: opdf-windows-installer
+          name: tpdf-windows-installer
           path: apps/desktop/release/*.exe
           retention-days: 7
       - uses: actions/upload-artifact@v4

@@ -51,7 +51,7 @@ test("mixed page sizes, rotations, many pages and Unicode filename survive open/
   const fileName = "Hồ sơ Công ty - MEP_Kết cấu (Rev#03) [2026].pdf";
   await loadToolFixture(page, source, fileName);
 
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "48");
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute("data-tpdf-total-pages", "48");
   const exported = await exportCurrentPdf(page);
   const firstPass = await PDFDocument.load(exported);
   expect(firstPass.getPageCount()).toBe(48);
@@ -65,8 +65,8 @@ test("mixed page sizes, rotations, many pages and Unicode filename survive open/
     mimeType: "application/pdf",
     buffer: exported,
   });
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "48");
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute("data-tpdf-total-pages", "48");
 });
 
 test("image-only scan-like PDF remains parseable and exportable", async ({ page }) => {
@@ -106,7 +106,7 @@ for (const [name, bytes] of [
       mimeType: "application/pdf",
       buffer: recovery,
     });
-    await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 30_000 });
-    await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute("data-opdf-total-pages", "48");
+    await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute("data-tpdf-total-pages", "48");
   });
 }

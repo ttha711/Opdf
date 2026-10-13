@@ -6,6 +6,11 @@
   background: var(--viewer-bg, #e8eaed);
 }
 
+/* Keep the reader's current page visible while the edit document is opening. */
+.native-edit-surface:has(.native-edit-loading) {
+  background: transparent;
+}
+
 .native-edit-page {
   position: relative;
   background: #fff;
@@ -33,8 +38,8 @@
   stroke: rgb(37 99 235 / 45%);
 }
 
-.native-edit-object[data-opdf-object-kind="text"],
-.native-edit-selection[data-opdf-object-kind="text"] {
+.native-edit-object[data-tpdf-object-kind="text"],
+.native-edit-selection[data-tpdf-object-kind="text"] {
   cursor: text;
 }
 
@@ -45,6 +50,16 @@
   vector-effect: non-scaling-stroke;
   pointer-events: all;
   cursor: move;
+}
+
+.native-edit-selection.is-editing-text {
+  fill: #fff;
+}
+
+.native-edit-text-cover-mask {
+  fill: #fff;
+  stroke: none;
+  pointer-events: none;
 }
 
 .native-edit-selection.readonly {
@@ -92,6 +107,14 @@
   white-space: pre-wrap;
   box-sizing: border-box;
   caret-color: #2563eb;
+}
+
+.native-edit-inline-text.is-covered {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 2px;
 }
 
 .native-edit-loading,

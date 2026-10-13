@@ -1,9 +1,9 @@
-// opdf-file-size-allow: legacy tool dashboard; this PR removes duplicated viewer wiring without expanding dashboard responsibilities.
+// tpdf-file-size-allow: legacy tool dashboard; this PR removes duplicated viewer wiring without expanding dashboard responsibilities.
 import { useState, useRef } from "react";
-import { useOpdfBridge } from "../hooks/useOpdfBridge";
+import { useTpdfBridge } from "../hooks/useTpdfBridge";
 import { toast } from "./ToastProvider";
 import { buildPdfTextExport } from "../lib/pdfTextExport";
-import { OpdfIcon } from "./OpdfIcon";
+import { TpdfIcon } from "./TpdfIcon";
 import { ALL_TOOLS_CATALOG, type ToolCatalogEntry } from "../lib/allToolsCatalog";
 
 interface AllToolsDashboardProps {
@@ -63,7 +63,7 @@ export function AllToolsDashboard({
   onSelectTool,
   onTriggerAdditionalTool,
 }: AllToolsDashboardProps) {
-  const bridge = useOpdfBridge();
+  const bridge = useTpdfBridge();
   const canCompress = bridge.capabilities?.compress !== false;
   const canEncrypt = bridge.capabilities?.encrypt !== false;
   const canDigitalSign = bridge.capabilities?.digitalSignature !== false;
@@ -180,7 +180,7 @@ export function AllToolsDashboard({
         return;
       }
 
-      toast.error("Open the PDF in OPDF first, then choose the conversion tool.");
+      toast.error("Open the PDF in TPDF first, then choose the conversion tool.");
 
     } catch (err) {
       console.error(err);
@@ -298,11 +298,11 @@ export function AllToolsDashboard({
   const tools: ToolDef[] = ALL_TOOLS_CATALOG.map((item) => {
     const unavailableReason = (() => {
       switch (item.capability) {
-        case "pdf-to-office": return canPdfToOffice ? undefined : "PDF to Office requires OPDF Server or Desktop converter.";
-        case "office-to-pdf": return canOfficeToPdf ? undefined : "Office conversion requires OPDF Server or Desktop converter.";
-        case "compress": return canCompress ? undefined : "Compression requires OPDF Server or Desktop.";
-        case "encrypt": return canEncrypt ? undefined : "Password security requires OPDF Server or Desktop.";
-        case "digital-signature": return canDigitalSign ? undefined : "Digital signing requires OPDF Desktop or a configured signing service.";
+        case "pdf-to-office": return canPdfToOffice ? undefined : "PDF to Office requires TPDF Server or Desktop converter.";
+        case "office-to-pdf": return canOfficeToPdf ? undefined : "Office conversion requires TPDF Server or Desktop converter.";
+        case "compress": return canCompress ? undefined : "Compression requires TPDF Server or Desktop.";
+        case "encrypt": return canEncrypt ? undefined : "Password security requires TPDF Server or Desktop.";
+        case "digital-signature": return canDigitalSign ? undefined : "Digital signing requires TPDF Desktop or a configured signing service.";
         case "pdf-a": return bridge.capabilities?.pdfA === true ? undefined : "PDF/A conversion is unavailable in this runtime.";
         default: return undefined;
       }
@@ -348,13 +348,13 @@ export function AllToolsDashboard({
       {/* Header and Close */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold tracking-tight flex items-center gap-2 text-[var(--text-primary)]">
-          <span className="text-red-500"><OpdfIcon name="tools" size={20} /></span> Opdf Power Tools Dashboard
+          <span className="text-red-500"><TpdfIcon name="tools" size={20} /></span> Tpdf Power Tools Dashboard
         </h2>
         <button
           onClick={onClose}
           className="px-3 py-1.5 text-xs font-semibold rounded-md border border-[var(--border-color)] bg-[var(--ui-muted-bg)] hover:bg-[var(--ui-hover-bg)] transition-all cursor-pointer"
         >
-          <span className="inline-flex items-center gap-1.5"><OpdfIcon name="close" size={14} />Close Tools</span>
+          <span className="inline-flex items-center gap-1.5"><TpdfIcon name="close" size={14} />Close Tools</span>
         </button>
       </div>
 
@@ -374,7 +374,7 @@ export function AllToolsDashboard({
           <button
             type="button"
             onClick={onOpenPdf}
-            data-opdf-action="open-pdf-from-tools"
+            data-tpdf-action="open-pdf-from-tools"
             className="h-10 rounded-lg bg-[var(--acrobat-blue)] px-4 text-sm font-bold text-white hover:bg-[var(--acrobat-blue-hover)]"
           >
             Open PDF to use document tools
@@ -421,8 +421,8 @@ export function AllToolsDashboard({
         {filteredTools.map((tool) => (
           <button
             key={tool.id}
-            data-opdf-tool-card={tool.id}
-            data-opdf-tool-available={tool.unavailableReason ? "false" : "true"}
+            data-tpdf-tool-card={tool.id}
+            data-tpdf-tool-available={tool.unavailableReason ? "false" : "true"}
             disabled={Boolean(tool.unavailableReason)}
             title={tool.unavailableReason}
             onClick={() => {
@@ -449,7 +449,7 @@ export function AllToolsDashboard({
               }}
               className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3 shadow-inner group-hover:scale-110 transition-transform duration-200"
             >
-              <OpdfIcon name={tool.icon} size={24} />
+              <TpdfIcon name={tool.icon} size={24} />
             </div>
 
             {/* Tool Name */}
@@ -475,9 +475,9 @@ export function AllToolsDashboard({
 
       {/* Bottom helper */}
       <div className="mt-12 p-4 rounded-xl bg-[var(--ui-muted-bg)] border border-[var(--border-color)] text-xs text-[var(--text-secondary)] flex items-center gap-3">
-        <span className="text-lg"><OpdfIcon name="lock" size={20} /></span>
+        <span className="text-lg"><TpdfIcon name="lock" size={20} /></span>
         <span>
-          <strong>Processing:</strong> PDF viewing and annotation stay in the browser. Conversions, optimization, or server-backed workflows may send the selected document to the OPDF service configured for this deployment.
+          <strong>Processing:</strong> PDF viewing and annotation stay in the browser. Conversions, optimization, or server-backed workflows may send the selected document to the TPDF service configured for this deployment.
         </span>
       </div>
     </div>

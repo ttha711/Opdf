@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { useOpdfBridge } from "../useOpdfBridge";
+import type { useTpdfBridge } from "../useTpdfBridge";
 import type { WatermarkOptions, MarkupTool, MarkupOptions } from "./types";
 
 export function useMarkupActions({
@@ -12,7 +12,7 @@ export function useMarkupActions({
   replaceDocumentBytes,
   setViewerError,
 }: {
-  bridge: ReturnType<typeof useOpdfBridge>;
+  bridge: ReturnType<typeof useTpdfBridge>;
   fileName: string;
   docBytes: Uint8Array | null;
   getDocumentBytes: () => Promise<Uint8Array | null>;
@@ -71,7 +71,7 @@ export function useMarkupActions({
       } else {
         next = await bridge.addBatesNumbering(
           bytes,
-          options.prefix ?? "OPDF-",
+          options.prefix ?? "TPDF-",
           options.startNumber ?? 1,
           options.suffix ?? ""
         );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { PdfPathCommand } from "@opdf/core";
+import type { PdfPathCommand } from "@tpdf/core";
 
 type PathGeometryEditorProps = {
   commands: PdfPathCommand[];

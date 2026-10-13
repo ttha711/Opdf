@@ -1,5 +1,5 @@
-import type { Annotation } from "@opdf/core";
-import type { OpdfBridge } from "../types/opdf";
+import type { Annotation } from "@tpdf/core";
+import type { TpdfBridge } from "../types/tpdf";
 import { computeFileHash, loadAnnotationsByHash } from "../lib/web-storage";
 import { resolveBrowserDocumentReference } from "../lib/openDocumentReference";
 
@@ -11,7 +11,7 @@ type SavedSnapshot = {
 };
 
 type Args = {
-  bridge: OpdfBridge;
+  bridge: TpdfBridge;
   hasDesktopBridge: boolean;
   setFileName: (value: string) => void;
   setDocBytes: (value: Uint8Array | null) => void;

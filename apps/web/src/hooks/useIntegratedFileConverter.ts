@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { isOpdfServerRuntime, useOpdfBridge } from "./useOpdfBridge";
+import { isTpdfServerRuntime, useTpdfBridge } from "./useTpdfBridge";
 
 type UseIntegratedFileConverterArgs = {
   activeDashboardTool: string | null;
@@ -18,7 +18,7 @@ export function useIntegratedFileConverter({
   setPage,
   setViewerError,
 }: UseIntegratedFileConverterArgs) {
-  const bridge = useOpdfBridge();
+  const bridge = useTpdfBridge();
   const handleIntegratedFileSelected = useCallback(async (file: File) => {
     setViewerError("Analyzing document nodes...");
     try {
@@ -126,8 +126,8 @@ export function useIntegratedFileConverter({
           height: drawH,
         });
       } else {
-        if (!isOpdfServerRuntime() || !bridge.convertOfficeToPdf) {
-          throw new Error("Office → PDF requires OPDF Server with LibreOffice installed.");
+        if (!isTpdfServerRuntime() || !bridge.convertOfficeToPdf) {
+          throw new Error("Office → PDF requires TPDF Server with LibreOffice installed.");
         }
         setViewerError("Converting Office document with LibreOffice...");
         const output = await bridge.convertOfficeToPdf(new Uint8Array(await file.arrayBuffer()), file.name);

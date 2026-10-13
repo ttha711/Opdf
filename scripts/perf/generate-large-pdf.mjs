@@ -10,7 +10,7 @@ function readArg(name, fallback) {
 
 const targetMb = Math.max(1, Number(readArg("mb", "250")));
 const pageCount = Math.max(1, Number(readArg("pages", "300")));
-const outPath = resolve(readArg("out", `tmp/opdf-stress-${targetMb}mb-${pageCount}pages.pdf`));
+const outPath = resolve(readArg("out", `.tpdf-cad-fixtures/tpdf-stress-${targetMb}mb-${pageCount}pages.pdf`));
 const targetBytes = Math.floor(targetMb * 1024 * 1024);
 
 const doc = await PDFDocument.create();
@@ -19,7 +19,7 @@ const font = await doc.embedFont(StandardFonts.Helvetica);
 for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
   // A1 landscape in PDF points (approx. 841 x 594 mm).
   const page = doc.addPage([2384, 1684]);
-  page.drawText(`OPDF STRUCTURAL DRAWING S-${String(pageNumber).padStart(3, "0")}`, {
+  page.drawText(`TPDF STRUCTURAL DRAWING S-${String(pageNumber).padStart(3, "0")}`, {
     x: 60,
     y: 1600,
     size: 28,

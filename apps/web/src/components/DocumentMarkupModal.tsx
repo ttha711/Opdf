@@ -35,7 +35,7 @@ export function DocumentMarkupModal({ tool, fileName, totalPages, onClose, onApp
   useEffect(() => {
     if (!tool) return;
     setText(baseName);
-    setPrefix(tool === "bates" ? "OPDF-" : "Page ");
+    setPrefix(tool === "bates" ? "TPDF-" : "Page ");
     setSuffix("");
     setStartNumber(1);
     setFontSize(tool === "bates" ? 8 : tool === "page-numbers" ? 11 : 10);

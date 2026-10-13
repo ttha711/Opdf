@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
+import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 
 type Props = {
   selected: PdfContentObject | null;

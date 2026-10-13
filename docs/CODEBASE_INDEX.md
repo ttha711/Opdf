@@ -1,4 +1,4 @@
-# OPDF Codebase Index
+# TPDF Codebase Index
 
 > Fast navigation map for humans and AI agents. This complements GitNexus; use GitNexus for symbol-level call graphs and impact analysis when available.
 
@@ -21,11 +21,11 @@
 - `apps/web/src/hooks/useAppControllers.ts` — controller wiring
 - `apps/web/src/hooks/useDocumentLifecycle.ts` — open/close/replace document lifecycle
 - `apps/web/src/hooks/useDocumentActions.ts` — save/export/OCR/document-tool aggregator
-- `apps/web/src/hooks/useOpdfBridge.ts` — Electron bridge or browser mock selection
+- `apps/web/src/hooks/useTpdfBridge.ts` — Electron bridge or browser mock selection
 
 ### Desktop
 - `apps/desktop/src/main/main.ts` — Electron main process and IPC handlers
-- `apps/desktop/src/preload/preload.ts` — secure `window.opdf` bridge
+- `apps/desktop/src/preload/preload.ts` — secure `window.tpdf` bridge
 - `apps/desktop/tools/` — Python/PowerShell PDF and Office pipelines
 
 ### Editor
@@ -52,14 +52,14 @@
 
 | Task | Start here | Then |
 |---|---|---|
-| Open PDF | `useDocumentLifecycle.ts` | `useOpdfBridge.ts` -> `preload.ts` -> `main.ts` |
+| Open PDF | `useDocumentLifecycle.ts` | `useTpdfBridge.ts` -> `preload.ts` -> `main.ts` |
 | Save / Save As / Export | `useDocumentActions.ts` | `document-actions/useExportAction.ts` -> bridge |
-| OCR | `document-actions/useOcrAction.ts` | `opdf-bridge/ocrHelpers.ts` -> desktop/core OCR |
+| OCR | `document-actions/useOcrAction.ts` | `tpdf-bridge/ocrHelpers.ts` -> desktop/core OCR |
 | Merge / split / compress / watermark | `document-actions/useCommonActions.ts` | bridge -> `DocumentService` |
 | Page/document tools | `document-actions/useDocumentToolsAction.ts` | bridge -> desktop/core |
 | Annotations | `useAnnotationActions.ts` | bridge -> `AnnotationService` |
-| Browser fallback | `opdf-bridge/mockBridge.ts` | `lib/web-storage.ts` |
-| Desktop native behavior | `preload.ts` | matching `opdf:*` handler in `main.ts` |
+| Browser fallback | `tpdf-bridge/mockBridge.ts` | `lib/web-storage.ts` |
+| Desktop native behavior | `preload.ts` | matching `tpdf:*` handler in `main.ts` |
 | Office editing | `apps/editor/src/App.tsx` | relevant component + server route |
 | AI editor requests | editor UI | `server/routes/chat.ts` / `server/gemini.ts` |
 | PDF -> Office | `preload.ts` `convertPdfOffice` | `main.ts` -> `apps/desktop/tools` |
@@ -67,7 +67,7 @@
 ## Bridge contract
 
 Renderer-facing bridge:
-- `apps/web/src/types/opdf.ts`
+- `apps/web/src/types/tpdf.ts`
 - `apps/desktop/src/preload/preload.ts`
 
 When changing a bridge method, inspect all three layers:
@@ -77,12 +77,12 @@ web caller -> preload contract -> main IPC handler
 ```
 
 Important IPC families include:
-- `opdf:open`, `opdf:save`, `opdf:save-as`
-- `opdf:export-flattened`
-- `opdf:compress`, `opdf:watermark`, `opdf:merge`, `opdf:split`
-- `opdf:ocr:*`
-- `opdf:annotation:*`
-- `opdf:storage:*`
+- `tpdf:open`, `tpdf:save`, `tpdf:save-as`
+- `tpdf:export-flattened`
+- `tpdf:compress`, `tpdf:watermark`, `tpdf:merge`, `tpdf:split`
+- `tpdf:ocr:*`
+- `tpdf:annotation:*`
+- `tpdf:storage:*`
 
 ## Rules before code changes
 

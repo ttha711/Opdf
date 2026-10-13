@@ -9,21 +9,21 @@ test("inline text editor stays compact and keeps a raster through commit", async
   const sheet = doc.addPage([600, 800]);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   sheet.drawText("43", { x: 90, y: 610, size: 116, font });
-  const upload = await request.post("/api/opdf/documents?name=inline-text-ux.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=inline-text-ux.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: Buffer.from(await doc.save({ useObjectStreams: false })),
   });
   expect(upload.status()).toBe(201);
   const stored = await upload.json();
   await page.goto("/?open=" + encodeURIComponent(stored.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45000 });
   await page.getByTitle("Edit PDF Content").click();
-  const expand = page.locator('[data-opdf-action="expand-right-panel"]');
+  const expand = page.locator('[data-tpdf-action="expand-right-panel"]');
   await expect(expand).toBeVisible();
   await expand.click();
-  await expect(page.locator("[data-opdf-native-editor='true']")).toBeVisible();
+  await expect(page.locator("[data-tpdf-native-editor='true']")).toBeVisible();
 
-  const text = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").first();
+  const text = page.locator(".native-edit-page polygon[data-tpdf-object-kind='text']").first();
   await expect(text).toBeVisible({ timeout: 45000 });
   await text.dblclick();
   const textarea = page.getByRole("textbox", { name: "Edit PDF text" });
@@ -60,17 +60,17 @@ test("single click selects; double-click opens the text editor", async ({ page, 
   const sheet = pdf.addPage([520, 720]);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   sheet.drawText("DOUBLE CLICK LABEL", { x: 78, y: 525, font, size: 20 });
-  const response = await request.post("/api/opdf/documents?name=doubleclick-native.pdf", {
+  const response = await request.post("/api/tpdf/documents?name=doubleclick-native.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: Buffer.from(await pdf.save({ useObjectStreams: false })),
   });
   expect(response.status()).toBe(201);
   const stored = await response.json();
   await page.goto("/?open=" + encodeURIComponent(stored.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
   await page.getByTitle("Edit PDF Content").click();
-  await page.locator('[data-opdf-action="expand-right-panel"]').click();
-  const target = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").first();
+  await page.locator('[data-tpdf-action="expand-right-panel"]').click();
+  const target = page.locator(".native-edit-page polygon[data-tpdf-object-kind='text']").first();
   await expect(target).toBeVisible({ timeout: 30_000 });
   const input = page.getByRole("textbox", { name: "Edit PDF text" });
   await target.dblclick();
@@ -85,27 +85,59 @@ test("single click selects; double-click opens the text editor", async ({ page, 
   await expect(input).toHaveValue("DOUBLE CLICK LABEL");
 });
 
+test("double-clicking text in the reader opens that text directly for editing", async ({ page, request }) => {
+  const pdf = await PDFDocument.create();
+  const sheet = pdf.addPage([520, 720]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  sheet.drawText("DIRECT EDIT LABEL", { x: 78, y: 525, font, size: 20 });
+  const response = await request.post("/api/tpdf/documents?name=direct-reader-edit.pdf", {
+    headers: { "Content-Type": "application/pdf" },
+    data: Buffer.from(await pdf.save({ useObjectStreams: false })),
+  });
+  expect(response.status()).toBe(201);
+  const stored = await response.json();
+  await page.goto("/?open=" + encodeURIComponent(stored.filePath));
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+
+  // The standard reader renders inside EmbedPDF's shadow root. Send the
+  // double-click to the text's page position without opening Edit PDF first.
+  const pageImage = page.locator("embedpdf-container img").last();
+  await expect(pageImage).toBeVisible({ timeout: 30_000 });
+  const bounds = await pageImage.boundingBox();
+  expect(bounds).toBeTruthy();
+  // Target a point inside the label in PDF page coordinates. The reader scales
+  // the page to the viewport, so fixed CSS-pixel offsets miss at fit-to-page.
+  await page.mouse.dblclick(
+    bounds!.x + bounds!.width * (100 / 520),
+    bounds!.y + bounds!.height * ((720 - 535) / 720),
+  );
+
+  const input = page.getByRole("textbox", { name: "Edit PDF text" });
+  await expect(input).toBeVisible({ timeout: 15_000 });
+  await expect(input).toHaveValue("DIRECT EDIT LABEL");
+});
+
 test("Save commits focused inline text and persists it on reopen", async ({ page, request }) => {
   const doc = await PDFDocument.create();
   const sheet = doc.addPage([500, 700]);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   sheet.drawText("Original label 43", { x: 80, y: 570, size: 21, font });
-  const upload = await request.post("/api/opdf/documents?name=inline-blur-save-regression.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=inline-blur-save-regression.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: Buffer.from(await doc.save({ useObjectStreams: false })),
   });
   expect(upload.status()).toBe(201);
   const stored = await upload.json();
   await page.goto("/?open=" + encodeURIComponent(stored.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45000 });
   await page.getByTitle("Edit PDF Content").click();
-  const expand = page.locator('[data-opdf-action="expand-right-panel"]');
+  const expand = page.locator('[data-tpdf-action="expand-right-panel"]');
   await expect(expand).toBeVisible();
   await expand.click();
-  const editor = page.locator("[data-opdf-native-editor='true']");
+  const editor = page.locator("[data-tpdf-native-editor='true']");
   await expect(editor).toBeVisible();
 
-  const object = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").first();
+  const object = page.locator(".native-edit-page polygon[data-tpdf-object-kind='text']").first();
   await expect(object).toBeVisible({ timeout: 30000 });
   await object.dblclick();
   const draft = page.getByRole("textbox", { name: "Edit PDF text" });
@@ -118,12 +150,12 @@ test("Save commits focused inline text and persists it on reopen", async ({ page
   await expect(page.locator(".native-edit-paint-shield")).toBeHidden({ timeout: 30000 });
 
   await page.reload();
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30000 });
   await page.getByTitle("Edit PDF Content").click();
-  const reopen = page.locator('[data-opdf-action="expand-right-panel"]');
+  const reopen = page.locator('[data-tpdf-action="expand-right-panel"]');
   await expect(reopen).toBeVisible();
   await reopen.click();
-  const reopened = page.locator("[data-opdf-native-editor='true']");
+  const reopened = page.locator("[data-tpdf-native-editor='true']");
   await expect(reopened.locator(".native-content-editor__objects button")
     .filter({ hasText: "Saved after blur 85" })).toBeVisible({ timeout: 45000 });
   await expect(reopened.getByText("Original label 43")).toHaveCount(0);
@@ -135,22 +167,22 @@ test("repeated inline Enter, blur and object switching persist the latest text",
   const font = await document.embedFont(StandardFonts.Helvetica);
   sheet.drawText("ROOM 01", { x: 80, y: 690, font, size: 23 });
   sheet.drawText("ROOM 02", { x: 80, y: 520, font, size: 23 });
-  const upload = await request.post("/api/opdf/documents?name=inline-repeat-commit.pdf", {
+  const upload = await request.post("/api/tpdf/documents?name=inline-repeat-commit.pdf", {
     headers: { "Content-Type": "application/pdf" },
     data: Buffer.from(await document.save({ useObjectStreams: false })),
   });
   expect(upload.status()).toBe(201);
   const stored = await upload.json();
   await page.goto("/?open=" + encodeURIComponent(stored.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45000 });
   await page.getByTitle("Edit PDF Content").click();
-  await page.locator('[data-opdf-action="expand-right-panel"]').click();
-  const editor = page.locator("[data-opdf-native-editor='true']");
+  await page.locator('[data-tpdf-action="expand-right-panel"]').click();
+  const editor = page.locator("[data-tpdf-native-editor='true']");
   await expect(editor).toBeVisible({ timeout: 30000 });
-  const first = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").first();
-  const second = page.locator(".native-edit-page polygon[data-opdf-object-kind='text']").nth(1);
+  const first = page.locator(".native-edit-page polygon[data-tpdf-object-kind='text']").first();
+  const second = page.locator(".native-edit-page polygon[data-tpdf-object-kind='text']").nth(1);
   const input = page.getByRole("textbox", { name: "Edit PDF text" });
-  const items = editor.locator(".native-content-editor__objects button[data-opdf-object-kind='text']");
+  const items = editor.locator(".native-content-editor__objects button[data-tpdf-object-kind='text']");
 
   await first.dblclick();
   await input.fill("KITCHEN 10");
@@ -181,10 +213,10 @@ test("repeated inline Enter, blur and object switching persist the latest text",
 
   await saveServerDocumentAndWait(page);
   await page.reload();
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45000 });
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 45000 });
   await page.getByTitle("Edit PDF Content").click();
-  await page.locator('[data-opdf-action="expand-right-panel"]').click();
-  const persisted = page.locator("[data-opdf-native-editor='true'] [data-opdf-object-kind='text']");
+  await page.locator('[data-tpdf-action="expand-right-panel"]').click();
+  const persisted = page.locator("[data-tpdf-native-editor='true'] [data-tpdf-object-kind='text']");
   await expect(persisted.filter({ hasText: "BEDROOM 12" }).first()).toBeVisible({ timeout: 45000 });
   await expect(persisted.filter({ hasText: "BATHROOM 13" }).first()).toBeVisible({ timeout: 45000 });
 });

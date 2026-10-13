@@ -46,22 +46,22 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = fa
   if (!isOpen) return null;
 
   return (
-    <div data-opdf-panel="ai" className={`ai-chat-panel glassmorphism align-${align}${docked ? " docked" : ""}`}>
+    <div data-tpdf-panel="ai" className={`ai-chat-panel glassmorphism align-${align}${docked ? " docked" : ""}`}>
       {/* Panel Header */}
       <div className="ai-chat-header">
         <div className="ai-header-title">
           <AiSparkIcon size={18} />
-          <span>OPDF AI Copilot</span>
+          <span>TPDF AI Copilot</span>
           <span
             className={`ai-status-badge${machineAgentConnected ? " pulse" : ""}`}
-            title={isProductionWeb ? (machineAgentConnected ? "Machine Agent paired" : "Machine Agent pairing required") : "OPDF Agent Bridge"}
+            title={isProductionWeb ? (machineAgentConnected ? "Machine Agent paired" : "Machine Agent pairing required") : "TPDF Agent Bridge"}
           >
             {isProductionWeb ? (machineAgentConnected ? "Paired" : "Pair") : "Sync"}
           </span>
         </div>
         <div className="ai-header-actions">
           <button
-            data-opdf-action="ai-settings"
+            data-tpdf-action="ai-settings"
             className={`ai-header-btn${showSettings ? " active" : ""}`}
             onClick={() => setShowSettings(!showSettings)}
             title={isProductionWeb ? "Machine Agent pairing" : "AI settings"}
@@ -74,7 +74,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = fa
               Live Editor
             </button>
           ) : null}
-          <button data-opdf-action="close-ai" className="ai-header-close" onClick={onClose} title="Hide AI Copilot" type="button">
+          <button data-tpdf-action="close-ai" className="ai-header-close" onClick={onClose} title="Hide AI Copilot" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>

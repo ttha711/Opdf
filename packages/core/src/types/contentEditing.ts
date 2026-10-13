@@ -59,6 +59,7 @@ export type PdfContentObject = {
   pageIndex: number;
   pageWidth: number;
   pageHeight: number;
+  pageOrigin?: PdfPoint;
   kind: PdfContentObjectKind;
   bounds: PdfRect;
   localBounds?: PdfRect;

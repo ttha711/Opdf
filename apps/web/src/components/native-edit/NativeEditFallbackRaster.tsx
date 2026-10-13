@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
+const LARGE_PDF_BYTES = 100 * 1024 * 1024;
+
 type Props = {
   pageIndex: number;
   revisionKey: string;
@@ -112,6 +114,13 @@ export function NativeEditFallbackRaster({
         try {
           const bytes = await bytesProvider.current();
           if (!bytes || shouldStop()) return;
+          // The native PDFium layer remains the primary renderer. Copying a
+          // large source into a second worker and then PDF.js can exceed the
+          // memory needed by the editor itself.
+          if (bytes.byteLength >= LARGE_PDF_BYTES) {
+            setStage("large-document-native-render");
+            return;
+          }
           const copy = bytes.slice();
           worker = new Worker(new URL("./nativeEditPdfiumRaster.worker.ts", import.meta.url), { type: "module" });
           worker.onmessage = (event: MessageEvent<WorkerResult>) => {
@@ -148,7 +157,7 @@ export function NativeEditFallbackRaster({
 
   return (
     <>
-      <canvas ref={canvasRef} data-opdf-pdfjs-fallback="true" data-opdf-fallback-stage={stage}
+      <canvas ref={canvasRef} data-tpdf-pdfjs-fallback="true" data-tpdf-fallback-stage={stage}
         style={{ display: painted ? "block" : "none", position: "absolute", inset: 0,
           width: "100%", height: "100%", pointerEvents: "none" }} />
       {error && <div role="status" className="native-edit-error">

@@ -8,8 +8,8 @@ on:
       - "apps/web/**"
       - "server/**"
       - "scripts/ui-audit.mjs"
-      - "scripts/opdf-cli.mjs"
-      - "scripts/opdf-cli/**"
+      - "scripts/tpdf-cli.mjs"
+      - "scripts/tpdf-cli/**"
       - ".github/workflows/ui-audit.yml"
   pull_request:
     branches: [main]
@@ -17,8 +17,8 @@ on:
       - "apps/web/**"
       - "server/**"
       - "scripts/ui-audit.mjs"
-      - "scripts/opdf-cli.mjs"
-      - "scripts/opdf-cli/**"
+      - "scripts/tpdf-cli.mjs"
+      - "scripts/tpdf-cli/**"
       - ".github/workflows/ui-audit.yml"
 
 concurrency:
@@ -38,35 +38,35 @@ jobs:
       - run: npm ci
       - run: npx playwright install chromium --with-deps
       - run: npm run server-build
-      - name: Start OPDF server
+      - name: Start TPDF server
         run: |
-          OPDF_HOST=127.0.0.1 OPDF_PORT=8787 OPDF_DATA_DIR=.opdf-ui-audit-data npm run server-start > /tmp/opdf-ui-audit.log 2>&1 &
+          TPDF_HOST=127.0.0.1 TPDF_PORT=8787 TPDF_DATA_DIR=.tpdf-ui-audit-data npm run server-start > /tmp/tpdf-ui-audit.log 2>&1 &
           for i in {1..60}; do
-            if curl -fsS http://127.0.0.1:8787/api/opdf/health >/dev/null; then
+            if curl -fsS http://127.0.0.1:8787/api/tpdf/health >/dev/null; then
               exit 0
             fi
             sleep 1
           done
-          cat /tmp/opdf-ui-audit.log
+          cat /tmp/tpdf-ui-audit.log
           exit 1
       - name: Capture UI
         run: node scripts/ui-audit.mjs
-      - name: Exercise OPDF production E2E locally
+      - name: Exercise TPDF production E2E locally
         timeout-minutes: 12
         run: |
           set -o pipefail
-          mkdir -p opdf-cli-artifacts
-          node scripts/opdf-cli.mjs audit e2e \
+          mkdir -p tpdf-cli-artifacts
+          node scripts/tpdf-cli.mjs audit e2e \
             --url http://127.0.0.1:8787 \
             --timeout 120000 \
-            --out opdf-cli-artifacts \
-            --trace opdf-cli-artifacts/trace.zip \
-            --json 2>&1 | tee opdf-cli-artifacts/console.log
+            --out tpdf-cli-artifacts \
+            --trace tpdf-cli-artifacts/trace.zip \
+            --json 2>&1 | tee tpdf-cli-artifacts/console.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: opdf-ui-audit
+          name: tpdf-ui-audit
           path: |
             ui-audit/
-            opdf-cli-artifacts/
+            tpdf-cli-artifacts/
           retention-days: 14

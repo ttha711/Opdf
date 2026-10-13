@@ -1,6 +1,6 @@
-import type { OcrJob } from "@opdf/core";
+import type { OcrJob } from "@tpdf/core";
 import type { Dispatch, SetStateAction } from "react";
-import type { useOpdfBridge } from "../useOpdfBridge";
+import type { useTpdfBridge } from "../useTpdfBridge";
 import { isLikelyPdf, isParseablePdf } from "./pdfUtils";
 
 export function useOcrAction({
@@ -15,7 +15,7 @@ export function useOcrAction({
   setOcrJobs,
   setViewerError,
 }: {
-  bridge: ReturnType<typeof useOpdfBridge>;
+  bridge: ReturnType<typeof useTpdfBridge>;
   fileName: string;
   docBytes: Uint8Array | null;
   getDocumentBytes: () => Promise<Uint8Array | null>;

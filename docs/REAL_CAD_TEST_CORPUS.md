@@ -1,6 +1,6 @@
 # Public CAD reference corpus
 
-The OPDF issue #144 file HCHN-SA-GR 1.pdf (110 MB) has not been located in the repository or at an authenticated public URL. These are independent public reference PDFs, not replacements for that original regression file.
+The TPDF issue #144 file HCHN-SA-GR 1.pdf (110 MB) has not been located in the repository or at an authenticated public URL. These are independent public reference PDFs, not replacements for that original regression file.
 
 ## Selected sources
 
@@ -12,18 +12,18 @@ Upstream repos are MIT and Apache-2.0 respectively, but software licenses **do n
 
 ## Reproduce
 
-Node.js 22 or later. From the OPDF repository root:
+Node.js 22 or later. From the TPDF repository root:
 
 1. `npm ci`
 2. `node scripts/fixtures/fetch-real-cad-pdfs.mjs`
 3. `npx playwright install chromium --with-deps` (Linux; on Windows or macOS use `npx playwright install chromium`)
-4. `OPDF_REAL_CAD_FIXTURES_DIR=.opdf-cad-fixtures npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium`
+4. `TPDF_REAL_CAD_FIXTURES_DIR=.tpdf-cad-fixtures npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium`
 
-On Windows PowerShell, set `$env:OPDF_REAL_CAD_FIXTURES_DIR='.opdf-cad-fixtures'` separately before running Playwright.
+On Windows PowerShell, set `$env:TPDF_REAL_CAD_FIXTURES_DIR='.tpdf-cad-fixtures'` separately before running Playwright.
 
 The fixture manifest pins the upstream Git commit, each PDF byte count and git blob SHA-1. Editable VA cases also pin an existing PDF text object and its expected original label, so every CI repeat double-clicks the same real on-page text rather than accidentally selecting a large unrelated note. The fetch script checks all three and the PDF magic bytes; a changed or inaccessible source **fails** instead of silently testing different bytes.
 
-Downloaded PDFs are stored under `.opdf-cad-fixtures/` and ignored by git. The GitHub Actions workflow `Public CAD PDF Corpus` runs when these tests change, manually, and weekly. Playwright traces stay on ephemeral runners and are not uploaded: trace archives can contain PDF request/response bytes. GitHub Actions logs still report test failures and load timings. The CI gate runs all three PDFs **twice with zero retries**, including when the native editing, renderer, or Save code changes, to expose intermittent behavior.
+Downloaded PDFs are stored under `.tpdf-cad-fixtures/` and ignored by git. The GitHub Actions workflow `Public CAD PDF Corpus` runs when these tests change, manually, and weekly. Playwright traces stay on ephemeral runners and are not uploaded: trace archives can contain PDF request/response bytes. GitHub Actions logs still report test failures and load timings. The CI gate runs all three PDFs **twice with zero retries**, including when the native editing, renderer, or Save code changes, to expose intermittent behavior.
 
 ## Coverage and limitations
 

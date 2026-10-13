@@ -1,6 +1,6 @@
-// opdf-file-size-allow: legacy app composition coordinator; this PR deletes mirrored viewer state and does not add new controller surface.
+// tpdf-file-size-allow: legacy app composition coordinator; this PR deletes mirrored viewer state and does not add new controller surface.
 import { useCallback, useEffect, useRef } from "react";
-import { useOpdfBridge } from "./useOpdfBridge";
+import { useTpdfBridge } from "./useTpdfBridge";
 import { useAppState } from "./useAppState";
 import { useDocumentLifecycle } from "./useDocumentLifecycle";
 import { useAnnotationActions } from "./useAnnotationActions";
@@ -14,6 +14,7 @@ import { useAgentBridge, createAgentStateSnapshot } from "./useAgentBridge";
 import type { MarkupTool } from "./useDocumentActions";
 import { toast } from "../components/ToastProvider";
 import { buildPdfTextExport } from "../lib/pdfTextExport";
+import { getServerDocumentUrl } from "../lib/documentSource";
 
 import { useDocumentAutosave } from "./useDocumentAutosave";
 
@@ -24,7 +25,7 @@ type UseAppControllersArgs = {
 };
 
 export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSidebar }: UseAppControllersArgs) {
-  const bridge = useOpdfBridge();
+  const bridge = useTpdfBridge();
   const state = useAppState();
   const viewerAreaRef = useRef<HTMLDivElement>(null);
 
@@ -52,11 +53,11 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
         documentIdentity: nextIdentity,
         annotations: state.annotations,
       });
-      state.setViewerError("Saved to OPDF Server.");
+      state.setViewerError("Saved to TPDF Server.");
       window.setTimeout(() => state.setViewerError(null), 3000);
     };
-    window.addEventListener("opdf:server-document-mutated", onStoredMutation);
-    return () => window.removeEventListener("opdf:server-document-mutated", onStoredMutation);
+    window.addEventListener("tpdf:server-document-mutated", onStoredMutation);
+    return () => window.removeEventListener("tpdf:server-document-mutated", onStoredMutation);
   }, [
     state.sourceIdentity,
     state.fileName,
@@ -519,6 +520,30 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
     state.totalPages,
   ]);
 
+  const analyzeDocumentHealth = useCallback(async () => {
+    const url = getServerDocumentUrl(state.sourceIdentity)?.split("?")[0];
+    if (!url) throw new Error("Document Health requires a document saved to TPDF Server.");
+    const response = await fetch(url + "/health", { credentials: "same-origin", cache: "no-store" });
+    const report = await response.json() as {
+      error?: string;
+      documentSha256?: string;
+      summary?: { document?: { pages?: number } };
+      accessibility?: { passed?: number; failed?: number; manual?: number };
+      pdfa?: { issues?: unknown[] };
+    };
+    if (!response.ok) throw new Error(report.error || "Document Health analysis failed.");
+    const a11y = report.accessibility;
+    const parts = [
+      "Saved PDF analysis complete (read-only).",
+      `${report.summary?.document?.pages ?? "Unknown"} pages`,
+      `Accessibility: ${a11y?.passed ?? 0} passed, ${a11y?.failed ?? 0} failed, ${a11y?.manual ?? 0} manual`,
+      `PDF/A-2b preliminary issues: ${report.pdfa?.issues?.length ?? 0}`,
+      `SHA-256: ${report.documentSha256 || "unavailable"}`,
+      "Not a PDF/A certification. Unsaved browser edits are not included.",
+    ];
+    return { message: parts.join("; ") };
+  }, [state.sourceIdentity]);
+
   useAgentBridge({
     state: createAgentStateSnapshot({
       hasDocument: state.hasDocument,
@@ -538,6 +563,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
       savePdf,
       compressDocument,
       runOcr,
+      analyzeDocumentHealth,
       convertToImages,
       goPrevPage,
       goNextPage,
@@ -569,8 +595,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
       toast.info("This feature is only available in the Local or Desktop App.");
       return;
     }
-    const editorUrl = localStorage.getItem("opdf-editor-url") || "http://localhost:5175";
-    const popup = window.open(editorUrl, "opdf-ai-editor", "width=1440,height=920");
+    const editorUrl = localStorage.getItem("tpdf-editor-url") || "http://localhost:5175";
+    const popup = window.open(editorUrl, "tpdf-ai-editor", "width=1440,height=920");
     if (popup) popup.focus();
   }, [isPublic]);
 

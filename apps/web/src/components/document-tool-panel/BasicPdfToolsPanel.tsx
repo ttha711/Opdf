@@ -86,7 +86,7 @@ export function BasicPdfToolsPanel({
         setViewerError("Crop applied.");
       } else if (toolId === "protect-pdf") {
         if (bridge.capabilities?.encrypt === false) {
-          throw new Error("Protect PDF requires OPDF Server or Desktop.");
+          throw new Error("Protect PDF requires TPDF Server or Desktop.");
         }
         if (password.length < 4) throw new Error("Use a password with at least 4 characters.");
         if (password !== confirmPassword) throw new Error("Passwords do not match.");
@@ -95,7 +95,7 @@ export function BasicPdfToolsPanel({
         setViewerError("Password protection applied. Save the PDF to keep it.");
       } else if (toolId === "unlock-pdf") {
         if (bridge.capabilities?.encrypt === false) {
-          throw new Error("Unlock PDF requires OPDF Server or Desktop.");
+          throw new Error("Unlock PDF requires TPDF Server or Desktop.");
         }
         if (!password) throw new Error("Enter the current PDF password.");
         const next = await bridge.decryptPdf(bytes, password);

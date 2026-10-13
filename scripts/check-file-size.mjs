@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 const MAX_LINES = 300;
 const SOURCE_EXTENSIONS = /\.(?:[cm]?[jt]sx?|mjs)$/i;
-const ALLOW_MARKER = /opdf-file-size-allow:\s*(.+)/i;
+const ALLOW_MARKER = /tpdf-file-size-allow:\s*(.+)/i;
 const base = process.argv[2] || "origin/main";
 
 function changedFiles() {

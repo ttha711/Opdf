@@ -1,6 +1,6 @@
-import type { Annotation } from "@opdf/core";
+import type { Annotation } from "@tpdf/core";
 import type { Dispatch, SetStateAction } from "react";
-import { useOpdfBridge } from "./useOpdfBridge";
+import { useTpdfBridge } from "./useTpdfBridge";
 import { getViewerControls } from "../lib/viewer-runtime";
 
 export function useAnnotationActions({
@@ -11,7 +11,7 @@ export function useAnnotationActions({
   setViewerError,
   setSaveState,
 }: {
-  bridge: ReturnType<typeof useOpdfBridge>;
+  bridge: ReturnType<typeof useTpdfBridge>;
   fileName: string;
   sourceIdentity: string;
   setAnnotations: Dispatch<SetStateAction<Annotation[]>>;

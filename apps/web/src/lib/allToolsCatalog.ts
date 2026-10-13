@@ -1,7 +1,7 @@
-// Canonical catalogue for OPDF's custom tool dashboard. Engines remain in
-// EmbedPDF/PDFium, pdf-lib and the configured OPDF Server/Desktop bridge.
+// Canonical catalogue for TPDF's custom tool dashboard. Engines remain in
+// EmbedPDF/PDFium, pdf-lib and the configured TPDF Server/Desktop bridge.
 // A catalogue entry does not imply that its runtime dependency is available.
-import type { OpdfIconName } from "../components/OpdfIcon";
+import type { TpdfIconName } from "../components/TpdfIcon";
 
 export type ToolCategory = "from_pdf" | "to_pdf" | "merge_split" | "edit_review";
 export type ToolCapability = "pdf-to-office" | "office-to-pdf" | "compress" | "encrypt" | "digital-signature" | "pdf-a";
@@ -9,7 +9,7 @@ export type ToolCapability = "pdf-to-office" | "office-to-pdf" | "compress" | "e
 export interface ToolCatalogEntry {
   id: string;
   name: string;
-  icon: OpdfIconName;
+  icon: TpdfIconName;
   color: string;
   bgColor: string;
   borderColor: string;

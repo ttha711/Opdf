@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { hasFullWebAccess, isDevelopmentHostname } from "./runtimeAccess";
 
 describe("runtime access", () => {
-  it("keeps OPDF Server fully enabled behind a public domain", () => {
+  it("keeps TPDF Server fully enabled behind a public domain", () => {
     expect(hasFullWebAccess({
       hasDesktopBridge: false,
       isServerRuntime: true,

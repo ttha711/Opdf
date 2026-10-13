@@ -19,6 +19,13 @@ import "../styles/native-edit-surface.css";
 
 const EDIT_DOCUMENT_ID = "tpdf-native-edit-document";
 
+function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength && bytes.buffer instanceof ArrayBuffer) {
+    return bytes.buffer;
+  }
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
 export function NativeEditPdfViewer({
   data,
   sourceBlob = null,
@@ -33,6 +40,8 @@ export function NativeEditPdfViewer({
   engine,
 }: PdfViewerProps & { engine: NativeEditEngine }) {
   const [localUrl, setLocalUrl] = useState<string | null>(null);
+  const [initialBuffer, setInitialBuffer] = useState<{ sourceUrl: string; buffer: ArrayBuffer } | null>(null);
+  const [initialBufferError, setInitialBufferError] = useState<string | null>(null);
   const initialSourceUrlRef = useRef<string | null>(null);
   const serverUrl = useMemo(
     () => sourceIdentity.startsWith("server://") ? getServerDocumentUrl(sourceIdentity) : null,
@@ -57,16 +66,30 @@ export function NativeEditPdfViewer({
     initialSourceUrlRef.current = sourceUrl;
   }
   const initialSourceUrl = initialSourceUrlRef.current;
+  const needsServerBuffer = Boolean(sourceIdentity.startsWith("server://") && !sourceBlob && !data);
+  const matchingBuffer = initialBuffer?.sourceUrl === initialSourceUrl ? initialBuffer.buffer : null;
+
+  useEffect(() => {
+    if (!needsServerBuffer || !initialSourceUrl || !getDocumentBytes) return;
+    let cancelled = false;
+    setInitialBufferError(null);
+    void getDocumentBytes().then((bytes) => {
+      if (!bytes) throw new Error("Unable to read the current PDF.");
+      if (!cancelled) setInitialBuffer({ sourceUrl: initialSourceUrl, buffer: exactArrayBuffer(bytes) });
+    }).catch((error: unknown) => {
+      if (!cancelled) setInitialBufferError(error instanceof Error ? error.message : String(error));
+    });
+    return () => { cancelled = true; };
+  }, [getDocumentBytes, initialSourceUrl, needsServerBuffer]);
 
   const plugins = useMemo(() => {
     if (!initialSourceUrl) return [];
+    const initialDocument = matchingBuffer
+      ? { buffer: matchingBuffer, name: "document.pdf", documentId: EDIT_DOCUMENT_ID, autoActivate: true }
+      : { url: initialSourceUrl, documentId: EDIT_DOCUMENT_ID, autoActivate: true };
     return [
       createPluginRegistration(DocumentManagerPluginPackage, {
-        initialDocuments: [{
-          url: initialSourceUrl,
-          documentId: EDIT_DOCUMENT_ID,
-          autoActivate: true,
-        }],
+        initialDocuments: [initialDocument],
         maxDocuments: 2,
       }),
       createPluginRegistration(ViewportPluginPackage, { viewportGap: 20 }),
@@ -81,13 +104,18 @@ export function NativeEditPdfViewer({
         maxZoom: 5,
       }),
     ];
-  }, [initialSourceUrl]);
+  }, [initialSourceUrl, matchingBuffer]);
 
   if (!sourceUrl || !initialSourceUrl) {
     return <div className="native-edit-error">No PDF source is available for editing.</div>;
   }
   if (!getDocumentBytes) {
     return <div className="native-edit-error">Native editor bytes provider is unavailable.</div>;
+  }
+  if (needsServerBuffer && !matchingBuffer) {
+    return initialBufferError
+      ? <div className="native-edit-error" role="alert">{initialBufferError}</div>
+      : <div className="native-edit-loading">Loading PDF data for text editing…</div>;
   }
 
   return (

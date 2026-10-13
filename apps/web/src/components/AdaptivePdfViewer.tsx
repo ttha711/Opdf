@@ -18,6 +18,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   const [documentSizeBytes, setDocumentSizeBytes] = useState<number | null>(null);
   const [nativeEditEngine, setNativeEditEngine] = useState<NativeEditEngine | null>(null);
   const [nativeEditEngineError, setNativeEditEngineError] = useState<Error | null>(null);
+  const [forceFullViewer, setForceFullViewer] = useState(false);
   const [preference, setPreference] = useState<"auto" | "full" | "remote">(() => {
     const value = window.localStorage.getItem("tpdf-render-mode");
     return value === "full" || value === "remote" ? value : "auto";
@@ -51,6 +52,13 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   const shouldPreloadEditEngines = hasOpenedDocument && (
     isEditing || (documentSizeBytes !== null && documentSizeBytes < LARGE_DOCUMENT_BYTES)
   );
+  const shouldPreloadContentEngine = shouldPreloadEditEngines ||
+    (hasOpenedDocument && serverSource && available);
+  const largeDocument = documentSizeBytes !== null && documentSizeBytes >= LARGE_DOCUMENT_BYTES;
+  const waitingForLargeUpload = !forceFullViewer && !isEditing &&
+    window.__TPDF_RUNTIME__ === "server" &&
+    (props.sourceIdentity || "").startsWith("local-upload://") &&
+    documentSizeBytes !== null && documentSizeBytes >= LARGE_DOCUMENT_BYTES;
 
   useEffect(() => {
     if (shouldPreloadEditEngines) return;
@@ -77,7 +85,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   }, [props.onViewerReady]);
 
   useEffect(() => {
-    if (!shouldPreloadEditEngines) return;
+    if (!shouldPreloadContentEngine) return;
     let timer: number | null = null;
     let idleId: number | null = null;
     const idleWindow = window as Window & {
@@ -96,10 +104,13 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
       if (timer !== null) window.clearTimeout(timer);
       if (idleId !== null) idleWindow.cancelIdleCallback?.(idleId);
     };
-  }, [shouldPreloadEditEngines]);
+  }, [shouldPreloadContentEngine]);
 
   const mobile = window.matchMedia("(max-width: 800px)").matches;
-  const remote = !isEditing && serverSource && available && (preference === "remote" || (preference === "auto" && mobile));
+  const remote = !forceFullViewer && !isEditing && serverSource && available && (
+    preference === "remote" ||
+    (preference === "auto" && (mobile || (documentSizeBytes !== null && documentSizeBytes >= LARGE_DOCUMENT_BYTES)))
+  );
 
   const switchMode = () => {
     const next = remote ? "full" : "remote";
@@ -109,13 +120,18 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
 
   return (
     <div className="relative h-full w-full" style={{ minHeight: 0 }}>
-      {remote ? <RemotePdfViewer {...props} /> : (
+      {waitingForLargeUpload ? (
+        <div role="status" style={{ display: "grid", placeContent: "center", gap: 12, height: "100%", color: "#475569", textAlign: "center" }}>
+          <span>Preparing a lightweight preview while the PDF uploads…</span>
+          <button type="button" onClick={() => setForceFullViewer(true)} style={{ justifySelf: "center", padding: "7px 12px", borderRadius: 8, border: "1px solid #94a3b8" }}>
+            Open with full PDF viewer
+          </button>
+        </div>
+      ) : remote ? <RemotePdfViewer {...props} onViewerReady={handleViewerReady} /> : (
         <>
-          <div className="absolute inset-0"
-            style={{ visibility: "visible", pointerEvents: isEditing ? "none" : "auto" }}
-            aria-hidden={isEditing}>
+          {(!isEditing || !largeDocument) ? <div className="absolute inset-0">
             <PdfViewer {...props} onViewerReady={handleViewerReady} />
-          </div>
+          </div> : null}
           {shouldPreloadEditEngines ? <NativeEditEnginePreloader
             onEngineReady={setNativeEditEngine}
             onError={setNativeEditEngineError}

@@ -1,17 +1,15 @@
 import { useRef, useState } from "react";
 import type { PdfContentObject } from "@tpdf/core";
-import type { NativeObjectGeometry } from "../../lib/nativeEditGeometry";
-import { nativeInlineTextLayout } from "./nativeInlineTextLayout";
+import type { InlineTextLayout } from "./nativeInlineTextLayout";
 
 type Props = {
   object: PdfContentObject;
-  geometry: NativeObjectGeometry;
-  width: number;
-  height: number;
+  layout: InlineTextLayout;
   value: string;
   onChange: (value: string) => void;
   onCommit: () => Promise<Uint8Array | null>;
   isApplying: boolean;
+  coverSelectedText: boolean;
   externalError: string | null;
   onCancel: () => void;
   onError: (message: string) => void;
@@ -19,13 +17,12 @@ type Props = {
 
 export function NativeInlineTextEditor({
   object,
-  geometry,
-  width,
-  height,
+  layout,
   value,
   onChange,
   onCommit,
   isApplying,
+  coverSelectedText,
   externalError,
   onCancel,
   onError,
@@ -41,16 +38,6 @@ export function NativeInlineTextEditor({
       onError(message);
     });
   };
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  if (!canvasRef.current) canvasRef.current = document.createElement("canvas");
-  const layout = nativeInlineTextLayout(object, geometry, width, height, value, (line, size) => {
-    const context = canvasRef.current?.getContext("2d");
-    if (!context) return line.length * size * 0.57;
-    const family = (object.fontFamily || "Arial").replace(/["']/g, "");
-    context.font = `${size}px "${family}"`;
-    return context.measureText(line).width;
-  });
-
   const displayedError = commitError || externalError;
   return (
     <>
@@ -58,7 +45,7 @@ export function NativeInlineTextEditor({
       autoFocus
       spellCheck={false}
       aria-label="Edit PDF text"
-      className="native-edit-inline-text"
+      className={`native-edit-inline-text${coverSelectedText ? " is-covered" : ""}`}
       value={value}
       readOnly={isApplying}
       aria-busy={isApplying}

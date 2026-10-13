@@ -86,6 +86,16 @@ function readBounds(module: PdfiumModule, objectPtr: number): PdfRect | null {
   }
 }
 
+function readPageOrigin(module: PdfiumModule, pagePtr: number) {
+  const readBox = (name: "FPDFPage_GetCropBox" | "FPDFPage_GetMediaBox") => {
+    const getter = module[name];
+    if (typeof getter !== "function") return null;
+    return readFloatTuple(module, 4, (ptr) => getter(pagePtr, ptr, ptr + 4, ptr + 8, ptr + 12));
+  };
+  const box = readBox("FPDFPage_GetCropBox") ?? readBox("FPDFPage_GetMediaBox");
+  return box ? { x: box[0], y: box[1] } : { x: 0, y: 0 };
+}
+
 function readMatrix(module: PdfiumModule, objectPtr: number): PdfMatrix {
   const values = readFloatTuple(module, 6, (ptr) => module.FPDFPageObj_GetMatrix(objectPtr, ptr));
   return (values ?? [1, 0, 0, 1, 0, 0]) as PdfMatrix;
@@ -855,6 +865,7 @@ function inspectObject(
   textPagePtr: number,
   pageWidth: number,
   pageHeight: number,
+  pageOrigin: { x: number; y: number },
   objectPtr: number,
   id: string,
   parentMatrix: PdfMatrix,
@@ -872,6 +883,7 @@ function inspectObject(
     pageIndex: parseContentObjectId(id).pageIndex,
     pageWidth,
     pageHeight,
+    pageOrigin,
     kind,
     bounds: depth ? transformRect(parentMatrix, localBounds) : localBounds,
     localBounds,
@@ -920,6 +932,7 @@ function appendObjectTree(
   textPagePtr: number,
   pageWidth: number,
   pageHeight: number,
+  pageOrigin: { x: number; y: number },
   objectPtr: number,
   id: string,
   parentMatrix: PdfMatrix,
@@ -932,6 +945,7 @@ function appendObjectTree(
     textPagePtr,
     pageWidth,
     pageHeight,
+    pageOrigin,
     objectPtr,
     id,
     parentMatrix,
@@ -959,6 +973,7 @@ function appendObjectTree(
       textPagePtr,
       pageWidth,
       pageHeight,
+      pageOrigin,
       childPtr,
       childContentObjectId(id, childIndex),
       childParentMatrix,
@@ -979,6 +994,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
         const objects: PdfContentObject[] = [];
         const pageWidth = module.FPDF_GetPageWidthF(pagePtr);
         const pageHeight = module.FPDF_GetPageHeightF(pagePtr);
+        const pageOrigin = readPageOrigin(module, pagePtr);
         const count = module.FPDFPage_CountObjects(pagePtr);
         const rootMatrix = identityMatrix();
         for (let objectIndex = 0; objectIndex < count; objectIndex += 1) {
@@ -988,6 +1004,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
             textPagePtr,
             pageWidth,
             pageHeight,
+            pageOrigin,
             objectPtr,
             `p${pageIndex}-o${objectIndex}`,
             rootMatrix,

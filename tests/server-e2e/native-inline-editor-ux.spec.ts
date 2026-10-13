@@ -105,7 +105,12 @@ test("double-clicking text in the reader opens that text directly for editing", 
   await expect(pageImage).toBeVisible({ timeout: 30_000 });
   const bounds = await pageImage.boundingBox();
   expect(bounds).toBeTruthy();
-  await page.mouse.dblclick(bounds!.x + 100, bounds!.y + 180);
+  // Target a point inside the label in PDF page coordinates. The reader scales
+  // the page to the viewport, so fixed CSS-pixel offsets miss at fit-to-page.
+  await page.mouse.dblclick(
+    bounds!.x + bounds!.width * (100 / 520),
+    bounds!.y + bounds!.height * ((720 - 535) / 720),
+  );
 
   const input = page.getByRole("textbox", { name: "Edit PDF text" });
   await expect(input).toBeVisible({ timeout: 15_000 });

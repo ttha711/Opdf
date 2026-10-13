@@ -1,3 +1,4 @@
+// tpdf-file-size-allow: legacy workspace shell composes all tools and routes; this change only adds the reader-to-editor handoff, while splitting the shell is a separate refactor.
 import { useState } from "react";
 import { AdaptivePdfViewer } from "../AdaptivePdfViewer";
 import { AiAssistantPanel } from "../AiAssistantPanel";

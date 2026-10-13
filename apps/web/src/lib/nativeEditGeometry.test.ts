@@ -3,6 +3,8 @@ import type { PdfContentObject } from "@tpdf/core";
 import {
   geometryForObject,
   handlePdfPoint,
+  pdfPointFromClient,
+  pdfPointToDom,
   resizeMatrix,
   rotationMatrix,
   transformGeometry,
@@ -52,5 +54,15 @@ describe("native edit geometry", () => {
     expect(rotated.center.y).toBeCloseTo(240);
     expect(rotated.u.x).toBeCloseTo(0);
     expect(rotated.u.y).toBeCloseTo(1);
+  });
+
+  it("maps PDF coordinates when the page box has a non-zero origin", () => {
+    const origin = { x: -1000, y: -500 };
+    const pageCenter = { x: 0, y: 0 };
+    const dom = pdfPointToDom(pageCenter, 2000, 1000, 400, 200, origin);
+    expect(dom).toEqual({ x: 200, y: 100 });
+    expect(pdfPointFromClient(200, 100, {
+      left: 0, top: 0, width: 400, height: 200,
+    } as DOMRect, 2000, 1000, origin)).toEqual(pageCenter);
   });
 });

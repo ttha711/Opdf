@@ -9,6 +9,17 @@ export type InlineTextLayout = {
   fontSize: number;
 };
 
+let measuringCanvas: HTMLCanvasElement | null = null;
+
+export function measureNativeInlineText(line: string, fontSize: number, fontFamily: string) {
+  if (typeof document === "undefined") return line.length * fontSize * 0.57;
+  measuringCanvas ??= document.createElement("canvas");
+  const context = measuringCanvas.getContext("2d");
+  if (!context) return line.length * fontSize * 0.57;
+  context.font = `${fontSize}px "${fontFamily.replace(/["']/g, "")}"`;
+  return context.measureText(line).width;
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(value, max));
 }
@@ -25,16 +36,18 @@ export function nativeInlineTextLayout(
 ): InlineTextLayout {
   const center = pdfPointToDom(
     geometry.center, object.pageWidth, object.pageHeight, pageWidth, pageHeight,
+    object.pageOrigin,
   );
   const visualHeight = geometry.height * pageHeight / Math.max(1, object.pageHeight);
-  const fontSize = clamp(Math.min(
+  const lines = value.split(/\r?\n/);
+  const baseFontSize = clamp(Math.min(
     (object.fontSize ?? 12) * pageWidth / Math.max(1, object.pageWidth),
     visualHeight * 0.95,
   ), 11, 20);
+  const fontSize = baseFontSize;
   const measure = (line: string) => measureText?.(line, fontSize)
     ?? Array.from(line).reduce((sum, char) =>
       sum + fontSize * (/\s/.test(char) ? 0.35 : /[^\x00-\xff]/.test(char) ? 0.95 : 0.57), 0);
-  const lines = value.split(/\r?\n/);
   const originalLines = (object.text ?? "").split(/\r?\n/);
   const longest = Math.max(0, ...[...lines, ...originalLines].map(measure));
   const width = Math.min(Math.max(1, pageWidth - 16),

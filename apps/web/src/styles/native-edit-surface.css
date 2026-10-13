@@ -52,6 +52,16 @@
   cursor: move;
 }
 
+.native-edit-selection.is-editing-text {
+  fill: #fff;
+}
+
+.native-edit-text-cover-mask {
+  fill: #fff;
+  stroke: none;
+  pointer-events: none;
+}
+
 .native-edit-selection.readonly {
   stroke: #d97706;
   stroke-dasharray: 5 4;
@@ -97,6 +107,14 @@
   white-space: pre-wrap;
   box-sizing: border-box;
   caret-color: #2563eb;
+}
+
+.native-edit-inline-text.is-covered {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 2px;
 }
 
 .native-edit-loading,

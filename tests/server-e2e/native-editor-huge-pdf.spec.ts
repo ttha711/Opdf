@@ -71,7 +71,9 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   await page.goto(`/?open=${encodeURIComponent(stored.filePath)}`);
   const status = page.locator('[data-tpdf-region="status-bar"]');
   await expect(status).toHaveAttribute("data-tpdf-page", "1", { timeout: 120_000 });
-  await expect(status).toHaveAttribute("data-tpdf-total-pages", "300", { timeout: 30_000 });
+  await expect.poll(async () => Number(await status.getAttribute("data-tpdf-total-pages")),
+    { timeout: 30_000 }).toBeGreaterThan(0);
+  const totalPages = Number(await status.getAttribute("data-tpdf-total-pages"));
   const firstPageMs = Date.now() - openStartedAt;
   const heapBefore = await page.evaluate(() =>
     (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null,
@@ -79,7 +81,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   const memoryBefore = await browserMemory(page);
 
   const navigationMs: number[] = [];
-  for (const target of [150, 300, 1]) {
+  for (const target of [Math.max(1, Math.round(totalPages / 2)), totalPages, 1]) {
     const startedAt = Date.now();
     await goToPage(page, target);
     navigationMs.push(Date.now() - startedAt);

@@ -154,7 +154,7 @@ export function RemotePdfViewer(props: PdfViewerProps & { onRequestFull?: () => 
       <button style={toolStyle} onClick={() => changeZoom(zoom * 1.5)} aria-label="Zoom in">+</button>
     </div>
     {error ? <div role="alert" style={{ color: "#b91c1c", padding: 12 }}>{error} <button type="button" onClick={props.onRequestFull}>Open full PDF instead</button></div> : null}
-    <div ref={scroller} style={{ flex: 1, overflow: "auto", minHeight: 0, background: "#cbd5e1", touchAction: "pan-x pan-y" }}
+    <div ref={scroller} data-tpdf-remote-scroller="true" style={{ flex: 1, overflow: "auto", minHeight: 0, background: "#cbd5e1", touchAction: "pan-x pan-y" }}
       onScroll={(e) => updatePosition(e.currentTarget)}
       onTouchStart={(e) => {
         if (e.touches.length !== 2) return;
@@ -169,7 +169,7 @@ export function RemotePdfViewer(props: PdfViewerProps & { onRequestFull?: () => 
       }}
       onTouchEnd={() => { touch.current = null; }}>
       <div style={{ position: "relative", width: layouts.contentWidth, height: layouts.height, minWidth: "100%" }}>
-        {layouts.pages.map((layout) => <div key={layout.index} style={{ position: "absolute", left: layout.left, top: layout.top,
+        {layouts.pages.map((layout) => <div key={layout.index} data-tpdf-remote-page-index={layout.index} style={{ position: "absolute", left: layout.left, top: layout.top,
           width: layout.width * layout.scale, height: layout.height * layout.scale, background: "white", overflow: "hidden", boxShadow: "0 2px 7px #0003" }} />)}
         {visibleTiles.map((tile) => <img key={tile.key} src={tile.src} alt="" draggable={false}
           onError={() => setError("A PDF tile could not be rendered.")}

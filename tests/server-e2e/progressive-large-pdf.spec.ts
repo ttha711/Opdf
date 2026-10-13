@@ -71,6 +71,9 @@ test("two cold large-PDF opens use measured tile GETs, not full-file GETs", asyn
             .some((img) => img.complete && img.naturalWidth > 0);
         }, TILE_SELECTOR, { timeout: 90_000 });
         const firstPageMs = Date.now() - started;
+        // Ensure the CDP sample includes actual completed tile transfer bytes
+        // rather than reporting a misleading zero from an in-flight event.
+        await expect.poll(() => audit.snapshot().tileGetWireBytes).toBeGreaterThan(0);
         const first = audit.snapshot();
 
         expect(first.documentGetCount).toBe(0); // Includes both 200 and 206 possibilities.

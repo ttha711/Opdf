@@ -49,9 +49,11 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
     return () => controller.abort();
   }, [props.data, props.sourceBlob, props.sourceIdentity]);
 
-  const shouldPreloadEditEngines = hasOpenedDocument && (
-    isEditing || (documentSizeBytes !== null && documentSizeBytes < LARGE_DOCUMENT_BYTES)
+  const shouldPreloadEditEngines = isEditing || (
+    hasOpenedDocument && documentSizeBytes !== null && documentSizeBytes < LARGE_DOCUMENT_BYTES
   );
+  const usePdfiumWorker = !import.meta.env.DEV || documentSizeBytes === null ||
+    documentSizeBytes >= LARGE_DOCUMENT_BYTES;
   const shouldPreloadContentEngine = shouldPreloadEditEngines ||
     (hasOpenedDocument && serverSource && available);
   const largeDocument = documentSizeBytes !== null && documentSizeBytes >= LARGE_DOCUMENT_BYTES;
@@ -133,6 +135,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
             <PdfViewer {...props} onViewerReady={handleViewerReady} />
           </div> : null}
           {shouldPreloadEditEngines ? <NativeEditEnginePreloader
+            worker={usePdfiumWorker}
             onEngineReady={setNativeEditEngine}
             onError={setNativeEditEngineError}
           /> : null}

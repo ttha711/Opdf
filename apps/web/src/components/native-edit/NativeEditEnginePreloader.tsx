@@ -5,13 +5,15 @@ import { pdfiumRuntimeFontFallback, pdfiumRuntimeWasmUrl } from "../../lib/pdfiu
 export type NativeEditEngine = NonNullable<ReturnType<typeof usePdfiumEngine>["engine"]>;
 
 type Props = {
+  worker: boolean;
   onEngineReady: (engine: NativeEditEngine | null) => void;
   onError: (error: Error | null) => void;
 };
 
 /** Keep the native editor's PDFium worker ready while the user reads the PDF. */
-export function NativeEditEnginePreloader({ onEngineReady, onError }: Props) {
+export function NativeEditEnginePreloader({ worker, onEngineReady, onError }: Props) {
   const { engine, error } = usePdfiumEngine({
+    worker,
     wasmUrl: pdfiumRuntimeWasmUrl,
     fontFallback: pdfiumRuntimeFontFallback,
   });

@@ -33,6 +33,7 @@ import {
 
 const DOCUMENT_ID = "tpdf-active-document";
 const SIDEBAR_PREF_KEY = "tpdf-embedpdf-sidebar";
+const LARGE_DOCUMENT_BYTES = 100 * 1024 * 1024;
 
 function isVisibleElement(element: HTMLElement | null) {
   if (!element) return false;
@@ -184,7 +185,9 @@ export function PdfViewer({
 
   const config = useMemo(() => {
     if (!sourceUrl) return null;
+    const sourceSize = data?.byteLength ?? sourceBlob?.size ?? null;
     return {
+      worker: !import.meta.env.DEV || sourceSize === null || sourceSize >= LARGE_DOCUMENT_BYTES,
       // Keep the renderer on the same-origin build asset instead of the
       // EmbedPDF CDN default. This makes the viewer work behind restricted
       // egress and avoids a TLS-dependent cold start for large documents.
@@ -192,13 +195,7 @@ export function PdfViewer({
       fontFallback: pdfiumRuntimeFontFallback,
       fonts: { ui: null, signature: null },
       documentManager: {
-        initialDocuments: [
-          {
-            url: sourceUrl,
-            documentId: DOCUMENT_ID,
-            autoActivate: true,
-          },
-        ],
+        initialDocuments: [{ url: sourceUrl, documentId: DOCUMENT_ID, autoActivate: true }],
         maxDocuments: 1,
       },
       tabBar: "never",
@@ -220,7 +217,7 @@ export function PdfViewer({
         defaultPageGap: 16,
       },
     };
-  }, [sourceUrl]);
+  }, [data, sourceBlob, sourceUrl]);
 
   useEffect(() => {
     if (!sourceUrl || !activeRegistry) return;

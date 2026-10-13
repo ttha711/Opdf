@@ -29,7 +29,7 @@ export class RemoteTileLoader {
     options: LoaderOptions = {},
   ) {
     this.concurrency = Math.max(1, Math.min(8, options.concurrency ?? 6));
-    this.fetcher = options.fetcher ?? fetch;
+    this.fetcher = options.fetcher ?? globalThis.fetch.bind(globalThis);
     this.createUrl = options.createUrl ?? ((blob) => URL.createObjectURL(blob));
     this.revokeUrl = options.revokeUrl ?? ((url) => URL.revokeObjectURL(url));
   }

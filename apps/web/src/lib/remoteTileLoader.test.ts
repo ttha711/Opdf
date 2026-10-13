@@ -22,6 +22,33 @@ function controlledFetcher() {
 }
 
 describe("RemoteTileLoader", () => {
+
+  it("binds default native fetch to globalThis without affecting injected fetchers", async () => {
+    // A Window-native fetch can throw Illegal invocation if invoked as a loader method.
+    const nativeLikeFetch = vi.fn(function (this: unknown, url: RequestInfo | URL, init?: RequestInit) {
+      if (this !== globalThis) {
+        throw new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation");
+      }
+      expect(url).toBe("tile-default");
+      expect(init?.cache).toBe("no-store");
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return Promise.resolve(new Response(new Blob(["tile"])));
+    }) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", nativeLikeFetch);
+    const errors: string[] = [];
+    const loader = new RemoteTileLoader(() => {}, (message) => errors.push(message), {
+      createUrl: () => "blob:default",
+    });
+    try {
+      loader.update(["tile-default"]);
+      await vi.waitFor(() => expect(loader.get("tile-default")).toBe("blob:default"));
+      expect(nativeLikeFetch).toHaveBeenCalledTimes(1);
+      expect(errors).toEqual([]);
+    } finally {
+      loader.close();
+      vi.unstubAllGlobals();
+    }
+  });
   it("prioritizes new visible tiles and cancels old requests before dispatch", async () => {
     const { requests, fetcher } = controlledFetcher();
     const errors: string[] = [];

@@ -13,11 +13,13 @@ type Entry = {
   wireFinished: number;
   finished: boolean;
   failed: boolean;
+  canceled: boolean;
 };
 
 export type PdfTrafficSnapshot = {
   headCount: number;
-  headCompletedCount: number;
+  headRespondedCount: number;
+  headResponseStatuses: number[];
   documentGetCount: number;
   fullDocumentGetCount: number;
   rangedDocumentGetCount: number;
@@ -30,6 +32,9 @@ export type PdfTrafficSnapshot = {
   totalPdfGetWireBytes: number;
   maxTileLevel: number;
   pendingPdfGets: number;
+  pendingTileGets: number;
+  completedTileGets: number;
+  canceledTileGets: number;
   failedPdfGets: number;
 };
 
@@ -57,6 +62,7 @@ export async function auditPdfTraffic(page: Page, documentId: string) {
       kind, method: event.request.method, status: null,
       range: Object.keys(event.request.headers).some((key) => key.toLowerCase() === "range"),
       level, wireProgress: 0, wireFinished: 0, finished: false, failed: false,
+      canceled: false,
     });
   });
   session.on("Network.responseReceived", (event: { requestId: string; response: { status: number } }) => {
@@ -74,9 +80,12 @@ export async function auditPdfTraffic(page: Page, documentId: string) {
       entry.finished = true;
     }
   });
-  session.on("Network.loadingFailed", (event: { requestId: string }) => {
+  session.on("Network.loadingFailed", (event: { requestId: string; canceled?: boolean }) => {
     const entry = entries.get(event.requestId);
-    if (entry) entry.failed = true;
+    if (entry) {
+      entry.failed = true;
+      entry.canceled = event.canceled === true;
+    }
   });
 
   function snapshot(): PdfTrafficSnapshot {
@@ -89,7 +98,10 @@ export async function auditPdfTraffic(page: Page, documentId: string) {
     const sum = (items: Entry[]) => items.reduce((total, row) => total + wireBytes(row), 0);
     return {
       headCount: rows.filter((row) => row.kind === "document" && row.method === "HEAD").length,
-      headCompletedCount: rows.filter((row) => row.kind === "document" && row.method === "HEAD" && row.finished).length,
+      // Some Chromium versions never emit loadingFinished for HEAD. A
+      // responseReceived status is the relevant proof the metadata probe replied.
+      headRespondedCount: rows.filter((row) => row.kind === "document" && row.method === "HEAD" && row.status !== null).length,
+      headResponseStatuses: rows.filter((row) => row.kind === "document" && row.method === "HEAD" && row.status !== null).map((row) => row.status!),
       documentGetCount: documentGets.length,
       fullDocumentGetCount: documentGets.filter((row) => !row.range).length,
       rangedDocumentGetCount: documentGets.filter((row) => row.range).length,
@@ -102,7 +114,10 @@ export async function auditPdfTraffic(page: Page, documentId: string) {
       totalPdfGetWireBytes: sum(allGets),
       maxTileLevel: Math.max(0, ...tileGets.map((row) => row.level ?? 0)),
       pendingPdfGets: allGets.filter((row) => !row.finished && !row.failed).length,
-      failedPdfGets: allGets.filter((row) => row.failed).length,
+      pendingTileGets: tileGets.filter((row) => !row.finished && !row.failed).length,
+      completedTileGets: tileGets.filter((row) => row.finished).length,
+      canceledTileGets: tileGets.filter((row) => row.canceled).length,
+      failedPdfGets: allGets.filter((row) => row.failed && !row.canceled).length,
     };
   }
 

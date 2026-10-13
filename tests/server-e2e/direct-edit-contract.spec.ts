@@ -576,3 +576,28 @@ test("direct edit at a very high zoom keeps zoom, page and the text under the po
   expect(await statusText(page)).toMatch(/Page 2 of 3/);
   expect(/(\d+)%/.exec(await statusText(page))![1]).toBe(zoomBefore);
 });
+
+test("zooming inside the editor carries over when leaving it", async ({ page, request }) => {
+  const { filePath } = await uploadThreePagePdf(request);
+  await openReader(page, filePath);
+  await expect(page.locator("embedpdf-container img").first()).toBeVisible({ timeout: 30_000 });
+  const widthBefore = await page.locator("embedpdf-container img").evaluateAll((n) => Math.max(...n.map((i) => Math.round(i.getBoundingClientRect().width))));
+  await page.getByTitle("Edit PDF Content").click();
+  await expect(page.locator(".native-edit-page").first()).toBeVisible({ timeout: 30_000 });
+  await settledViewState(page);
+  const before = /(\d+)%/.exec(await statusText(page))![1];
+  // The reader's toolbar is covered while editing, so zoom with the app's own shortcut.
+  for (let i = 0; i < 3; i += 1) { await page.keyboard.press("Control+Equal"); await page.waitForTimeout(200); }
+  await expect.poll(async () => /(\d+)%/.exec(await statusText(page))![1], { timeout: 10_000 }).not.toBe(before);
+  const zoomed = /(\d+)%/.exec(await statusText(page))![1];
+
+  await page.locator('[data-tpdf-action="expand-right-panel"]').click();
+  await page.getByRole("button", { name: "Close Edit PDF" }).click();
+  await expect(page.locator("embedpdf-container img").last()).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(800);
+  expect(/(\d+)%/.exec(await statusText(page))![1]).toBe(zoomed);
+  // The reader page itself must be drawn at that zoom, not just the label.
+  const widthAfter = await page.locator("embedpdf-container img").evaluateAll((n) => Math.max(...n.map((i) => Math.round(i.getBoundingClientRect().width))));
+  const expected = widthBefore * Number(zoomed) / Number(before);
+  expect(Math.abs(widthAfter - expected) / expected).toBeLessThan(0.06);
+});

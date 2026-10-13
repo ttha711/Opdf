@@ -49,6 +49,8 @@ test("two cold large-PDF opens use measured tile GETs, not full-file GETs", asyn
   expect(health.capabilities.rangeReads).toBe(true);
   // This gate must fail, not skip, if Python/PyMuPDF/Pillow is unavailable.
   expect(health.capabilities.remoteRendering).toBe(true);
+  // Native server tiles do not imply an HTTP range-preview engine.
+  expect(health.capabilities.rangePreview).toBe(false);
 
   const folder = await mkdtemp(join(tmpdir(), "tpdf-issue168-"));
   const fixture = join(folder, "generated-112mib.pdf");

@@ -6,7 +6,6 @@ import type {
 import type { TpdfBridge } from "../../types/tpdf";
 import { loadPdfLib, loadPdfLibWithFontkit, loadUnicodeFontBytes, parseColor } from "./pdfHelpers";
 import { runBrowserOcrWithTextLayer } from "./ocrHelpers";
-import { addPdfBookmarks } from "../../lib/pdfAdvanced";
 
 export function createMockBridge(): TpdfBridge {
   let recents: RecentDocument[] = [];
@@ -601,6 +600,7 @@ export function createMockBridge(): TpdfBridge {
       return doc.save();
     },
     async addBookmarks(bytes, bookmarks) {
+      const { addPdfBookmarks } = await import("../../lib/pdfAdvanced");
       return addPdfBookmarks(bytes, bookmarks);
     },
     async addBatesNumbering(bytes, prefix: string, startNumber: number, suffix = "") {

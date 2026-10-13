@@ -71,8 +71,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   );
   const usePdfiumWorker = !import.meta.env.DEV || documentSizeBytes === null ||
     documentSizeBytes >= LARGE_DOCUMENT_BYTES;
-  const shouldPreloadContentEngine = shouldPreloadEditEngines ||
-    (hasOpenedDocument && serverSource && available);
+  const shouldPreloadContentEngine = shouldPreloadEditEngines;
   const largeDocument = documentSizeBytes !== null && documentSizeBytes >= LARGE_DOCUMENT_BYTES;
   const waitingForLargeUpload = !forceFullViewer && !isEditing &&
     window.__TPDF_RUNTIME__ === "server" &&
@@ -144,7 +143,9 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   };
 
   const awaitingDecision = serverSource && !forceFullViewer && !needsEditor && (capabilityPending || sizePending);
-  const requiresExplicitFull = serverSource && !forceFullViewer && !needsEditor && !available && documentSizeBytes !== null && documentSizeBytes >= LARGE_DOCUMENT_BYTES;
+  const requiresExplicitFull = serverSource && !forceFullViewer && !needsEditor &&
+    (!available || documentSizeBytes === null) &&
+    (documentSizeBytes === null || documentSizeBytes >= LARGE_DOCUMENT_BYTES);
 
   return (
     <div className="relative h-full w-full" style={{ minHeight: 0 }}>
@@ -205,7 +206,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
           </>}
         </div>
       ) : null}
-      {serverSource && available && !needsEditor ? (
+      {serverSource && available && !needsEditor && !awaitingDecision && !requiresExplicitFull ? (
         <button type="button" data-tpdf-action="toggle-remote-render"
           aria-label={remote ? "Use full PDF editor" : "Use lightweight remote rendering"}
           onClick={switchMode}

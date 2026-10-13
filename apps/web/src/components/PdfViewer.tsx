@@ -21,6 +21,8 @@ import { AiPatchDialog } from "./AiPatchDialog";
 import { MeasurementCalibrationDialog } from "./MeasurementCalibrationDialog";
 import { resolvePdfiumPageCount } from "../lib/pdfiumDocumentState";
 import { getServerDocumentUrl } from "../lib/documentSource";
+import { setNativeEditScrollMemory, takeNativeEditScrollMemory } from "../lib/nativeEditRuntime";
+import { registerViewerPageResolver, type ViewerPageHit } from "../lib/viewer-runtime";
 import { installAnnotationThumbnailSync } from "../lib/embedPdfAnnotationThumbnails";
 import { pdfiumRuntimeFontFallback, pdfiumRuntimeWasmUrl } from "../lib/pdfiumRuntimeAssets";
 import {
@@ -138,6 +140,28 @@ export function PdfViewer({
     };
   }, [activeRegistry, sourceUrl]);
 
+
+  // The reader stays mounted (hidden) while the editor is open. Hand the editor
+  // the reader's offset on the way in, and resume the editor's offset on the way out.
+  const previousToolRef = useRef(activeTool);
+  useEffect(() => {
+    const previous = previousToolRef.current;
+    previousToolRef.current = activeTool;
+    if (!activeRegistry || previous === activeTool) return;
+    const viewport = activeRegistry.getPlugin?.("viewport")?.provides?.() as any;
+    const scope = viewport?.forDocument?.(DOCUMENT_ID) ?? viewport;
+    if (activeTool === "edit-content") {
+      const metrics = scope?.getMetrics?.();
+      if (Number.isFinite(metrics?.scrollTop)) {
+        setNativeEditScrollMemory({ x: Number(metrics.scrollLeft) || 0, y: metrics.scrollTop });
+      }
+    } else if (previous === "edit-content") {
+      const position = takeNativeEditScrollMemory();
+      if (position && scope?.scrollTo) {
+        requestAnimationFrame(() => scope.scrollTo({ ...position, behavior: "instant" }));
+      }
+    }
+  }, [activeRegistry, activeTool]);
 
   useEffect(() => {
     if (!sourceUrl || !activeRegistry) return;
@@ -278,6 +302,44 @@ export function PdfViewer({
         },
       }) : null;
       if (unregisterControls) unsubscribers.push(unregisterControls);
+
+      const pageScrollScope = scroll?.forDocument?.(DOCUMENT_ID) ?? scroll;
+      const unregisterPageResolver = registerViewerPageResolver((root, clientX, clientY) => {
+        const items = pageScrollScope?.getLayout?.()?.virtualItems as
+          Array<{ y: number; width: number; height: number; pageNumbers?: number[] }> | undefined;
+        if (!items?.length) return null;
+        const stack = root.elementsFromPoint(clientX, clientY);
+        if (!stack.length) return null;
+        // Walk up from the topmost element to the scrollable column.
+        let scroller: Element | null = stack[0];
+        while (scroller) {
+          const element = scroller as HTMLElement;
+          if (/auto|scroll/.test(getComputedStyle(element).overflowY) && element.scrollHeight > element.clientHeight + 40) break;
+          scroller = element.parentElement ?? ((element.getRootNode() as ShadowRoot).host ?? null);
+        }
+        if (!scroller) return null;
+        // Layout sizes are unscaled. The page is the element under the point whose size
+        // is a layout page size times the zoom (at large sizes only tiles are images).
+        const zoomLevel = lastScaleRef.current || 1;
+        const origin = scroller.getBoundingClientRect().top - (scroller as HTMLElement).scrollTop;
+        let best: { hit: ViewerPageHit; distance: number } | null = null;
+        for (const element of stack) {
+          const rect = element.getBoundingClientRect();
+          for (const entry of items) {
+            if (!entry.pageNumbers?.length) continue;
+            if (Math.abs(rect.width - entry.width * zoomLevel) > 3 || Math.abs(rect.height - entry.height * zoomLevel) > 3) continue;
+            const distance = Math.abs(origin + entry.y * zoomLevel - rect.top);
+            if (!best || distance < best.distance) {
+              best = {
+                hit: { pageNumber: entry.pageNumbers[0], rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height } },
+                distance,
+              };
+            }
+          }
+        }
+        return best?.hit ?? null;
+      });
+      unsubscribers.push(unregisterPageResolver);
 
       const thumbnailScope = thumbnailApi?.forDocument?.(DOCUMENT_ID) ?? thumbnailApi;
       if (thumbnailScope?.renderThumb) {

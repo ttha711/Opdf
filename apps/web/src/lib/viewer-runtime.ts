@@ -22,6 +22,22 @@ let activePageImageProvider: ViewerPageImageProvider | null = null;
 let activeControls: ActiveViewerControls | null = null;
 const viewerControlsStack: ActiveViewerControls[] = [];
 
+export type ViewerPageHit = { pageNumber: number; rect: { left: number; top: number; width: number; height: number } };
+type ViewerPageResolver = (root: ShadowRoot, clientX: number, clientY: number) => ViewerPageHit | null;
+let activePageResolver: ViewerPageResolver | null = null;
+
+/** Lets the reader tell which page (1-based) and on-screen rectangle is under a screen point. */
+export function registerViewerPageResolver(resolver: ViewerPageResolver) {
+  activePageResolver = resolver;
+  return () => {
+    if (activePageResolver === resolver) activePageResolver = null;
+  };
+}
+
+export function getViewerPageAtPoint(root: ShadowRoot, clientX: number, clientY: number) {
+  return activePageResolver?.(root, clientX, clientY) ?? null;
+}
+
 export function registerViewerBytesProvider(provider: ViewerBytesProvider, source: unknown = null) {
   activeProvider = provider;
   activeProviderSource = source;

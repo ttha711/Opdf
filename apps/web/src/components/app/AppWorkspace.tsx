@@ -19,6 +19,7 @@ import {
   requestNativeInlineTextEditAtPoint,
   setNativeEditViewportAnchor,
 } from "../../lib/nativeEditRuntime";
+import { getViewerPageAtPoint } from "../../lib/viewer-runtime";
 
 type Controllers = ReturnType<typeof import("../../hooks/useAppControllers").useAppControllers>;
 type Sidebars = ReturnType<typeof import("../../hooks/useResizableSidebars").useResizableSidebars>;
@@ -138,12 +139,21 @@ export function AppWorkspace({
           onDoubleClick={(event) => {
             if (state.activeTool !== "select" || (event.target instanceof Element && event.target.closest("button,a,input,textarea,[role='button']"))) return;
             const text = window.getSelection()?.toString().trim() ?? "";
-            const point = pdfPointFromViewerDoubleClick(event);
+            // The page under the pointer, not necessarily the reader's current page
+            // (several pages are visible when zoomed out or between two pages). Its
+            // rectangle comes from the layout: at large sizes only tiles are images.
+            const host = event.currentTarget.querySelector("embedpdf-container");
+            const hit = host?.shadowRoot ? getViewerPageAtPoint(host.shadowRoot, event.clientX, event.clientY) : null;
+            const point = hit
+              ? { x: (event.clientX - hit.rect.left) / hit.rect.width, y: (event.clientY - hit.rect.top) / hit.rect.height }
+              : pdfPointFromViewerDoubleClick(event);
+            const clickedPage = hit?.pageNumber ?? state.page;
+            if (clickedPage !== state.page) state.setPage(clickedPage);
             // Keep the double-clicked spot under the pointer when the editor opens.
             setNativeEditViewportAnchor(point
-              ? { pageIndex: state.page - 1, pageY: point.y, screenY: event.clientY } : null);
-            if (text) requestNativeInlineTextEdit(state.page - 1, text);
-            else if (point) requestNativeInlineTextEditAtPoint(state.page - 1, point.x, point.y);
+              ? { pageIndex: clickedPage - 1, pageY: point.y, screenY: event.clientY } : null);
+            if (text) requestNativeInlineTextEdit(clickedPage - 1, text);
+            else if (point) requestNativeInlineTextEditAtPoint(clickedPage - 1, point.x, point.y);
             setSelectedTextForEdit(null); state.setActiveTool("edit-content");
           }}
           aria-label="PDF viewer area"

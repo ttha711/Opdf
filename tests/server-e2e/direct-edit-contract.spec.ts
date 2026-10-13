@@ -172,16 +172,10 @@ async function nativeViewState(page: Page) {
   });
 }
 
-/** Wait until the editor viewport stops moving (initial layout, zoom and anchor restore). */
+/** Wait until the editor reports that its initial layout, zoom and scroll restore are done. */
 async function settledViewState(page: Page) {
-  let previous = await nativeViewState(page);
-  for (let attempt = 0; attempt < 20; attempt++) {
-    await page.waitForTimeout(500);
-    const current = await nativeViewState(page);
-    if (current.scrollTop === previous.scrollTop && current.scrollTop >= 0) return current;
-    previous = current;
-  }
-  throw new Error("The editor viewport never stopped moving after it opened.");
+  await expect(page.locator(".native-edit-viewport[data-tpdf-viewport-settled='true']")).toHaveCount(1, { timeout: 20_000 });
+  return nativeViewState(page);
 }
 
 async function openPage2Label(page: Page) {
@@ -412,4 +406,158 @@ test("direct edit deep in a 90-page document stays on that page without flooding
   expect(await page.locator(".native-edit-page").count()).toBeLessThan(90);
   expect(documentFetches).toBeLessThan(15);
   expect(pageErrors).toEqual([]);
+});
+
+test("entering with the Edit PDF button keeps the mid-page scroll offset", async ({ page, request }) => {
+  const { filePath } = await uploadThreePagePdf(request);
+  await openReader(page, filePath);
+  await scrollReaderUntil(page, 1100, /Page 2 of 3/);
+  const readerBefore = await readerScrollTop(page);
+  const zoomBefore = /(\d+)%/.exec(await statusText(page))![1];
+
+  await page.getByTitle("Edit PDF Content").click();
+  await expect(page.locator(".native-edit-page").first()).toBeVisible({ timeout: 30_000 });
+  const settled = await settledViewState(page);
+
+  expect(Math.abs(settled.scrollTop - readerBefore)).toBeLessThan(24);
+  expect(await statusText(page)).toMatch(/Page 2 of 3/);
+  expect(/(\d+)%/.exec(await statusText(page))![1]).toBe(zoomBefore);
+});
+
+test("a revision swap after an edit keeps a mid-page scroll offset", async ({ page, request }) => {
+  const { filePath } = await uploadThreePagePdf(request);
+  await openReader(page, filePath);
+  await scrollReaderUntil(page, 900, /Page 2 of 3/);
+  await page.getByTitle("Edit PDF Content").click();
+  await expect(page.locator(".native-edit-page").first()).toBeVisible({ timeout: 30_000 });
+  const before = await settledViewState(page);
+  expect(before.scrollTop).toBeGreaterThan(700);
+
+  // The label is on screen near the top of the viewport at this offset.
+  const label = page.locator(".native-edit-page svg[data-tpdf-native-edit-page='2'] polygon[data-tpdf-object-kind='text']").first();
+  await expect(label).toBeVisible({ timeout: 20_000 });
+  const box = (await label.boundingBox())!;
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+  const input = page.getByRole("textbox", { name: "Edit PDF text" });
+  await expect(input).toBeVisible({ timeout: 15_000 });
+  await input.fill("MID PAGE EDIT");
+  await input.press("Enter");
+  await expect(input).toHaveCount(0, { timeout: 30_000 });
+
+  await expect.poll(async () => Math.abs((await nativeViewState(page)).scrollTop - before.scrollTop), {
+    message: "the revision swap must keep the mid-page offset", timeout: 10_000,
+  }).toBeLessThan(24);
+  expect(await statusText(page)).toMatch(/Page 2 of 3/);
+});
+
+test("leaving the editor returns the reader to where the editor was left", async ({ page, request }) => {
+  const { filePath } = await uploadThreePagePdf(request);
+  await openReader(page, filePath);
+  await scrollReaderUntil(page, 760, /Page 2 of 3/);
+  const point = await visibleLabelPoint(page);
+  await page.mouse.dblclick(point.x, point.y);
+  await expect(page.getByRole("textbox", { name: "Edit PDF text" })).toBeVisible({ timeout: 15_000 });
+  await settledViewState(page);
+  await page.getByRole("textbox", { name: "Edit PDF text" }).press("Escape");
+
+  // Scroll the editor down a little, then leave it.
+  await page.evaluate(() => {
+    const viewport = document.querySelector(".native-edit-viewport") as HTMLElement;
+    viewport.scrollTop += 150;
+  });
+  await page.waitForTimeout(500);
+  const left = (await nativeViewState(page)).scrollTop;
+  await page.locator('[data-tpdf-action="expand-right-panel"]').click();
+  await page.getByRole("button", { name: "Close Edit PDF" }).click();
+  await expect(page.locator("embedpdf-container img").last()).toBeVisible({ timeout: 30_000 });
+  await expect.poll(async () => Math.abs((await readerScrollTop(page)) - left), {
+    message: "the reader must resume at the editor's offset", timeout: 15_000,
+  }).toBeLessThan(40);
+});
+
+test("zoomed out with several pages visible, direct edit opens the page under the pointer", async ({ page, request }) => {
+  const { filePath } = await uploadThreePagePdf(request);
+  await openReader(page, filePath);
+  for (let step = 0; step < 3; step++) {
+    await page.getByRole("button", { name: "Zoom Out" }).first().click();
+    await page.waitForTimeout(300);
+  }
+  await expect.poll(async () => Number(/(\d+)%/.exec(await statusText(page))?.[1])).toBeLessThan(70);
+  await page.waitForTimeout(800);
+
+  // Find the page-2 label: the second page image in the main column.
+  const target = await page.evaluate(() => {
+    const host = [...document.querySelectorAll("embedpdf-container")].find((node) => node.shadowRoot);
+    const pages = [...(host!.shadowRoot!.querySelectorAll("img"))]
+      .map((img) => img.getBoundingClientRect())
+      .filter((box) => box.width > 100 && box.width < 700 && box.left > 240 && box.height > 100 && box.top < innerHeight - 50)
+      .sort((a, b) => b.width * b.height - a.width * a.height);
+    // Keep one full-page image per page (sharp tiles share their page's top edge).
+    const distinct = pages.filter((box, index) => pages.findIndex((other) => Math.abs(other.top - box.top) < 2) === index)
+      .sort((a, b) => a.top - b.top);
+    const second = distinct[1];
+    return second ? { x: second.x + second.width * (100 / 520), y: second.y + second.height * ((720 - 535) / 720), count: distinct.length } : null;
+  });
+  expect(target).toBeTruthy();
+  expect(target!.count).toBeGreaterThanOrEqual(2);
+  await page.mouse.dblclick(target!.x, target!.y);
+  const input = page.getByRole("textbox", { name: "Edit PDF text" });
+  await expect(input).toBeVisible({ timeout: 15_000 });
+  await expect(input).toHaveValue(/PAGE 2 /);
+});
+
+test("direct edit at a very high zoom keeps zoom, page and the text under the pointer", async ({ page, request }) => {
+  const { filePath } = await uploadThreePagePdf(request);
+  await openReader(page, filePath);
+  for (let step = 0; step < 9; step++) {
+    await page.getByRole("button", { name: "Zoom In" }).first().click();
+    await page.waitForTimeout(250);
+  }
+  await expect.poll(async () => Number(/(\d+)%/.exec(await statusText(page))?.[1])).toBeGreaterThan(250);
+  const zoomBefore = /(\d+)%/.exec(await statusText(page))![1];
+
+  const scrollHeight = await page.evaluate(() => {
+    let best = 0;
+    const walk = (root: Document | ShadowRoot) => root.querySelectorAll("*").forEach((el) => {
+      const node = el as HTMLElement;
+      if (node.scrollHeight > node.clientHeight + 40 && /auto|scroll/.test(getComputedStyle(node).overflowY)) best = Math.max(best, node.scrollHeight);
+      if (node.shadowRoot) walk(node.shadowRoot);
+    });
+    walk(document);
+    return best;
+  });
+  // Page 2 starts a third of the way down the content.
+  await scrollReaderUntil(page, Math.round(scrollHeight / 3), /Page 2 of 3/);
+  // At this zoom the label can be off screen: bring it to the middle of the viewer first.
+  let target = await visibleLabelPoint(page);
+  await page.evaluate(({ x, y }) => {
+    let scroller: HTMLElement | null = null;
+    const walk = (root: Document | ShadowRoot) => root.querySelectorAll("*").forEach((el) => {
+      const node = el as HTMLElement;
+      if (node.scrollHeight > node.clientHeight + 40 && /auto|scroll/.test(getComputedStyle(node).overflowY) &&
+          (!scroller || node.scrollHeight > scroller.scrollHeight)) scroller = node;
+      if (node.shadowRoot) walk(node.shadowRoot);
+    });
+    walk(document);
+    if (!scroller) return;
+    const box = (scroller as HTMLElement).getBoundingClientRect();
+    (scroller as HTMLElement).scrollLeft += x - (box.left + box.width / 2);
+    (scroller as HTMLElement).scrollTop += y - (box.top + box.height / 2);
+  }, target);
+  await page.waitForTimeout(800);
+  target = await visibleLabelPoint(page);
+  expect(target.x).toBeGreaterThan(260);
+  expect(target.y).toBeGreaterThan(100);
+  expect(target.y).toBeLessThan(680);
+  await page.mouse.dblclick(target.x, target.y);
+  const input = page.getByRole("textbox", { name: "Edit PDF text" });
+  await expect(input).toBeVisible({ timeout: 20_000 });
+  await expect(input).toHaveValue(/PAGE 2/);
+  await settledViewState(page);
+
+  const box = await input.boundingBox();
+  expect(box).toBeTruthy();
+  expect(Math.abs((box!.y + box!.height / 2) - target.y)).toBeLessThan(40);
+  expect(await statusText(page)).toMatch(/Page 2 of 3/);
+  expect(/(\d+)%/.exec(await statusText(page))![1]).toBe(zoomBefore);
 });

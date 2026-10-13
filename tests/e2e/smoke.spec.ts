@@ -7,7 +7,7 @@ test("web viewer boots to the document Home screen", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open PDF", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "All tools", exact: true })).toBeVisible();
-  await expect(page.getByText("Opdf Power Tools Dashboard")).toHaveCount(0);
+  await expect(page.getByText("Tpdf Power Tools Dashboard")).toHaveCount(0);
 });
 
 
@@ -22,18 +22,18 @@ test("desktop top bar keeps tabs and save status stable", async ({ page }) => {
     buffer: Buffer.from(await pdf.save()),
   });
 
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".opdf-topbar .tab-bar-container")).toBeVisible();
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".tpdf-topbar .tab-bar-container")).toBeVisible();
 
-  const header = page.locator('[data-opdf-region="app-header"]');
+  const header = page.locator('[data-tpdf-region="app-header"]');
   await expect(header.getByRole("button", { name: "Application menu", exact: true })).toBeVisible();
   await expect(header.getByRole("button", { name: "File", exact: true })).toHaveCount(0);
   await expect(header.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
   await expect(header.getByRole("button", { name: "View", exact: true })).toHaveCount(0);
   await expect(header.getByRole("button", { name: "Tools", exact: true })).toHaveCount(0);
 
-  const saveCluster = page.locator(".opdf-save-cluster");
-  const saveStatus = page.locator(".opdf-save-status-slot");
+  const saveCluster = page.locator(".tpdf-save-cluster");
+  const saveStatus = page.locator(".tpdf-save-status-slot");
   await expect(saveCluster).toBeVisible();
   await expect(saveStatus).toBeVisible();
   const clusterBox = await saveCluster.boundingBox();
@@ -47,10 +47,10 @@ test("desktop top bar keeps tabs and save status stable", async ({ page }) => {
 
   const appMenu = await openApplicationMenu(page);
   for (const label of ["Document", "Edit", "View", "Tools", "AI Edit"]) {
-    await expect(appMenu.locator(`[data-opdf-menu-item="${label}"]:visible`).first()).toBeVisible();
+    await expect(appMenu.locator(`[data-tpdf-menu-item="${label}"]:visible`).first()).toBeVisible();
   }
   for (const duplicate of ["Open...", "Close", "Export PDF..."]) {
-    await expect(appMenu.locator(`[data-opdf-menu-item="${duplicate}"]:visible`)).toHaveCount(0);
+    await expect(appMenu.locator(`[data-tpdf-menu-item="${duplicate}"]:visible`)).toHaveCount(0);
   }
 });
 
@@ -70,28 +70,28 @@ test("native PDF text editing is inline and advanced settings are opt-in", async
     buffer: Buffer.from(await pdf.save()),
   });
 
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await clickApplicationMenuPath(page, ["Tools", "Edit & Review", "Edit PDF Content"]);
 
-  await expect(page.locator('[data-opdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('[data-opdf-right-sidebar="closed"]')).toHaveCount(1);
-  await expect(page.locator('[data-opdf-action="expand-right-panel"]')).toBeVisible();
+  await expect(page.locator('[data-tpdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-tpdf-right-sidebar="closed"]')).toHaveCount(1);
+  await expect(page.locator('[data-tpdf-action="expand-right-panel"]')).toBeVisible();
 
-  const textObject = page.locator('[data-opdf-canvas-object][data-opdf-object-kind="text"]').first();
+  const textObject = page.locator('[data-tpdf-canvas-object][data-tpdf-object-kind="text"]').first();
   await expect(textObject).toBeVisible({ timeout: 20_000 });
   await textObject.dblclick();
 
-  const inlineEditor = page.locator('[data-opdf-inline-text-editor="true"]');
+  const inlineEditor = page.locator('[data-tpdf-inline-text-editor="true"]');
   await expect(inlineEditor).toBeVisible();
   await expect(inlineEditor).toHaveAttribute("aria-label", "Edit PDF text");
   await inlineEditor.fill("UPDATED INLINE TEXT");
   await inlineEditor.press("Enter");
   await expect(inlineEditor).toHaveCount(0, { timeout: 20_000 });
 
-  await page.locator('[data-opdf-action="expand-right-panel"]').click();
-  await expect(page.locator('[data-opdf-right-sidebar="open"]')).toBeVisible();
-  await expect(page.locator('[data-opdf-native-editor="true"]')).toBeVisible();
-  await expect(page.locator('[data-opdf-action="collapse-right-panel"]')).toBeVisible();
+  await page.locator('[data-tpdf-action="expand-right-panel"]').click();
+  await expect(page.locator('[data-tpdf-right-sidebar="open"]')).toBeVisible();
+  await expect(page.locator('[data-tpdf-native-editor="true"]')).toBeVisible();
+  await expect(page.locator('[data-tpdf-action="collapse-right-panel"]')).toBeVisible();
 });
 
 test("entering and leaving Edit PDF preserves the original reader instance", async ({ page }) => {
@@ -105,14 +105,14 @@ test("entering and leaving Edit PDF preserves the original reader instance", asy
     buffer: Buffer.from(await pdf.save()),
   });
 
-  const reader = page.locator('[data-opdf-engine="pdfium-wasm"]').first();
+  const reader = page.locator('[data-tpdf-engine="pdfium-wasm"]').first();
   await expect(reader).toBeVisible({ timeout: 20_000 });
   await reader.evaluate((node) => node.setAttribute("data-reader-stability-probe", "original"));
-  await page.locator('[data-opdf-action="edit-content"]').click();
-  await expect(page.locator('[data-opdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
+  await page.locator('[data-tpdf-action="edit-content"]').click();
+  await expect(page.locator('[data-tpdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('[data-reader-stability-probe="original"]')).toBeAttached();
 
-  const expand = page.locator('[data-opdf-action="expand-right-panel"]');
+  const expand = page.locator('[data-tpdf-action="expand-right-panel"]');
   if (await expand.isVisible()) await expand.click();
   await page.getByRole("button", { name: "Close Edit PDF" }).click();
   await expect(page.locator('[data-reader-stability-probe="original"]')).toBeVisible({ timeout: 20_000 });
@@ -130,10 +130,10 @@ test("double-clicking a PDF page enters editing without Edit PDF", async ({ page
     mimeType: "application/pdf",
     buffer: Buffer.from(await pdf.save()),
   });
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   // EmbedPDF can render text on a canvas without a selectable DOM span.
   // Double-clicking the page itself must still enter the native editor.
   await page.locator(".viewer-area").dblclick({ position: { x: 250, y: 250 } });
-  await expect(page.locator('[data-opdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('[data-opdf-canvas-object][data-opdf-object-kind="text"]').first()).toBeVisible();
+  await expect(page.locator('[data-tpdf-native-edit-page="1"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-tpdf-canvas-object][data-tpdf-object-kind="text"]').first()).toBeVisible();
 });

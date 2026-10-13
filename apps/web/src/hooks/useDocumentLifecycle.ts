@@ -1,6 +1,6 @@
 import { useRef, type ChangeEvent, type Dispatch, type RefObject, type SetStateAction } from "react";
-import type { Annotation } from "@opdf/core";
-import { isOpdfServerRuntime, useOpdfBridge } from "./useOpdfBridge";
+import type { Annotation } from "@tpdf/core";
+import { isTpdfServerRuntime, useTpdfBridge } from "./useTpdfBridge";
 import { useServerUpload } from "./useServerUpload";
 import { useOpenPathEffect } from "./useOpenPathEffect";
 import { createOpenExistingDocument } from "./openExistingDocument";
@@ -27,7 +27,7 @@ export function useDocumentLifecycle({
   markDocumentSaved,
   clearDocumentSaveTracking,
 }: {
-  bridge: ReturnType<typeof useOpdfBridge>;
+  bridge: ReturnType<typeof useTpdfBridge>;
   hasDesktopBridge: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
   page: number;
@@ -70,7 +70,7 @@ export function useDocumentLifecycle({
   });
 
   async function loadBrowserFile(file: File) {
-    if (isOpdfServerRuntime()) {
+    if (isTpdfServerRuntime()) {
       openLocalFirst(file);
       return;
     }

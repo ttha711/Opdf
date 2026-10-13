@@ -32,7 +32,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium --with-deps
 
-      - name: Build OPDF Server
+      - name: Build TPDF Server
         run: npm run server-build
 
       - name: Run real-world WSDOT PDFs

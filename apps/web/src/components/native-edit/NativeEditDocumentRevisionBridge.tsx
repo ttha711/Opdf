@@ -38,7 +38,15 @@ export function NativeEditDocumentRevisionBridge({
       const previousId = documentManager.getActiveDocumentId();
       const documentId = `${baseDocumentId}-r${sequenceRef.current++}`;
 
-      if (data) {
+      // Reopen the existing Blob URL instead of materializing another full
+      // ArrayBuffer from sourceBlob, which is expensive for large PDFs.
+      if (sourceUrl.startsWith("blob:")) {
+        await documentManager.openDocumentUrl({
+          url: sourceUrl,
+          documentId,
+          autoActivate: false,
+        }).toPromise();
+      } else if (data) {
         await documentManager.openDocumentBuffer({
           buffer: exactArrayBuffer(data),
           name: "edited.pdf",

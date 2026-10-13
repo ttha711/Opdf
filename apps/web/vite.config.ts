@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 function resolveBuildSha() {
-  const fromEnv = (process.env.OPDF_BUILD_SHA || process.env.GITHUB_SHA || "").trim();
+  const fromEnv = (process.env.TPDF_BUILD_SHA || process.env.GITHUB_SHA || "").trim();
   if (fromEnv) return fromEnv;
   try {
     return execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
@@ -19,11 +19,11 @@ export default defineConfig({
   base: "./",
   plugins: [
     {
-      name: "opdf-build-fingerprint",
+      name: "tpdf-build-fingerprint",
       transformIndexHtml(html) {
         return html.replace(
           "<head>",
-          `<head>\n    <meta name="opdf-build-sha" content="${buildSha}">`,
+          `<head>\n    <meta name="tpdf-build-sha" content="${buildSha}">`,
         );
       },
     },
@@ -31,7 +31,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   define: {
-    __OPDF_BUILD_SHA__: JSON.stringify(buildSha),
+    __TPDF_BUILD_SHA__: JSON.stringify(buildSha),
   },
   build: {
     manifest: "asset-manifest.json",

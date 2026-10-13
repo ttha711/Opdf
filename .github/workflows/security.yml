@@ -49,4 +49,4 @@ jobs:
           cache: "npm"
       - run: npm ci
       - name: Block critical production dependency vulnerabilities
-        run: npm audit --workspace=@opdf/web --workspace=@opdf/core --omit=dev --audit-level=critical
+        run: npm audit --workspace=@tpdf/web --workspace=@tpdf/core --omit=dev --audit-level=critical

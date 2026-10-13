@@ -29,13 +29,13 @@ function normalizeTool(command: AgentCommand): AgentCommand {
 
 export function useAiCommandRuntime({ addMessage, setMessages }: Params) {
   const executeCommand = async (command: AgentCommand): Promise<AgentCommandResult | null> => {
-    if (!window.opdfAgent) {
-      console.error("opdfAgent bridge not found on window.");
+    if (!window.tpdfAgent) {
+      console.error("tpdfAgent bridge not found on window.");
       return null;
     }
     const normalized = normalizeTool(command);
     try {
-      return await window.opdfAgent.execute(normalized);
+      return await window.tpdfAgent.execute(normalized);
     } catch (error) {
       console.error("Error executing command via bridge:", error);
       return {

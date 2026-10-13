@@ -1,4 +1,4 @@
-import { OpdfIcon } from "./OpdfIcon";
+import { TpdfIcon } from "./TpdfIcon";
 
 type RecentDocument = {
   id: string;
@@ -21,33 +21,33 @@ export function HomeScreen({
   const visibleRecent = recentDocuments.slice(0, 6);
 
   return (
-    <main className="opdf-home" aria-label="Opdf home">
-      <div className="opdf-home__hero">
-        <div className="opdf-home__mark" aria-hidden="true">
-          <OpdfIcon name="file-pdf" size={34} />
+    <main className="tpdf-home" aria-label="Tpdf home">
+      <div className="tpdf-home__hero">
+        <div className="tpdf-home__mark" aria-hidden="true">
+          <TpdfIcon name="file-pdf" size={34} />
         </div>
         <div>
-          <p className="opdf-home__eyebrow">OPDF</p>
+          <p className="tpdf-home__eyebrow">TPDF</p>
           <h1>Your documents, ready when you are.</h1>
-          <p className="opdf-home__subtitle">
+          <p className="tpdf-home__subtitle">
             Open a PDF to read, review, annotate, compare, convert, or export.
           </p>
         </div>
       </div>
 
-      <div className="opdf-home__actions">
-        <button className="opdf-home__primary" type="button" onClick={onOpenFile}>
-          <OpdfIcon name="folder-open" size={18} />
+      <div className="tpdf-home__actions">
+        <button className="tpdf-home__primary" type="button" onClick={onOpenFile}>
+          <TpdfIcon name="folder-open" size={18} />
           Open PDF
         </button>
-        <button className="opdf-home__secondary" type="button" onClick={onOpenTools}>
-          <OpdfIcon name="tools" size={18} />
+        <button className="tpdf-home__secondary" type="button" onClick={onOpenTools}>
+          <TpdfIcon name="tools" size={18} />
           All tools
         </button>
       </div>
 
-      <div className="opdf-home__section">
-        <div className="opdf-home__section-heading">
+      <div className="tpdf-home__section">
+        <div className="tpdf-home__section-heading">
           <div>
             <h2>Recent documents</h2>
             <p>Continue where you left off.</p>
@@ -55,26 +55,26 @@ export function HomeScreen({
         </div>
 
         {visibleRecent.length > 0 ? (
-          <div className="opdf-home__recent-grid">
+          <div className="tpdf-home__recent-grid">
             {visibleRecent.map((document) => (
               <button
-                className="opdf-home__recent-card"
+                className="tpdf-home__recent-card"
                 key={document.id}
                 type="button"
                 onClick={() => onOpenRecent(document.id)}
               >
-                <span className="opdf-home__file-icon" aria-hidden="true"><OpdfIcon name="file-pdf" size={22} /></span>
-                <span className="opdf-home__file-copy">
+                <span className="tpdf-home__file-icon" aria-hidden="true"><TpdfIcon name="file-pdf" size={22} /></span>
+                <span className="tpdf-home__file-copy">
                   <strong title={document.fileName}>{document.fileName || "Untitled PDF"}</strong>
                   <small>Open document</small>
                 </span>
-                <span className="opdf-home__chevron" aria-hidden="true"><OpdfIcon name="chevron-right" size={18} /></span>
+                <span className="tpdf-home__chevron" aria-hidden="true"><TpdfIcon name="chevron-right" size={18} /></span>
               </button>
             ))}
           </div>
         ) : (
-          <button className="opdf-home__empty" type="button" onClick={onOpenFile}>
-            <span className="opdf-home__empty-icon" aria-hidden="true"><OpdfIcon name="plus" size={20} /></span>
+          <button className="tpdf-home__empty" type="button" onClick={onOpenFile}>
+            <span className="tpdf-home__empty-icon" aria-hidden="true"><TpdfIcon name="plus" size={20} /></span>
             <span>
               <strong>Open your first document</strong>
               <small>Your recent files will appear here.</small>

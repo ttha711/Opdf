@@ -84,11 +84,11 @@ export function SearchRedactModal({
   };
 
   return (
-    <div data-opdf-dialog="search-redact" className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
+    <div data-tpdf-dialog="search-redact" className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
       <div className="premium-modal flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden">
         <div className="premium-modal-header">
           <div className="premium-modal-title">Search & Secure Redact</div>
-          <button data-opdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
+          <button data-tpdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
         </div>
 
         <div className="premium-modal-body min-h-0 overflow-auto">
@@ -98,7 +98,7 @@ export function SearchRedactModal({
           <div className="mb-3 text-xs text-[var(--text-secondary)]">{fileName.split(/[/\\]/).pop()}</div>
           <div className="flex gap-2">
             <input
-              data-opdf-field="redact-query"
+              data-tpdf-field="redact-query"
               className="min-w-0 flex-1 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm text-[var(--text-primary)]"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -106,7 +106,7 @@ export function SearchRedactModal({
               placeholder="Text to redact…"
               autoFocus
             />
-            <button data-opdf-action="redact-search" type="button" disabled={busy || !query.trim()} onClick={() => void search()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+            <button data-tpdf-action="redact-search" type="button" disabled={busy || !query.trim()} onClick={() => void search()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
               Search all pages
             </button>
           </div>
@@ -119,7 +119,7 @@ export function SearchRedactModal({
               <div className="mb-2 flex items-center justify-between text-xs">
                 <span>{selected.size} / {matches.length} selected</span>
                 <div className="flex gap-2">
-                  <button data-opdf-action="redact-select-all" type="button" className="underline" onClick={() => setSelected(new Set(matches.map((match) => match.id)))}>Select all</button>
+                  <button data-tpdf-action="redact-select-all" type="button" className="underline" onClick={() => setSelected(new Set(matches.map((match) => match.id)))}>Select all</button>
                   <button type="button" className="underline" onClick={() => setSelected(new Set())}>Clear</button>
                 </div>
               </div>
@@ -137,9 +137,9 @@ export function SearchRedactModal({
         </div>
 
         <div className="premium-modal-footer">
-          <button data-opdf-action="close-dialog" type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Cancel</button>
+          <button data-tpdf-action="close-dialog" type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Cancel</button>
           <button
-            data-opdf-action="redact-apply"
+            data-tpdf-action="redact-apply"
             type="button"
             disabled={busy || selectedMatches.length === 0}
             onClick={() => void apply()}

@@ -26,9 +26,9 @@ type Params = {
 };
 
 function buildDocumentContext() {
-  if (!window.opdfAgent) return "";
+  if (!window.tpdfAgent) return "";
   try {
-    const state = window.opdfAgent.getState();
+    const state = window.tpdfAgent.getState();
     if (!state?.hasDocument) {
       return "\n[DOCUMENT CONTEXT: No document is currently open.]\n";
     }
@@ -49,9 +49,9 @@ function buildDocumentContext() {
 }
 
 function buildRichQuery(queryText: string) {
-  return `[SYSTEM CONTEXT: You are the OPDF PDF Copilot. Help the user work with the PDF currently open in OPDF.
+  return `[SYSTEM CONTEXT: You are the TPDF PDF Copilot. Help the user work with the PDF currently open in TPDF.
 Supported operations include conversion, compression, rotation, page deletion, OCR, page numbers, watermark, header/footer, encryption, zoom and navigation.
-Never show raw JSON in conversational text. Only when the user asks to execute an OPDF action, you may emit one JSON tool call at the very end for the host app to consume.]
+Never show raw JSON in conversational text. Only when the user asks to execute an TPDF action, you may emit one JSON tool call at the very end for the host app to consume.]
 ${buildDocumentContext()}
 User: ${queryText}`;
 }
@@ -110,13 +110,13 @@ export function useAiQueryRuntime({
   const processDifyQuery = async (queryText: string) => {
     const tempId = addMessage("assistant", "AI is thinking...", { isPending: true });
     try {
-      const configuredGateway = (import.meta.env.VITE_OPDF_AI_GATEWAY_URL || "")
+      const configuredGateway = (import.meta.env.VITE_TPDF_AI_GATEWAY_URL || "")
         .trim()
         .replace(/\/+$/, "");
-      const desktop = Boolean(window.opdf?.getAiAccessToken);
+      const desktop = Boolean(window.tpdf?.getAiAccessToken);
       let gatewayBase = desktop ? configuredGateway : "";
       if (desktop && !gatewayBase) {
-        const status = await window.opdf?.getAiDeviceStatus?.();
+        const status = await window.tpdf?.getAiDeviceStatus?.();
         gatewayBase = (status?.gatewayBaseUrl || "").replace(/\/+$/, "");
       }
       if (!gatewayBase && !difyKey) {
@@ -126,7 +126,7 @@ export function useAiQueryRuntime({
       let response: Response;
       const richQuery = buildRichQuery(queryText);
       if (gatewayBase) {
-        const token = await window.opdf?.getAiAccessToken?.();
+        const token = await window.tpdf?.getAiAccessToken?.();
         response = await fetch(`${gatewayBase}/ai/chat`, {
           method: "POST",
           headers: {
@@ -135,7 +135,7 @@ export function useAiQueryRuntime({
           },
           body: JSON.stringify({
             query: richQuery,
-            user: "opdf-desktop-client",
+            user: "tpdf-desktop-client",
             conversation_id: conversationId || undefined,
           }),
         });
@@ -150,7 +150,7 @@ export function useAiQueryRuntime({
             inputs: {},
             query: richQuery,
             response_mode: "blocking",
-            user: "opdf-web-client",
+            user: "tpdf-web-client",
             conversation_id: conversationId || undefined,
           }),
         });
@@ -165,7 +165,7 @@ export function useAiQueryRuntime({
       setMessages((prev) => prev.filter((message) => message.id !== tempId));
       if (typeof data.conversation_id === "string" && data.conversation_id !== conversationId) {
         setConversationId(data.conversation_id);
-        localStorage.setItem("opdf_dify_conv_id", data.conversation_id);
+        localStorage.setItem("tpdf_dify_conv_id", data.conversation_id);
       }
 
       let textResponse = responseText(data);
@@ -189,7 +189,7 @@ export function useAiQueryRuntime({
       { isPending: true },
     );
     try {
-      const context = window.opdfAgent?.getState?.() ?? {};
+      const context = window.tpdfAgent?.getState?.() ?? {};
       const raw = await machineBridge.sendQuery(queryText, context as Record<string, unknown>);
       setMessages((prev) => prev.filter((message) => message.id !== tempId));
       const textResponse = responseText(raw) || (raw ? JSON.stringify(raw) : "");

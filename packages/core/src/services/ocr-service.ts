@@ -23,17 +23,52 @@ type OcrWord = {
   bbox: { x0: number; y0: number; x1: number; y1: number };
 };
 
-function collectWords(data: any): OcrWord[] {
-  if (Array.isArray(data?.words)) return data.words;
-  const words: OcrWord[] = [];
+type OcrLine = {
+  text: string;
+  bbox: OcrWord["bbox"];
+};
+
+function collectLines(data: any): OcrLine[] {
+  if (Array.isArray(data?.lines) && data.lines.length) {
+    return data.lines.flatMap((line: any) => {
+      const words: OcrWord[] = (line?.words ?? []).filter((word: OcrWord) => {
+        const confidence = Number(word?.confidence ?? (word as any)?.conf ?? 0);
+        return String(word?.text ?? "").trim() && !(confidence > 0 && confidence < 45);
+      });
+      const text = words.length
+        ? words.map((word) => String(word.text).trim()).join(" ")
+        : String(line?.text ?? "").trim();
+      const bounds = words.length ? words.map((word) => word.bbox) : [line?.bbox];
+      const validBounds = bounds.filter((bbox): bbox is OcrWord["bbox"] => Boolean(bbox));
+      if (!text || !validBounds.length) return [];
+      return [{
+        text,
+        bbox: {
+          x0: Math.min(...validBounds.map((bbox) => Number(bbox.x0))),
+          y0: Math.min(...validBounds.map((bbox) => Number(bbox.y0))),
+          x1: Math.max(...validBounds.map((bbox) => Number(bbox.x1))),
+          y1: Math.max(...validBounds.map((bbox) => Number(bbox.y1))),
+        },
+      }];
+    });
+  }
+
+  const lines: any[] = [];
   for (const block of data?.blocks ?? []) {
     for (const paragraph of block?.paragraphs ?? []) {
-      for (const line of paragraph?.lines ?? []) {
-        for (const word of line?.words ?? []) words.push(word);
-      }
+      lines.push(...(paragraph?.lines ?? []));
     }
   }
-  return words;
+  if (lines.length) return collectLines({ lines });
+
+  const words: OcrWord[] = Array.isArray(data?.words) ? data.words : [];
+  return words.flatMap((word) => {
+    const confidence = Number(word?.confidence ?? (word as any)?.conf ?? 0);
+    const text = String(word?.text ?? "").trim();
+    return text && !(confidence > 0 && confidence < 45) && word?.bbox
+      ? [{ text, bbox: word.bbox }]
+      : [];
+  });
 }
 
 export class OcrService {
@@ -192,21 +227,17 @@ export class OcrService {
         const ocrWorker = await ensureWorker();
         const result = await ocrWorker.recognize(rendered.bytes);
         const data = result?.data ?? {};
-        const words = collectWords(data);
+        const lines = collectLines(data);
         const targetPage = pages[index];
         const { width: pdfWidth, height: pdfHeight } = targetPage.getSize();
         const sx = pdfWidth / Math.max(1, rendered.width);
         const sy = pdfHeight / Math.max(1, rendered.height);
 
-        for (const word of words) {
-          const rawText = String(word?.text ?? "").trim();
-          if (!rawText) continue;
-          const confidence = Number(word?.confidence ?? (word as any)?.conf ?? 0);
-          if (confidence > 0 && confidence < 45) continue;
-          const text = supportsUnicode ? rawText : this.toWinAnsiSafeText(rawText);
+        for (const line of lines) {
+          const text = supportsUnicode ? line.text : this.toWinAnsiSafeText(line.text);
           if (!text) continue;
 
-          const bbox = word.bbox;
+          const bbox = line.bbox;
           const x = Math.max(0, Number(bbox?.x0 ?? 0) * sx);
           const y = Math.max(0, pdfHeight - Number(bbox?.y1 ?? 0) * sy);
           const boxWidth = Math.max(1, (Number(bbox?.x1 ?? 0) - Number(bbox?.x0 ?? 0)) * sx);
@@ -224,7 +255,7 @@ export class OcrService {
           });
         }
 
-        if (words.length === 0 && typeof data.text === "string" && data.text.trim()) {
+        if (lines.length === 0 && typeof data.text === "string" && data.text.trim()) {
           const lines = data.text.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean);
           lines.slice(0, 160).forEach((line: string, lineIndex: number) => {
             const text = supportsUnicode ? line : this.toWinAnsiSafeText(line);

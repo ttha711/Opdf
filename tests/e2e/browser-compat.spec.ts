@@ -8,7 +8,7 @@ test("web shell and PDF viewer work in supported browsers", async ({ page }) => 
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const pdfPage = pdf.addPage([612, 792]);
-  pdfPage.drawText("OPDF BROWSER COMPATIBILITY CHECK", {
+  pdfPage.drawText("TPDF BROWSER COMPATIBILITY CHECK", {
     x: 72,
     y: 700,
     size: 18,
@@ -21,9 +21,9 @@ test("web shell and PDF viewer work in supported browsers", async ({ page }) => 
     buffer: Buffer.from(await pdf.save()),
   });
 
-  await expect(page.locator('[data-opdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
-    "data-opdf-total-pages",
+  await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute(
+    "data-tpdf-total-pages",
     "1",
     { timeout: 30_000 },
   );

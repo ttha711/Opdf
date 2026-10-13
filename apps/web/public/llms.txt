@@ -1,13 +1,13 @@
-# OPDF
+# TPDF
 
 > A PDF workspace for viewing, editing, annotating, organizing, and converting PDF documents.
 
-OPDF runs as a web application, a self-hosted server application, and a desktop application. Some operations depend on the deployment mode and user permissions. PDF document contents may be private.
+TPDF runs as a web application, a self-hosted server application, and a desktop application. Some operations depend on the deployment mode and user permissions. PDF document contents may be private.
 
 ## Public links
 
-- [OPDF source code](https://github.com/ttha711/Opdf)
-- [Usage and setup](https://github.com/ttha711/Opdf/blob/main/README.md)
+- [TPDF source code](https://github.com/ttha711/Tpdf)
+- [Usage and setup](https://github.com/ttha711/Tpdf/blob/main/README.md)
 
 ## Safe automation guidance
 

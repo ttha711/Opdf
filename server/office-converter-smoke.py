@@ -13,4 +13,4 @@ if not input_path.read_bytes().startswith(b"%PDF-"):
 if fmt not in {"docx", "pptx", "xlsx"}:
     raise SystemExit(4)
 
-output_path.write_bytes(("OPDF-OFFICE-STUB:" + fmt).encode("ascii"))
+output_path.write_bytes(("TPDF-OFFICE-STUB:" + fmt).encode("ascii"))

@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { Annotation } from "@opdf/core";
-import type { OpdfBridge } from "../types/opdf";
+import type { Annotation } from "@tpdf/core";
+import type { TpdfBridge } from "../types/tpdf";
 import {
   cancelPdfUpload,
   uploadPdfToServer,
   type ServerUploadSession,
-} from "./opdf-bridge/serverUpload";
+} from "./tpdf-bridge/serverUpload";
 
-export const OPDF_UPLOAD_STATUS_EVENT = "opdf:upload-status";
-export const OPDF_UPLOAD_RETRY_EVENT = "opdf:upload-retry";
-export const OPDF_UPLOAD_CANCEL_EVENT = "opdf:upload-cancel";
+export const TPDF_UPLOAD_STATUS_EVENT = "tpdf:upload-status";
+export const TPDF_UPLOAD_RETRY_EVENT = "tpdf:upload-retry";
+export const TPDF_UPLOAD_CANCEL_EVENT = "tpdf:upload-cancel";
 
 export type ServerUploadUiState = {
   status: "idle" | "uploading" | "stored" | "failed";
@@ -29,7 +29,7 @@ type PendingUpload = {
 };
 
 type Args = {
-  bridge: OpdfBridge;
+  bridge: TpdfBridge;
   sourceIdentity: string;
   saveState: "idle" | "saving" | "saved";
   setFileName: (value: string) => void;
@@ -49,14 +49,14 @@ type Args = {
 };
 
 function emitUploadState(state: ServerUploadUiState) {
-  window.dispatchEvent(new CustomEvent<ServerUploadUiState>(OPDF_UPLOAD_STATUS_EVENT, {
+  window.dispatchEvent(new CustomEvent<ServerUploadUiState>(TPDF_UPLOAD_STATUS_EVENT, {
     detail: state,
   }));
 }
 
 function progressText(loaded: number, total: number) {
   const percent = total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
-  return `Uploading to OPDF Server… ${percent}%`;
+  return `Uploading to TPDF Server… ${percent}%`;
 }
 
 function sessionUploadedBytes(session: ServerUploadSession | null, fileSize: number) {
@@ -81,7 +81,7 @@ export function useServerUpload(args: Args) {
   }, []);
 
   const runUpload = useCallback(async (pending: PendingUpload) => {
-    const baseUrl = window.__OPDF_SERVER_BASE__ || "/api/opdf";
+    const baseUrl = window.__TPDF_SERVER_BASE__ || "/api/tpdf";
     try {
       const result = await uploadPdfToServer(pending.file, pending.file.name, {
         baseUrl,
@@ -119,7 +119,7 @@ export function useServerUpload(args: Args) {
           });
         }
       }
-      window.dispatchEvent(new CustomEvent("opdf:upload-complete", {
+      window.dispatchEvent(new CustomEvent("tpdf:upload-complete", {
         detail: {
           localIdentity: pending.localIdentity,
           serverIdentity: result.filePath,
@@ -127,7 +127,7 @@ export function useServerUpload(args: Args) {
         },
       }));
       pendingRef.current = null;
-      argsRef.current.setViewerError("Stored on OPDF Server.");
+      argsRef.current.setViewerError("Stored on TPDF Server.");
       emitUploadState({
         status: "stored",
         fileName: pending.file.name,
@@ -167,7 +167,7 @@ export function useServerUpload(args: Args) {
     }
     pending.controller.abort();
     pendingRef.current = null;
-    void cancelPdfUpload(pending.session, window.__OPDF_SERVER_BASE__ || "/api/opdf");
+    void cancelPdfUpload(pending.session, window.__TPDF_SERVER_BASE__ || "/api/tpdf");
     argsRef.current.setViewerError(null);
     emitUploadState({ status: "idle" });
   }, [clearSuccessTimer]);
@@ -194,7 +194,7 @@ export function useServerUpload(args: Args) {
     const previous = pendingRef.current;
     if (previous) {
       previous.controller.abort();
-      void cancelPdfUpload(previous.session, window.__OPDF_SERVER_BASE__ || "/api/opdf");
+      void cancelPdfUpload(previous.session, window.__TPDF_SERVER_BASE__ || "/api/tpdf");
     }
     clearSuccessTimer();
 
@@ -243,11 +243,11 @@ export function useServerUpload(args: Args) {
   useEffect(() => {
     const retry = () => retryUpload();
     const cancel = () => cancelUpload();
-    window.addEventListener(OPDF_UPLOAD_RETRY_EVENT, retry);
-    window.addEventListener(OPDF_UPLOAD_CANCEL_EVENT, cancel);
+    window.addEventListener(TPDF_UPLOAD_RETRY_EVENT, retry);
+    window.addEventListener(TPDF_UPLOAD_CANCEL_EVENT, cancel);
     return () => {
-      window.removeEventListener(OPDF_UPLOAD_RETRY_EVENT, retry);
-      window.removeEventListener(OPDF_UPLOAD_CANCEL_EVENT, cancel);
+      window.removeEventListener(TPDF_UPLOAD_RETRY_EVENT, retry);
+      window.removeEventListener(TPDF_UPLOAD_CANCEL_EVENT, cancel);
       clearSuccessTimer();
       pendingRef.current?.controller.abort();
     };

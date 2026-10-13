@@ -1,8 +1,8 @@
-# OPDF Web Large-PDF Audit
+# TPDF Web Large-PDF Audit
 
 ## Target
 
-Refocus OPDF on a **web-first technical drawing PDF viewer/reviewer** that remains usable with architectural and structural drawing sets in the hundreds-of-megabytes range.
+Refocus TPDF on a **web-first technical drawing PDF viewer/reviewer** that remains usable with architectural and structural drawing sets in the hundreds-of-megabytes range.
 
 Primary workload:
 - large vector/raster construction PDFs
@@ -46,7 +46,7 @@ This must be replaced with a source/reference model, bounded page caches, and no
 ## P0.1 Stop storing/copying full PDF bytes in tab state
 
 Current:
-- `apps/web/src/lib/web-storage.ts`: `OpdfTab.docBytes`
+- `apps/web/src/lib/web-storage.ts`: `TpdfTab.docBytes`
 - `apps/web/src/hooks/useAppState.ts`: `cloneBytes()`
 - tab switching copies `Uint8Array`
 - active document sync copies bytes back into the tab

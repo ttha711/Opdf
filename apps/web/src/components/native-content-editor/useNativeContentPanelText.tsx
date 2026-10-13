@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
+import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { NativeContentPanelTextEditor } from "./NativeContentPanelTextEditor";
 
 type Props = {

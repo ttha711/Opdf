@@ -76,8 +76,8 @@ const fallbackPatch = (request: AiPatchRequest): LivePatch => {
 };
 
 export async function generateAiPatch(request: AiPatchRequest): Promise<LivePatch> {
-  if (window.opdf?.applyAiPatch) {
-    const payload = await window.opdf.applyAiPatch(request);
+  if (window.tpdf?.applyAiPatch) {
+    const payload = await window.tpdf.applyAiPatch(request);
     if (!isPatch(payload)) {
       const loose = tryBuildPatchFromLoosePayload(payload, request);
       if (loose) return loose;
@@ -86,9 +86,9 @@ export async function generateAiPatch(request: AiPatchRequest): Promise<LivePatc
     return payload;
   }
 
-  const endpoint = localStorage.getItem("opdf-live-editor-ai-endpoint");
+  const endpoint = localStorage.getItem("tpdf-live-editor-ai-endpoint");
   if (!endpoint) return fallbackPatch(request);
-  const apiKey = localStorage.getItem("opdf-live-editor-ai-key");
+  const apiKey = localStorage.getItem("tpdf-live-editor-ai-key");
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {

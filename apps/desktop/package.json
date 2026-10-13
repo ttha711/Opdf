@@ -1,11 +1,11 @@
 {
-  "name": "@opdf/desktop",
+  "name": "@tpdf/desktop",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist/main/main.js",
   "scripts": {
-    "dev": "npm run build:main && npm run build:preload && cross-env OPDF_DEV_SERVER=http://localhost:5174 OPDF_PROJECT_PATH=C:/mymy/Opdf electron .",
+    "dev": "npm run build:main && npm run build:preload && cross-env TPDF_DEV_SERVER=http://localhost:5174 electron .",
     "build": "npm run build:main && npm run build:preload",
     "build:main": "npx -p typescript tsc -p tsconfig.main.json",
     "build:preload": "esbuild src/preload/preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/preload/preload.cjs",
@@ -15,7 +15,7 @@
     "package": "npm run prepare:webdist && electron-builder"
   },
   "dependencies": {
-    "@opdf/core": "0.1.0",
+    "@tpdf/core": "0.1.0",
     "@signpdf/placeholder-pdf-lib": "^3.3.0",
     "@signpdf/signer-p12": "^3.3.0",
     "@signpdf/signpdf": "^3.3.0",
@@ -34,7 +34,7 @@
     "asarUnpack": [
       "tools/**"
     ],
-    "appId": "com.opdf.desktop",
+    "appId": "com.tpdf.desktop",
     "files": [
       "dist/**/*",
       "web/**/*",

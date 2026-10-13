@@ -11,7 +11,7 @@ export function useAiAssistantMessages() {
       {
         id: "welcome",
         sender: "assistant",
-        text: "Hello! I’m the OPDF AI Assistant. 🚀\n\nI can help you work with PDFs using natural-language commands.\n\nTry a quick action below or type 'help' to see supported commands.",
+        text: "Hello! I’m the TPDF AI Assistant. 🚀\n\nI can help you work with PDFs using natural-language commands.\n\nTry a quick action below or type 'help' to see supported commands.",
         timestamp: new Date(),
       },
     ]);

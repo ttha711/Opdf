@@ -37,15 +37,15 @@ export function StatusBar({
     <>
       <footer
         data-testid="status-bar"
-        data-opdf-region="status-bar"
-        data-opdf-has-document={hasDocument ? "true" : "false"}
-        data-opdf-page={page}
-        data-opdf-total-pages={totalPages}
-        data-opdf-page-loading={pagesLoading ? "true" : "false"}
-        data-opdf-zoom={scale}
-        data-opdf-active-tool={activeTool}
-        data-opdf-save-state={saveState}
-        data-opdf-message={viewerError ?? ""}
+        data-tpdf-region="status-bar"
+        data-tpdf-has-document={hasDocument ? "true" : "false"}
+        data-tpdf-page={page}
+        data-tpdf-total-pages={totalPages}
+        data-tpdf-page-loading={pagesLoading ? "true" : "false"}
+        data-tpdf-zoom={scale}
+        data-tpdf-active-tool={activeTool}
+        data-tpdf-save-state={saveState}
+        data-tpdf-message={viewerError ?? ""}
         aria-label={pagesLoading ? "Loading document pages" : hasDocument ? `Page ${page} of ${totalPages}` : "No document"}
         className="flex select-none items-center justify-between border-t border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-[14px] text-[11px] text-[var(--text-secondary)]">
         <div className="flex items-center gap-1.5">
@@ -56,8 +56,8 @@ export function StatusBar({
               <span data-testid="page-status">Page <strong>{page}</strong> of <strong>{totalPages}</strong></span>
               <button
                 type="button"
-                className="opdf-mobile-pages-button"
-                data-opdf-action="toggle-page-filmstrip"
+                className="tpdf-mobile-pages-button"
+                data-tpdf-action="toggle-page-filmstrip"
                 aria-expanded={pagePreviewOpen}
                 onClick={() => setPagePreviewOpen((value) => !value)}
               >

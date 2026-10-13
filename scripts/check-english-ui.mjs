@@ -13,7 +13,10 @@ const multilingualInternalFiles = new Set([
   "apps/web/src/components/AiAssistantPanel.utils.ts",
   "apps/web/src/components/AiAssistantPanel.hooks.ts",
   "apps/web/src/components/live-editor/aiPatchService.ts",
-  "apps/web/src/hooks/opdf-bridge/mockBridge.ts",
+  "apps/web/src/hooks/tpdf-bridge/mockBridge.ts",
+]);
+const nonUiTestFixtures = new Set([
+  "apps/web/src/components/native-edit/nativeEditTextRun.test.ts",
 ]);
 
 async function walk(dir) {
@@ -33,7 +36,7 @@ function lineOf(sourceFile, node) {
 
 function collectSourceViolations(file, content) {
   const rel = relative(".", file).replaceAll("\\", "/");
-  if (multilingualInternalFiles.has(rel)) return [];
+  if (multilingualInternalFiles.has(rel) || nonUiTestFixtures.has(rel)) return [];
 
   const kind = extname(file) === ".tsx" ? ts.ScriptKind.TSX
     : extname(file) === ".jsx" ? ts.ScriptKind.JSX

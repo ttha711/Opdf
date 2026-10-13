@@ -31,7 +31,7 @@ async function createChangedRevision() {
   for (let index = 0; index < sizes.length; index += 1) {
     const [width, height] = sizes[index];
     const page = pdf.addPage([width, height]);
-    page.drawText(`OPDF TOOL PAGE ${index + 1}`, {
+    page.drawText(`TPDF TOOL PAGE ${index + 1}`, {
       x: 28,
       y: height - 60,
       size: 14,
@@ -54,7 +54,7 @@ async function createChangedRevision() {
 test("Fill Form writes an AcroForm value into the exported PDF", async ({ page }) => {
   await loadToolFixture(page, await createFormPdf(), "form-fixture.pdf");
   await openDashboardTool(page, "fill-form");
-  const dialog = page.locator('[data-opdf-dialog="advanced-pdf"]');
+  const dialog = page.locator('[data-tpdf-dialog="advanced-pdf"]');
 
   const fieldLabel = dialog.locator("label").filter({ hasText: "customer_name" }).first();
   await expect(fieldLabel).toBeVisible({ timeout: 15_000 });
@@ -69,26 +69,26 @@ test("Fill Form writes an AcroForm value into the exported PDF", async ({ page }
 test("Secure Redact removes the selected text from the resulting PDF text layer", async ({ page }) => {
   await loadToolFixture(page);
   await openDashboardTool(page, "redact-pdf");
-  const dialog = page.locator('[data-opdf-dialog="search-redact"]');
+  const dialog = page.locator('[data-tpdf-dialog="search-redact"]');
 
-  await dialog.locator('[data-opdf-field="redact-query"]').fill("OPDF TOOL PAGE TWO DELETE");
-  await dialog.locator('[data-opdf-action="redact-search"]').click();
+  await dialog.locator('[data-tpdf-field="redact-query"]').fill("TPDF TOOL PAGE TWO DELETE");
+  await dialog.locator('[data-tpdf-action="redact-search"]').click();
   await expect(dialog).toContainText("1 match(es) found", { timeout: 30_000 });
-  await expect(dialog.locator('[data-opdf-action="redact-apply"]')).toBeEnabled();
-  await dialog.locator('[data-opdf-action="redact-apply"]').click();
+  await expect(dialog.locator('[data-tpdf-action="redact-apply"]')).toBeEnabled();
+  await dialog.locator('[data-tpdf-action="redact-apply"]').click();
   await expect(dialog).toHaveCount(0, { timeout: 30_000 });
 
   const textPages = await extractPdfTextPages(await exportCurrentPdf(page));
-  expect(textPages.join(" ")).not.toContain("OPDF TOOL PAGE TWO DELETE");
-  expect(textPages[0]).toContain("OPDF TOOL PAGE ONE KEEP");
-  expect(textPages[2]).toContain("OPDF TOOL PAGE THREE KEEP");
+  expect(textPages.join(" ")).not.toContain("TPDF TOOL PAGE TWO DELETE");
+  expect(textPages[0]).toContain("TPDF TOOL PAGE ONE KEEP");
+  expect(textPages[2]).toContain("TPDF TOOL PAGE THREE KEEP");
 });
 
 test("Compare PDF detects a real visual revision and exports a valid comparison report", async ({ page }) => {
   test.setTimeout(90_000);
   await loadToolFixture(page);
   await openDashboardTool(page, "compare-pdf");
-  const dialog = page.locator('[data-opdf-dialog="compare-revisions"]');
+  const dialog = page.locator('[data-tpdf-dialog="compare-revisions"]');
 
   await dialog.locator('input[type="file"]').setInputFiles({
     name: "changed-revision.pdf",
@@ -113,12 +113,12 @@ test("Compare PDF detects a real visual revision and exports a valid comparison 
 test("Advanced PDF embeds a real outline bookmark into the PDF catalog", async ({ page }) => {
   await loadToolFixture(page);
   await clickApplicationMenuItem(page, "Advanced PDF...");
-  const dialog = page.locator('[data-opdf-dialog="advanced-pdf"]');
+  const dialog = page.locator('[data-tpdf-dialog="advanced-pdf"]');
 
   await dialog.getByRole("button", { name: "bookmarks", exact: true }).click();
   const bookmarkTitle = dialog.locator('input[placeholder="Bookmark title"]').first();
   await expect(bookmarkTitle).toBeVisible();
-  await bookmarkTitle.fill("OPDF BOOKMARK CHECK");
+  await bookmarkTitle.fill("TPDF BOOKMARK CHECK");
   await dialog.getByRole("button", { name: "Embed bookmarks", exact: true }).click();
   await expect(dialog).toHaveCount(0, { timeout: 15_000 });
 

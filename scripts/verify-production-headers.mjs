@@ -1,12 +1,12 @@
 // Verify what a real HTTPS client receives after any CDN/proxy transforms.
 const target = process.argv[2] || process.env.TARGET_URL;
-if (!target) throw new Error("Usage: node scripts/verify-production-headers.mjs https://opdf.example/");
+if (!target) throw new Error("Usage: node scripts/verify-production-headers.mjs https://tpdf.example/");
 const url = new URL(target);
 if (url.protocol !== "https:") throw new Error("Production header audit requires an HTTPS URL.");
 
 const headers = {};
-const clientId = process.env.OPDF_CF_ACCESS_CLIENT_ID;
-const clientSecret = process.env.OPDF_CF_ACCESS_CLIENT_SECRET;
+const clientId = process.env.TPDF_CF_ACCESS_CLIENT_ID;
+const clientSecret = process.env.TPDF_CF_ACCESS_CLIENT_SECRET;
 if (clientId && clientSecret) {
   headers["CF-Access-Client-Id"] = clientId;
   headers["CF-Access-Client-Secret"] = clientSecret;
@@ -44,4 +44,4 @@ if (html.includes("static.cloudflareinsights.com/beacon.min.js")) {
     "Versioned Cloudflare beacon requires a trailing-slash CSP path prefix; otherwise disable injection");
 }
 
-console.log("OPDF production security headers passed:", url.origin);
+console.log("TPDF production security headers passed:", url.origin);

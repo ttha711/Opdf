@@ -6,10 +6,10 @@ import { replaceNativeTextFromCanvas } from "../helpers/editNativeText";
 test.setTimeout(90_000);
 
 async function expandAdvancedEditor(page: import("@playwright/test").Page) {
-  const expand = page.locator('[data-opdf-action="expand-right-panel"]');
+  const expand = page.locator('[data-tpdf-action="expand-right-panel"]');
   await expect(expand).toBeVisible({ timeout: 20_000 });
   await expand.click();
-  const editor = page.locator("[data-opdf-native-editor='true']");
+  const editor = page.locator("[data-tpdf-native-editor='true']");
   await expect(editor).toBeVisible({ timeout: 20_000 });
   return editor;
 }
@@ -20,7 +20,7 @@ async function uploadAndOpenEditor(
   name: string,
   bytes: Buffer,
 ) {
-  const upload = await request.post(`/api/opdf/documents?name=${encodeURIComponent(name)}`, {
+  const upload = await request.post(`/api/tpdf/documents?name=${encodeURIComponent(name)}`, {
     headers: { "Content-Type": "application/pdf" },
     data: bytes,
   });
@@ -28,7 +28,7 @@ async function uploadAndOpenEditor(
   const document = await upload.json();
 
   await page.goto("/?open=" + encodeURIComponent(document.filePath));
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({
     timeout: 30_000,
   });
   await page.getByTitle("Edit PDF Content").click();
@@ -40,7 +40,7 @@ async function reopenEditor(
   page: import("@playwright/test").Page,
 ) {
   await page.reload();
-  await expect(page.locator("[data-opdf-engine='pdfium-wasm']")).toBeVisible({
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({
     timeout: 30_000,
   });
   await page.getByTitle("Edit PDF Content").click();
@@ -90,7 +90,7 @@ test("Unicode replacement preserves rotated native text after save and reload", 
   );
 
   const rotated = editor
-    .locator("[data-opdf-object-kind='text'][data-opdf-rotated-bounds='true']")
+    .locator("[data-tpdf-object-kind='text'][data-tpdf-rotated-bounds='true']")
     .filter({ hasText: "Rotated source text" })
     .first();
   await expect(rotated).toBeVisible({ timeout: 20_000 });
@@ -103,13 +103,13 @@ test("Unicode replacement preserves rotated native text after save and reload", 
   const reopened = await reopenEditor(page);
 
   const persisted = reopened
-    .locator("[data-opdf-object-kind='text']")
+    .locator("[data-tpdf-object-kind='text']")
     .filter({ hasText: replacement })
     .first();
   await expect(persisted).toBeVisible({ timeout: 20_000 });
-  await expect(persisted).toHaveAttribute("data-opdf-rotated-bounds", "true");
+  await expect(persisted).toHaveAttribute("data-tpdf-rotated-bounds", "true");
   await persisted.click();
-  await expect(reopened.locator("[data-opdf-rotated-selection='true']")).toBeVisible();
+  await expect(reopened.locator("[data-tpdf-rotated-selection='true']")).toBeVisible();
 });
 
 test("image-only scanned page stays editable and persists native transforms", async ({
@@ -123,26 +123,26 @@ test("image-only scanned page stays editable and persists native transforms", as
     await buildScanLikePdf(),
   );
 
-  await expect(editor.locator("[data-opdf-object-kind='text']")).toHaveCount(0);
-  const image = editor.locator("[data-opdf-object-kind='image']").first();
+  await expect(editor.locator("[data-tpdf-object-kind='text']")).toHaveCount(0);
+  const image = editor.locator("[data-tpdf-object-kind='image']").first();
   await expect(image).toBeVisible({ timeout: 20_000 });
 
-  const beforeBounds = await image.getAttribute("data-opdf-bounds");
+  const beforeBounds = await image.getAttribute("data-tpdf-bounds");
   expect(beforeBounds).toBeTruthy();
   await image.click();
   await editor.getByRole("button", { name: "→" }).click();
   await expect(editor.getByText("Object moved.")).toBeVisible({ timeout: 20_000 });
 
-  const moved = editor.locator("[data-opdf-object-kind='image']").first();
-  await expect(moved).not.toHaveAttribute("data-opdf-bounds", beforeBounds ?? "", {
+  const moved = editor.locator("[data-tpdf-object-kind='image']").first();
+  await expect(moved).not.toHaveAttribute("data-tpdf-bounds", beforeBounds ?? "", {
     timeout: 20_000,
   });
-  const movedBounds = await moved.getAttribute("data-opdf-bounds");
+  const movedBounds = await moved.getAttribute("data-tpdf-bounds");
   expect(movedBounds).toBeTruthy();
 
   await saveServerDocumentAndWait(page);
   const reopened = await reopenEditor(page);
-  await expect(reopened.locator("[data-opdf-object-kind='text']")).toHaveCount(0);
-  await expect(reopened.locator("[data-opdf-object-kind='image']").first())
-    .toHaveAttribute("data-opdf-bounds", movedBounds ?? "");
+  await expect(reopened.locator("[data-tpdf-object-kind='text']")).toHaveCount(0);
+  await expect(reopened.locator("[data-tpdf-object-kind='image']").first())
+    .toHaveAttribute("data-tpdf-bounds", movedBounds ?? "");
 });

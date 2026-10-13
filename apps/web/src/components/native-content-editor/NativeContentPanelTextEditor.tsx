@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { PdfContentObject } from "@opdf/core";
+import type { PdfContentObject } from "@tpdf/core";
 
 type Props = {
   object: PdfContentObject;

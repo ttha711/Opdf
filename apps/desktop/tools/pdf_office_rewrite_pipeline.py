@@ -36,7 +36,7 @@ def log_openrouter_usage(body: dict, tag: str) -> None:
 
 
 def extract_blocks(pdf_path: Path):
-    max_pages = int(os.environ.get("OPDF_REWRITE_MAX_PAGES", "0") or "0")
+    max_pages = int(os.environ.get("TPDF_REWRITE_MAX_PAGES", "0") or "0")
     pages = []
     with pdfplumber.open(str(pdf_path)) as pdf:
         for idx, page in enumerate(pdf.pages, start=1):
@@ -50,13 +50,13 @@ def extract_blocks(pdf_path: Path):
 
 
 def extract_blocks_with_marker(pdf_path: Path):
-    if os.environ.get("OPDF_USE_MARKER_EXTRACT", "0").strip() != "1":
+    if os.environ.get("TPDF_USE_MARKER_EXTRACT", "0").strip() != "1":
         return None
     marker_exe = Path(__file__).resolve().parent / "python" / "runtime" / "Scripts" / "marker_single.exe"
     if not marker_exe.exists():
         return None
-    max_pages = int(os.environ.get("OPDF_REWRITE_MAX_PAGES", "0") or "0")
-    out_dir = Path(os.environ.get("OPDF_MARKER_TMP_DIR", str(Path.cwd() / ".tmp-marker"))).resolve()
+    max_pages = int(os.environ.get("TPDF_REWRITE_MAX_PAGES", "0") or "0")
+    out_dir = Path(os.environ.get("TPDF_MARKER_TMP_DIR", str(Path.cwd() / ".tmp-marker"))).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [str(marker_exe), str(pdf_path), "--output_format", "json", "--output_dir", str(out_dir), "--disable_multiprocessing", "--disable_tqdm"]
     if max_pages > 0:
@@ -101,9 +101,9 @@ def heuristic_rewrite_line(line: str, strict: bool) -> str:
 
 
 def call_dify_rewrite(lines, strict: bool):
-    dify_url = os.environ.get("OPDF_DIFY_URL", "").strip().rstrip("/")
-    dify_key = os.environ.get("OPDF_DIFY_KEY", "").strip()
-    ai_mode = os.environ.get("OPDF_AI_MODE", "local").strip().lower()
+    dify_url = os.environ.get("TPDF_DIFY_URL", "").strip().rstrip("/")
+    dify_key = os.environ.get("TPDF_DIFY_KEY", "").strip()
+    ai_mode = os.environ.get("TPDF_AI_MODE", "local").strip().lower()
     if ai_mode != "dify" or not dify_url or not dify_key:
         return None
 
@@ -127,14 +127,14 @@ def call_dify_rewrite(lines, strict: bool):
                 "inputs": {},
                 "query": json.dumps(prompt_payload, ensure_ascii=False),
                 "response_mode": "blocking",
-                "user": "opdf-desktop-converter",
+                "user": "tpdf-desktop-converter",
             }
         ).encode("utf-8"),
         headers={"Authorization": f"Bearer {dify_key}", "Content-Type": "application/json"},
         method="POST",
     )
 
-    timeout_sec = float(os.environ.get("OPDF_DIFY_TIMEOUT_SEC", "25"))
+    timeout_sec = float(os.environ.get("TPDF_DIFY_TIMEOUT_SEC", "25"))
     with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
         body = json.loads(resp.read().decode("utf-8"))
 
@@ -157,7 +157,7 @@ def call_openai_rewrite(lines, strict: bool):
     if not api_key:
         return None
 
-    model = os.environ.get("OPDF_REWRITE_MODEL", "gpt-4.1-mini")
+    model = os.environ.get("TPDF_REWRITE_MODEL", "gpt-4.1-mini")
     system = (
         "You clean OCR text from PDFs. Preserve facts exactly. Do not add new facts. "
         "Keep original language. Return JSON array of strings with same length as input."
@@ -213,11 +213,11 @@ def call_openai_direct_pdf_rewrite(pdf_path: Path, strict: bool):
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key:
         return None
-    if os.environ.get("OPDF_DIRECT_PDF_ENABLE", "0").strip() != "1":
+    if os.environ.get("TPDF_DIRECT_PDF_ENABLE", "0").strip() != "1":
         return None
 
-    model = os.environ.get("OPDF_DIRECT_PDF_MODEL", "gpt-5")
-    timeout_sec = float(os.environ.get("OPDF_DIRECT_PDF_TIMEOUT_SEC", "90"))
+    model = os.environ.get("TPDF_DIRECT_PDF_MODEL", "gpt-5")
+    timeout_sec = float(os.environ.get("TPDF_DIRECT_PDF_TIMEOUT_SEC", "90"))
 
     with open(pdf_path, "rb") as f:
         pdf_b64 = base64.b64encode(f.read()).decode("utf-8")
@@ -304,12 +304,12 @@ def call_openrouter_direct_pdf_rewrite(pdf_path: Path, strict: bool):
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         return None
-    if os.environ.get("OPDF_DIRECT_PDF_ENABLE", "0").strip() != "1":
+    if os.environ.get("TPDF_DIRECT_PDF_ENABLE", "0").strip() != "1":
         return None
 
-    model = os.environ.get("OPDF_OPENROUTER_MODEL", "google/gemini-2.5-flash")
-    timeout_sec = float(os.environ.get("OPDF_DIRECT_PDF_TIMEOUT_SEC", "90"))
-    debug = os.environ.get("OPDF_REWRITE_DEBUG_TIMING", "0").strip() == "1"
+    model = os.environ.get("TPDF_OPENROUTER_MODEL", "google/gemini-2.5-flash")
+    timeout_sec = float(os.environ.get("TPDF_DIRECT_PDF_TIMEOUT_SEC", "90"))
+    debug = os.environ.get("TPDF_REWRITE_DEBUG_TIMING", "0").strip() == "1"
 
     t0 = time.perf_counter()
     with open(pdf_path, "rb") as f:
@@ -373,7 +373,7 @@ def call_openrouter_direct_pdf_rewrite(pdf_path: Path, strict: bool):
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "http://localhost",
-            "X-Title": "OPDF",
+            "X-Title": "TPDF",
         },
         method="POST",
     )
@@ -420,8 +420,8 @@ def call_openrouter_page_rewrite(lines, strict: bool):
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         return None
-    model = os.environ.get("OPDF_OPENROUTER_MODEL", "google/gemini-2.5-flash")
-    timeout_sec = float(os.environ.get("OPDF_DIRECT_PDF_TIMEOUT_SEC", "90"))
+    model = os.environ.get("TPDF_OPENROUTER_MODEL", "google/gemini-2.5-flash")
+    timeout_sec = float(os.environ.get("TPDF_DIRECT_PDF_TIMEOUT_SEC", "90"))
 
     payload = {
         "model": model,
@@ -470,7 +470,7 @@ def call_openrouter_page_rewrite(lines, strict: bool):
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "http://localhost",
-            "X-Title": "OPDF",
+            "X-Title": "TPDF",
         },
         method="POST",
     )
@@ -495,8 +495,8 @@ def call_openrouter_page_vision_rewrite(image_b64: str, strict: bool):
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         return None
-    model = os.environ.get("OPDF_OPENROUTER_MODEL", "google/gemini-2.5-flash")
-    timeout_sec = float(os.environ.get("OPDF_DIRECT_PDF_TIMEOUT_SEC", "90"))
+    model = os.environ.get("TPDF_OPENROUTER_MODEL", "google/gemini-2.5-flash")
+    timeout_sec = float(os.environ.get("TPDF_DIRECT_PDF_TIMEOUT_SEC", "90"))
     payload = {
         "model": model,
         "messages": [
@@ -530,7 +530,7 @@ def call_openrouter_page_vision_rewrite(image_b64: str, strict: bool):
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "http://localhost",
-            "X-Title": "OPDF",
+            "X-Title": "TPDF",
         },
         method="POST",
     )
@@ -570,9 +570,9 @@ def rewrite_blocks(pages, mode: str, source_pdf_path: Path | None = None):
     rewrite_source = "local"
     page_rewrite_details = []
 
-    direct_enable = os.environ.get("OPDF_DIRECT_PDF_ENABLE", "0").strip() == "1"
-    direct_mode = os.environ.get("OPDF_DIRECT_PDF_MODE", "full").strip().lower()
-    min_similarity = float(os.environ.get("OPDF_REWRITE_MIN_SIMILARITY", "0.78"))
+    direct_enable = os.environ.get("TPDF_DIRECT_PDF_ENABLE", "0").strip() == "1"
+    direct_mode = os.environ.get("TPDF_DIRECT_PDF_MODE", "full").strip().lower()
+    min_similarity = float(os.environ.get("TPDF_REWRITE_MIN_SIMILARITY", "0.78"))
 
     if source_pdf_path is not None and direct_enable and direct_mode == "full":
         try:
@@ -725,9 +725,9 @@ def compose_docx(pages, out_path: Path, source_name: str):
 
 def postformat_docx(docx_path: Path):
     doc = Document(str(docx_path))
-    title_size = int(os.environ.get("OPDF_DOCX_TITLE_SIZE_PT", "20"))
-    h2_size = int(os.environ.get("OPDF_DOCX_H2_SIZE_PT", "14"))
-    body_size = int(os.environ.get("OPDF_DOCX_BODY_SIZE_PT", "11"))
+    title_size = int(os.environ.get("TPDF_DOCX_TITLE_SIZE_PT", "20"))
+    h2_size = int(os.environ.get("TPDF_DOCX_H2_SIZE_PT", "14"))
+    body_size = int(os.environ.get("TPDF_DOCX_BODY_SIZE_PT", "11"))
 
     for i, p in enumerate(doc.paragraphs):
         text = p.text.strip()
@@ -763,17 +763,17 @@ def main():
     in_path = Path(sys.argv[1]).resolve()
     fmt = sys.argv[2].lower()
     out_path = Path(sys.argv[3]).resolve()
-    mode = (sys.argv[4] if len(sys.argv) > 4 else os.environ.get("OPDF_REWRITE_MODE", "strict-factual")).lower()
+    mode = (sys.argv[4] if len(sys.argv) > 4 else os.environ.get("TPDF_REWRITE_MODE", "strict-factual")).lower()
     if mode not in ["ai-rewrite", "strict-factual"]:
         mode = "strict-factual"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Prefer the HTML semantic pipeline as main when enabled.
-    if os.environ.get("OPDF_MAIN_PIPELINE", "html").strip().lower() == "html":
+    if os.environ.get("TPDF_MAIN_PIPELINE", "html").strip().lower() == "html":
         alt_script = Path(__file__).resolve().parent / "pdf_to_html_rewrite_pipeline.py"
         if alt_script.exists():
             try:
-                max_pages = int(os.environ.get("OPDF_REWRITE_MAX_PAGES", "0") or "0")
+                max_pages = int(os.environ.get("TPDF_REWRITE_MAX_PAGES", "0") or "0")
                 cmd = [sys.executable, str(alt_script), str(in_path)]
                 if max_pages > 0:
                     cmd.extend(["--max-pages", str(max_pages)])
@@ -797,7 +797,7 @@ def main():
         pages, used_llm, rewrite_source, page_rewrite_details = rewrite_blocks(pages, mode, in_path)
         t_rewrite_end = time.perf_counter()
         compose_docx(pages, out_path, in_path.name)
-        if os.environ.get("OPDF_DOCX_POSTFORMAT_ENABLE", "1").strip() == "1":
+        if os.environ.get("TPDF_DOCX_POSTFORMAT_ENABLE", "1").strip() == "1":
             postformat_docx(out_path)
         t_compose_end = time.perf_counter()
 

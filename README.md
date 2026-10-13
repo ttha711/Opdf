@@ -1,15 +1,15 @@
-# OPDF
+# TPDF
 
-Offline-first PDF desktop app with a web-first development workflow. OPDF targets large technical PDFs, drawing review, local document operations, and an Electron desktop runtime with a constrained preload bridge.
+Offline-first PDF desktop app with a web-first development workflow. TPDF targets large technical PDFs, drawing review, local document operations, and an Electron desktop runtime with a constrained preload bridge.
 
 ## Current capabilities
 
 ### PDF viewing and large-document workflow
 - Web-first PDFium/WASM rendering through the MIT-licensed EmbedPDF viewer.
 - Virtualized continuous scrolling and virtualized thumbnails for large drawing sets.
-- Progressive URL loading in the drop-in viewer; OPDF Server documents are passed to the viewer by URL instead of being copied into a full browser Blob first.
+- Progressive URL loading in the drop-in viewer; TPDF Server documents are passed to the viewer by URL instead of being copied into a full browser Blob first.
 - Native viewer zoom, fit-page/fit-width, rotation, search, forms, annotations, redaction, selection, and export are available through the PDFium plugin registry.
-- OPDF Save/Export/document tools materialize the current PDFium working copy first so viewer edits are preserved.
+- TPDF Save/Export/document tools materialize the current PDFium working copy first so viewer edits are preserved.
 - Large-PDF regression and server E2E coverage require the PDFium/WASM viewer for many-sheet technical documents.
 
 ### Document operations
@@ -29,8 +29,8 @@ Offline-first PDF desktop app with a web-first development workflow. OPDF target
 
 ### Signatures
 - Visible local signatures.
-- Desktop and OPDF Server P12/PFX cryptographic signing using the same shared detached PKCS#7 engine.
-- Server certificates are encrypted at rest with AES-256-GCM when `OPDF_CERTIFICATE_MASTER_KEY` is configured; P12/PFX passwords are never persisted.
+- Desktop and TPDF Server P12/PFX cryptographic signing using the same shared detached PKCS#7 engine.
+- Server certificates are encrypted at rest with AES-256-GCM when `TPDF_CERTIFICATE_MASTER_KEY` is configured; P12/PFX passwords are never persisted.
 - Certificate metadata inspection.
 - Existing PDF signature inspection for ByteRange/CMS structure and later revisions.
 
@@ -39,9 +39,9 @@ Signature inspection is intentionally conservative: it reports structure and cer
 ### OCR and AI/editor components
 - Searchable-PDF OCR via Tesseract.js.
 - Browser runtime keeps the existing local OCR fallback.
-- OPDF Server uses an asynchronous OCR queue, renders scan pages through PDFium, preserves pages that already contain native text, and writes an invisible searchable text layer back into the PDF.
+- TPDF Server uses an asynchronous OCR queue, renders scan pages through PDFium, preserves pages that already contain native text, and writes an invisible searchable text layer back into the PDF.
 - Optional AI/provider integrations are configured separately through environment variables.
-- The repository also contains the OPDF editor workspace used by document-editing workflows.
+- The repository also contains the TPDF editor workspace used by document-editing workflows.
 
 ## Workspace
 
@@ -57,9 +57,13 @@ Signature inspection is intentionally conservative: it reports structure and cer
 - Platform dependencies required by Electron packaging.
 - LibreOffice/Python are optional and only required by conversion paths that explicitly use them.
 
+## Upgrading existing installations
+
+After the repository rename to [ttha711/Tpdf](https://github.com/ttha711/Tpdf), follow the [upgrade checklist](docs/TPDF_UPGRADE.md) before restarting an existing server. Rename environment-variable keys **without changing existing data storage paths, S3 prefixes, or encryption secrets**. The desktop app copies legacy recent-document and annotation settings on first launch when the new store does not exist.
+
 ## Server / browser runtime
 
-OPDF now supports a server runtime in addition to Electron Desktop. The same `apps/web` UI automatically selects an HTTP bridge when served by OPDF Server.
+TPDF now supports a server runtime in addition to Electron Desktop. The same `apps/web` UI automatically selects an HTTP bridge when served by TPDF Server.
 
 ```bash
 npm ci
@@ -71,7 +75,7 @@ Default address: `http://127.0.0.1:8787`.
 
 Server mode streams PDF uploads to disk, supports HTTP Range reads for large PDFs, serves WebAssembly with the correct MIME type, persists recents/session metadata, and sends Ctrl+S saves back to server storage. Persisted server PDFs stay URL-backed in the browser until an editing/conversion action explicitly needs complete document bytes. Keep the server on loopback behind Cloudflare Tunnel/Access or another authenticated reverse proxy for remote use.
 
-See `docs/SERVER_DEPLOYMENT.md` for Windows Server, data-directory, Cloudflare Tunnel, upload-limit, and production guidance.
+See `docs/SERVER_DEPLOYMENT.md` for Windows Server, data-directory, Cloudflare Tunnel, upload-limit, and production guidance. Optional read-only PDF diagnostics through PdfCraft are documented in `docs/DOCUMENT_HEALTH.md` (disabled by default).
 
 ## Development
 
@@ -90,18 +94,18 @@ The desktop development command uses a local web dev server. Do not treat develo
 
 ## Automation CLI
 
-OPDF includes a semantic Playwright CLI for AI agents, production checks, and repeatable browser automation.
+TPDF includes a semantic Playwright CLI for AI agents, production checks, and repeatable browser automation.
 
 ```bash
-npm run opdf -- inspect --url https://pdf.vivutrade.io.vn/ --json
-npm run opdf -- audit smoke --url https://pdf.vivutrade.io.vn/ --out opdf-cli-artifacts
-npm run opdf -- audit full --url https://pdf.vivutrade.io.vn/ --trace opdf-cli-artifacts/trace.zip
-npm run opdf -- audit e2e --url https://pdf.vivutrade.io.vn/ --trace opdf-cli-artifacts/trace.zip --video-dir opdf-cli-artifacts/video
+npm run tpdf -- inspect --url https://pdf.vivutrade.io.vn/ --json
+npm run tpdf -- audit smoke --url https://pdf.vivutrade.io.vn/ --out tpdf-cli-artifacts
+npm run tpdf -- audit full --url https://pdf.vivutrade.io.vn/ --trace tpdf-cli-artifacts/trace.zip
+npm run tpdf -- audit e2e --url https://pdf.vivutrade.io.vn/ --trace tpdf-cli-artifacts/trace.zip --video-dir tpdf-cli-artifacts/video
 ```
 
-The CLI uses stable `data-opdf-*` automation hooks instead of screen coordinates. GitHub Actions exposes **OPDF Production E2E**, which can run smoke/full checks or a disposable-document `e2e` suite against the deployed URL. After successful CI on `main`, it starts automatically and waits until the live site reports the same Git commit SHA before testing, so it cannot silently validate an older deployment. The E2E suite executes real PDF operations, validates exported/downloaded files, captures per-check screenshots, Playwright trace, and video, and fails on console/page/network errors.
+The CLI uses stable `data-tpdf-*` automation hooks instead of screen coordinates. GitHub Actions exposes **TPDF Production E2E**, which can run smoke/full checks or a disposable-document `e2e` suite against the deployed URL. After successful CI on `main`, it starts automatically and waits until the live site reports the same Git commit SHA before testing, so it cannot silently validate an older deployment. The E2E suite executes real PDF operations, validates exported/downloaded files, captures per-check screenshots, Playwright trace, and video, and fails on console/page/network errors.
 
-See `docs/OPDF_AUTOMATION_CLI.md` for commands and agent-oriented JSON output.
+See `docs/TPDF_AUTOMATION_CLI.md` for commands and agent-oriented JSON output.
 
 ## Web production resilience
 
@@ -125,7 +129,7 @@ Run the same main gates used by CI:
 npm ci
 npm run typecheck
 npm run test:cli
-npm run test -w @opdf/web
+npm run test -w @tpdf/web
 npm run build
 node apps/desktop/dist/main/pdf-signature.smoke.js
 npx playwright test --project=chromium
@@ -152,14 +156,14 @@ The GitHub release workflow packages all three platforms. A `vX.Y.Z` tag is conf
 - `contextIsolation: true`
 - `nodeIntegration: false`
 - `sandbox: true`
-- Renderer access to privileged operations is limited to the `window.opdf` preload bridge.
+- Renderer access to privileged operations is limited to the `window.tpdf` preload bridge.
 - External renderer navigation is denied; HTTPS links are opened in the operating-system browser.
 - Packaged hot-update URLs must use HTTPS.
 - Hot-update packages must be same-origin with their manifest, remain within the configured size limit, and match the manifest SHA-256 before extraction.
 
 ## Hot-update manifest
 
-Hot updates are **disabled unless** `OPDF_HOT_UPDATE_URL` is explicitly configured.
+Hot updates are **disabled unless** `TPDF_HOT_UPDATE_URL` is explicitly configured.
 
 Expected manifest shape:
 
@@ -184,13 +188,13 @@ The repository is release-gated through typecheck, unit tests, production builds
 The primary viewer is browser-only and does not depend on Electron/native rendering:
 
 ```
-OPDF React shell
+TPDF React shell
   -> EmbedPDF drop-in viewer
   -> PDFium WebAssembly
   -> virtualized page/thumbnail rendering
-  -> OPDF Server URL / HTTP Range source
+  -> TPDF Server URL / HTTP Range source
 ```
 
 The former custom PDF.js page-raster/WebP path is no longer the primary viewer. PDF.js remains available to document-processing features that still need its parsing/text utilities.
 
-For engineering/CAD workloads, validate performance with representative A0/A1 vector-heavy PDFs rather than file size alone. OPDF's E2E suite includes a generated many-sheet technical drawing set, but real 100-500+ MB project files remain the release benchmark.
+For engineering/CAD workloads, validate performance with representative A0/A1 vector-heavy PDFs rather than file size alone. TPDF's E2E suite includes a generated many-sheet technical drawing set, but real 100-500+ MB project files remain the release benchmark.

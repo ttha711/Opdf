@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { OpdfIcon, type OpdfIconName } from "./OpdfIcon";
+import { TpdfIcon, type TpdfIconName } from "./TpdfIcon";
 
 export type MenuItemDef =
-  | { kind: "action"; label: string; icon?: OpdfIconName; shortcut?: string; disabled?: boolean; title?: string; onClick: () => void }
-  | { kind: "submenu"; label: string; icon?: OpdfIconName; disabled?: boolean; title?: string; items: MenuItemDef[] }
+  | { kind: "action"; label: string; icon?: TpdfIconName; shortcut?: string; disabled?: boolean; title?: string; onClick: () => void }
+  | { kind: "submenu"; label: string; icon?: TpdfIconName; disabled?: boolean; title?: string; items: MenuItemDef[] }
   | { kind: "section"; label: string }
   | { kind: "separator" };
 
@@ -15,7 +15,7 @@ type MenuDropdownProps = {
   onClose: () => void;
   mobileSheet?: boolean;
   triggerTitle?: string;
-  triggerIcon?: OpdfIconName;
+  triggerIcon?: TpdfIconName;
 };
 
 function MenuItems({
@@ -59,10 +59,10 @@ function MenuItems({
         return (
           <button
             key={item.label}
-            data-opdf-menu-item={item.label}
+            data-tpdf-menu-item={item.label}
             className={
-              "opdf-menu-item " +
-              (mobileSheet ? "opdf-menu-item--mobile" : "opdf-menu-item--desktop")
+              "tpdf-menu-item " +
+              (mobileSheet ? "tpdf-menu-item--mobile" : "tpdf-menu-item--desktop")
             }
             disabled={item.disabled}
             title={item.title}
@@ -73,8 +73,8 @@ function MenuItems({
             type="button"
             role="menuitem"
           >
-            <span className="opdf-menu-item__lead">
-              {item.icon ? <OpdfIcon name={item.icon} size={18} /> : <span className="opdf-menu-item__icon-spacer" />}
+            <span className="tpdf-menu-item__lead">
+              {item.icon ? <TpdfIcon name={item.icon} size={18} /> : <span className="tpdf-menu-item__icon-spacer" />}
               <span className="truncate whitespace-nowrap">{item.label}</span>
             </span>
             {!mobileSheet && item.shortcut ? (
@@ -102,32 +102,32 @@ function SubmenuItem({
 
   return (
     <div
-      className={"opdf-submenu-row" + (open ? " is-open" : "")}
+      className={"tpdf-submenu-row" + (open ? " is-open" : "")}
       onMouseEnter={() => { if (!mobileSheet && !item.disabled) setOpen(true); }}
       onMouseLeave={() => { if (!mobileSheet) setOpen(false); }}
     >
       <button
         type="button"
         role="menuitem"
-        data-opdf-menu-item={item.label}
+        data-tpdf-menu-item={item.label}
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={item.disabled}
         title={item.title}
         className={
-          "opdf-menu-item opdf-menu-item--submenu " +
-          (mobileSheet ? "opdf-menu-item--mobile" : "opdf-menu-item--desktop")
+          "tpdf-menu-item tpdf-menu-item--submenu " +
+          (mobileSheet ? "tpdf-menu-item--mobile" : "tpdf-menu-item--desktop")
         }
         onClick={() => setOpen((value) => mobileSheet ? !value : true)}
       >
-        <span className="opdf-menu-item__lead">
-          {item.icon ? <OpdfIcon name={item.icon} size={18} /> : <span className="opdf-menu-item__icon-spacer" />}
+        <span className="tpdf-menu-item__lead">
+          {item.icon ? <TpdfIcon name={item.icon} size={18} /> : <span className="tpdf-menu-item__icon-spacer" />}
           <span className="truncate whitespace-nowrap">{item.label}</span>
         </span>
-        <OpdfIcon
+        <TpdfIcon
           name={mobileSheet && open ? "chevron-down" : "chevron-right"}
           size={15}
-          className="opdf-menu-item__chevron"
+          className="tpdf-menu-item__chevron"
         />
       </button>
 
@@ -136,10 +136,10 @@ function SubmenuItem({
           role="menu"
           className={
             mobileSheet
-              ? "opdf-submenu-surface opdf-submenu-surface--mobile"
-              : "opdf-submenu-surface opdf-submenu-surface--desktop"
+              ? "tpdf-submenu-surface tpdf-submenu-surface--mobile"
+              : "tpdf-submenu-surface tpdf-submenu-surface--desktop"
           }
-          data-opdf-menu-depth={depth + 1}
+          data-tpdf-menu-depth={depth + 1}
         >
           <MenuItems items={item.items} mobileSheet={mobileSheet} onClose={onClose} depth={depth + 1} />
         </div>
@@ -177,10 +177,10 @@ export function MenuDropdown({
   }, [isOpen, onClose]);
 
   return (
-    <div className="relative" ref={ref} data-opdf-menu={label}>
+    <div className="relative" ref={ref} data-tpdf-menu={label}>
       <button
-        data-opdf-menu-trigger={label}
-        className={"top-menu-btn opdf-menu-trigger" + (isOpen ? " menu-open" : "")}
+        data-tpdf-menu-trigger={label}
+        className={"top-menu-btn tpdf-menu-trigger" + (isOpen ? " menu-open" : "")}
         onClick={onToggle}
         type="button"
         aria-haspopup="menu"
@@ -188,17 +188,17 @@ export function MenuDropdown({
         aria-label={triggerTitle || label}
         title={triggerTitle}
       >
-        {triggerIcon ? <OpdfIcon name={triggerIcon} size={20} /> : label}
+        {triggerIcon ? <TpdfIcon name={triggerIcon} size={20} /> : label}
       </button>
       {isOpen ? (
         <div
           role="menu"
-          data-opdf-menu-surface={label}
-          data-opdf-mobile-sheet={mobileSheet ? "true" : "false"}
+          data-tpdf-menu-surface={label}
+          data-tpdf-mobile-sheet={mobileSheet ? "true" : "false"}
           className={
             mobileSheet
-              ? "opdf-menu-surface opdf-menu-surface--mobile"
-              : "opdf-menu-surface opdf-menu-surface--desktop"
+              ? "tpdf-menu-surface tpdf-menu-surface--mobile"
+              : "tpdf-menu-surface tpdf-menu-surface--desktop"
           }
           style={{ zIndex: "var(--z-dropdown)" }}
         >

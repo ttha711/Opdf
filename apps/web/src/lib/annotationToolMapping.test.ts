@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { isEmbedPdfReplaceTextTool, mapActiveToolToEmbedPdfAnnotation, mapEmbedPdfToolToActiveTool } from "./annotationToolMapping";
 
 describe("annotation tool mapping", () => {
-  it("maps OPDF text to editable EmbedPDF FreeText", () => {
+  it("maps TPDF text to editable EmbedPDF FreeText", () => {
     expect(mapActiveToolToEmbedPdfAnnotation("text")).toBe("freeText");
   });
 
-  it("maps OPDF note to EmbedPDF sticky text annotation", () => {
+  it("maps TPDF note to EmbedPDF sticky text annotation", () => {
     expect(mapActiveToolToEmbedPdfAnnotation("note")).toBe("text");
   });
 

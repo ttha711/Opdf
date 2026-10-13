@@ -3,7 +3,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const baseURL = process.env.OPDF_UI_AUDIT_URL || "http://127.0.0.1:8787";
+const baseURL = process.env.TPDF_UI_AUDIT_URL || "http://127.0.0.1:8787";
 const outDir = resolve("ui-audit");
 const samplePath = resolve("ui-audit", "sample-ui-audit.pdf");
 
@@ -13,7 +13,7 @@ const pdf = await PDFDocument.create();
 const font = await pdf.embedFont(StandardFonts.Helvetica);
 for (let index = 0; index < 3; index += 1) {
   const page = pdf.addPage([595.28, 841.89]);
-  page.drawText("OPDF UI Audit", { x: 54, y: 770, size: 28, font, color: rgb(0.12, 0.2, 0.34) });
+  page.drawText("TPDF UI Audit", { x: 54, y: 770, size: 28, font, color: rgb(0.12, 0.2, 0.34) });
   page.drawText("Sample page " + (index + 1), { x: 54, y: 720, size: 18, font });
   page.drawText("This document is generated automatically for visual QA.", { x: 54, y: 680, size: 12, font });
   page.drawRectangle({ x: 54, y: 560, width: 480, height: 80, borderWidth: 1 });
@@ -33,7 +33,7 @@ async function shot(name) {
 }
 
 async function assertMainPdfSurface() {
-  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
   await viewer.waitFor({ state: "visible", timeout: 30000 });
 
   let diagnostics = [];
@@ -122,7 +122,7 @@ const APPLICATION_MENU_PATHS = {
 
 function menuItemSelector(label) {
   const escaped = label.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  return `[data-opdf-menu-item="${escaped}"]:visible`;
+  return `[data-tpdf-menu-item="${escaped}"]:visible`;
 }
 
 async function assertReachable(element, label) {
@@ -262,7 +262,7 @@ try {
   await page.goto(baseURL, { waitUntil: "networkidle" });
   // Session restore may reopen the last server-backed tab after navigation.
   // Enter Home explicitly; Home must not discard the restored/open tab set.
-  const homeButton = page.locator('[data-opdf-action="home"]').first();
+  const homeButton = page.locator('[data-tpdf-action="home"]').first();
   await homeButton.waitFor({ state: "visible", timeout: 10000 });
   await homeButton.click();
   await page.getByRole("heading", { name: "Your documents, ready when you are." }).waitFor({ state: "visible", timeout: 10000 });
@@ -271,7 +271,7 @@ try {
   await page.getByRole("button", { name: "Open PDF", exact: true }).click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(samplePath);
-  await page.locator('[data-opdf-engine="pdfium-wasm"]').waitFor({ state: "visible", timeout: 30000 });
+  await page.locator('[data-tpdf-engine="pdfium-wasm"]').waitFor({ state: "visible", timeout: 30000 });
   await page.waitForTimeout(800);
   await shot("15-mobile-viewer");
   const mobileViewer = page.locator(".viewer-shell");
@@ -291,7 +291,7 @@ try {
     await sidebarPanel.waitFor({ state: "hidden", timeout: 15000 });
   }
   await page.locator("header").getByRole("button", { name: "Application menu", exact: true }).click();
-  await page.locator('[data-opdf-mobile-sheet="true"]').waitFor({ state: "visible", timeout: 5000 });
+  await page.locator('[data-tpdf-mobile-sheet="true"]').waitFor({ state: "visible", timeout: 5000 });
   await shot("17-mobile-menu");
   console.log("UI audit screenshots written to", outDir);
 } finally {

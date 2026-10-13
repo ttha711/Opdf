@@ -1,4 +1,4 @@
-import type { PdfContentPatch } from "@opdf/core";
+import type { PdfContentPatch } from "@tpdf/core";
 
 type Props = {
   page: number;
@@ -44,7 +44,7 @@ export function NativeContentToolbar({
             y: 72,
             fontSize: 18,
             fillColor: "#000000",
-            fontFamily: "__opdf_unicode__",
+            fontFamily: "__tpdf_unicode__",
           }], "Native text object added.")}
           disabled={loading}
         >

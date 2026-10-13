@@ -7,7 +7,7 @@ export function AppUpdateBanner({ updateInfo }: AppUpdateBannerProps) {
 
   return (
     <div
-      className="opdf-update-banner"
+      className="tpdf-update-banner"
       style={{
         backgroundColor: "#10b981",
         color: "white",
@@ -30,7 +30,7 @@ export function AppUpdateBanner({ updateInfo }: AppUpdateBannerProps) {
       </div>
       <button
         type="button"
-        onClick={() => { void window.opdfUpdate?.restartApp(); }}
+        onClick={() => { void window.tpdfUpdate?.restartApp(); }}
         style={{
           backgroundColor: "white",
           color: "#10b981",

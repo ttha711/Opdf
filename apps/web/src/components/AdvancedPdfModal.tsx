@@ -11,6 +11,9 @@ import {
   type PdfBookmarkInput,
 } from "../lib/pdfAdvanced";
 import { useDialogClose } from "../hooks/useDialogClose";
+import { inspectPdfBookmarks } from "../lib/pdfOutlineInspector";
+import { BookmarkEditorPanel } from "./document-tool-panel/BookmarkEditorPanel";
+import { AdvancedLinkEditorPanel } from "./document-tool-panel/AdvancedLinkEditorPanel";
 
 type Tab = "forms" | "bookmarks" | "links";
 
@@ -37,6 +40,8 @@ export function AdvancedPdfModal({
   const [fieldValues, setFieldValues] = useState<Record<string, FormFieldValue>>({});
   const [flatten, setFlatten] = useState(false);
   const [bookmarks, setBookmarks] = useState<PdfBookmarkInput[]>([]);
+  const [outlineLoading, setOutlineLoading] = useState(false);
+  const [unsupportedBookmarks, setUnsupportedBookmarks] = useState(0);
   const [linkMode, setLinkMode] = useState<"external" | "internal">("external");
   const [linkPage, setLinkPage] = useState(currentPage);
   const [destinationPage, setDestinationPage] = useState(Math.min(totalPages, currentPage + 1));
@@ -57,7 +62,8 @@ export function AdvancedPdfModal({
     );
     setStatus("");
     setError(null);
-  }, [isOpen, currentPage, initialBookmarks, totalPages]);
+    setUnsupportedBookmarks(0);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || tab !== "forms" || !source) return;
@@ -81,6 +87,26 @@ export function AdvancedPdfModal({
     return () => { cancelled = true; };
   }, [isOpen, tab, source]);
 
+  useEffect(() => {
+    if (!isOpen || tab !== "bookmarks" || !source) return;
+    let active = true;
+    setOutlineLoading(true);
+    setError(null);
+    void inspectPdfBookmarks(source).then(result => {
+      if (!active) return;
+      setBookmarks(result.hasOutline ? result.bookmarks :
+        initialBookmarks.length ? initialBookmarks.map(item => ({...item})) :
+        [{title:"Page " + currentPage,page:currentPage}]);
+      setUnsupportedBookmarks(result.unsupported);
+      setStatus(result.hasOutline ? result.bookmarks.length + " existing bookmark(s) loaded" : "No existing bookmarks");
+    }).catch(reason => {
+      if (!active) return;
+      setError(reason instanceof Error ? reason.message : "Unable to inspect bookmarks");
+      setUnsupportedBookmarks(1);
+    }).finally(() => { if (active) setOutlineLoading(false); });
+    return () => { active = false; };
+  }, [isOpen, tab, source, currentPage]);
+
   const validBookmarks = useMemo(
     () => bookmarks.filter((item) => item.title.trim() && item.page >= 1 && item.page <= totalPages),
     [bookmarks, totalPages],
@@ -101,6 +127,7 @@ export function AdvancedPdfModal({
   };
 
   const applyBookmarks = async () => {
+    if (outlineLoading || unsupportedBookmarks > 0) return;
     setBusy(true);
     setError(null);
     try {
@@ -145,11 +172,11 @@ export function AdvancedPdfModal({
   if (!isOpen) return null;
 
   return (
-    <div data-opdf-dialog="advanced-pdf" className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
+    <div data-tpdf-dialog="advanced-pdf" className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
       <div className="premium-modal flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden">
         <div className="premium-modal-header">
           <div className="premium-modal-title">Advanced PDF</div>
-          <button data-opdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
+          <button data-tpdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
         </div>
 
         <div className="flex border-b border-[var(--border-color)] px-4 pt-2">
@@ -232,122 +259,35 @@ export function AdvancedPdfModal({
           ) : null}
 
           {tab === "bookmarks" ? (
-            <div>
-              <div className="mb-3 rounded border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
-                These are real PDF outline bookmarks. Choose a previous bookmark as Parent to create a hierarchy.
-              </div>
-              <div className="space-y-2">
-                {bookmarks.map((bookmark, index) => (
-                  <div key={index} className="grid grid-cols-[minmax(0,1fr)_80px_150px_auto] items-center gap-2">
-                    <input
-                      value={bookmark.title}
-                      onChange={(event) => setBookmarks((current) => current.map((item, i) => i === index ? { ...item, title: event.target.value } : item))}
-                      placeholder="Bookmark title"
-                      className="min-w-0 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-2 text-sm"
-                    />
-                    <input
-                      type="number"
-                      min={1}
-                      max={Math.max(1, totalPages)}
-                      value={bookmark.page}
-                      onChange={(event) => setBookmarks((current) => current.map((item, i) => i === index ? { ...item, page: Number(event.target.value) || 1 } : item))}
-                      className="rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-2 text-sm"
-                      title="Page"
-                    />
-                    <select
-                      value={bookmark.parent ?? ""}
-                      onChange={(event) => {
-                        const raw = event.target.value;
-                        setBookmarks((current) => current.map((item, i) => i === index
-                          ? { ...item, parent: raw === "" ? undefined : Number(raw) }
-                          : item));
-                      }}
-                      className="rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-2 text-xs"
-                      title="Parent bookmark"
-                    >
-                      <option value="">Top level</option>
-                      {bookmarks.slice(0, index).map((candidate, parentIndex) => (
-                        <option key={parentIndex} value={parentIndex}>{candidate.title || "Bookmark " + (parentIndex + 1)}</option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setBookmarks((current) => current
-                        .filter((_, i) => i !== index)
-                        .map((item) => ({
-                          ...item,
-                          parent: item.parent === index
-                            ? undefined
-                            : typeof item.parent === "number" && item.parent > index
-                              ? item.parent - 1
-                              : item.parent,
-                        })))}
-                      className="rounded border border-red-200 px-2 py-2 text-xs text-red-600"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => setBookmarks((current) => [...current, { title: "Page " + currentPage, page: currentPage }])}
-                className="mt-3 rounded border border-[var(--border-color)] px-3 py-2 text-xs font-semibold"
-              >
-                + Add bookmark
-              </button>
+            <div className="space-y-3">
+              {outlineLoading ? <p role="status" className="text-xs">Reading existing PDF bookmarks…</p> : null}
+              {unsupportedBookmarks > 0 ? (
+                <p role="alert" className="rounded border border-amber-300 p-3 text-xs">
+                  {unsupportedBookmarks} bookmark(s) use unsupported destinations or actions.
+                  Editing is disabled to protect the original outline.
+                </p>
+              ) : null}
+              <BookmarkEditorPanel bookmarks={bookmarks} setBookmarks={setBookmarks}
+                totalPages={totalPages} currentPage={currentPage}
+                locked={busy || outlineLoading || unsupportedBookmarks > 0} />
             </div>
           ) : null}
 
-          {tab === "links" ? (
-            <div className="space-y-3">
-              <div className="rounded border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
-                Coordinates are percentages of the page, measured from the top-left. The link area itself is invisible in the exported PDF.
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block text-xs font-semibold">Link type
-                  <select value={linkMode} onChange={(event) => setLinkMode(event.target.value as "external" | "internal")} className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal">
-                    <option value="external">External URL</option>
-                    <option value="internal">Internal page</option>
-                  </select>
-                </label>
-                <label className="block text-xs font-semibold">Source page
-                  <input type="number" min={1} max={Math.max(1, totalPages)} value={linkPage} onChange={(event) => setLinkPage(Number(event.target.value) || 1)} className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
-                </label>
-              </div>
-              {linkMode === "external" ? (
-                <label className="block text-xs font-semibold">URL
-                  <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
-                </label>
-              ) : (
-                <label className="block text-xs font-semibold">Destination page
-                  <input type="number" min={1} max={Math.max(1, totalPages)} value={destinationPage} onChange={(event) => setDestinationPage(Number(event.target.value) || 1)} className="mt-1 w-32 rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-3 py-2 text-sm font-normal" />
-                </label>
-              )}
-              <div className="grid grid-cols-4 gap-2">
-                {(["x", "y", "width", "height"] as const).map((key) => (
-                  <label key={key} className="text-xs font-semibold capitalize">{key} %
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={linkRect[key]}
-                      onChange={(event) => setLinkRect((current) => ({ ...current, [key]: Number(event.target.value) || 0 }))}
-                      className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2 py-2 text-sm font-normal"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          {tab === "links" ? <AdvancedLinkEditorPanel
+            linkMode={linkMode} setLinkMode={setLinkMode}
+            linkPage={linkPage} setLinkPage={setLinkPage}
+            destinationPage={destinationPage} setDestinationPage={setDestinationPage}
+            linkUrl={linkUrl} setLinkUrl={setLinkUrl}
+            linkRect={linkRect} setLinkRect={setLinkRect}
+            totalPages={totalPages} /> : null}
         </div>
 
         <div className="premium-modal-footer">
-          <button data-opdf-action="close-dialog" type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Cancel</button>
+          <button data-tpdf-action="close-dialog" type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Cancel</button>
           {tab === "forms" ? (
             <button type="button" disabled={busy || fields.length === 0} onClick={() => void applyForms()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Apply form values</button>
           ) : tab === "bookmarks" ? (
-            <button type="button" disabled={busy || validBookmarks.length === 0} onClick={() => void applyBookmarks()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Embed bookmarks</button>
+            <button type="button" disabled={busy || outlineLoading || unsupportedBookmarks > 0 || validBookmarks.length === 0} onClick={() => void applyBookmarks()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Embed bookmarks</button>
           ) : (
             <button type="button" disabled={busy || (linkMode === "external" && !linkUrl.trim())} onClick={() => void applyLink()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">{linkMode === "internal" ? "Add internal link" : "Add hyperlink"}</button>
           )}

@@ -1,4 +1,4 @@
-import type { PdfContentObject } from "@opdf/core";
+import type { PdfContentObject } from "@tpdf/core";
 
 // Keep the DOM bounded on complex CAD plans while preserving hit targets
 // across the entire sheet, not simply the first 500 objects in PDF order.
@@ -17,8 +17,8 @@ function hitScore(object: PdfContentObject): number {
 
 function sheetCell(object: PdfContentObject): number {
   const { x, y, width, height } = object.bounds;
-  const normalizedX = (x + width / 2) / Math.max(1, object.pageWidth);
-  const normalizedY = (y + height / 2) / Math.max(1, object.pageHeight);
+  const normalizedX = (x + width / 2 - (object.pageOrigin?.x ?? 0)) / Math.max(1, object.pageWidth);
+  const normalizedY = (y + height / 2 - (object.pageOrigin?.y ?? 0)) / Math.max(1, object.pageHeight);
   const column = Math.min(GRID_SIZE - 1, Math.max(0, Math.floor(normalizedX * GRID_SIZE)));
   const row = Math.min(GRID_SIZE - 1, Math.max(0, Math.floor(normalizedY * GRID_SIZE)));
   return row * GRID_SIZE + column;

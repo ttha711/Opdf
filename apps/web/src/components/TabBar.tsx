@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { OpdfTab } from "../lib/web-storage";
+import type { TpdfTab } from "../lib/web-storage";
 
 interface TabBarProps {
-  tabs: OpdfTab[];
+  tabs: TpdfTab[];
   activeTabId: string | null;
   activeGroupFilter: string | null;
   switchTab: (id: string) => void;

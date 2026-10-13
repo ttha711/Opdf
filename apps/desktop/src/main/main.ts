@@ -1,3 +1,4 @@
+// tpdf-file-size-allow: legacy Electron IPC/bootstrap coordinator; the rename adds only guarded startup data migration, and extracting all existing IPC handlers is a separate refactor.
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { extname, join, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -7,6 +8,7 @@ import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { inspectP12Certificate, inspectPdfSignatures, signPdfWithP12, type P12SignOptions } from "./pdf-signature.js";
+import { migrateDesktopStorage } from "./storage-migration.js";
 import {
   AnnotationService,
   DocumentService,
@@ -19,12 +21,12 @@ import {
   type PageNumbers,
   type PasswordOptions,
   type SessionSnapshot,
-} from "@opdf/core";
+} from "@tpdf/core";
 
 const documentService = new DocumentService();
 const annotationService = new AnnotationService();
 const ocrService = new OcrService();
-const storageService = new StorageService(join(homedir(), ".opdf"));
+const storageService = new StorageService(join(homedir(), ".tpdf"));
 
 type AiProviderConfig = {
   mode: "dify" | "local" | "iframe";
@@ -76,7 +78,7 @@ let deviceAuthState: DeviceAuthState = {
 };
 
 function getAiGatewayBaseUrl(): string {
-  const raw = (process.env.OPDF_AI_GATEWAY_URL || "").trim();
+  const raw = (process.env.TPDF_AI_GATEWAY_URL || "").trim();
   if (!raw) return "";
   return raw.replace(/\/+$/, "");
 }
@@ -191,7 +193,7 @@ async function ensureDeviceToken(): Promise<string | null> {
   try {
     const registered = await requestDeviceToken("/auth/device/register", {
       deviceId: deviceAuthState.deviceId,
-      appName: "OPDF Desktop",
+      appName: "TPDF Desktop",
       appVersion: app.getVersion(),
       runtime: "electron",
     });
@@ -254,9 +256,9 @@ function normalizePatchResponse(value: unknown, payload: LiveEditorPatchRequest)
 }
 
 async function requestOpenRouterPatch(payload: LiveEditorPatchRequest): Promise<LiveEditorPatchResponse | null> {
-  const key = process.env.OPENROUTER_API_KEY || process.env.OPDF_OPENROUTER_API_KEY;
+  const key = process.env.OPENROUTER_API_KEY || process.env.TPDF_OPENROUTER_API_KEY;
   if (!key) return null;
-  const model = process.env.OPDF_OPENROUTER_MODEL || "openai/gpt-4o";
+  const model = process.env.TPDF_OPENROUTER_MODEL || "openai/gpt-4o";
   const target = payload.selectedBlocks[0] ?? payload.allBlocks[0];
   if (!target) throw new Error("No target block for AI patch.");
   const instruction = [
@@ -400,10 +402,10 @@ let pendingUpdate: { version: string; path: string } | null = null;
 
 async function checkAndDownloadUpdates(win: BrowserWindow) {
   try {
-    const configuredUpdateUrl = process.env.OPDF_HOT_UPDATE_URL?.trim();
+    const configuredUpdateUrl = process.env.TPDF_HOT_UPDATE_URL?.trim();
     if (!configuredUpdateUrl) {
       console.log(
-        "Hot-update checks are disabled because OPDF_HOT_UPDATE_URL is not configured."
+        "Hot-update checks are disabled because TPDF_HOT_UPDATE_URL is not configured."
       );
       return;
     }
@@ -478,7 +480,7 @@ async function checkAndDownloadUpdates(win: BrowserWindow) {
       throw new Error("Hot-update package SHA-256 mismatch.");
     }
 
-    const tempZipPath = join(tmpdir(), `opdf-update-${manifest.version}.zip`);
+    const tempZipPath = join(tmpdir(), `tpdf-update-${manifest.version}.zip`);
     const destDir = join(app.getPath("userData"), "web-updates", manifest.version);
 
     await writeFile(tempZipPath, zipBuffer);
@@ -500,7 +502,7 @@ async function checkAndDownloadUpdates(win: BrowserWindow) {
 
     pendingUpdate = { version: manifest.version, path: indexPath };
     console.log(`Update ${manifest.version} ready. Notifying renderer...`);
-    win.webContents.send("opdf:update-ready", {
+    win.webContents.send("tpdf:update-ready", {
       version: manifest.version,
       description: manifest.description || "Bug fixes and improvements."
     });
@@ -585,7 +587,7 @@ function createMainWindow(): BrowserWindow {
     callback(false);
   });
 
-  const devServer = process.env.OPDF_DEV_SERVER;
+  const devServer = process.env.TPDF_DEV_SERVER;
   const allowedDevOrigin = (() => {
     if (!devServer) return null;
     try {
@@ -629,7 +631,7 @@ function createMainWindow(): BrowserWindow {
   // Trigger hot-update check shortly after the DOM is ready
   win.webContents.on("dom-ready", () => {
     if (pendingUpdate) {
-      win.webContents.send("opdf:update-ready", {
+      win.webContents.send("tpdf:update-ready", {
         version: pendingUpdate.version,
         description: "Bug fixes and improvements."
       });
@@ -663,7 +665,7 @@ function resolveRewritePipelineScript(): string {
 }
 
 function resolveSofficePath(): string {
-  const envPath = process.env.OPDF_SOFFICE_PATH;
+  const envPath = process.env.TPDF_SOFFICE_PATH;
   if (envPath && existsSync(envPath)) return envPath;
   const candidates = [
     "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
@@ -683,7 +685,7 @@ async function convertOfficeFileToPdf(bytes: Uint8Array, fileName: string): Prom
   const payload = toNodeBuffer(bytes);
   if (payload.byteLength === 0) throw new Error("Cannot convert an empty Office file.");
 
-  const workDir = await mkdtemp(join(tmpdir(), "opdf-office-to-pdf-"));
+  const workDir = await mkdtemp(join(tmpdir(), "tpdf-office-to-pdf-"));
   const inputPath = join(workDir, "input" + extension);
   const outputPath = join(workDir, "input.pdf");
   await writeFile(inputPath, payload);
@@ -707,7 +709,7 @@ async function convertOfficeFileToPdf(bytes: Uint8Array, fileName: string): Prom
       child.once("error", (error: NodeJS.ErrnoException) => {
         rejectWorker(
           error.code === "ENOENT"
-            ? new Error("LibreOffice is not installed or OPDF_SOFFICE_PATH is not configured.")
+            ? new Error("LibreOffice is not installed or TPDF_SOFFICE_PATH is not configured.")
             : error,
         );
       });
@@ -734,13 +736,13 @@ function resolvePowershellScript(): string {
 }
 
 function registerIpcHandlers(): void {
-  ipcMain.handle("opdf:open-project-folder", async () => {
-    const targetPath = process.env.OPDF_PROJECT_PATH || app.getAppPath();
+  ipcMain.handle("tpdf:open-project-folder", async () => {
+    const targetPath = process.env.TPDF_PROJECT_PATH || app.getAppPath();
     const result = await shell.openPath(targetPath);
     return result === "";
   });
 
-  ipcMain.handle("opdf:pick-and-open", async () => {
+  ipcMain.handle("tpdf:pick-and-open", async () => {
     const result = await dialog.showOpenDialog({
       filters: [{ name: "PDF", extensions: ["pdf"] }],
       properties: ["openFile"],
@@ -756,34 +758,34 @@ function registerIpcHandlers(): void {
     return opened;
   });
 
-  ipcMain.handle("opdf:open", async (_event, filePath: string) => documentService.open(filePath));
-  ipcMain.handle("opdf:save", async (_event, filePath: string, bytes: Uint8Array) => documentService.save(filePath, bytes));
-  ipcMain.handle("opdf:export-flattened", async (_event, bytes: Uint8Array, annotations: any[]) => documentService.exportFlattened(bytes, annotations));
+  ipcMain.handle("tpdf:open", async (_event, filePath: string) => documentService.open(filePath));
+  ipcMain.handle("tpdf:save", async (_event, filePath: string, bytes: Uint8Array) => documentService.save(filePath, bytes));
+  ipcMain.handle("tpdf:export-flattened", async (_event, bytes: Uint8Array, annotations: any[]) => documentService.exportFlattened(bytes, annotations));
   
   // Advanced Tools
-  ipcMain.handle("opdf:compress", async (_event, bytes: Uint8Array) => documentService.compressPdf(bytes));
-  ipcMain.handle("opdf:watermark", async (_event, bytes: Uint8Array, text: string) => documentService.watermarkPdf(bytes, text));
-  ipcMain.handle("opdf:merge", async (_event, bytesList: Uint8Array[]) => documentService.merge(bytesList));
-  ipcMain.handle("opdf:split", async (_event, bytes: Uint8Array, pages: number[]) => documentService.split(bytes, pages));
-  ipcMain.handle("opdf:encrypt", async (_event, bytes: Uint8Array, opts: PasswordOptions) => documentService.encryptPdf(bytes, opts));
-  ipcMain.handle("opdf:decrypt", async (_event, bytes: Uint8Array, password: string) => documentService.decryptPdf(bytes, password));
-  ipcMain.handle("opdf:insert-pages", async (_event, bytes: Uint8Array, opts: InsertOptions) => documentService.insertPages(bytes, opts));
-  ipcMain.handle("opdf:delete-pages", async (_event, bytes: Uint8Array, pageNumbers: number[]) => documentService.deletePages(bytes, pageNumbers));
-  ipcMain.handle("opdf:crop-page", async (_event, bytes: Uint8Array, opts: CropOptions) => documentService.cropPage(bytes, opts));
-  ipcMain.handle("opdf:add-page-numbers", async (_event, bytes: Uint8Array, opts: PageNumbers) => documentService.addPageNumbers(bytes, opts));
-  ipcMain.handle("opdf:add-header-footer", async (_event, bytes: Uint8Array, lines: HeaderFooterLine[], isHeader: boolean) => documentService.addHeaderFooter(bytes, lines, isHeader));
-  ipcMain.handle("opdf:add-bookmarks", async (_event, bytes: Uint8Array, bookmarks: Array<{ title: string; page: number; parent?: number }>) => documentService.addBookmarks(bytes, bookmarks));
-  ipcMain.handle("opdf:add-bates-numbering", async (_event, bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => documentService.addBatesNumbering(bytes, prefix, startNumber, suffix));
-  ipcMain.handle("opdf:convert-to-pdfa", async (_event, bytes: Uint8Array) => documentService.convertToPdfA(bytes));
-  ipcMain.handle("opdf:rotate-pages", async (_event, bytes: Uint8Array, pageNumbers: number[], degrees: number) => documentService.rotatePages(bytes, pageNumbers, degrees));
-  ipcMain.handle("opdf:show-item-in-folder", async (_event, filePath: string) => { shell.showItemInFolder(filePath); });
-  ipcMain.handle("opdf:inspect-p12", async (_event, certificateBytes: Uint8Array, passphrase: string) => {
+  ipcMain.handle("tpdf:compress", async (_event, bytes: Uint8Array) => documentService.compressPdf(bytes));
+  ipcMain.handle("tpdf:watermark", async (_event, bytes: Uint8Array, text: string) => documentService.watermarkPdf(bytes, text));
+  ipcMain.handle("tpdf:merge", async (_event, bytesList: Uint8Array[]) => documentService.merge(bytesList));
+  ipcMain.handle("tpdf:split", async (_event, bytes: Uint8Array, pages: number[]) => documentService.split(bytes, pages));
+  ipcMain.handle("tpdf:encrypt", async (_event, bytes: Uint8Array, opts: PasswordOptions) => documentService.encryptPdf(bytes, opts));
+  ipcMain.handle("tpdf:decrypt", async (_event, bytes: Uint8Array, password: string) => documentService.decryptPdf(bytes, password));
+  ipcMain.handle("tpdf:insert-pages", async (_event, bytes: Uint8Array, opts: InsertOptions) => documentService.insertPages(bytes, opts));
+  ipcMain.handle("tpdf:delete-pages", async (_event, bytes: Uint8Array, pageNumbers: number[]) => documentService.deletePages(bytes, pageNumbers));
+  ipcMain.handle("tpdf:crop-page", async (_event, bytes: Uint8Array, opts: CropOptions) => documentService.cropPage(bytes, opts));
+  ipcMain.handle("tpdf:add-page-numbers", async (_event, bytes: Uint8Array, opts: PageNumbers) => documentService.addPageNumbers(bytes, opts));
+  ipcMain.handle("tpdf:add-header-footer", async (_event, bytes: Uint8Array, lines: HeaderFooterLine[], isHeader: boolean) => documentService.addHeaderFooter(bytes, lines, isHeader));
+  ipcMain.handle("tpdf:add-bookmarks", async (_event, bytes: Uint8Array, bookmarks: Array<{ title: string; page: number; parent?: number }>) => documentService.addBookmarks(bytes, bookmarks));
+  ipcMain.handle("tpdf:add-bates-numbering", async (_event, bytes: Uint8Array, prefix: string, startNumber: number, suffix?: string) => documentService.addBatesNumbering(bytes, prefix, startNumber, suffix));
+  ipcMain.handle("tpdf:convert-to-pdfa", async (_event, bytes: Uint8Array) => documentService.convertToPdfA(bytes));
+  ipcMain.handle("tpdf:rotate-pages", async (_event, bytes: Uint8Array, pageNumbers: number[], degrees: number) => documentService.rotatePages(bytes, pageNumbers, degrees));
+  ipcMain.handle("tpdf:show-item-in-folder", async (_event, filePath: string) => { shell.showItemInFolder(filePath); });
+  ipcMain.handle("tpdf:inspect-p12", async (_event, certificateBytes: Uint8Array, passphrase: string) => {
     return inspectP12Certificate(certificateBytes, passphrase || "");
   });
-  ipcMain.handle("opdf:inspect-pdf-signatures", async (_event, bytes: Uint8Array) => {
+  ipcMain.handle("tpdf:inspect-pdf-signatures", async (_event, bytes: Uint8Array) => {
     return inspectPdfSignatures(bytes);
   });
-  ipcMain.handle("opdf:sign-p12", async (
+  ipcMain.handle("tpdf:sign-p12", async (
     _event,
     bytes: Uint8Array,
     certificateBytes: Uint8Array,
@@ -792,15 +794,15 @@ function registerIpcHandlers(): void {
     return signPdfWithP12(bytes, certificateBytes, options);
   });
 
-  ipcMain.handle("opdf:convert-office-pdf", async (_event, bytes: Uint8Array, fileName: string) => {
+  ipcMain.handle("tpdf:convert-office-pdf", async (_event, bytes: Uint8Array, fileName: string) => {
     return convertOfficeFileToPdf(bytes, fileName);
   });
 
-  ipcMain.handle("opdf:convert-pdf-office", async (_event, bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => {
+  ipcMain.handle("tpdf:convert-pdf-office", async (_event, bytes: Uint8Array, format: "docx" | "pptx" | "xlsx") => {
     const payload = toNodeBuffer(bytes);
     if (payload.byteLength === 0) throw new Error("Cannot convert empty PDF payload.");
 
-    const workDir = await mkdtemp(join(tmpdir(), "opdf-convert-"));
+    const workDir = await mkdtemp(join(tmpdir(), "tpdf-convert-"));
     const inputPath = join(workDir, "input.pdf");
     const outputPath = join(workDir, `output.${format}`);
     await writeFile(inputPath, payload);
@@ -811,11 +813,11 @@ function registerIpcHandlers(): void {
         if (false) {
         } else {
           const pythonExe = resolveBundledPython();
-          const mode = format === "docx" ? (process.env.OPDF_REWRITE_MODE || "strict-factual") : "auto";
+          const mode = format === "docx" ? (process.env.TPDF_REWRITE_MODE || "strict-factual") : "auto";
           const scriptPath = format === "docx" ? resolveRewritePipelineScript() : resolveConverterScript();
           child = spawn(pythonExe, [scriptPath, inputPath, format, outputPath, mode], {
             stdio: ["ignore", "pipe", "pipe"],
-            env: { ...process.env, OPDF_SOFFICE_PATH: resolveSofficePath(), OPDF_DIFY_URL: aiProviderConfig.difyUrl || "", OPDF_DIFY_KEY: aiProviderConfig.difyKey || "", OPDF_AI_MODE: aiProviderConfig.mode || "local" },
+            env: { ...process.env, TPDF_SOFFICE_PATH: resolveSofficePath(), TPDF_DIFY_URL: aiProviderConfig.difyUrl || "", TPDF_DIFY_KEY: aiProviderConfig.difyKey || "", TPDF_AI_MODE: aiProviderConfig.mode || "local" },
           });
 
         }
@@ -839,7 +841,7 @@ function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle("opdf:save-file", async (_event, bytes: Uint8Array, defaultName: string, extensions: string[]) => {
+  ipcMain.handle("tpdf:save-file", async (_event, bytes: Uint8Array, defaultName: string, extensions: string[]) => {
     const ext = defaultName.split(".").pop() || "bin";
     const result = await dialog.showSaveDialog({
       defaultPath: defaultName,
@@ -859,7 +861,7 @@ function registerIpcHandlers(): void {
     return result.filePath;
   });
 
-  ipcMain.handle("opdf:save-as", async (_event, bytes: Uint8Array) => {
+  ipcMain.handle("tpdf:save-as", async (_event, bytes: Uint8Array) => {
     const result = await dialog.showSaveDialog({
       filters: [{ name: "PDF", extensions: ["pdf"] }],
       defaultPath: documentService.createTempName("document"),
@@ -877,55 +879,55 @@ function registerIpcHandlers(): void {
     return result.filePath;
   });
 
-  ipcMain.handle("opdf:storage:get-recent", async () => storageService.getRecent());
-  ipcMain.handle("opdf:storage:push-recent", async (_event, filePath: string) => storageService.pushRecent(filePath));
-  ipcMain.handle("opdf:storage:restore-session", async () => storageService.restoreSession());
-  ipcMain.handle("opdf:storage:write-session", async (_event, session: SessionSnapshot) => storageService.writeSession(session));
+  ipcMain.handle("tpdf:storage:get-recent", async () => storageService.getRecent());
+  ipcMain.handle("tpdf:storage:push-recent", async (_event, filePath: string) => storageService.pushRecent(filePath));
+  ipcMain.handle("tpdf:storage:restore-session", async () => storageService.restoreSession());
+  ipcMain.handle("tpdf:storage:write-session", async (_event, session: SessionSnapshot) => storageService.writeSession(session));
 
-  ipcMain.handle("opdf:annotation:list", async (_event, documentId: string) => {
+  ipcMain.handle("tpdf:annotation:list", async (_event, documentId: string) => {
     const stored = await storageService.listAnnotations(documentId);
     if (stored.length > 0 && annotationService.list(documentId).length === 0) {
       annotationService.replace(documentId, stored);
     }
     return annotationService.list(documentId);
   });
-  ipcMain.handle("opdf:annotation:create", async (_event, documentId: string, input: AnnotationCreateInput) => {
+  ipcMain.handle("tpdf:annotation:create", async (_event, documentId: string, input: AnnotationCreateInput) => {
     const created = annotationService.create(documentId, input);
     await storageService.writeAnnotations(documentId, annotationService.list(documentId));
     return created;
   });
-  ipcMain.handle("opdf:annotation:delete", async (_event, documentId: string, id: string) => {
+  ipcMain.handle("tpdf:annotation:delete", async (_event, documentId: string, id: string) => {
     const deleted = annotationService.delete(documentId, id);
     await storageService.writeAnnotations(documentId, annotationService.list(documentId));
     return deleted;
   });
-  ipcMain.handle("opdf:annotation:update", async (_event, documentId: string, id: string, payload: Record<string, unknown>) => {
+  ipcMain.handle("tpdf:annotation:update", async (_event, documentId: string, id: string, payload: Record<string, unknown>) => {
     const updated = annotationService.update(documentId, id, payload);
     await storageService.writeAnnotations(documentId, annotationService.list(documentId));
     return updated;
   });
-  ipcMain.handle("opdf:annotation:undo", async (_event, documentId: string) => {
+  ipcMain.handle("tpdf:annotation:undo", async (_event, documentId: string) => {
     const annotations = annotationService.undo(documentId);
     await storageService.writeAnnotations(documentId, annotations);
     return annotations;
   });
-  ipcMain.handle("opdf:annotation:redo", async (_event, documentId: string) => {
+  ipcMain.handle("tpdf:annotation:redo", async (_event, documentId: string) => {
     const annotations = annotationService.redo(documentId);
     await storageService.writeAnnotations(documentId, annotations);
     return annotations;
   });
 
-  ipcMain.handle("opdf:ocr:enqueue", async (_event, filePath: string, language?: string) => ocrService.enqueue(filePath, language));
-  ipcMain.handle("opdf:ocr:run", async (_event, jobId: string) => ocrService.run(jobId));
-  ipcMain.handle("opdf:ocr:list", async () => ocrService.list());
+  ipcMain.handle("tpdf:ocr:enqueue", async (_event, filePath: string, language?: string) => ocrService.enqueue(filePath, language));
+  ipcMain.handle("tpdf:ocr:run", async (_event, jobId: string) => ocrService.run(jobId));
+  ipcMain.handle("tpdf:ocr:list", async () => ocrService.list());
 
-  ipcMain.handle("opdf:ai-patch", async (_event, payload: LiveEditorPatchRequest) => {
+  ipcMain.handle("tpdf:ai-patch", async (_event, payload: LiveEditorPatchRequest) => {
     const openRouterPatch = await requestOpenRouterPatch(payload);
     if (openRouterPatch) return openRouterPatch;
 
     const gatewayBase = getAiGatewayBaseUrl();
-    const endpoint = gatewayBase ? `${gatewayBase}/ai/patch` : (process.env.OPDF_LIVE_EDITOR_AI_ENDPOINT || aiProviderConfig.difyUrl);
-    const apiKey = process.env.OPDF_LIVE_EDITOR_AI_KEY || aiProviderConfig.difyKey;
+    const endpoint = gatewayBase ? `${gatewayBase}/ai/patch` : (process.env.TPDF_LIVE_EDITOR_AI_ENDPOINT || aiProviderConfig.difyUrl);
+    const apiKey = process.env.TPDF_LIVE_EDITOR_AI_KEY || aiProviderConfig.difyKey;
     if (!endpoint) {
       throw new Error("AI patch endpoint is not configured in desktop backend.");
     }
@@ -951,14 +953,14 @@ function registerIpcHandlers(): void {
     return normalizePatchResponse(raw, payload);
   });
 
-  ipcMain.handle("opdf:ai-config:set", async (_event, cfg: AiProviderConfig) => {
+  ipcMain.handle("tpdf:ai-config:set", async (_event, cfg: AiProviderConfig) => {
     aiProviderConfig = { ...aiProviderConfig, ...cfg };
     return true;
   });
 
-  ipcMain.handle("opdf:ai-config:get", async () => aiProviderConfig);
-  ipcMain.handle("opdf:ai:token:get", async () => ensureDeviceToken());
-  ipcMain.handle("opdf:ai:device-status:get", async () => ({
+  ipcMain.handle("tpdf:ai-config:get", async () => aiProviderConfig);
+  ipcMain.handle("tpdf:ai:token:get", async () => ensureDeviceToken());
+  ipcMain.handle("tpdf:ai:device-status:get", async () => ({
     deviceId: deviceAuthState.deviceId,
     hasToken: Boolean(deviceAuthState.appToken),
     expiresAt: deviceAuthState.expiresAt || null,
@@ -966,7 +968,7 @@ function registerIpcHandlers(): void {
     gatewayBaseUrl: getAiGatewayBaseUrl() || null,
   }));
 
-  ipcMain.handle("opdf:check-pending-update", async () => {
+  ipcMain.handle("tpdf:check-pending-update", async () => {
     if (pendingUpdate) {
       return {
         version: pendingUpdate.version,
@@ -976,7 +978,7 @@ function registerIpcHandlers(): void {
     return null;
   });
 
-  ipcMain.handle("opdf:restart-app", async () => {
+  ipcMain.handle("tpdf:restart-app", async () => {
     if (pendingUpdate) {
       const activeConfigPath = join(app.getPath("userData"), "active-version.json");
       writeFileSync(activeConfigPath, JSON.stringify(pendingUpdate, null, 2), "utf-8");
@@ -987,12 +989,18 @@ function registerIpcHandlers(): void {
   });
 }
 
-const remoteDebugPort = (process.env.OPDF_REMOTE_DEBUG_PORT || "").trim();
+const remoteDebugPort = (process.env.TPDF_REMOTE_DEBUG_PORT || "").trim();
 if (remoteDebugPort) {
   app.commandLine.appendSwitch("remote-debugging-port", remoteDebugPort);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  try {
+    const migration = await migrateDesktopStorage(homedir());
+    if (migration === "migrated") console.info("TPDF desktop settings copied from legacy profile.");
+  } catch (error) {
+    console.error("TPDF could not migrate existing desktop settings:", error);
+  }
   void loadDeviceAuthState().finally(() => {
     if (getAiGatewayBaseUrl()) {
       void ensureDeviceToken().catch(() => {

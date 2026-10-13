@@ -1,5 +1,5 @@
 import type { ActiveTool } from "../lib/app-types";
-import { OpdfIcon, type OpdfIconName } from "./OpdfIcon";
+import { TpdfIcon, type TpdfIconName } from "./TpdfIcon";
 
 type ViewerQuickToolsProps = {
   activeTool: ActiveTool;
@@ -9,7 +9,7 @@ type ViewerQuickToolsProps = {
 type QuickTool = {
   id: ActiveTool;
   label: string;
-  icon: OpdfIconName;
+  icon: TpdfIconName;
 };
 
 const tools: QuickTool[] = [
@@ -40,7 +40,7 @@ export function ViewerQuickTools({ activeTool, onActiveToolChange }: ViewerQuick
           aria-pressed={activeTool === tool.id}
           onClick={() => onActiveToolChange(tool.id)}
         >
-          <OpdfIcon name={tool.icon} size={18} />
+          <TpdfIcon name={tool.icon} size={18} />
         </button>
       ))}
     </div>

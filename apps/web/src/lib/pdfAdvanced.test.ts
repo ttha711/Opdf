@@ -2,6 +2,7 @@ import {
   PDFArray,
   PDFCheckBox,
   PDFDict,
+  PDFHexString,
   PDFDocument,
   PDFName,
   PDFTextField,
@@ -29,11 +30,30 @@ describe("advanced PDF tools", () => {
     const fields = await inspectFormFields(source);
     expect(fields.map((field) => field.name)).toEqual(["name", "approved"]);
 
-    const filled = await fillFormFields(source, { name: "OPDF", approved: true });
+    const filled = await fillFormFields(source, { name: "TPDF", approved: true });
     const loaded = await PDFDocument.load(filled);
     const loadedForm = loaded.getForm();
-    expect((loadedForm.getTextField("name") as PDFTextField).getText()).toBe("OPDF");
+    expect((loadedForm.getTextField("name") as PDFTextField).getText()).toBe("TPDF");
     expect((loadedForm.getCheckBox("approved") as PDFCheckBox).isChecked()).toBe(true);
+  });
+
+  it("embeds nested Unicode bookmark titles without losing accents", async () => {
+    const titleOne = String.fromCodePoint(66, 7843, 110, 32, 118, 7869, 32, 107, 105, 7871, 110, 32, 116, 114, 250, 99);
+    const titleTwo = String.fromCodePoint(67, 7845, 117, 32, 116, 7841, 111, 32, 109, 243, 110, 103);
+    const doc = await PDFDocument.create();
+    doc.addPage([300, 400]);
+    doc.addPage([300, 400]);
+    const bytes = await addPdfBookmarks(await doc.save(), [
+      { title: titleOne, page: 1 },
+      { title: titleTwo, page: 2, parent: 0 },
+    ]);
+    const loaded = await PDFDocument.load(bytes);
+    const root = loaded.catalog.lookup(PDFName.of("Outlines"), PDFDict);
+    const first = root.lookup(PDFName.of("First"), PDFDict);
+    const text = first.lookup(PDFName.of("Title"), PDFHexString);
+    expect(text.decodeText()).toBe(titleOne);
+    const nested = first.lookup(PDFName.of("First"), PDFDict);
+    expect(nested.lookup(PDFName.of("Title"), PDFHexString).decodeText()).toBe(titleTwo);
   });
 
   it("adds a URI link annotation", async () => {

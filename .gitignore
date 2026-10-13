@@ -79,12 +79,12 @@ apps/web/public/web.zip
 .claude/
 apps/editor/docs/
 
-# OPDF server runtime data
-.opdf-data/
-.opdf-e2e-data/
+# TPDF server runtime data
+.tpdf-data/
+.tpdf-e2e-data/
 
-# OPDF automation CLI artifacts
-opdf-cli-artifacts/
+# TPDF automation CLI artifacts
+tpdf-cli-artifacts/
 
 # Downloaded external engineering plans (never commit third-party PDFs)
-.opdf-cad-fixtures/
+.tpdf-cad-fixtures/

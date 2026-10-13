@@ -1,6 +1,7 @@
 export interface DocumentToolPanelProps {
   activeToolId: string;
   fileName: string;
+  sourceIdentity?: string | null;
   docBytes: Uint8Array | null;
   sourceBlob?: Blob | null;
   getDocumentBytes: () => Promise<Uint8Array | null>;

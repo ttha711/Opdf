@@ -13,14 +13,14 @@ type Fixture = {
   textSample?: string;
 };
 
-const fixtureDir = process.env.OPDF_REAL_CAD_FIXTURES_DIR;
+const fixtureDir = process.env.TPDF_REAL_CAD_FIXTURES_DIR;
 const manifest: Fixture[] = JSON.parse(
   readFileSync(resolve('tests/fixtures/real-cad-corpus.json'), 'utf8'),
 );
 
 async function logFailureState(page: import('@playwright/test').Page, fixture: string, stage: string) {
   const state = await page.evaluate(() => {
-    const field = document.querySelector<HTMLTextAreaElement>('[data-opdf-inline-text-editor]');
+    const field = document.querySelector<HTMLTextAreaElement>('[data-tpdf-inline-text-editor]');
     const images = [...document.querySelectorAll<HTMLImageElement | HTMLCanvasElement>(
       '.native-edit-page img, .native-edit-page canvas',
     )];
@@ -29,16 +29,16 @@ async function logFailureState(page: import('@playwright/test').Page, fixture: s
       pages: document.querySelectorAll('.native-edit-page').length,
       overlayObjects: document.querySelectorAll('polygon.native-edit-object').length,
       rasterCount: images.length,
-      fallbackStage: document.querySelector('[data-opdf-pdfjs-fallback]')?.getAttribute('data-opdf-fallback-stage') ?? null,
+      fallbackStage: document.querySelector('[data-tpdf-pdfjs-fallback]')?.getAttribute('data-tpdf-fallback-stage') ?? null,
       paintedRasters: images.filter((image) => image instanceof HTMLImageElement
         ? image.complete && image.naturalWidth > 0 : image.width > 0 && image.height > 0).length,
       viewportSize: bounds ? [Math.round(bounds.width), Math.round(bounds.height)] : null,
-      editorVisible: !!document.querySelector('[data-opdf-native-editor]'),
+      editorVisible: !!document.querySelector('[data-tpdf-native-editor]'),
       inputVisible: !!field,
       inputBusy: field?.getAttribute('aria-busy') ?? null,
       error: document.querySelector('[role="alert"]')?.textContent?.slice(0, 350) ?? null,
       editMessage: document.querySelector('.native-content-editor__message')?.textContent?.slice(0, 350) ?? null,
-      saveState: document.querySelector('[data-opdf-region="status-bar"]')?.getAttribute('data-opdf-save-state') ?? null,
+      saveState: document.querySelector('[data-tpdf-region="status-bar"]')?.getAttribute('data-tpdf-save-state') ?? null,
       pageChildren: [...document.querySelectorAll('.native-edit-page')].slice(0, 3).map((node) => ({
         rect: [Math.round(node.getBoundingClientRect().width), Math.round(node.getBoundingClientRect().height)],
         children: [...node.children].map((child) => ({
@@ -61,7 +61,7 @@ test.describe('public real-world CAD reference PDFs', () => {
     test(fixture.id + ': raster, bounded overlay, inline save/reopen', async ({ page, request }) => {
       const bytes = readFileSync(join(resolve(fixtureDir!), fixture.id + '.pdf'));
       expect(bytes.length).toBe(fixture.size);
-      const upload = await request.post('/api/opdf/documents?name=' + fixture.id + '.pdf', {
+      const upload = await request.post('/api/tpdf/documents?name=' + fixture.id + '.pdf', {
         data: bytes,
         headers: { 'Content-Type': 'application/pdf' },
       });
@@ -70,13 +70,13 @@ test.describe('public real-world CAD reference PDFs', () => {
       const pageErrors: string[] = [];
       const saveRequests: string[] = [];
       page.on('request', (req) => {
-        if (req.method() === 'PUT' && /\/api\/opdf\/documents\/[^/]+$/.test(new URL(req.url()).pathname)) {
+        if (req.method() === 'PUT' && /\/api\/tpdf\/documents\/[^/]+$/.test(new URL(req.url()).pathname)) {
           saveRequests.push('PUT requested; content-bytes=' + (req.postDataBuffer()?.byteLength ?? 'unknown'));
         }
       });
       page.on('response', (response) => {
         if (response.request().method() === 'PUT' &&
-          /\/api\/opdf\/documents\/[^/]+$/.test(new URL(response.url()).pathname)) {
+          /\/api\/tpdf\/documents\/[^/]+$/.test(new URL(response.url()).pathname)) {
           saveRequests.push('PUT response ' + response.status());
         }
       });
@@ -94,13 +94,13 @@ test.describe('public real-world CAD reference PDFs', () => {
       });
       const started = Date.now();
       await page.goto('/?open=' + encodeURIComponent(stored.filePath));
-      await expect(page.locator("[data-opdf-engine='pdfium-wasm']"))
+      await expect(page.locator("[data-tpdf-engine='pdfium-wasm']"))
         .toBeVisible({ timeout: 60_000 });
       await page.getByTitle('Edit PDF Content').click();
-      const expand = page.locator('[data-opdf-action="expand-right-panel"]');
+      const expand = page.locator('[data-tpdf-action="expand-right-panel"]');
       await expect(expand).toBeVisible({ timeout: 60_000 });
       await expand.click();
-      const editor = page.locator('[data-opdf-native-editor="true"]');
+      const editor = page.locator('[data-tpdf-native-editor="true"]');
       await expect(editor).toBeVisible({ timeout: 60_000 });
       try {
         await expect(page.locator('.native-edit-page img, .native-edit-page canvas').first())
@@ -115,7 +115,7 @@ test.describe('public real-world CAD reference PDFs', () => {
       }).toBeGreaterThan(0);
       const mounted = await page.locator('polygon.native-edit-object').count();
       expect(mounted).toBeLessThanOrEqual(500);
-      expect(await editor.locator('.native-content-editor__objects button[data-opdf-object-id]').count())
+      expect(await editor.locator('.native-content-editor__objects button[data-tpdf-object-id]').count())
         .toBeLessThanOrEqual(201);
       console.log(JSON.stringify({ fixture: fixture.id, loadMs: Date.now() - started, svgTargets: mounted }));
 
@@ -131,7 +131,7 @@ test.describe('public real-world CAD reference PDFs', () => {
           pickedTextObject,
           originalText: (await input.inputValue()).slice(0, 90),
         }));
-        const replacement = 'OPDF CAD TEST ' + fixture.id;
+        const replacement = 'TPDF CAD TEST ' + fixture.id;
         await input.fill(replacement);
         // Dense CAD documents can commit on blur while the textarea is
         // resizing/re-rendering. Do not re-resolve an already removed input:
@@ -154,7 +154,7 @@ test.describe('public real-world CAD reference PDFs', () => {
         // rows and may still be filtered to the pinned source object ID.
         const editedSearch = page.getByRole('searchbox', { name: 'Find PDF object' });
         if (await editedSearch.count()) await editedSearch.fill(replacement);
-        await expect(editor.locator('.native-content-editor__objects button[data-opdf-object-kind="text"]')
+        await expect(editor.locator('.native-content-editor__objects button[data-tpdf-object-kind="text"]')
           .filter({ hasText: replacement })).toHaveCount(1, { timeout: 90_000 });
         try {
           await saveServerDocumentAndWait(page);
@@ -164,15 +164,15 @@ test.describe('public real-world CAD reference PDFs', () => {
           throw error;
         }
         await page.reload();
-        await expect(page.locator("[data-opdf-engine='pdfium-wasm']"))
+        await expect(page.locator("[data-tpdf-engine='pdfium-wasm']"))
           .toBeVisible({ timeout: 60_000 });
         await page.getByTitle('Edit PDF Content').click();
-        await page.locator('[data-opdf-action="expand-right-panel"]').click();
+        await page.locator('[data-tpdf-action="expand-right-panel"]').click();
         // The object sidebar intentionally virtualizes large CAD lists to
         // 200 rows. Search the full inspected PDF object list after reload.
         const search = page.getByRole('searchbox', { name: 'Find PDF object' });
         if (await search.count()) await search.fill(replacement);
-        const reopened = page.locator('.native-content-editor__objects button[data-opdf-object-kind="text"]');
+        const reopened = page.locator('.native-content-editor__objects button[data-tpdf-object-kind="text"]');
         await expect(reopened.filter({ hasText: replacement })).toHaveCount(1, { timeout: 90_000 });
       }
       expect(pageErrors).toEqual([]);

@@ -5,8 +5,8 @@ describe("document source", () => {
   const identity = "server://123e4567-e89b-12d3-a456-426614174000/drawing.pdf";
 
   it("maps persisted server identities to the document endpoint", () => {
-    expect(getServerDocumentUrl(identity, "/api/opdf")).toBe(
-      "/api/opdf/documents/123e4567-e89b-12d3-a456-426614174000",
+    expect(getServerDocumentUrl(identity, "/api/tpdf")).toBe(
+      "/api/tpdf/documents/123e4567-e89b-12d3-a456-426614174000",
     );
   });
 
@@ -15,7 +15,7 @@ describe("document source", () => {
     expect(resolvePdfSource({
       docBytes: bytes,
       sourceIdentity: identity,
-      serverBaseUrl: "/api/opdf",
+      serverBaseUrl: "/api/tpdf",
     })).toBe(bytes);
   });
 
@@ -32,7 +32,7 @@ describe("document source", () => {
   it("uses the server URL when no local working copy exists", () => {
     expect(resolvePdfSource({
       sourceIdentity: identity,
-      serverBaseUrl: "/api/opdf",
-    })).toBe("/api/opdf/documents/123e4567-e89b-12d3-a456-426614174000");
+      serverBaseUrl: "/api/tpdf",
+    })).toBe("/api/tpdf/documents/123e4567-e89b-12d3-a456-426614174000");
   });
 });

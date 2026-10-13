@@ -1,5 +1,5 @@
 import type React from "react";
-import { useOpdfBridge } from "../../../hooks/useOpdfBridge";
+import { useTpdfBridge } from "../../../hooks/useTpdfBridge";
 import { downloadFile } from "./helpers";
 import { buildPdfTextExport } from "../../../lib/pdfTextExport";
 
@@ -18,7 +18,7 @@ interface UsePdfToOfficeArgs {
 }
 
 export function usePdfToOffice(args: UsePdfToOfficeArgs) {
-  const bridge = useOpdfBridge();
+  const bridge = useTpdfBridge();
   const {
     activeToolId,
     docBytes,

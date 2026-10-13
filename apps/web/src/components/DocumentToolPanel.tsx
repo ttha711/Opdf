@@ -1,4 +1,4 @@
-// opdf-file-size-allow: existing legacy panel over 300 lines; this issue makes a narrow accessibility fix without unrelated refactor.
+// tpdf-file-size-allow: existing legacy panel over 300 lines; this issue makes a narrow accessibility fix without unrelated refactor.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SplitToolPanel } from "./document-tool-panel/SplitToolPanel";
 import { MergeToolPanel } from "./document-tool-panel/MergeToolPanel";
@@ -9,10 +9,14 @@ import type { DocumentToolPanelProps, MergeFile } from "./document-tool-panel/ty
 import { useSplitMergeActions } from "./document-tool-panel/useSplitMergeActions";
 import { useConversionActions } from "./document-tool-panel/useConversionActions";
 import { BasicPdfToolsPanel } from "./document-tool-panel/BasicPdfToolsPanel";
+import { DocumentHealthPanel } from "./document-tool-panel/DocumentHealthPanel";
+import { PageOrganizer } from "./document-tool-panel/PageOrganizer";
+import { PdfDrawingWorkspace } from "./document-tool-panel/PdfDrawingWorkspace";
 
 export function DocumentToolPanel({
   activeToolId,
   fileName,
+  sourceIdentity,
   docBytes,
   sourceBlob = null,
   getDocumentBytes,
@@ -26,6 +30,8 @@ export function DocumentToolPanel({
   bridge,
 }: DocumentToolPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [organizerOpen, setOrganizerOpen] = useState(false);
+  const [drawingWorkspaceOpen, setDrawingWorkspaceOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [imgFormat, setImgFormat] = useState<"png" | "jpg">("png");
@@ -164,15 +170,15 @@ export function DocumentToolPanel({
   });
 
   return (
-    <aside data-opdf-panel="tool" data-opdf-tool={activeToolId} className="acrobat-tool-panel select-none overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
+    <aside data-tpdf-panel="tool" data-tpdf-tool={activeToolId} className="acrobat-tool-panel select-none overflow-y-auto border-l border-[var(--border-color)] bg-[var(--bg-panel)] text-[var(--text-primary)]">
       <input
         type="file"
-        id={`opdf-tool-file-${activeToolId}`}
+        id={`tpdf-tool-file-${activeToolId}`}
         aria-label={activeToolId === "merge-pdf" ? "Choose PDF documents to merge" : "Choose a file for conversion"}
         ref={fileInputRef}
         onChange={activeToolId === "merge-pdf" ? handleMergeFileSelected : handleOfficeFileSelected}
         multiple={activeToolId === "merge-pdf"}
-        data-opdf-file-input={activeToolId}
+        data-tpdf-file-input={activeToolId}
         className="hidden"
       />
 
@@ -180,7 +186,7 @@ export function DocumentToolPanel({
         <h4 className="m-0 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.04em] text-[var(--text-primary)]">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M7 12h10M9 18h6" /></svg> {toolName}
         </h4>
-        <button data-opdf-action="close-tool" onClick={onClose} title="Close tool" className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-[11px] text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] hover:text-[var(--text-primary)] transition-all">
+        <button data-tpdf-action="close-tool" onClick={onClose} title="Close tool" className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-[11px] text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] hover:text-[var(--text-primary)] transition-all">
           ✕
         </button>
       </div>
@@ -307,9 +313,14 @@ export function DocumentToolPanel({
           />
         ) : null}
 
+        {activeToolId === "drawing-workspace" && <button type="button" data-tpdf-action="open-drawing-workspace" onClick={() => setDrawingWorkspaceOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open drawing workspace</button>}
+        {activeToolId === "organize-pages" && <button type="button" data-tpdf-action="open-page-organizer" title="Organize all pages" onClick={() => setOrganizerOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open page grid</button>}
         {activeToolId === "fill-form" && <FillFormPanel />}
+        {activeToolId === "document-health" && <DocumentHealthPanel sourceIdentity={sourceIdentity} />}
       </div>
 
+      {activeToolId === "drawing-workspace" && drawingWorkspaceOpen && <PdfDrawingWorkspace fileName={fileName} getDocumentBytes={getDocumentBytes} onClose={() => setDrawingWorkspaceOpen(false)} />}
+      {activeToolId === "organize-pages" && organizerOpen && <PageOrganizer totalPages={totalPages} fileName={fileName} getDocumentBytes={getDocumentBytes} bridge={bridge} replaceDocumentBytes={replaceDocumentBytes} onClose={() => setOrganizerOpen(false)} />}
       <div className="absolute bottom-6 left-4 right-4 p-2.5 rounded bg-[var(--ui-muted-bg)] border border-[var(--border-color)] text-[10px] text-[var(--text-secondary)] leading-normal flex gap-2 items-start">
         <span className="text-[12px] relative top-px">🔒</span>
         <span>Processing location depends on the selected tool. Large conversions may use a configured service; PDF viewing and annotations stay in the browser.</span>

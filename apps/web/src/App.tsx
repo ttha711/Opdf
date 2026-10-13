@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AiSparkIcon } from "./components/AiSparkIcon";
 import { AppHeader } from "./components/AppHeader";
+import { CommandPalette } from "./components/CommandPalette";
 import { HomeScreen } from "./components/HomeScreen";
 import { StatusBar } from "./components/StatusBar";
 import { ServerUploadBanner } from "./components/ServerUploadBanner";
@@ -15,11 +16,11 @@ import { useResizableSidebars } from "./hooks/useResizableSidebars";
 import { resolvePdfSource } from "./lib/documentSource";
 import { hasFullWebAccess } from "./lib/runtimeAccess";
 import { AiRewriteEditorWindow, AllToolsDashboard, LiveHtmlEditor, AppDocumentDialogs, AppWorkspace } from "./components/app/AppLazyModules";
-import "./types/opdf";
+import "./types/tpdf";
 
 export function App() {
-  const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.opdf);
-  const isServerRuntime = typeof window !== "undefined" && window.__OPDF_RUNTIME__ === "server";
+  const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.tpdf);
+  const isServerRuntime = typeof window !== "undefined" && window.__TPDF_RUNTIME__ === "server";
   const isPublic = !hasFullWebAccess({
     hasDesktopBridge,
     isServerRuntime,
@@ -52,9 +53,9 @@ export function App() {
     setViewerError: state.setViewerError,
   });
   useEffect(() => {
-    if (!window.opdfUpdate) return;
-    window.opdfUpdate.onUpdateReady(setUpdateInfo);
-    void window.opdfUpdate.checkPendingUpdate().then((info) => {
+    if (!window.tpdfUpdate) return;
+    window.tpdfUpdate.onUpdateReady(setUpdateInfo);
+    void window.tpdfUpdate.checkPendingUpdate().then((info) => {
       if (info) setUpdateInfo(info);
     });
   }, []);
@@ -138,6 +139,7 @@ export function App() {
     <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}`}>
       <AppUpdateBanner updateInfo={updateInfo} />
       <ServerUploadBanner />
+      <CommandPalette hasDocument={state.hasDocument} isPublic={isPublic} onOpenFile={() => { setShowHome(false); headerProps.openFile(); }} onNavigate={() => setShowHome(false)} />
       <AppHeader
         {...headerProps}
         autosaveStatus={controllers.autosaveStatus}
@@ -271,7 +273,7 @@ export function App() {
       {!isAiPanelOpen ? (
         <button
           ref={fab.buttonRef}
-          data-opdf-action="open-ai"
+          data-tpdf-action="open-ai"
           className={`ai-float-toggle-btn pulse-aura ${fab.isDragging ? "dragging" : ""}`}
           style={fab.position ? { left: fab.position.x, top: fab.position.y, right: "auto", bottom: "auto" } : undefined}
           onMouseDown={fab.handleMouseDown}

@@ -89,7 +89,10 @@ export function useDraggableFab({
     const endDrag = () => {
       dragInputRef.current = null;
       setIsDragging(false);
-      if (!position) return;
+      // A tap must leave the button under the pointer until the browser emits
+      // click. Snapping a previously positioned FAB after a no-move press can
+      // move it before that event and silently discard the tap.
+      if (!position || !hasMovedRef.current) return;
 
       const btnSize = 48;
       const currentX = position.x;

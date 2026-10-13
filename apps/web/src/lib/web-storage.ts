@@ -1,9 +1,9 @@
-const DB_NAME = "OpdfWebStorage";
+const DB_NAME = "TpdfWebStorage";
 const STORE_NAME = "drafts";
 const PDF_KEY = "current_pdf_bytes";
 const STATE_KEY = "current_session_state";
 
-export interface OpdfTab {
+export interface TpdfTab {
   id: string;
   fileName: string;
   docBytes: Uint8Array | null;
@@ -42,20 +42,20 @@ async function getDB(): Promise<IDBDatabase> {
 }
 
 /** Returns true when the data was durably written, false on failure. */
-export async function saveTabsList(tabs: OpdfTab[]): Promise<boolean> {
+export async function saveTabsList(tabs: TpdfTab[]): Promise<boolean> {
   try {
     // Persist only lightweight workspace metadata. Full PDF byte arrays and
     // viewer-derived state must stay out of
     // IndexedDB autosave. A future File System Access/OPFS source reference can
     // restore local documents without copying their bytes into app state.
-    const safeTabs: OpdfTab[] = tabs.map((tab) => ({
+    const safeTabs: TpdfTab[] = tabs.map((tab) => ({
       ...tab,
       docBytes: null,
       sourceBlob: null,
     }));
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(safeTabs, "opdf_tabs");
+    tx.objectStore(STORE_NAME).put(safeTabs, "tpdf_tabs");
     await awaitTransaction(tx);
     return true;
   } catch (err) {
@@ -64,16 +64,16 @@ export async function saveTabsList(tabs: OpdfTab[]): Promise<boolean> {
   }
 }
 
-export async function loadTabsList(): Promise<OpdfTab[] | null> {
+export async function loadTabsList(): Promise<TpdfTab[] | null> {
   try {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
-    const req = store.get("opdf_tabs");
+    const req = store.get("tpdf_tabs");
     return new Promise((resolve) => {
       req.onsuccess = () => {
-      const value = req.result as OpdfTab[] | undefined;
-      // An intentionally empty saved session must not restore an older draft.
+      const value = req.result as TpdfTab[] | undefined;
+      // Preserve the explicit close-all state instead of restoring stale drafts.
       if (Array.isArray(value) && value.length === 0) {
         resolve([]);
         return;
@@ -98,7 +98,7 @@ export async function saveActiveTabId(id: string | null): Promise<boolean> {
   try {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(id, "opdf_active_tab_id");
+    tx.objectStore(STORE_NAME).put(id, "tpdf_active_tab_id");
     await awaitTransaction(tx);
     return true;
   } catch (err) {
@@ -112,7 +112,7 @@ export async function loadActiveTabId(): Promise<string | null> {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
-    const req = store.get("opdf_active_tab_id");
+    const req = store.get("tpdf_active_tab_id");
     return new Promise((resolve) => {
       req.onsuccess = () => resolve(req.result || null);
       tx.onerror = () => resolve(null);
@@ -206,16 +206,14 @@ export async function savePdfBytes(bytes: Uint8Array) {
   }
 }
 
-export async function saveWebState(state: WebState): Promise<boolean> {
+export async function saveWebState(state: WebState) {
   try {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(state, STATE_KEY);
     await awaitTransaction(tx);
-    return true;
   } catch (err) {
     console.error("Failed to save web state:", err);
-    return false;
   }
 }
 

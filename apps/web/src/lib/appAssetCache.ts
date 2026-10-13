@@ -43,7 +43,7 @@ async function warmAssets(paths: string[]) {
 export function registerOfflineAppCache(buildSha: string) {
   if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
 
-  const scriptUrl = new URL("opdf-sw.js", document.baseURI);
+  const scriptUrl = new URL("tpdf-sw.js", document.baseURI);
   scriptUrl.searchParams.set("build", buildSha);
   void navigator.serviceWorker.register(scriptUrl.href, {
     scope: new URL("./", document.baseURI).pathname,

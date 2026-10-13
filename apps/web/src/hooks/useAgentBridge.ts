@@ -11,7 +11,7 @@ import {
   type AgentStateSnapshot,
 } from "../agent/agentCommands";
 
-export interface OpdfAgentApi {
+export interface TpdfAgentApi {
   version: "1";
   listTools: () => typeof AGENT_TOOL_DEFINITIONS;
   getState: () => ReturnType<typeof getAgentStateForPrompt>;
@@ -22,7 +22,7 @@ export interface OpdfAgentApi {
 
 declare global {
   interface Window {
-    opdfAgent?: OpdfAgentApi;
+    tpdfAgent?: TpdfAgentApi;
   }
 }
 
@@ -36,7 +36,7 @@ export function useAgentBridge(context: AgentActionContext) {
   );
 
   useEffect(() => {
-    const api: OpdfAgentApi = {
+    const api: TpdfAgentApi = {
       version: "1",
       listTools: () => AGENT_TOOL_DEFINITIONS,
       getState: () => getAgentStateForPrompt(latestContextRef.current.state),
@@ -55,10 +55,10 @@ export function useAgentBridge(context: AgentActionContext) {
       },
     };
 
-    window.opdfAgent = api;
+    window.tpdfAgent = api;
     return () => {
-      if (window.opdfAgent === api) {
-        delete window.opdfAgent;
+      if (window.tpdfAgent === api) {
+        delete window.tpdfAgent;
       }
     };
   }, [queue]);

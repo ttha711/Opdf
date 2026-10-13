@@ -31,7 +31,7 @@ function formatBytes(value: number) {
 
 export function ServerAuthGate({ children }: { children: ReactNode }) {
   const isServerRuntime =
-    typeof window !== "undefined" && window.__OPDF_RUNTIME__ === "server";
+    typeof window !== "undefined" && window.__TPDF_RUNTIME__ === "server";
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(!isServerRuntime);
   const [requiresLogin, setRequiresLogin] = useState(false);
@@ -43,25 +43,25 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
 
   async function loadSession() {
     if (!isServerRuntime) return;
-    const response = await fetch("/api/opdf/auth/me", { credentials: "same-origin" });
+    const response = await fetch("/api/tpdf/auth/me", { credentials: "same-origin" });
     if (response.status === 401) {
       setRequiresLogin(true);
       setSession(null);
       setReady(true);
       return;
     }
-    if (!response.ok) throw new Error(`Unable to load OPDF session: HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`Unable to load TPDF session: HTTP ${response.status}`);
     const nextSession = await response.json() as Session;
     setSession(nextSession);
     setRequiresLogin(false);
-    const projectsResponse = await fetch("/api/opdf/projects", { credentials: "same-origin" });
+    const projectsResponse = await fetch("/api/tpdf/projects", { credentials: "same-origin" });
     if (projectsResponse.ok) setProjects(await projectsResponse.json() as Array<{ id: string }>);
     setReady(true);
   }
 
   useEffect(() => {
     void loadSession().catch((cause) => {
-      setError(cause instanceof Error ? cause.message : "Unable to load OPDF session.");
+      setError(cause instanceof Error ? cause.message : "Unable to load TPDF session.");
       setReady(true);
     });
   }, [isServerRuntime]);
@@ -71,7 +71,7 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
     setWorking(true);
     setError("");
     try {
-      const response = await fetch("/api/opdf/auth/login", {
+      const response = await fetch("/api/tpdf/auth/login", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -95,7 +95,7 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
     setWorking(true);
     setError("");
     try {
-      const response = await fetch("/api/opdf/projects/select", {
+      const response = await fetch("/api/tpdf/projects/select", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -110,14 +110,14 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    await fetch("/api/opdf/auth/logout", { method: "POST", credentials: "same-origin" }).catch(() => {});
+    await fetch("/api/tpdf/auth/logout", { method: "POST", credentials: "same-origin" }).catch(() => {});
     window.location.reload();
   }
 
   if (!ready) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--ui-bg)] text-sm text-[var(--text-secondary)]">
-        Loading OPDF…
+        Loading TPDF…
       </div>
     );
   }
@@ -129,9 +129,9 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
           onSubmit={submit}
           className="w-full max-w-sm rounded-xl border border-[var(--ui-border)] bg-[var(--panel-bg)] p-6 shadow-xl"
         >
-          <h1 className="text-xl font-semibold text-[var(--text-primary)]">Sign in to OPDF</h1>
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">Sign in to TPDF</h1>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Use the account configured by your OPDF administrator.
+            Use the account configured by your TPDF administrator.
           </p>
           <label className="mt-5 block text-sm font-medium text-[var(--text-primary)]">
             Email
@@ -178,14 +178,14 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
       {isServerRuntime && session && Number.isFinite(session.quota.quotaBytes) &&
       session.quota.quotaBytes < Number.MAX_SAFE_INTEGER ? (
         <div
-          data-opdf-server-user
+          data-tpdf-server-user
           className="fixed bottom-7 right-3 z-[200] flex items-center gap-2 rounded-md border border-[var(--ui-border)] bg-[var(--panel-bg)] px-2 py-1 text-[10px] text-[var(--text-secondary)] shadow"
           title={`${session.user.email} · project ${session.projectId}`}
         >
           <span>{session.user.email} · {formatBytes(session.quota.usedBytes)} / {formatBytes(session.quota.quotaBytes)}</span>
           {projects.length > 1 ? (
             <select
-              aria-label="Current OPDF project"
+              aria-label="Current TPDF project"
               value={session.projectId}
               disabled={working}
               onChange={(event) => void selectProject(event.target.value)}

@@ -1,4 +1,4 @@
-import type { PdfBlendMode, PdfContentObject, PdfContentPatch } from "@opdf/core";
+import type { PdfBlendMode, PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { PathGeometryEditor } from "../PathGeometryEditor";
 
 export type NativeContentDraft = {
@@ -61,7 +61,7 @@ export function NativeContentProperties({
       ) : selected.depth === 1 ? (
         <div className="native-content-editor__object-info">
           <strong>Persistent Form edit</strong>
-          <span>OPDF promotes this child to a page-level object before persistence-safe editing.</span>
+          <span>TPDF promotes this child to a page-level object before persistence-safe editing.</span>
         </div>
       ) : null}
 
@@ -89,7 +89,7 @@ export function NativeContentProperties({
             Font
             <select value={draft.font} onChange={(event) => setDraft({ font: event.target.value })} disabled={deepFormReadOnly}>
               <option value="">Keep existing ({selected.fontFamily || "embedded font"})</option>
-              <option value="__opdf_unicode__">Noto Sans Unicode / Vietnamese</option>
+              <option value="__tpdf_unicode__">Noto Sans Unicode / Vietnamese</option>
               <option value="Helvetica">Helvetica</option>
               <option value="Times-Roman">Times</option>
               <option value="Courier">Courier</option>
@@ -250,7 +250,7 @@ export function NativeContentProperties({
         </div>
       ) : null}
       {selected.rotatedBounds ? (
-        <div className="native-content-editor__object-info" data-opdf-rotated-selection="true">
+        <div className="native-content-editor__object-info" data-tpdf-rotated-selection="true">
           <strong>Rotated bounds active</strong>
           <span>Selection uses PDFium's tight quadrilateral.</span>
         </div>

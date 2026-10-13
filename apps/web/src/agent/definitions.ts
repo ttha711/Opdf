@@ -31,6 +31,7 @@ export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
   { id: "replace-text", title: "Replace PDF Text", description: "Replace native PDF text by objectId or by searching text on a page.", risk: "destructive", requiresDocument: true, requiredArgs: ["newText"], optionalArgs: ["objectId", "page", "targetText", "replaceAll"] },
   { id: "compress-pdf", title: "Compress PDF", description: "Compress the current PDF.", risk: "safe", requiresDocument: true },
   { id: "run-ocr", title: "Run OCR", description: "Run OCR on the current PDF.", risk: "safe", requiresDocument: true },
+  { id: "analyze-document-health", title: "Analyze Document Health", description: "Read the saved TPDF Server document diagnostic findings, accessibility and PDF/A preflight. Does not change the PDF.", risk: "safe", requiresDocument: true },
   { id: "convert-to-images", title: "Convert to Images", description: "Export rendered pages as image files.", risk: "safe", requiresDocument: true },
   { id: "go-prev-page", title: "Previous Page", description: "Navigate to the previous page.", risk: "safe", requiresDocument: true },
   { id: "go-next-page", title: "Next Page", description: "Navigate to the next page.", risk: "safe", requiresDocument: true },

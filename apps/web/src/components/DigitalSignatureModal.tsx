@@ -1,6 +1,6 @@
-// opdf-file-size-allow: legacy digital-signature dialog; M10 only updates runtime/security copy while signing transport stays in bridge modules.
+// tpdf-file-size-allow: legacy digital-signature dialog; M10 only updates runtime/security copy while signing transport stays in bridge modules.
 import { useMemo, useState } from "react";
-import type { P12CertificateInfo, PdfSignatureInspection } from "../types/opdf";
+import type { P12CertificateInfo, PdfSignatureInspection } from "../types/tpdf";
 import { pdfSourceToBytes, type PdfSource } from "../lib/documentSource";
 import { useDialogClose } from "../hooks/useDialogClose";
 
@@ -137,14 +137,14 @@ export function DigitalSignatureModal({
   };
 
   return (
-    <div data-opdf-dialog="digital-signature" className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
+    <div data-tpdf-dialog="digital-signature" className="fixed inset-0 flex items-center justify-center bg-black/55 p-4" style={{ zIndex: "var(--z-modal-high)" }}>
       <div className="premium-modal flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden">
         <div className="premium-modal-header">
           <div>
             <div className="premium-modal-title">Digital Signature · P12/PFX</div>
-            <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">Desktop keeps certificate data local. Server mode sends it only to the same-origin OPDF API; the certificate is encrypted at rest and its password is not stored.</div>
+            <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">Desktop keeps certificate data local. Server mode sends it only to the same-origin TPDF API; the certificate is encrypted at rest and its password is not stored.</div>
           </div>
-          <button data-opdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
+          <button data-tpdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
         </div>
 
         <div className="flex border-b border-[var(--border-color)] px-4 pt-2">
@@ -171,7 +171,7 @@ export function DigitalSignatureModal({
             <div className="space-y-3">
               {!inspectSignatures ? (
                 <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                  Signature inspection is available in OPDF Desktop.
+                  Signature inspection is available in TPDF Desktop.
                 </div>
               ) : null}
               <div className="rounded border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
@@ -242,7 +242,7 @@ export function DigitalSignatureModal({
             <>
               {!canSign ? (
                 <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                  Cryptographic P12/PFX signing requires OPDF Desktop or an OPDF Server configured with secure certificate storage.
+                  Cryptographic P12/PFX signing requires TPDF Desktop or an TPDF Server configured with secure certificate storage.
                 </div>
               ) : null}
 
@@ -318,7 +318,7 @@ export function DigitalSignatureModal({
         </div>
 
         <div className="premium-modal-footer">
-          <button data-opdf-action="close-dialog" type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Close</button>
+          <button data-tpdf-action="close-dialog" type="button" onClick={onClose} className="rounded border border-[var(--border-color)] px-4 py-2 text-sm">Close</button>
           {activeTab === "sign" ? (
             <button type="button" disabled={!canSign || !certificateBytes || busy} onClick={() => void sign()} className="rounded bg-[var(--acrobat-blue)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40">
               {busy ? "Signing…" : "Digitally sign PDF"}

@@ -20,7 +20,7 @@ test("server runtime renders local PDF before background upload completes", asyn
     releaseChunk = resolve;
   });
   let chunkStarted = false;
-  await page.route("**/api/opdf/uploads/*/chunks/*", async (route) => {
+  await page.route("**/api/tpdf/uploads/*/chunks/*", async (route) => {
     chunkStarted = true;
     await chunkGate;
     await route.continue();
@@ -34,24 +34,24 @@ test("server runtime renders local PDF before background upload completes", asyn
     buffer: bytes,
   });
 
-  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
-  await expect(page.getByTestId("status-bar")).toHaveAttribute("data-opdf-page-loading", /true|false/);
+  const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
+  await expect(page.getByTestId("status-bar")).toHaveAttribute("data-tpdf-page-loading", /true|false/);
   const loadingStatus = page.getByTestId("page-loading-status");
   if (await loadingStatus.count()) {
     await expect(loadingStatus).toHaveText("Loading pages...");
     await expect(page.getByText(/Page\s+1\s+of\s+0/i)).toHaveCount(0);
   }
   await expect(viewer).toBeVisible({ timeout: 10_000 });
-  await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy");
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "working-copy");
   await expect(page.getByText(/Page\s+1\s+of\s+2/i)).toBeVisible({ timeout: 10_000 });
 
-  const uploadBanner = page.locator('[data-opdf-upload-state="uploading"]');
+  const uploadBanner = page.locator('[data-tpdf-upload-state="uploading"]');
   await expect(uploadBanner).toBeVisible();
   await expect(uploadBanner).toContainText("Opening locally");
   await expect(uploadBanner).toHaveCSS("position", "fixed");
   const uploadBox = await uploadBanner.boundingBox();
-  const headerBox = await page.locator('[data-opdf-region="app-header"]').boundingBox();
-  const aiButton = await page.locator('[data-opdf-action="open-ai"]').boundingBox();
+  const headerBox = await page.locator('[data-tpdf-region="app-header"]').boundingBox();
+  const aiButton = await page.locator('[data-tpdf-action="open-ai"]').boundingBox();
   expect(uploadBox).not.toBeNull();
   expect(headerBox).not.toBeNull();
   expect(aiButton).not.toBeNull();
@@ -60,14 +60,14 @@ test("server runtime renders local PDF before background upload completes", asyn
   await expect(uploadBanner).toHaveCSS("background-color", /rgb/);
   await expect.poll(() => chunkStarted).toBeTruthy();
 
-  const beforeComplete = await request.get("/api/opdf/recent");
+  const beforeComplete = await request.get("/api/tpdf/recent");
   const pendingRecents = await beforeComplete.json() as Array<{ filePath: string }>;
   expect(pendingRecents.some((item) => item.filePath.includes("local-first-a0.pdf"))).toBeFalsy();
 
   releaseChunk();
-  await expect(page.locator('[data-opdf-upload-state="stored"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-tpdf-upload-state="stored"]')).toBeVisible({ timeout: 20_000 });
 
-  const afterComplete = await request.get("/api/opdf/recent");
+  const afterComplete = await request.get("/api/tpdf/recent");
   const storedRecents = await afterComplete.json() as Array<{ filePath: string }>;
   expect(storedRecents.some((item) => decodeURIComponent(item.filePath).includes("local-first-a0.pdf"))).toBeTruthy();
 });
@@ -80,7 +80,7 @@ test("failed background upload keeps the PDF open and resumes from Retry", async
   const bytes = Buffer.from(await pdf.save());
 
   let chunkAttempts = 0;
-  await page.route("**/api/opdf/uploads/*/chunks/*", async (route) => {
+  await page.route("**/api/tpdf/uploads/*/chunks/*", async (route) => {
     chunkAttempts += 1;
     if (chunkAttempts <= 3) {
       await route.fulfill({
@@ -100,20 +100,20 @@ test("failed background upload keeps the PDF open and resumes from Retry", async
     buffer: bytes,
   });
 
-  const viewer = page.locator('[data-opdf-engine="pdfium-wasm"]');
+  const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
   await expect(viewer).toBeVisible({ timeout: 10_000 });
-  await expect(viewer).toHaveAttribute("data-opdf-source", "working-copy");
+  await expect(viewer).toHaveAttribute("data-tpdf-source", "working-copy");
 
-  const failedBanner = page.locator('[data-opdf-upload-state="failed"]');
+  const failedBanner = page.locator('[data-tpdf-upload-state="failed"]');
   await expect(failedBanner).toBeVisible({ timeout: 15_000 });
   await expect(failedBanner).toContainText("PDF is still open locally");
   expect(chunkAttempts).toBe(3);
 
   await failedBanner.getByRole("button", { name: "Retry upload" }).click();
-  await expect(page.locator('[data-opdf-upload-state="stored"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-tpdf-upload-state="stored"]')).toBeVisible({ timeout: 20_000 });
   expect(chunkAttempts).toBeGreaterThan(3);
 
-  const recents = await request.get("/api/opdf/recent");
+  const recents = await request.get("/api/tpdf/recent");
   const rows = await recents.json() as Array<{ filePath: string }>;
   expect(rows.some((item) => decodeURIComponent(item.filePath).includes("retry-local-first.pdf"))).toBeTruthy();
 });

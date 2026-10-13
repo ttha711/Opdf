@@ -17,7 +17,7 @@ test.beforeEach(async ({}, testInfo) => {
 test("Rotate PDF changes only the requested page in the exported PDF", async ({ page }) => {
   await loadToolFixture(page);
   await openDashboardTool(page, "rotate-pdf");
-  const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="rotate-pdf"]');
+  const panel = page.locator('[data-tpdf-panel="tool"][data-tpdf-tool="rotate-pdf"]');
   await panel.getByLabel("Pages").fill("2");
   await panel.getByRole("button", { name: /Rotate right/i }).click();
   await waitForStatusText(page, "Pages rotated.");
@@ -32,12 +32,12 @@ test("Rotate PDF changes only the requested page in the exported PDF", async ({ 
 test("Delete Pages removes the selected page and preserves the remaining order", async ({ page }) => {
   await loadToolFixture(page);
   await openDashboardTool(page, "delete-pages");
-  const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="delete-pages"]');
+  const panel = page.locator('[data-tpdf-panel="tool"][data-tpdf-tool="delete-pages"]');
   await panel.getByLabel("Pages").fill("2");
   await panel.getByRole("button", { name: "Delete pages", exact: true }).click();
 
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
-    "data-opdf-total-pages",
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute(
+    "data-tpdf-total-pages",
     "2",
     { timeout: 15_000 },
   );
@@ -50,12 +50,12 @@ test("Delete Pages removes the selected page and preserves the remaining order",
 test("Extract Pages creates a new PDF containing exactly the requested pages", async ({ page }) => {
   await loadToolFixture(page);
   await openDashboardTool(page, "extract-pages");
-  const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="extract-pages"]');
+  const panel = page.locator('[data-tpdf-panel="tool"][data-tpdf-tool="extract-pages"]');
   await panel.getByLabel("Pages").fill("1, 3");
   await panel.getByRole("button", { name: "Extract pages", exact: true }).click();
 
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
-    "data-opdf-total-pages",
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute(
+    "data-tpdf-total-pages",
     "2",
     { timeout: 15_000 },
   );
@@ -68,7 +68,7 @@ test("Extract Pages creates a new PDF containing exactly the requested pages", a
 test("Crop PDF changes the selected page media box and leaves other pages unchanged", async ({ page }) => {
   await loadToolFixture(page);
   await openDashboardTool(page, "crop-pdf");
-  const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="crop-pdf"]');
+  const panel = page.locator('[data-tpdf-panel="tool"][data-tpdf-tool="crop-pdf"]');
   await panel.getByLabel("Pages").fill("1");
   await panel.getByRole("button", { name: "Apply crop", exact: true }).click();
   await waitForStatusText(page, "Crop applied.");
@@ -83,25 +83,25 @@ test("Crop PDF changes the selected page media box and leaves other pages unchan
 test("Merge PDF combines the open document with another real PDF into one 5-page PDF", async ({ page }) => {
   await loadToolFixture(page);
   await openDashboardTool(page, "merge-pdf");
-  const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="merge-pdf"]');
+  const panel = page.locator('[data-tpdf-panel="tool"][data-tpdf-tool="merge-pdf"]');
 
   const extra = await createFixturePdf([
     { width: 210, height: 260, text: "MERGE EXTRA ONE" },
     { width: 220, height: 270, text: "MERGE EXTRA TWO" },
   ]);
   const chooserPromise = page.waitForEvent("filechooser");
-  await panel.locator('[data-opdf-action="merge-add"]').click();
+  await panel.locator('[data-tpdf-action="merge-add"]').click();
   const chooser = await chooserPromise;
   await chooser.setFiles({
     name: "merge-extra.pdf",
     mimeType: "application/pdf",
     buffer: extra,
   });
-  await expect(panel.locator("[data-opdf-merge-item]")).toHaveCount(2, { timeout: 10_000 });
-  await panel.locator('[data-opdf-action="merge-load"]').click();
+  await expect(panel.locator("[data-tpdf-merge-item]")).toHaveCount(2, { timeout: 10_000 });
+  await panel.locator('[data-tpdf-action="merge-load"]').click();
 
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
-    "data-opdf-total-pages",
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute(
+    "data-tpdf-total-pages",
     "5",
     { timeout: 15_000 },
   );
@@ -114,12 +114,12 @@ test("Merge PDF combines the open document with another real PDF into one 5-page
 test("Split PDF downloads a real PDF containing only the selected pages", async ({ page }) => {
   await loadToolFixture(page);
   await openDashboardTool(page, "split-pdf");
-  const panel = page.locator('[data-opdf-panel="tool"][data-opdf-tool="split-pdf"]');
+  const panel = page.locator('[data-tpdf-panel="tool"][data-tpdf-tool="split-pdf"]');
 
-  await panel.locator('[data-opdf-field="split-mode-extract"]').check();
-  await panel.locator('[data-opdf-field="split-extract"]').fill("1, 3");
+  await panel.locator('[data-tpdf-field="split-mode-extract"]').check();
+  await panel.locator('[data-tpdf-field="split-extract"]').fill("1, 3");
   const downloadPromise = page.waitForEvent("download", { timeout: 20_000 });
-  await panel.locator('[data-opdf-action="split-run"]').click();
+  await panel.locator('[data-tpdf-action="split-run"]').click();
   const bytes = await downloadBuffer(await downloadPromise);
 
   expect(bytes.subarray(0, 5).toString("ascii")).toBe("%PDF-");
@@ -132,24 +132,24 @@ test("Split PDF downloads a real PDF containing only the selected pages", async 
 test("Insert PDF inserts real pages at the selected location", async ({ page }) => {
   await loadToolFixture(page);
   await clickApplicationMenuItem(page, "Insert PDF...");
-  const dialog = page.locator('[data-opdf-dialog="insert-pdf"]');
+  const dialog = page.locator('[data-tpdf-dialog="insert-pdf"]');
 
   const extra = await createFixturePdf([
     { width: 230, height: 280, text: "INSERT EXTRA ONE" },
     { width: 240, height: 290, text: "INSERT EXTRA TWO" },
   ]);
-  await dialog.locator('[data-opdf-field="insert-file"]').setInputFiles({
+  await dialog.locator('[data-tpdf-field="insert-file"]').setInputFiles({
     name: "insert-extra.pdf",
     mimeType: "application/pdf",
     buffer: extra,
   });
-  await expect(dialog.locator('[data-opdf-action="insert-run"]')).toBeEnabled({ timeout: 10_000 });
-  await dialog.locator('[data-opdf-field="insert-page"]').fill("2");
-  await dialog.locator('[data-opdf-field="insert-after"]').check();
-  await dialog.locator('[data-opdf-action="insert-run"]').click();
+  await expect(dialog.locator('[data-tpdf-action="insert-run"]')).toBeEnabled({ timeout: 10_000 });
+  await dialog.locator('[data-tpdf-field="insert-page"]').fill("2");
+  await dialog.locator('[data-tpdf-field="insert-after"]').check();
+  await dialog.locator('[data-tpdf-action="insert-run"]').click();
 
-  await expect(page.locator('[data-opdf-region="status-bar"]')).toHaveAttribute(
-    "data-opdf-total-pages",
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute(
+    "data-tpdf-total-pages",
     "5",
     { timeout: 15_000 },
   );

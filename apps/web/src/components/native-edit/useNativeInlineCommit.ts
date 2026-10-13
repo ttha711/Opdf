@@ -1,24 +1,32 @@
 import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import type { PdfContentObject, PdfContentPatch } from "@opdf/core";
+import type { PdfContentObject } from "@tpdf/core";
 import { applyNativeEditPatches } from "../../lib/nativeEditRuntime";
+import { nativeEditTextCommitPatches } from "./nativeEditTextCommit";
+import type { NativeEditTextLine } from "./nativeEditTextRun";
 
 type Props = {
   selected: PdfContentObject | null;
   editingText: string | null;
+  groupedTextLines: NativeEditTextLine[];
   setEditingText: Dispatch<SetStateAction<string | null>>;
+  setEditingObject: Dispatch<SetStateAction<PdfContentObject | null>>;
+  setGroupedTextLines: Dispatch<SetStateAction<NativeEditTextLine[]>>;
   setIsApplying: Dispatch<SetStateAction<boolean>>;
 };
 
 export function useNativeInlineCommit({
   selected,
   editingText,
+  groupedTextLines,
   setEditingText,
+  setEditingObject,
+  setGroupedTextLines,
   setIsApplying,
 }: Props) {
   const commitPromiseRef = useRef<Promise<Uint8Array | null> | null>(null);
-  const latestRef = useRef({ selected, editingText });
-  latestRef.current = { selected, editingText };
+  const latestRef = useRef({ selected, editingText, groupedTextLines });
+  latestRef.current = { selected, editingText, groupedTextLines };
 
   return useCallback(async () => {
     if (commitPromiseRef.current) return commitPromiseRef.current;
@@ -31,19 +39,11 @@ export function useNativeInlineCommit({
       try {
       if (nextText === (selectedObject.text ?? "")) {
         setEditingText(null);
+        setEditingObject(null);
+        setGroupedTextLines([]);
         return null;
       }
-      const unicodeFallback = /[^\x00-\x7F]/.test(nextText);
-      const patches: PdfContentPatch[] = [];
-      if (unicodeFallback) {
-        patches.push({
-          type: "style-text",
-          objectId: selectedObject.id,
-          fontFamily: "__opdf_unicode__",
-          fontSize: selectedObject.fontSize,
-        });
-      }
-      patches.push({ type: "replace-text", objectId: selectedObject.id, text: nextText });
+      const patches = nativeEditTextCommitPatches(selectedObject, latest.groupedTextLines, nextText);
       // Let the browser paint "Applying" before heavy PDFium operations.
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const bytes = await applyNativeEditPatches(
@@ -56,6 +56,8 @@ export function useNativeInlineCommit({
       // document revision reloads the selection overlay automatically.
       latestRef.current.editingText = null;
       setEditingText(null);
+      setEditingObject(null);
+      setGroupedTextLines([]);
       return bytes;
       } finally {
         setIsApplying(false);
@@ -67,5 +69,5 @@ export function useNativeInlineCommit({
     } finally {
       if (commitPromiseRef.current === commit) commitPromiseRef.current = null;
     }
-  }, [setEditingText, setIsApplying]);
+  }, [setEditingObject, setEditingText, setGroupedTextLines, setIsApplying]);
 }

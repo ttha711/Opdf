@@ -1,4 +1,4 @@
-// opdf-file-size-allow: legacy PDFium WASM engine; this targeted glyph fix reuses existing routines, with module extraction reserved for a dedicated refactor.
+// tpdf-file-size-allow: legacy PDFium WASM engine; this targeted glyph fix reuses existing routines, with module extraction reserved for a dedicated refactor.
 import { init } from "@embedpdf/pdfium";
 import pdfiumWasmUrl from "@embedpdf/pdfium/pdfium.wasm?url";
 import type {
@@ -9,7 +9,7 @@ import type {
   PdfMatrix,
   PdfPathCommand,
   PdfRect,
-} from "@opdf/core";
+} from "@tpdf/core";
 import { needsSubsetFontFallback } from "./nativeEditSubsetFont";
 import {
   childContentObjectId,
@@ -40,6 +40,11 @@ async function getPdfium(): Promise<PdfiumModule> {
     })();
   }
   return pdfiumPromise;
+}
+
+/** Initialize PDFium while the document is being read, before text editing is requested. */
+export async function preloadPdfiumContentEditingEngine(): Promise<void> {
+  await getPdfium();
 }
 
 function malloc(module: PdfiumModule, bytes: number) {
@@ -79,6 +84,16 @@ function readBounds(module: PdfiumModule, objectPtr: number): PdfRect | null {
   } finally {
     free(module, ptr);
   }
+}
+
+function readPageOrigin(module: PdfiumModule, pagePtr: number) {
+  const readBox = (name: "FPDFPage_GetCropBox" | "FPDFPage_GetMediaBox") => {
+    const getter = module[name];
+    if (typeof getter !== "function") return null;
+    return readFloatTuple(module, 4, (ptr) => getter(pagePtr, ptr, ptr + 4, ptr + 8, ptr + 12));
+  };
+  const box = readBox("FPDFPage_GetCropBox") ?? readBox("FPDFPage_GetMediaBox");
+  return box ? { x: box[0], y: box[1] } : { x: 0, y: 0 };
 }
 
 function readMatrix(module: PdfiumModule, objectPtr: number): PdfMatrix {
@@ -256,13 +271,13 @@ function readImageInfo(module: PdfiumModule, objectPtr: number) {
 
 async function loadUnicodeFont(module: PdfiumModule, docPtr: number): Promise<number> {
   const response = await fetch(unicodeFontUrl);
-  if (!response.ok) throw new Error(`Unable to load OPDF Unicode font: ${response.status}`);
+  if (!response.ok) throw new Error(`Unable to load TPDF Unicode font: ${response.status}`);
   const bytes = new Uint8Array(await response.arrayBuffer());
   const ptr = malloc(module, bytes.byteLength);
   try {
     module.pdfium.HEAPU8.set(bytes, ptr);
     const fontPtr = module.FPDFText_LoadFont(docPtr, ptr, bytes.byteLength, 2, true);
-    if (!fontPtr) throw new Error("PDFium could not embed the OPDF Unicode font.");
+    if (!fontPtr) throw new Error("PDFium could not embed the TPDF Unicode font.");
     return fontPtr;
   } finally {
     free(module, ptr);
@@ -278,7 +293,7 @@ async function replaceTextObjectFontSize(
   fontSize: number,
   fontFamily?: string,
 ): Promise<number> {
-  const fontPtr = fontFamily === "__opdf_unicode__"
+  const fontPtr = fontFamily === "__tpdf_unicode__"
     ? await loadUnicodeFont(module, docPtr)
     : fontFamily
       ? module.FPDFText_LoadStandardFont(docPtr, fontFamily)
@@ -834,7 +849,9 @@ function saveDocument(module: PdfiumModule, docPtr: number): Uint8Array {
     try {
       const copied = module.PDFiumExt_GetFileWriterData(writer, ptr, size);
       if (!copied) throw new Error("PDFium failed to copy edited PDF bytes.");
-      return new Uint8Array(module.pdfium.HEAPU8.slice(ptr, ptr + size));
+      // HEAPU8.slice already returns an owned copy. Wrapping it in another
+      // Uint8Array copied the entire edited PDF a second time.
+      return module.pdfium.HEAPU8.slice(ptr, ptr + size);
     } finally {
       free(module, ptr);
     }
@@ -848,6 +865,7 @@ function inspectObject(
   textPagePtr: number,
   pageWidth: number,
   pageHeight: number,
+  pageOrigin: { x: number; y: number },
   objectPtr: number,
   id: string,
   parentMatrix: PdfMatrix,
@@ -865,6 +883,7 @@ function inspectObject(
     pageIndex: parseContentObjectId(id).pageIndex,
     pageWidth,
     pageHeight,
+    pageOrigin,
     kind,
     bounds: depth ? transformRect(parentMatrix, localBounds) : localBounds,
     localBounds,
@@ -913,6 +932,7 @@ function appendObjectTree(
   textPagePtr: number,
   pageWidth: number,
   pageHeight: number,
+  pageOrigin: { x: number; y: number },
   objectPtr: number,
   id: string,
   parentMatrix: PdfMatrix,
@@ -925,6 +945,7 @@ function appendObjectTree(
     textPagePtr,
     pageWidth,
     pageHeight,
+    pageOrigin,
     objectPtr,
     id,
     parentMatrix,
@@ -952,6 +973,7 @@ function appendObjectTree(
       textPagePtr,
       pageWidth,
       pageHeight,
+      pageOrigin,
       childPtr,
       childContentObjectId(id, childIndex),
       childParentMatrix,
@@ -972,6 +994,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
         const objects: PdfContentObject[] = [];
         const pageWidth = module.FPDF_GetPageWidthF(pagePtr);
         const pageHeight = module.FPDF_GetPageHeightF(pagePtr);
+        const pageOrigin = readPageOrigin(module, pagePtr);
         const count = module.FPDFPage_CountObjects(pagePtr);
         const rootMatrix = identityMatrix();
         for (let objectIndex = 0; objectIndex < count; objectIndex += 1) {
@@ -981,6 +1004,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
             textPagePtr,
             pageWidth,
             pageHeight,
+            pageOrigin,
             objectPtr,
             `p${pageIndex}-o${objectIndex}`,
             rootMatrix,
@@ -1018,7 +1042,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
 
           for (const patch of pagePatches) {
             if (patch.type === "add-text") {
-              const fontPtr = patch.fontFamily === "__opdf_unicode__"
+              const fontPtr = patch.fontFamily === "__tpdf_unicode__"
                 ? await loadUnicodeFont(module, docPtr)
                 : module.FPDFText_LoadStandardFont(docPtr, patch.fontFamily || "Helvetica");
               if (!fontPtr) throw new Error("Unable to load font for new text.");
@@ -1114,7 +1138,7 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
                   module, docPtr, pagePtr, objectPtr,
                   resolved.rootObjectIndex,
                   readFontSize(module, objectPtr) ?? 12,
-                  "__opdf_unicode__",
+                  "__tpdf_unicode__",
                 );
                 handles.set(patch.objectId, { ...resolved, objectPtr });
               }

@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { useOpdfBridge } from "../useOpdfBridge";
+import type { useTpdfBridge } from "../useTpdfBridge";
 import { saveWebState, computeFileHash, saveAnnotationsByHash } from "../../lib/web-storage";
 import { commitPendingNativeInlineEdit } from "../../lib/nativeEditRuntime";
 
@@ -20,7 +20,7 @@ export function useExportAction({
   setSaveState,
   markDocumentSaved,
 }: {
-  bridge: ReturnType<typeof useOpdfBridge>;
+  bridge: ReturnType<typeof useTpdfBridge>;
   hasDocument: boolean;
   hasDesktopBridge: boolean;
   fileName: string;
@@ -92,7 +92,7 @@ export function useExportAction({
         });
         setSaveState("saved");
         if (!options.silent) {
-          setViewerError(isServerDocument ? "Saved to OPDF Server." : "File saved successfully!");
+          setViewerError(isServerDocument ? "Saved to TPDF Server." : "File saved successfully!");
           setTimeout(() => setViewerError(null), 3000);
         }
         return true;
@@ -199,7 +199,7 @@ export function useExportAction({
       URL.revokeObjectURL(url);
       markDocumentSaved({ fileName, docBytes: bytes, annotations });
       setSaveState("saved");
-      setViewerError("Original PDF downloaded without embedded OPDF annotations. Use Export PDF for a reviewed copy.");
+      setViewerError("Original PDF downloaded without embedded TPDF annotations. Use Export PDF for a reviewed copy.");
       setTimeout(() => setViewerError(null), 5000);
     } catch (err) {
       console.error(err);

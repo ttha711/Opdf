@@ -58,8 +58,8 @@ def call_openrouter_vision(image_b64: str, full_page_mode: bool = False) -> tupl
     if not api_key:
         return None, Usage()
 
-    model = os.environ.get("OPDF_OPENROUTER_MODEL", "google/gemini-2.5-flash")
-    max_tokens = int(os.environ.get("OPDF_OPENROUTER_MAX_TOKENS", "1200") or "1200")
+    model = os.environ.get("TPDF_OPENROUTER_MODEL", "google/gemini-2.5-flash")
+    max_tokens = int(os.environ.get("TPDF_OPENROUTER_MAX_TOKENS", "1200") or "1200")
     prompt = (
         "Extract text faithfully from this PDF page image. "
         "Return the FULL page text in reading order. "
@@ -107,7 +107,7 @@ def call_openrouter_vision(image_b64: str, full_page_mode: bool = False) -> tupl
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "X-Title": "OPDF",
+            "X-Title": "TPDF",
         },
         method="POST",
     )
@@ -152,8 +152,8 @@ def call_openrouter_layout_schema(image_b64: str) -> tuple[dict, Usage] | tuple[
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         return None, Usage()
-    model = os.environ.get("OPDF_OPENROUTER_MODEL", "google/gemini-2.5-flash")
-    max_tokens = int(os.environ.get("OPDF_OPENROUTER_MAX_TOKENS", "1200") or "1200")
+    model = os.environ.get("TPDF_OPENROUTER_MODEL", "google/gemini-2.5-flash")
+    max_tokens = int(os.environ.get("TPDF_OPENROUTER_MAX_TOKENS", "1200") or "1200")
     payload = {
         "model": model,
         "temperature": 0.1,
@@ -187,7 +187,7 @@ def call_openrouter_layout_schema(image_b64: str) -> tuple[dict, Usage] | tuple[
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "X-Title": "OPDF",
+            "X-Title": "TPDF",
         },
         method="POST",
     )
@@ -469,9 +469,9 @@ class DocxHtmlParser(HTMLParser):
 
 def postformat_docx(out_docx: Path):
     doc = Document(str(out_docx))
-    title_size = int(os.environ.get("OPDF_DOCX_TITLE_SIZE_PT", "18"))
-    h2_size = int(os.environ.get("OPDF_DOCX_H2_SIZE_PT", "13"))
-    body_size = int(os.environ.get("OPDF_DOCX_BODY_SIZE_PT", "11"))
+    title_size = int(os.environ.get("TPDF_DOCX_TITLE_SIZE_PT", "18"))
+    h2_size = int(os.environ.get("TPDF_DOCX_H2_SIZE_PT", "13"))
+    body_size = int(os.environ.get("TPDF_DOCX_BODY_SIZE_PT", "11"))
     for idx, p in enumerate(doc.paragraphs):
         txt = p.text.strip()
         if not txt:
@@ -507,7 +507,7 @@ def html_to_docx(html_pages: list[str], out_docx: Path):
         if i < len(html_pages):
             doc.add_page_break()
     doc.save(str(out_docx))
-    if os.environ.get("OPDF_DOCX_POSTFORMAT_ENABLE", "1").strip() == "1":
+    if os.environ.get("TPDF_DOCX_POSTFORMAT_ENABLE", "1").strip() == "1":
         postformat_docx(out_docx)
 
 
@@ -518,7 +518,7 @@ def run_pipeline(pdf_path: Path, out_docx: Path, out_json: Path, max_pages: int)
     rewrite_sources = []
     page_stats = []
     usage_total = Usage()
-    min_lines = int(os.environ.get("OPDF_MIN_LINES_PER_PAGE", "10") or "10")
+    min_lines = int(os.environ.get("TPDF_MIN_LINES_PER_PAGE", "10") or "10")
 
     with pdfplumber.open(str(pdf_path)) as pdf:
         limit = min(max_pages, len(pdf.pages)) if max_pages > 0 else len(pdf.pages)

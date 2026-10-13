@@ -48,17 +48,17 @@ export function SettingsPanel({
         <>
           <div
             className="ai-radio-option active"
-            data-opdf-machine-agent-status={machineAgentConnected ? "connected" : "unpaired"}
+            data-tpdf-machine-agent-status={machineAgentConnected ? "connected" : "unpaired"}
           >
             <strong>Authenticated Local / Machine Agent Bridge</strong>
             <p>
               {machineAgentConnected
-                ? `${machineAgentCount} paired machine agent${machineAgentCount === 1 ? "" : "s"} available for this OPDF account and project.`
+                ? `${machineAgentCount} paired machine agent${machineAgentCount === 1 ? "" : "s"} available for this TPDF account and project.`
                 : "Pair your local machine agent to use AI. No public Dify API key is stored in this browser."}
             </p>
           </div>
           {pairingCode ? (
-            <div className="ai-pairing-code" data-opdf-pairing-code>
+            <div className="ai-pairing-code" data-tpdf-pairing-code>
               <span>Pairing code</span>
               <strong>{pairingCode}</strong>
               {pairingExpiresAt ? (
@@ -173,7 +173,7 @@ function DevelopmentEngineSettings({
         <div className="ai-radio-group">
           <div className="ai-radio-option active">
             <strong>Local Agent Bridge</strong>
-            <p>Runs through the OPDF desktop bridge without exposing an external API key in the renderer.</p>
+            <p>Runs through the TPDF desktop bridge without exposing an external API key in the renderer.</p>
           </div>
         </div>
       ) : null}

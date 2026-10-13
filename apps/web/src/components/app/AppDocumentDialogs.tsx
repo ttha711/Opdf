@@ -77,7 +77,7 @@ export function AppDocumentDialogs({
         source={source}
         currentPage={state.page}
         totalPages={state.totalPages}
-        canSign={Boolean(bridge.signPdfP12 && bridge.inspectP12Certificate && (window.opdf || bridge.capabilities?.digitalSignature))}
+        canSign={Boolean(bridge.signPdfP12 && bridge.inspectP12Certificate && (window.tpdf || bridge.capabilities?.digitalSignature))}
         inspectCertificate={bridge.inspectP12Certificate}
         inspectSignatures={bridge.inspectPdfSignatures}
         signDocument={bridge.signPdfP12}

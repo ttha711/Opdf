@@ -75,8 +75,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="opdf-confirm-title"
-            aria-describedby="opdf-confirm-message"
+            aria-labelledby="tpdf-confirm-title"
+            aria-describedby="tpdf-confirm-message"
             aria-label={options.title || "Confirm"}
             style={{
               width: "min(420px, calc(100vw - 32px))",
@@ -88,10 +88,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               padding: "20px",
             }}
           >
-            <h4 id="opdf-confirm-title" style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600 }}>
+            <h4 id="tpdf-confirm-title" style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600 }}>
               {options.title || "Confirm"}
             </h4>
-            <p id="opdf-confirm-message" style={{ margin: "0 0 18px", fontSize: "var(--ui-font-sm)", color: "var(--text-secondary)", whiteSpace: "pre-line" }}>
+            <p id="tpdf-confirm-message" style={{ margin: "0 0 18px", fontSize: "var(--ui-font-sm)", color: "var(--text-secondary)", whiteSpace: "pre-line" }}>
               {options.message}
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>

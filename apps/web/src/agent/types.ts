@@ -14,6 +14,7 @@ export type AgentToolId =
   | "replace-text"
   | "compress-pdf"
   | "run-ocr"
+  | "analyze-document-health"
   | "convert-to-images"
   | "go-prev-page"
   | "go-next-page"
@@ -114,6 +115,7 @@ export interface AgentActionContext {
     savePdf?: () => void | boolean | Promise<void | boolean>;
     compressDocument?: () => void | Promise<void>;
     runOcr?: () => void | Promise<void>;
+    analyzeDocumentHealth?: () => Promise<{ message?: string } | void>;
     convertToImages?: (format?: "png" | "jpeg") => void | Promise<void>;
     goPrevPage?: () => void;
     goNextPage?: () => void;

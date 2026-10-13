@@ -9,16 +9,16 @@ import { ServerAuthGate } from "./components/ServerAuthGate";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { installGlobalErrorReporting } from "./lib/clientDiagnostics";
 
-declare const __OPDF_BUILD_SHA__: string;
+declare const __TPDF_BUILD_SHA__: string;
 
 // Read server-injected metadata before mounting React; no blocking JS request.
-if (document.querySelector<HTMLMetaElement>('meta[name="opdf-runtime"]')?.content === "server") {
-  window.__OPDF_RUNTIME__ = "server";
-  window.__OPDF_SERVER_BASE__ =
-    document.querySelector<HTMLMetaElement>('meta[name="opdf-server-base"]')?.content || "/api/opdf";
+if (document.querySelector<HTMLMetaElement>('meta[name="tpdf-runtime"]')?.content === "server") {
+  window.__TPDF_RUNTIME__ = "server";
+  window.__TPDF_SERVER_BASE__ =
+    document.querySelector<HTMLMetaElement>('meta[name="tpdf-server-base"]')?.content || "/api/tpdf";
 }
-document.documentElement.dataset.opdfBuildSha = __OPDF_BUILD_SHA__;
-installGlobalErrorReporting(__OPDF_BUILD_SHA__);
+document.documentElement.dataset.tpdfBuildSha = __TPDF_BUILD_SHA__;
+installGlobalErrorReporting(__TPDF_BUILD_SHA__);
 
 if (!document.documentElement.dataset.density) {
   document.documentElement.dataset.density = "comfortable";
@@ -26,7 +26,7 @@ if (!document.documentElement.dataset.density) {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AppErrorBoundary buildSha={__OPDF_BUILD_SHA__}>
+    <AppErrorBoundary buildSha={__TPDF_BUILD_SHA__}>
       <ToastProvider>
         <ConfirmProvider>
           <ServerAuthGate>
@@ -38,5 +38,5 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </React.StrictMode>
 );
 
-registerOfflineAppCache(__OPDF_BUILD_SHA__);
+registerOfflineAppCache(__TPDF_BUILD_SHA__);
 warmAppAssetCache();

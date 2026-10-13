@@ -11,9 +11,9 @@ function bounded(value: unknown, max: number) {
 }
 
 export function reportClientError(event: ClientErrorEvent) {
-  if (typeof window === "undefined" || window.__OPDF_RUNTIME__ !== "server") return;
+  if (typeof window === "undefined" || window.__TPDF_RUNTIME__ !== "server") return;
 
-  const baseUrl = window.__OPDF_SERVER_BASE__ || "/api/opdf";
+  const baseUrl = window.__TPDF_SERVER_BASE__ || "/api/tpdf";
   const payload = {
     kind: event.kind,
     message: bounded(event.message, 500),

@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
-import type { PdfMatrix } from "@opdf/core";
+import type { PdfMatrix } from "@tpdf/core";
 import { translationMatrix } from "../../lib/nativeEditGeometry";
 import { applyNativeEditPatches } from "../../lib/nativeEditRuntime";
+import { nativeEditTransformPatches } from "./nativeEditInteractiveObjects";
 
 type KeyboardMove = {
   dx: number;
@@ -10,7 +11,7 @@ type KeyboardMove = {
 };
 
 type Props = {
-  objectId: string | null;
+  objectIds: string[];
   enabled: boolean;
   setPreviewMatrix: (matrix: PdfMatrix | null) => void;
   setError: (message: string | null) => void;
@@ -27,7 +28,7 @@ export function nativeEditKeyboardStep(elapsedMs: number, shiftKey = false) {
 }
 
 export function useNativeEditKeyboardMove({
-  objectId,
+  objectIds,
   enabled,
   setPreviewMatrix,
   setError,
@@ -39,16 +40,12 @@ export function useNativeEditKeyboardMove({
     const commit = () => {
       const move = moveRef.current;
       moveRef.current = null;
-      if (!objectId || !move || (move.dx === 0 && move.dy === 0)) {
+      if (!objectIds.length || !move || (move.dx === 0 && move.dy === 0)) {
         setPreviewMatrix(null);
         return;
       }
       void applyNativeEditPatches(
-        [{
-          type: "relative-transform",
-          objectId,
-          matrix: translationMatrix(move.dx, move.dy),
-        }],
+        nativeEditTransformPatches(objectIds, translationMatrix(move.dx, move.dy)),
         "Object moved with keyboard.",
       ).then(async (bytes) => {
         if (bytes) await onPersistedBytes(bytes);
@@ -60,7 +57,7 @@ export function useNativeEditKeyboardMove({
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!enabled || !objectId || !ARROWS.has(event.key)) return;
+      if (!enabled || !objectIds.length || !ARROWS.has(event.key)) return;
       const target = event.target as HTMLElement | null;
       if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
 
@@ -93,5 +90,5 @@ export function useNativeEditKeyboardMove({
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [enabled, objectId, onPersistedBytes, setError, setPreviewMatrix]);
+  }, [enabled, objectIds, onPersistedBytes, setError, setPreviewMatrix]);
 }

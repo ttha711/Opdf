@@ -44,6 +44,13 @@ export function NativeEditDocument({
   const requestedExternalScale = useRef<number | null>(null);
   const pendingPageRef = useRef<number | null>(null);
   const lastExternalPageRef = useRef<{ documentId: string; page: number } | null>(null);
+  // Viewer-reported pages are ignored until the requested page was applied once;
+  // at mount EmbedPDF reports page 1 before it has scrolled anywhere.
+  const externalPageAppliedRef = useRef(false);
+  // The first layout re-measures pages (Automatic zoom) after the scroll to the
+  // requested page, which moves currentPage. Until layout stays quiet, keep the
+  // requested page pinned instead of treating those moves as user scrolling.
+  const pageSettledRef = useRef(false);
 
   useEffect(() => registerViewerControls({
     zoomIn: () => zoom?.zoomIn(),
@@ -63,12 +70,21 @@ export function NativeEditDocument({
       // The filmstrip calls this viewer API directly, before the parent page
       // prop changes. Ignore interim virtualized scroll positions until arrival.
       pendingPageRef.current = destination;
+      // An explicit navigation always wins over the initial-page pin.
+      externalPageAppliedRef.current = true;
+      pageSettledRef.current = true;
       scroll.scrollToPage({ pageNumber: destination, behavior: "instant" });
     },
   }), [scroll, zoom]);
 
   useEffect(() => {
-    if (scrollState.totalPages > 0) onDocumentLoaded?.(scrollState.totalPages);
+    const total = scrollState.totalPages;
+    if (total <= 0) return;
+    // EmbedPDF can report a transient one-page layout before every page is
+    // measured. The parent clamps the current page to this count, so reporting
+    // it immediately would throw a user editing page N back to page 1.
+    const settle = window.setTimeout(() => onDocumentLoaded?.(total), 120);
+    return () => window.clearTimeout(settle);
   }, [onDocumentLoaded, scrollState.totalPages]);
 
   // A programmatic jump can report intermediate virtualized pages before
@@ -76,13 +92,23 @@ export function NativeEditDocument({
   // back to the parent: that would issue another jump and oscillate forever.
 
   useEffect(() => {
-    if (!scroll || page < 1 || scrollState.totalPages <= 0) return;
+    externalPageAppliedRef.current = false;
+    pageSettledRef.current = false;
+  }, [documentId]);
+
+  useEffect(() => {
+    // Wait until layout knows the requested page; a transient one-page layout
+    // cannot be scrolled to page N and must not consume the request.
+    if (!scroll || page < 1 || scrollState.totalPages <= 0 || page > scrollState.totalPages) return;
     // This effect can run when useScroll changes its scope identity while the
     // user is already navigating. A stale parent page must not snap the canvas
     // back to that page; only a genuinely new parent page request may scroll.
     if (lastExternalPageRef.current?.documentId === documentId &&
         lastExternalPageRef.current.page === page) return;
     lastExternalPageRef.current = { documentId, page };
+    // A later parent page request supersedes the initial-page pin.
+    if (externalPageAppliedRef.current) pageSettledRef.current = true;
+    externalPageAppliedRef.current = true;
     if (page === scrollState.currentPage) {
       if (pendingPageRef.current === page) pendingPageRef.current = null;
       return;
@@ -92,8 +118,36 @@ export function NativeEditDocument({
   }, [documentId, page, scroll, scrollState.totalPages]);
 
   useEffect(() => {
+    if (pageSettledRef.current || !externalPageAppliedRef.current) return;
+    const quiet = window.setTimeout(() => { pageSettledRef.current = true; }, 400);
+    return () => window.clearTimeout(quiet);
+  }, [documentId, scrollState.currentPage, scrollState.totalPages, zoomState.currentZoomLevel]);
+
+  useEffect(() => {
+    if (!scroll || pageSettledRef.current || !externalPageAppliedRef.current) return;
+    if (page < 1 || page > scrollState.totalPages || scrollState.currentPage === page) return;
+    // scrollToPage can be dropped while EmbedPDF is still measuring pages, so
+    // retry for a bounded time instead of trusting a single call.
+    let attempts = 0;
+    const pin = () => {
+      if (pageSettledRef.current) return;
+      if (attempts++ >= 30) {
+        pendingPageRef.current = null;
+        pageSettledRef.current = true;
+        return;
+      }
+      pendingPageRef.current = page;
+      scroll.scrollToPage({ pageNumber: page, behavior: "instant" });
+    };
+    pin();
+    const retry = window.setInterval(pin, 100);
+    return () => window.clearInterval(retry);
+  }, [page, scroll, scrollState.currentPage, scrollState.totalPages, zoomState.currentZoomLevel]);
+
+  useEffect(() => {
     const current = scrollState.currentPage;
-    if (current <= 0 || scrollState.totalPages <= 0) return;
+    if (current <= 0 || scrollState.totalPages <= 0 || !externalPageAppliedRef.current ||
+        !pageSettledRef.current) return;
     const pending = pendingPageRef.current;
     if (pending !== null) {
       if (current !== pending) return;

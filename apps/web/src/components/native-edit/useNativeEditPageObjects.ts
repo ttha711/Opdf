@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import type { PdfContentObject } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "../../lib/pdfiumContentEngine";
 import { consumeNativeInlineTextEdit, emitNativeEditSelection, getNativeEditSelection } from "../../lib/nativeEditRuntime";
@@ -23,6 +23,11 @@ export function useNativeEditPageObjects({
   pageIndex, enabled, revisionKey, getDocumentBytes, setObjects, setSelectedId,
   setEditingText, setEditingObject, setGroupedTextLines, setError,
 }: Props) {
+  // The byte provider's identity can change on any parent render. Re-inspecting
+  // the page then would drop the active inline edit (and on a 100 MB file it
+  // loops), so read it through a ref and re-inspect only for real revisions.
+  const bytesRef = useRef(getDocumentBytes);
+  bytesRef.current = getDocumentBytes;
   useEffect(() => {
     let cancelled = false;
     if (!enabled) {
@@ -30,7 +35,7 @@ export function useNativeEditPageObjects({
       return () => { cancelled = true; };
     }
     setError(null);
-    void getDocumentBytes()
+    void bytesRef.current()
       .then((bytes) => !cancelled && bytes ? pdfiumContentEditingEngine.inspectPage(bytes, pageIndex) : [])
       .then((next) => {
         if (cancelled) return;
@@ -64,7 +69,7 @@ export function useNativeEditPageObjects({
         if (!cancelled) setError(reason instanceof Error ? reason.message : "Unable to inspect PDF objects.");
       });
     return () => { cancelled = true; };
-  }, [enabled, getDocumentBytes, pageIndex, revisionKey, setEditingObject, setEditingText,
+  }, [enabled, pageIndex, revisionKey, setEditingObject, setEditingText,
     setGroupedTextLines, setObjects, setSelectedId, setError]);
 
   return useCallback(async (bytes: Uint8Array) => {

@@ -48,17 +48,18 @@ export function useExportAction({
   async function savePdf(options: { silent?: boolean } = {}) {
     if (!hasDocument || !fileName) return false;
     try {
-      const inlineEditBytes = options.silent ? null : await commitPendingNativeInlineEdit();
       setSaveState("saving");
+      const inlineEditBytes = options.silent ? null : await commitPendingNativeInlineEdit();
 
       let storageKey = sourceIdentity;
       const isServerDocument = sourceIdentity.startsWith("server://");
       // Native Edit PDF publishes authoritative working bytes before the
       // revised viewer document is ready. Save those bytes immediately:
       // re-materializing the old/reloading viewer can hang or return stale PDF.
-      let bytes = inlineEditBytes ?? ((isServerDocument && docBytes)
-        ? docBytes
-        : (await getDocumentBytes()) ?? docBytes);
+      // Embedded annotation edits live in the viewer until export. Reusing
+      // docBytes merely because the source is server-backed silently drops them.
+      // Inline native edits take priority to avoid reading a stale hidden reader.
+      let bytes = inlineEditBytes ?? (await getDocumentBytes()) ?? docBytes;
 
       if (hasDesktopBridge) {
         if (!inlineEditBytes) bytes = (await getDocumentBytes()) ?? bytes;
@@ -97,13 +98,13 @@ export function useExportAction({
         return true;
       }
 
-      await saveWebState({ fileName, annotations, page: 1 });
-      // Browsers cannot overwrite an uploaded File without its writable handle.
-      // Keep silent autosave limited to review state; it must not falsely mark
-      // unsaved PDF byte edits as durably written to disk.
+      const draftSaved = await saveWebState({ fileName, annotations, page: 1 });
+      // In browsers the PDF bytes are NOT written back to the original file.
+      // Treat successful draft persistence as a handled autosave attempt, but
+      // deliberately keep the actual PDF marked unsaved until manual download.
       if (options.silent) {
         setSaveState("idle");
-        return false;
+        return draftSaved;
       }
       if (!bytes) throw new Error("Document bytes are unavailable.");
       const baseName = fileName.split(/[/\\]/).pop() || "document.pdf";
@@ -139,8 +140,8 @@ export function useExportAction({
   async function savePdfAs() {
     if (!hasDocument || !fileName) return;
     try {
-      const inlineEditBytes = await commitPendingNativeInlineEdit();
       setSaveState("saving");
+      const inlineEditBytes = await commitPendingNativeInlineEdit();
       const bytes = inlineEditBytes ?? (await getDocumentBytes()) ?? docBytes;
       if (!bytes) throw new Error("Document bytes are unavailable.");
 

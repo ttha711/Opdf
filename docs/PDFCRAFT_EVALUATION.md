@@ -2,8 +2,8 @@
 
 Status: **research / proposal only**. This document does not enable PdfCraft in production.
 
-Evaluated: 2026-10-11  
-Upstream: [storytold/pdfcraft](https://github.com/storytold/pdfcraft) (main snapshot `bbbe60015c571ebfc39708ee07777b89e267122a`)  
+Evaluated: 2026-10-11
+Upstream: [storytold/pdfcraft](https://github.com/storytold/pdfcraft) (main snapshot `bbbe60015c571ebfc39708ee07777b89e267122a`)
 TPDF: [ttha711/Tpdf](https://github.com/ttha711/Tpdf) (main snapshot `7e4347b928dfdb58ac9a313b8f11f104f537e2c1`)
 
 ## Executive decision

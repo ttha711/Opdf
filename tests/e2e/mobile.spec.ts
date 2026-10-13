@@ -55,6 +55,21 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+1\s+of\s+3/i, { timeout: 30_000 });
 
+  const mobileSave = page.locator('[data-tpdf-action="mobile-save"]');
+  await expect(mobileSave).toBeVisible();
+  const saveBox = await mobileSave.boundingBox();
+  expect(saveBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  const mobileTools = page.locator('[data-tpdf-mobile-edit-toolbar="true"]');
+  await expect(mobileTools).toBeVisible();
+  const highlight = mobileTools.getByRole("button", { name: "Highlight" });
+  const highlightBox = await highlight.boundingBox();
+  expect(highlightBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await highlight.click();
+  await expect(highlight).toHaveAttribute("aria-pressed", "true");
+  const move = mobileTools.getByRole("button", { name: "Move and select PDF" });
+  await move.click();
+  await expect(move).toHaveAttribute("aria-pressed", "true");
+
   const pagePreviewButton = page.locator('[data-tpdf-action="toggle-page-filmstrip"]');
   await expect(pagePreviewButton).toBeVisible();
   const pagePreviewButtonBox = await pagePreviewButton.boundingBox();
@@ -68,6 +83,10 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await filmstrip.getByRole("button", { name: "Go to page 2" }).click();
   await expect(filmstrip).toHaveCount(0);
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+2\s+of\s+3/i, { timeout: 10_000 });
+  await pagePreviewButton.click();
+  await filmstrip.getByRole("spinbutton", { name: "Jump to page" }).fill("3");
+  await filmstrip.getByRole("button", { name: "Go to page", exact: true }).click();
+  await expect(page.getByTestId("page-status")).toContainText(/Page\s+3\s+of\s+3/i, { timeout: 10_000 });
 
   await expect(page.locator(".tpdf-topbar .tab-bar-container")).toBeVisible();
   await page.locator('[data-tpdf-action="home"]').click();
@@ -76,19 +95,24 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await expect(preservedTab).toBeVisible();
   await preservedTab.click();
   await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
+  await page.setViewportSize({ width: 320, height: 700 });
+  const headerSaveRect = await mobileSave.boundingBox();
+  expect((headerSaveRect?.x ?? -1) + (headerSaveRect?.width ?? 1)).toBeLessThanOrEqual(320);
+  await expect(mobileSave).toBeVisible();
 
   const documentOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(documentOverflow).toBeLessThanOrEqual(1);
 
   const aiFab = page.locator('[data-tpdf-action="open-ai"]');
   await expect(aiFab).toBeVisible();
+  await page.setViewportSize({ width: 412, height: 915 });
   const aiFabBox = await aiFab.boundingBox();
   const mobileViewport = page.viewportSize();
   expect(aiFabBox).not.toBeNull();
   expect(mobileViewport).not.toBeNull();
   expect((mobileViewport?.height ?? 0) - ((aiFabBox?.y ?? 0) + (aiFabBox?.height ?? 0))).toBeGreaterThanOrEqual(80);
 
-  await aiFab.click();
+  await aiFab.tap();
   await expect(page.locator('[data-tpdf-right-sidebar="open"]')).toBeVisible();
   await expect(page.locator('[data-tpdf-action="collapse-right-panel"]')).toBeVisible();
   const drawerBackdrop = page.locator('[data-tpdf-action="right-panel-backdrop"]');

@@ -19,6 +19,16 @@ describe("document source", () => {
     })).toBe(bytes);
   });
 
+  it("uses latest edited bytes when an original uploaded File is still retained", () => {
+    const edited = new Uint8Array([37, 80, 68, 70, 2]);
+    const original = new Blob([new Uint8Array([37, 80, 68, 70, 1])], { type: "application/pdf" });
+    expect(resolvePdfSource({
+      sourceBlob: original,
+      docBytes: edited,
+      sourceIdentity: identity,
+    })).toBe(edited);
+  });
+
   it("uses the server URL when no local working copy exists", () => {
     expect(resolvePdfSource({
       sourceIdentity: identity,

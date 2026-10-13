@@ -195,6 +195,10 @@ export function useDocumentLifecycle({
   }
 
   async function closeDocument() {
+    if (saveState === "saving") {
+      toast.info("Wait for the PDF to finish saving before closing it.");
+      return;
+    }
     // Guard: require confirmation when there are unsaved changes (saveState "idle"
     // means the current fingerprint differs from the last saved one — see StatusBar "Unsaved").
     if (saveState === "idle") {

@@ -3,6 +3,7 @@ type FingerprintInput = {
   docBytes: Uint8Array | null;
   documentIdentity?: string;
   annotations?: unknown;
+  viewerRevision?: number;
 };
 
 function fnv1aUpdate(hash: number, value: number) {
@@ -35,6 +36,7 @@ export function buildDocumentFingerprint({
   docBytes,
   documentIdentity = "",
   annotations = [],
+  viewerRevision = 0,
 }: FingerprintInput): string {
   if (!fileName || (!docBytes && !documentIdentity)) return "";
 
@@ -42,5 +44,6 @@ export function buildDocumentFingerprint({
   hash = hashString(hash, fileName);
   hash = docBytes ? hashBytes(hash, docBytes) : hashString(hash, documentIdentity);
   hash = hashString(hash, JSON.stringify(annotations));
+  hash = hashString(hash, String(viewerRevision));
   return hash.toString(36);
 }

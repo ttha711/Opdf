@@ -84,7 +84,7 @@ export function useAppEffects(args: AppEffectsArgs) {
 
         const groupFilter = urlParams.get("group") || null;
 
-        if (loadedTabs && loadedTabs.length > 0) {
+        if (loadedTabs !== null) {
           setTabs(loadedTabs);
 
           let targetTab = loadedTabs.find(t => t.id === loadedActiveId);
@@ -181,7 +181,7 @@ export function useAppEffects(args: AppEffectsArgs) {
 
   // 2. Tabs Auto-Save effect
   useEffect(() => {
-    if (hasDesktopBridge || !hasRestoredTabs || tabs.length === 0) return;
+    if (hasDesktopBridge || !hasRestoredTabs) return;
     const timeout = setTimeout(() => {
       void (async () => {
         const savedTabs = await saveTabsList(tabs);

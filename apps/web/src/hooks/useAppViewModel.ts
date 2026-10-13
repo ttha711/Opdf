@@ -1,4 +1,5 @@
-import { executeViewerCommand } from "../lib/viewer-runtime";
+import { executeViewerCommand, getViewerControls } from "../lib/viewer-runtime";
+import { toast } from "../components/ToastProvider";
 
 type UseAppViewModelArgs = {
   state: any;
@@ -10,7 +11,12 @@ type UseAppViewModelArgs = {
 export function useAppViewModel({ state, actions, menuItems, callbacks }: UseAppViewModelArgs) {
   const setActiveTool = (tool: any) => {
     if (tool === "signature") {
-      void executeViewerCommand("insert:add-signature");
+      if (!getViewerControls()?.executeCommand) {
+        toast.error("PDF tools are still loading. Try signing again.");
+        return;
+      }
+      void executeViewerCommand("insert:add-signature")
+        .catch(() => toast.error("Signature tool could not be opened."));
       return;
     }
     state.setActiveTool(tool);
@@ -27,6 +33,7 @@ export function useAppViewModel({ state, actions, menuItems, callbacks }: UseApp
     toggleMenu: callbacks.toggleMenu,
     closeMenu: callbacks.closeMenu,
     activeTool: state.activeTool,
+    hasUnsavedChanges: state.saveState !== "saved",
     setActiveTool,
     savePdf: actions.savePdf,
     saveState: state.saveState,

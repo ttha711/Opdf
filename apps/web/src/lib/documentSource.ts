@@ -24,8 +24,9 @@ export function resolvePdfSource({
   sourceIdentity?: string | null;
   serverBaseUrl?: string;
 }): PdfSource {
-  if (sourceBlob) return sourceBlob;
+  // Edited working bytes take precedence over the original uploaded File.
   if (docBytes) return docBytes;
+  if (sourceBlob) return sourceBlob;
   if (!sourceIdentity) return null;
   return getServerDocumentUrl(sourceIdentity, serverBaseUrl);
 }

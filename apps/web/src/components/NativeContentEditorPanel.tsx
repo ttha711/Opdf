@@ -9,12 +9,12 @@ import {
   emitNativeEditSelection,
   registerNativeEditPatchApplier,
   registerNativeEditSelectionListener,
-  requestNativeInlineTextEditById,
 } from "../lib/nativeEditRuntime";
 import { NativeContentObjectList } from "./native-content-editor/NativeContentObjectList";
 import { NativeContentProperties, type NativeContentDraft } from "./native-content-editor/NativeContentProperties";
 import { NativeContentToolbar } from "./native-content-editor/NativeContentToolbar";
 import { useNativeContentKeyboard } from "./native-content-editor/useNativeContentKeyboard";
+import { useNativeContentPanelText } from "./native-content-editor/useNativeContentPanelText";
 
 type Props = {
   page: number;
@@ -261,15 +261,17 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   }, [apply, deepFormReadOnly, draft, selected]);
 
   const selectFromPanel = useCallback((id: string) => {
-    void commitPendingNativeInlineEdit().then(() => {
-      setSelectedId(id);
-      emitNativeEditSelection({ pageIndex: page - 1, objectId: id });
-    });
+    // Keep the inspector responsive on large CAD sheets while committing the
+    // previous inline edit. The overlay receives the selection only after
+    // the previous draft has been safely committed.
+    setSelectedId(id);
+    void commitPendingNativeInlineEdit()
+      .then(() => emitNativeEditSelection({ pageIndex: page - 1, objectId: id }))
+      .catch((error) => setMessage(error instanceof Error ? error.message : String(error)));
   }, [page]);
-  const editSelectedText = useCallback(() => {
-    if (selected?.kind !== "text" || deepFormReadOnly) return;
-    requestNativeInlineTextEditById({ pageIndex: page - 1, objectId: selected.id });
-  }, [deepFormReadOnly, page, selected]);
+  const { editSelectedText, editObjectById, panelTextEditor } = useNativeContentPanelText({
+    selected, objects, readOnly: deepFormReadOnly, apply,
+  });
 
   return (
     <aside className="native-content-editor" data-tpdf-native-editor="true">
@@ -281,7 +283,8 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
         <button type="button" onClick={onClose} aria-label="Close Edit PDF">×</button>
       </div>
       <NativeContentToolbar page={page} loading={loading} message={message} canUndo={undoStack.length > 0} canRedo={redoStack.length > 0} refresh={refresh} undo={undo} redo={redo} apply={apply} />
-      <NativeContentObjectList objects={objects} selectedId={selectedId} loading={loading} onSelect={selectFromPanel} />
+      <NativeContentObjectList objects={objects} selectedId={selectedId} loading={loading} onSelect={selectFromPanel} onEditText={editObjectById} />
+      {panelTextEditor}
       {selected ? (
         <NativeContentProperties selected={selected} draft={draft} setDraft={setDraft} loading={loading} deepFormReadOnly={deepFormReadOnly} saveTextStyle={saveTextStyle} editSelectedText={editSelectedText} move={move} scale={scale} rotate={rotate} apply={apply} />
       ) : null}

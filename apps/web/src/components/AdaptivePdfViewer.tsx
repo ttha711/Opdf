@@ -160,7 +160,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
             Open with full PDF viewer
           </button>
         </div>
-      ) : remote ? <RemotePdfViewer {...props} onViewerReady={handleViewerReady} /> : (
+      ) : remote ? <RemotePdfViewer {...props} onViewerReady={handleViewerReady} onRequestFull={() => setForceFullViewer(true)} /> : (
         <>
           {(!isEditing || !largeDocument) ? <div className="absolute inset-0">
             <PdfViewer {...props} onViewerReady={handleViewerReady} />

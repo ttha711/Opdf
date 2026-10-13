@@ -56,9 +56,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
     fetch(documentUrl, { method: "HEAD", signal: controller.signal })
       .then((response) => {
         const size = Number(response.headers.get("content-length"));
-        if (response.ok && Number.isFinite(size) && size > 0 && !controller.signal.aborted) {
-          setDocumentSize({ source: props.sourceIdentity || "", bytes: size });
-        }
+        if (!controller.signal.aborted) setDocumentSize({ source: props.sourceIdentity || "", bytes: response.ok && Number.isFinite(size) && size > 0 ? size : null });
       })
       .catch(() => { if (!controller.signal.aborted) setDocumentSize({ source: props.sourceIdentity || "", bytes: null }); });
     return () => controller.abort();
@@ -98,7 +96,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
       .then((value) => { if (!controller.signal.aborted) setCapability({ source: props.sourceIdentity || "", available: Boolean(value?.capabilities?.remoteRendering) }); })
       .catch(() => { if (!controller.signal.aborted) setCapability({ source: props.sourceIdentity || "", available: false }); });
     return () => controller.abort();
-  }, [serverSource]);
+  }, [serverSource, props.sourceIdentity]);
 
   const handleViewerReady = useCallback(() => {
     setHasOpenedDocument(true);

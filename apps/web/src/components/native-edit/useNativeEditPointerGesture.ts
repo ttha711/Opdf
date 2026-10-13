@@ -1,12 +1,15 @@
-import { useLayoutEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useLayoutEffect, useRef, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from "react";
 import type { PdfMatrix } from "@tpdf/core";
 import { pdfPointFromClient } from "../../lib/nativeEditGeometry";
 import { applyNativeEditPatches } from "../../lib/nativeEditRuntime";
 import { nativeEditTransformPatches } from "./nativeEditInteractiveObjects";
 import { matrixForPointer, matrixIsIdentity, type NativeEditDragState } from "./nativeEditPointerTransform";
+import type { NativeEditPinnedPoints } from "./NativeEditSelectionLayer";
 
 type Props = {
   drag: NativeEditDragState | null;
+  pageIndex: number;
+  pinnedPointsRef: MutableRefObject<NativeEditPinnedPoints | null>;
   overlayRef: RefObject<SVGSVGElement | null>;
   setDrag: Dispatch<SetStateAction<NativeEditDragState | null>>;
   setPreviewMatrix: Dispatch<SetStateAction<PdfMatrix | null>>;
@@ -16,7 +19,7 @@ type Props = {
 
 /** Complete a pointer gesture without reattaching pointerup on every preview paint. */
 export function useNativeEditPointerGesture({
-  drag, overlayRef, setDrag, setPreviewMatrix, setError, onPersistedBytes,
+  drag, overlayRef, pageIndex, pinnedPointsRef, setDrag, setPreviewMatrix, setError, onPersistedBytes,
 }: Props) {
   const latestPreview = useRef<PdfMatrix | null>(null);
   const persistedRef = useRef(onPersistedBytes);
@@ -64,6 +67,12 @@ export function useNativeEditPointerGesture({
           await new Promise<void>((resolve) =>
             requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         }
+        // Preserve the exact optimistic SVG string while PDFium quantizes
+        // its stored geometry and the old page is replaced by a new revision.
+        const polygon = overlayRef.current?.querySelector<SVGPolygonElement>("[data-tpdf-canvas-selection]");
+        const objectId = polygon?.getAttribute("data-tpdf-canvas-selection");
+        const points = polygon?.getAttribute("points");
+        if (objectId && points) pinnedPointsRef.current = { objectId, pageIndex, points };
         return applyNativeEditPatches(nativeEditTransformPatches(drag.objectIds, matrix), message);
       };
       void commitAfterPaint()
@@ -87,5 +96,5 @@ export function useNativeEditPointerGesture({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
     };
-  }, [drag, overlayRef, setDrag, setPreviewMatrix, setError]);
+  }, [drag, overlayRef, pageIndex, pinnedPointsRef, setDrag, setPreviewMatrix, setError]);
 }

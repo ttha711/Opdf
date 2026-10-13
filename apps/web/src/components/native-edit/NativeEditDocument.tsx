@@ -8,12 +8,14 @@ import {
 } from "../../lib/viewer-runtime";
 import { NativeEditPageOverlay } from "./NativeEditPageOverlay";
 import { NativeEditFallbackRaster } from "./NativeEditFallbackRaster";
+import type { NativeEditPinnedPoints } from "./NativeEditSelectionLayer";
 
 type Props = {
   documentId: string;
   page: number;
   scale: number;
   revisionKey: string;
+  pinnedPointsRef: React.MutableRefObject<NativeEditPinnedPoints | null>;
   getDocumentBytes: () => Promise<Uint8Array | null>;
   onDocumentLoaded?: (pages: number) => void;
   onActivePageChange?: (page: number) => void;
@@ -25,6 +27,7 @@ export function NativeEditDocument({
   page,
   scale,
   revisionKey,
+  pinnedPointsRef,
   getDocumentBytes,
   onDocumentLoaded,
   onActivePageChange,
@@ -134,6 +137,7 @@ export function NativeEditDocument({
               width={width}
               height={height}
               revisionKey={revisionKey}
+              pinnedPointsRef={pinnedPointsRef}
               getDocumentBytes={getDocumentBytes}
             />
           </div>

@@ -29,6 +29,8 @@ async function logFailureState(page: import('@playwright/test').Page, fixture: s
       pages: document.querySelectorAll('.native-edit-page').length,
       overlayObjects: document.querySelectorAll('polygon.native-edit-object').length,
       rasterCount: images.length,
+      allStages: [...document.querySelectorAll('[data-tpdf-pdfjs-fallback]')].map((n) => n.getAttribute('data-tpdf-fallback-stage')),
+      statusText: document.querySelector('[data-tpdf-region="status-bar"]')?.textContent?.slice(0, 120) ?? null,
       fallbackStage: document.querySelector('[data-tpdf-pdfjs-fallback]')?.getAttribute('data-tpdf-fallback-stage') ?? null,
       paintedRasters: images.filter((image) => image instanceof HTMLImageElement
         ? image.complete && image.naturalWidth > 0 : image.width > 0 && image.height > 0).length,

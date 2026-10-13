@@ -56,7 +56,17 @@ export function useNativeEditPointerGesture({
       setPreviewMatrix(matrix);
       const message = drag.mode === "move" ? "Object moved on page."
         : drag.mode === "resize" ? "Object resized on page." : "Object rotated on page.";
-      void applyNativeEditPatches(nativeEditTransformPatches(drag.objectIds, matrix), message)
+      // Present at least one painted optimistic frame before PDFium edits
+      // replace the document/selection subtree. Otherwise a fast revision
+      // swap can remove the selection before users see the resized bounds.
+      const commitAfterPaint = async () => {
+        if (document.visibilityState === "visible") {
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        }
+        return applyNativeEditPatches(nativeEditTransformPatches(drag.objectIds, matrix), message);
+      };
+      void commitAfterPaint()
         .then(async (bytes) => {
           if (bytes) await persistedRef.current(bytes);
           setPreviewMatrix(null);

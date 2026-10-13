@@ -385,6 +385,9 @@ export function PdfViewer({
             onActiveToolChange("edit-content");
             return;
           }
+          // Native editing owns the tool state. Late reader annotation events
+          // (including a nonempty "select" tool) must not close its sidebar.
+          if (activeToolRef.current === "edit-content") return;
           const expectedMeasureTool =
             measurementMode === "area" ? "polygon" :
             measurementMode === "perimeter" ? "polyline" : "line";

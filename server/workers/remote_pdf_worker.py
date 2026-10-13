@@ -16,18 +16,26 @@ except ImportError as exc:
     sys.stdout.flush()
     sys.exit(1)
 
+if "--probe" in sys.argv:
+    sys.stdout.write(json.dumps({"ready": True}) + "\n")
+    sys.stdout.flush()
+    sys.exit(0)
+
 document = None
 document_path = None
+document_version = None
 
 
 def process(command):
-    global document, document_path
+    global document, document_path, document_version
     path = command["path"]
-    if path != document_path:
+    version = command.get("version")
+    if path != document_path or version != document_version:
         if document is not None:
             document.close()
         document = fitz.open(path)
         document_path = path
+        document_version = version
     if document.needs_pass:
         raise ValueError("Password-protected documents cannot be remotely rendered.")
 

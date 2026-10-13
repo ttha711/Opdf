@@ -63,7 +63,7 @@ export function createRemoteRenderService(env = process.env) {
     child.stdout.on("data", (part) => {
       output += part.toString();
       if (output.length > 1024) return finish(false);
-      const newline = output.indexOf("\\n");
+      const newline = output.indexOf("\n");
       if (newline === -1) return;
       try { finish(JSON.parse(output.slice(0, newline)).ready === true); }
       catch { finish(false); }

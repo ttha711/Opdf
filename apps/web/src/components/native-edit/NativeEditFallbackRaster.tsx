@@ -30,6 +30,9 @@ export function NativeEditFallbackRaster({
   const dimensions = useRef({ width, height });
   bytesProvider.current = getDocumentBytes;
   dimensions.current = { width, height };
+  // EmbedPDF may mount the first page with zero dimensions before layout.
+  // Track the transition to a measurable page, not every subsequent resize.
+  const dimensionsReady = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0;
   const [stage, setStage] = useState("waiting");
   const [painted, setPainted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +41,7 @@ export function NativeEditFallbackRaster({
     setPainted(false);
     setStage("waiting");
     setError(null);
-    if (!enabled || width <= 0 || height <= 0) return;
+    if (!enabled || !dimensionsReady) return;
     let cancelled = false;
     let finished = false;
     let worker: Worker | null = null;
@@ -153,7 +156,7 @@ export function NativeEditFallbackRaster({
       cancelRender?.();
       disposePdf?.();
     };
-  }, [enabled, pageIndex, revisionKey]);
+  }, [dimensionsReady, enabled, pageIndex, revisionKey]);
 
   return (
     <>

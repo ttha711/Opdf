@@ -29,10 +29,26 @@ export function NativeEditFallbackRaster({
   const bytesProvider = useRef(getDocumentBytes);
   const dimensions = useRef({ width, height });
   bytesProvider.current = getDocumentBytes;
-  dimensions.current = { width, height };
-  // EmbedPDF may mount the first page with zero dimensions before layout.
-  // Track the transition to a measurable page, not every subsequent resize.
-  const dimensionsReady = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0;
+  if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
+    dimensions.current = { width, height };
+  }
+  // Watch actual DOM geometry: EmbedPDF can retain zero/stale page props.
+  const [dimensionsReady, setDimensionsReady] = useState(false);
+  useEffect(() => {
+    const page = canvasRef.current?.closest<HTMLElement>(".native-edit-page");
+    if (!page) return;
+    const readLayout = () => {
+      const bounds = page.getBoundingClientRect();
+      const ready = Number.isFinite(bounds.width) && bounds.width > 0 &&
+        Number.isFinite(bounds.height) && bounds.height > 0;
+      if (ready) dimensions.current = { width: bounds.width, height: bounds.height };
+      setDimensionsReady((current) => current === ready ? current : ready);
+    };
+    const observer = new ResizeObserver(readLayout);
+    observer.observe(page);
+    readLayout();
+    return () => observer.disconnect();
+  }, [pageIndex, revisionKey]);
   const [stage, setStage] = useState("waiting");
   const [painted, setPainted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +127,12 @@ export function NativeEditFallbackRaster({
     };
 
     const start = window.setTimeout(() => {
-      if (shouldStop()) return;
+      const pageNode = canvasRef.current?.closest<HTMLElement>(".native-edit-page");
+      if (cancelled || finished || !pageNode) return;
+      if (nativeBitmapReady(pageNode)) {
+        setStage("native-ready");
+        return;
+      }
       setStage("pdfium-rendering");
       void (async () => {
         try {

@@ -14,6 +14,7 @@ export function useDocumentActions({
   bridge,
   hasDocument,
   hasDesktopBridge,
+  isNativeEditing,
   fileName,
   docBytes,
   sourceBlob,
@@ -39,6 +40,7 @@ export function useDocumentActions({
   bridge: ReturnType<typeof useTpdfBridge>;
   hasDocument: boolean;
   hasDesktopBridge: boolean;
+  isNativeEditing: boolean;
   fileName: string;
   docBytes: Uint8Array | null;
   sourceBlob: Blob | null;
@@ -83,6 +85,7 @@ export function useDocumentActions({
     bridge,
     hasDocument,
     hasDesktopBridge,
+    isNativeEditing,
     fileName,
     docBytes,
     sourceIdentity,

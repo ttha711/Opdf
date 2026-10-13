@@ -86,14 +86,14 @@ export function NativeEditDocument({
 
   useEffect(() => {
     const current = scrollState.currentPage;
-    if (current <= 0) return;
+    if (current <= 0 || scrollState.totalPages <= 0) return;
     const pending = pendingPageRef.current;
     if (pending !== null) {
       if (current !== pending) return;
       pendingPageRef.current = null;
     }
     if (current !== page) onActivePageChange?.(current);
-  }, [onActivePageChange, page, scrollState.currentPage]);
+  }, [onActivePageChange, page, scrollState.currentPage, scrollState.totalPages]);
 
   useEffect(() => {
     // Only apply actual external zoom changes after the initial document layout.
@@ -123,14 +123,14 @@ export function NativeEditDocument({
             <NativeEditFallbackRaster
               pageIndex={pageIndex}
               revisionKey={revisionKey}
-              enabled={pageIndex + 1 === (scrollState.currentPage || page)}
+              enabled={pageIndex + 1 === page}
               width={width}
               height={height}
               getDocumentBytes={getDocumentBytes}
             />
             <NativeEditPageOverlay
               pageIndex={pageIndex}
-              enabled={pageIndex + 1 === (scrollState.currentPage || page)}
+              enabled={pageIndex + 1 === page}
               width={width}
               height={height}
               revisionKey={revisionKey}

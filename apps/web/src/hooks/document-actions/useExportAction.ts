@@ -7,6 +7,7 @@ export function useExportAction({
   bridge,
   hasDocument,
   hasDesktopBridge,
+  isNativeEditing,
   fileName,
   docBytes,
   sourceIdentity,
@@ -23,6 +24,7 @@ export function useExportAction({
   bridge: ReturnType<typeof useTpdfBridge>;
   hasDocument: boolean;
   hasDesktopBridge: boolean;
+  isNativeEditing: boolean;
   fileName: string;
   docBytes: Uint8Array | null;
   sourceIdentity: string;
@@ -45,17 +47,12 @@ export function useExportAction({
   // ── Save (Ctrl+S) ──────────────────────────────────────────────────────────
   // Desktop: writes docBytes to existing path + saves annotations. No flatten.
   // Web: saves docBytes + annotations to IndexedDB draft. No download, no flatten.
-  // Serialize manual Save with background autosave. The manual request must
-  // persist after an in-flight autosave, never race it for the same document.
-  const activeSave = useRef<ReturnType<typeof persistPdf> | null>(null);
-  async function savePdf(options: { silent?: boolean } = {}) {
-    while (activeSave.current) await activeSave.current;
-    const operation = persistPdf(options);
-    activeSave.current = operation;
-    try { return await operation; }
-    finally {
-      if (activeSave.current === operation) activeSave.current = null;
-    }
+  // Reserve each Save in FIFO order before any async work begins.
+  const saveTail = useRef<Promise<void>>(Promise.resolve());
+  function savePdf(options: { silent?: boolean } = {}) {
+    const operation = saveTail.current.then(() => persistPdf(options));
+    saveTail.current = operation.then(() => undefined, () => undefined);
+    return operation;
   }
 
   async function persistPdf(options: { silent?: boolean } = {}) {
@@ -72,7 +69,10 @@ export function useExportAction({
       // Embedded annotation edits live in the viewer until export. Reusing
       // docBytes merely because the source is server-backed silently drops them.
       // Inline native edits take priority to avoid reading a stale hidden reader.
-      let bytes = inlineEditBytes ?? (await getDocumentBytes()) ?? docBytes;
+      // Native patches publish verified bytes before the viewer reloads.
+      // Avoid waiting on a stale viewer; non-native edits still export it.
+      const nativeBytes = isNativeEditing && isServerDocument ? docBytes : null;
+      let bytes = inlineEditBytes ?? nativeBytes ?? (await getDocumentBytes()) ?? docBytes;
 
       if (hasDesktopBridge) {
         if (!inlineEditBytes) bytes = (await getDocumentBytes()) ?? bytes;

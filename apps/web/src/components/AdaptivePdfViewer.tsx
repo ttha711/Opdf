@@ -16,9 +16,9 @@ const LARGE_DOCUMENT_BYTES = 100 * 1024 * 1024;
 export function AdaptivePdfViewer(props: PdfViewerProps) {
   const isEditing = props.activeTool === "edit-content";
   const serverSource = (props.sourceIdentity || "").startsWith("server://");
-  const [available, setAvailable] = useState(false);
+  const [capability, setCapability] = useState<{ source: string; available: boolean } | null>(null);
   const [hasOpenedDocument, setHasOpenedDocument] = useState(false);
-  const [documentSizeBytes, setDocumentSizeBytes] = useState<number | null>(null);
+  const [documentSize, setDocumentSize] = useState<{ source: string; bytes: number | null } | null>(null);
   const [nativeEditEngine, setNativeEditEngine] = useState<NativeEditEngine | null>(null);
   const [nativeEditEngineError, setNativeEditEngineError] = useState<Error | null>(null);
   const [forceFullViewer, setForceFullViewer] = useState(false);
@@ -37,33 +37,37 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
     return () => media.removeEventListener("change", onChange);
   }, []);
 
-  useEffect(() => { setPreference("auto"); }, [props.sourceIdentity]);
+  useEffect(() => { setPreference("auto"); setForceFullViewer(false); }, [props.sourceIdentity]);
 
   useEffect(() => {
     const localSize = props.sourceBlob?.size ?? props.data?.byteLength ?? null;
     if (localSize !== null) {
-      setDocumentSizeBytes(localSize);
+      setDocumentSize({ source: props.sourceIdentity || "", bytes: localSize });
       return;
     }
     const documentUrl = getServerDocumentUrl(props.sourceIdentity || "");
     if (!documentUrl) {
-      setDocumentSizeBytes(null);
+      setDocumentSize({ source: props.sourceIdentity || "", bytes: null });
       return;
     }
 
     const controller = new AbortController();
-    setDocumentSizeBytes(null);
+    setDocumentSize(null);
     fetch(documentUrl, { method: "HEAD", signal: controller.signal })
       .then((response) => {
         const size = Number(response.headers.get("content-length"));
         if (response.ok && Number.isFinite(size) && size > 0 && !controller.signal.aborted) {
-          setDocumentSizeBytes(size);
+          setDocumentSize({ source: props.sourceIdentity || "", bytes: size });
         }
       })
       .catch(() => undefined);
     return () => controller.abort();
   }, [props.data, props.sourceBlob, props.sourceIdentity]);
 
+  const documentSizeBytes = documentSize?.source === (props.sourceIdentity || "") ? documentSize.bytes : null;
+  const available = capability?.source === (props.sourceIdentity || "") && capability.available;
+  const capabilityPending = serverSource && (!capability || capability.source !== props.sourceIdentity);
+  const sizePending = serverSource && documentSize === null;
   const shouldPreloadEditEngines = isEditing || (
     hasOpenedDocument && documentSizeBytes !== null && documentSizeBytes < LARGE_DOCUMENT_BYTES
   );
@@ -85,14 +89,14 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
 
   useEffect(() => {
     if (!serverSource || window.__TPDF_RUNTIME__ !== "server") {
-      setAvailable(false);
+      setCapability({ source: props.sourceIdentity || "", available: false });
       return;
     }
     const controller = new AbortController();
     fetch((window.__TPDF_SERVER_BASE__ || "/api/tpdf") + "/health", { signal: controller.signal })
       .then((response) => response.ok ? response.json() : null)
-      .then((value) => { if (!controller.signal.aborted) setAvailable(Boolean(value?.capabilities?.remoteRendering)); })
-      .catch(() => { if (!controller.signal.aborted) setAvailable(false); });
+      .then((value) => { if (!controller.signal.aborted) setCapability({ source: props.sourceIdentity || "", available: Boolean(value?.capabilities?.remoteRendering) }); })
+      .catch(() => { if (!controller.signal.aborted) setCapability({ source: props.sourceIdentity || "", available: false }); });
     return () => controller.abort();
   }, [serverSource]);
 
@@ -141,9 +145,17 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
     window.localStorage.setItem("tpdf-render-mode", next);
   };
 
+  const awaitingDecision = serverSource && !forceFullViewer && !needsEditor && (capabilityPending || sizePending);
+  const requiresExplicitFull = serverSource && !forceFullViewer && !needsEditor && !available && documentSizeBytes !== null && documentSizeBytes >= LARGE_DOCUMENT_BYTES;
+
   return (
     <div className="relative h-full w-full" style={{ minHeight: 0 }}>
-      {waitingForLargeUpload ? (
+      {awaitingDecision || requiresExplicitFull ? (
+        <div role="status" style={{ display: "grid", placeContent: "center", gap: 12, height: "100%", color: "#475569", textAlign: "center", padding: 16 }}>
+          <span>{awaitingDecision ? "Checking PDF viewing capabilities…" : "Lightweight rendering is unavailable. Opening this large PDF will download the full file."}</span>
+          {requiresExplicitFull ? <button type="button" onClick={() => setForceFullViewer(true)}>Download and open full PDF</button> : null}
+        </div>
+      ) : waitingForLargeUpload ? (
         <div role="status" style={{ display: "grid", placeContent: "center", gap: 12, height: "100%", color: "#475569", textAlign: "center" }}>
           <span>Preparing a lightweight preview while the PDF uploads…</span>
           <button type="button" onClick={() => setForceFullViewer(true)} style={{ justifySelf: "center", padding: "7px 12px", borderRadius: 8, border: "1px solid #94a3b8" }}>

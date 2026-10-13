@@ -49,9 +49,7 @@ export function NativeEditPdfViewer({
   );
 
   useEffect(() => {
-    const blob = sourceBlob ?? (data
-      ? new Blob([data as unknown as BlobPart], { type: "application/pdf" })
-      : null);
+    const blob = data ? new Blob([data as unknown as BlobPart], { type: "application/pdf" }) : sourceBlob;
     if (!blob) {
       setLocalUrl(null);
       return;

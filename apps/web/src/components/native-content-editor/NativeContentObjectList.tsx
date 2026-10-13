@@ -14,9 +14,10 @@ type Props = {
   selectedId: string | null;
   loading: boolean;
   onSelect: (id: string) => void;
+  onEditText?: (id: string) => void;
 };
 
-export function NativeContentObjectList({ objects, selectedId, loading, onSelect }: Props) {
+export function NativeContentObjectList({ objects, selectedId, loading, onSelect, onEditText }: Props) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<ObjectKind>("all");
   const [limit, setLimit] = useState(BATCH_SIZE);
@@ -78,6 +79,7 @@ export function NativeContentObjectList({ objects, selectedId, loading, onSelect
           className={object.id === selectedId ? "active" : ""}
           aria-pressed={object.id === selectedId}
           onClick={() => onSelect(object.id)}
+          onDoubleClick={() => { if (object.kind === "text") onEditText?.(object.id); }}
           data-tpdf-object-id={object.id}
           data-tpdf-object-kind={object.kind}
           data-tpdf-object-depth={object.depth ?? 0}

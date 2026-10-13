@@ -13,6 +13,7 @@ export function StatusBar({
   activeTool,
   saveState,
   autosaveStatus = "idle",
+  onSelectPage,
 }: {
   hasDocument: boolean;
   page: number;
@@ -23,6 +24,7 @@ export function StatusBar({
   activeTool: ActiveTool;
   saveState: "idle" | "saving" | "saved";
   autosaveStatus?: "idle" | "offline" | "retrying";
+  onSelectPage?: (page: number) => void;
 }) {
   const pagesLoading = hasDocument && totalPages <= 0;
   const [pagePreviewOpen, setPagePreviewOpen] = useState(false);
@@ -97,7 +99,10 @@ export function StatusBar({
         page={page}
         totalPages={totalPages}
         onClose={() => setPagePreviewOpen(false)}
-        onSelectPage={(nextPage) => getViewerControls()?.goToPage?.(nextPage)}
+        onSelectPage={(nextPage) => {
+          if (onSelectPage) onSelectPage(nextPage);
+          else getViewerControls()?.goToPage?.(nextPage);
+        }}
       />
     </>
   );

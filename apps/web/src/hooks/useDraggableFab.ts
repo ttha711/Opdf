@@ -12,10 +12,11 @@ export function useDraggableFab({
   const dragStartOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const dragStartMouse = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const hasMovedRef = useRef(false);
+  const dragInputRef = useRef<"mouse" | "touch" | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [panelAlign, setPanelAlign] = useState<"left" | "right">("right");
 
-  const startDrag = useCallback((clientX: number, clientY: number) => {
+  const startDrag = useCallback((clientX: number, clientY: number, input: "mouse" | "touch") => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
     const currentX = position ? position.x : rect.left;
@@ -26,19 +27,20 @@ export function useDraggableFab({
       y: clientY - currentY,
     };
     dragStartMouse.current = { x: clientX, y: clientY };
+    dragInputRef.current = input;
     setIsDragging(true);
     hasMovedRef.current = false;
   }, [position]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     if (e.button !== 0) return; // Only left click
-    startDrag(e.clientX, e.clientY);
+    startDrag(e.clientX, e.clientY, "mouse");
   }, [startDrag]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLButtonElement>) => {
     if (e.touches.length > 0) {
       const touch = e.touches[0];
-      startDrag(touch.clientX, touch.clientY);
+      startDrag(touch.clientX, touch.clientY, "touch");
     }
   }, [startDrag]);
 
@@ -46,12 +48,14 @@ export function useDraggableFab({
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (dragInputRef.current !== "mouse") return;
       moveDrag(e.clientX, e.clientY);
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) {
+      if (dragInputRef.current === "touch" && e.touches.length > 0) {
         moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+        if (hasMovedRef.current && e.cancelable) e.preventDefault();
       }
     };
 
@@ -59,10 +63,10 @@ export function useDraggableFab({
       const deltaX = clientX - dragStartMouse.current.x;
       const deltaY = clientY - dragStartMouse.current.y;
       
-      if (Math.sqrt(deltaX * deltaX + deltaY * deltaY) > 5) {
-        hasMovedRef.current = true;
-      }
-      
+      const threshold = dragInputRef.current === "touch" ? 14 : 8;
+      if (!hasMovedRef.current && Math.hypot(deltaX, deltaY) < threshold) return;
+      hasMovedRef.current = true;
+
       let newX = clientX - dragStartOffset.current.x;
       let newY = clientY - dragStartOffset.current.y;
 
@@ -83,8 +87,12 @@ export function useDraggableFab({
     };
 
     const endDrag = () => {
+      dragInputRef.current = null;
       setIsDragging(false);
-      if (!position) return;
+      // A tap must leave the button under the pointer until the browser emits
+      // click. Snapping a previously positioned FAB after a no-move press can
+      // move it before that event and silently discard the tap.
+      if (!position || !hasMovedRef.current) return;
 
       const btnSize = 48;
       const currentX = position.x;
@@ -106,7 +114,7 @@ export function useDraggableFab({
     };
 
     window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
     window.addEventListener("mouseup", handleMouseUp);
     window.addEventListener("touchend", handleTouchEnd);
 
@@ -134,7 +142,14 @@ export function useDraggableFab({
     return () => window.removeEventListener("resize", handleResize);
   }, [position, panelAlign]);
 
+  const shouldSuppressClick = useCallback((clientX: number, clientY: number, detail: number) =>
+    detail > 0 && Math.hypot(
+      clientX - dragStartMouse.current.x,
+      clientY - dragStartMouse.current.y,
+    ) > 18, []);
+
   return {
+    shouldSuppressClick,
     position,
     setPosition,
     isDragging,

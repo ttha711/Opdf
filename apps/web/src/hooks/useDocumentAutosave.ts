@@ -29,6 +29,8 @@ export function useDocumentAutosave({
   const stateRef = useRef({ hasDocument, saveState });
   const savingRef = useRef(false);
   const failureCountRef = useRef(0);
+  const draftHandledRef = useRef(false);
+  const mutationDuringSaveRef = useRef(false);
   const scheduleRef = useRef<(fromMutation?: boolean, immediate?: boolean) => void>(() => {});
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
 
@@ -51,6 +53,8 @@ export function useDocumentAutosave({
     cancel();
 
     if (fromMutation) {
+      draftHandledRef.current = false;
+      if (savingRef.current) mutationDuringSaveRef.current = true;
       failureCountRef.current = 0;
       setAutosaveStatus(navigator.onLine ? "idle" : "offline");
     }
@@ -101,6 +105,9 @@ export function useDocumentAutosave({
             return;
           }
           failureCountRef.current = 0;
+          // A web draft may be saved successfully while the underlying PDF
+          // correctly remains Unsaved. Do not save the same revision forever.
+          draftHandledRef.current = true;
           setAutosaveStatus("idle");
         })
         .catch(() => {
@@ -109,6 +116,11 @@ export function useDocumentAutosave({
         })
         .finally(() => {
           savingRef.current = false;
+          if (mutationDuringSaveRef.current) {
+            mutationDuringSaveRef.current = false;
+            scheduleRef.current(true);
+            return;
+          }
           if (
             failureCountRef.current > 0 &&
             stateRef.current.hasDocument &&
@@ -132,7 +144,7 @@ export function useDocumentAutosave({
       }
       return;
     }
-    schedule(false);
+    if (!draftHandledRef.current) schedule(false);
     return cancel;
   }, [cancel, hasDocument, saveState, schedule]);
 

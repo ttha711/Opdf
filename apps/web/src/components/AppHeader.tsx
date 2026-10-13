@@ -7,7 +7,7 @@ import { redoNativeContentEdit, undoNativeContentEdit } from "../lib/nativeConte
 import { useTpdfBridge } from "../hooks/useTpdfBridge";
 import { AiSparkIcon } from "./AiSparkIcon";
 import { TpdfIcon } from "./TpdfIcon";
-import { SaveControl, RedoButton, UndoButton } from "./AppHeaderControls";
+import { SaveControl, RedoButton, UndoButton, MobileSaveButton } from "./AppHeaderControls";
 import {
   buildCompactToolsMenuItems,
   buildGlobalMenuItems,
@@ -244,6 +244,7 @@ export function AppHeader(props: AppHeaderProps) {
           <button type="button" data-tpdf-action="search-commands" className="tpdf-header-icon-btn tpdf-palette-trigger" title="Search commands (Ctrl/⌘ K)" aria-label="Search commands" onClick={() => window.dispatchEvent(new Event("tpdf:open-command-palette"))}><TpdfIcon name="search" size={18} /></button>
           {hasDocument ? (
             <>
+                <MobileSaveButton onSave={savePdf} saving={saveState === "saving"} />
               <UndoButton onClick={undo} />
               <RedoButton onClick={redo} />
               <SaveControl saveState={saveState} onSave={savePdf} autosaveEnabled={autosaveEnabled} autosaveStatus={autosaveStatus} />

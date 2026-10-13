@@ -13,8 +13,13 @@ export function useResizableSidebars({
   const [isDraggingRight, setIsDraggingRight] = useState(false);
 
   useEffect(() => {
+    // Mobile keyboard, zoom and browser chrome can emit resize events while a
+    // drawer is open. Only auto-collapse on a *desktop -> mobile* transition.
+    let wasCompact = window.innerWidth <= 900;
     const handleViewportChange = () => {
-      if (window.innerWidth <= 900) setIsRightCollapsed(true);
+      const compact = window.innerWidth <= 900;
+      if (compact && !wasCompact) setIsRightCollapsed(true);
+      wasCompact = compact;
     };
     window.addEventListener("resize", handleViewportChange);
     return () => window.removeEventListener("resize", handleViewportChange);

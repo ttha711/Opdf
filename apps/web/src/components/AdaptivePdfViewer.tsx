@@ -6,6 +6,9 @@ import { NativeEditEnginePreloader, type NativeEditEngine } from "./native-edit/
 import { RemotePdfViewer } from "./RemotePdfViewer";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import { preloadPdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
+import { ViewerQuickTools } from "./ViewerQuickTools";
+import { TpdfIcon } from "./TpdfIcon";
+import { commitPendingNativeInlineEdit } from "../lib/nativeEditRuntime";
 
 const LARGE_DOCUMENT_BYTES = 100 * 1024 * 1024;
 
@@ -19,10 +22,22 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
   const [nativeEditEngine, setNativeEditEngine] = useState<NativeEditEngine | null>(null);
   const [nativeEditEngineError, setNativeEditEngineError] = useState<Error | null>(null);
   const [forceFullViewer, setForceFullViewer] = useState(false);
+  const [finishingEdit, setFinishingEdit] = useState(false);
+  const [mobileLayout, setMobileLayout] = useState(() => window.matchMedia("(max-width: 900px)").matches);
   const [preference, setPreference] = useState<"auto" | "full" | "remote">(() => {
     const value = window.localStorage.getItem("tpdf-render-mode");
     return value === "full" || value === "remote" ? value : "auto";
   });
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 900px)");
+    const onChange = () => setMobileLayout(media.matches);
+    media.addEventListener("change", onChange);
+    onChange();
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => { setPreference("auto"); }, [props.sourceIdentity]);
 
   useEffect(() => {
     const localSize = props.sourceBlob?.size ?? props.data?.byteLength ?? null;
@@ -108,11 +123,17 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
     };
   }, [shouldPreloadContentEngine]);
 
-  const mobile = window.matchMedia("(max-width: 800px)").matches;
-  const remote = !forceFullViewer && !isEditing && serverSource && available && (
+  const needsEditor = props.hasUnsavedChanges === true ||
+    (props.activeTool !== undefined && props.activeTool !== "select");
+  const remote = !forceFullViewer && !needsEditor && serverSource && available && (
     preference === "remote" ||
-    (preference === "auto" && (mobile || (documentSizeBytes !== null && documentSizeBytes >= LARGE_DOCUMENT_BYTES)))
+    (preference === "auto" && documentSizeBytes !== null && documentSizeBytes >= LARGE_DOCUMENT_BYTES)
   );
+
+  useEffect(() => {
+    if (!needsEditor || preference !== "remote") return;
+    setPreference("full");
+  }, [needsEditor, preference]);
 
   const switchMode = () => {
     const next = remote ? "full" : "remote";
@@ -152,7 +173,29 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
           ) : null}
         </>
       )}
-      {serverSource && available && !isEditing ? (
+      {mobileLayout && props.onActiveToolChange && !remote ? (
+        <div className="tpdf-mobile-edit-toolbar" data-tpdf-mobile-edit-toolbar="true">
+          {isEditing ? (
+            <button type="button" className="tpdf-mobile-done-edit" data-tpdf-action="mobile-done-edit"
+              disabled={finishingEdit} onClick={() => {
+                if (finishingEdit) return;
+                setFinishingEdit(true);
+                void commitPendingNativeInlineEdit()
+                  .then(() => props.onActiveToolChange?.("select"))
+                  .catch((error) => props.onError?.(error instanceof Error ? error.message : String(error)))
+                  .finally(() => setFinishingEdit(false));
+              }}>{finishingEdit ? "Applying…" : "Done editing"}</button>
+          ) : <>
+            <ViewerQuickTools activeTool={props.activeTool ?? "select"} onActiveToolChange={props.onActiveToolChange} />
+            <button type="button" className="tpdf-mobile-edit-select" data-tpdf-action="mobile-select"
+              aria-label="Move and select PDF" aria-pressed={!props.activeTool || props.activeTool === "select"}
+              onClick={() => props.onActiveToolChange?.("select")}>
+              <TpdfIcon name="view" size={19} />
+            </button>
+          </>}
+        </div>
+      ) : null}
+      {serverSource && available && !needsEditor ? (
         <button type="button" data-tpdf-action="toggle-remote-render"
           aria-label={remote ? "Use full PDF editor" : "Use lightweight remote rendering"}
           onClick={switchMode}

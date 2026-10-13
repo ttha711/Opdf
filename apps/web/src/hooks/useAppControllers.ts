@@ -351,9 +351,9 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
 
   const toggleTheme = useCallback(() => state.setTheme(t => (t === "light" ? "dark" : "light")), [state.setTheme]);
   const onViewerDirty = useCallback(() => {
-    state.setSaveState("idle");
+    state.markViewerDirty();
     autosave.scheduleAutosave(true);
-  }, [autosave.scheduleAutosave, state.setSaveState]);
+  }, [autosave.scheduleAutosave, state.markViewerDirty]);
   const onPatchApplied = useCallback(() => state.setActiveTool("select"), [state.setActiveTool]);
   const { onDragOver, onDrop } = usePdfDrop({
     setFileName: state.setFileName,

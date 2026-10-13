@@ -31,6 +31,7 @@ export function useAppState() {
   const [showInsertModal, setShowInsertModal] = useState(false);
   const [viewerError, setViewerError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [viewerEditRevision, setViewerEditRevision] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("continuous");
   const [documentTool, setDocumentTool] = useState<DocumentTool>("delete-pages");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -59,6 +60,10 @@ export function useAppState() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const lastWheelFlipAtRef = useRef(0);
   const savedFingerprintRef = useRef<string>("");
+  const markViewerDirty = useCallback(() => {
+    setViewerEditRevision((revision) => revision + 1);
+    setSaveState("idle");
+  }, []);
   
   const isSwitchingRef = useRef(false);
   // Tab id (or null for "no tab") of the in-flight switch. `undefined` = no switch pending.
@@ -77,6 +82,7 @@ export function useAppState() {
       docBytes,
       documentIdentity: sourceIdentity,
       annotations,
+      viewerRevision: viewerEditRevision,
     });
 
     if (!currentFingerprint) {
@@ -108,7 +114,7 @@ export function useAppState() {
     } else if (saveState !== "idle") {
       setSaveState("idle");
     }
-  }, [annotations, docBytes, fileName, saveState, sourceIdentity]);
+  }, [annotations, docBytes, fileName, saveState, sourceIdentity, viewerEditRevision]);
 
   const markDocumentSaved = useCallback((snapshot?: {
     fileName?: string;
@@ -121,10 +127,11 @@ export function useAppState() {
       docBytes: snapshot?.docBytes ?? docBytes,
       documentIdentity: snapshot?.documentIdentity ?? sourceIdentity,
       annotations: snapshot?.annotations ?? annotations,
+      viewerRevision: viewerEditRevision,
     });
     savedFingerprintRef.current = fingerprint;
     setSaveState(fingerprint ? "saved" : "idle");
-  }, [annotations, docBytes, fileName, sourceIdentity]);
+  }, [annotations, docBytes, fileName, sourceIdentity, viewerEditRevision]);
 
   const clearDocumentSaveTracking = useCallback(() => {
     savedFingerprintRef.current = "";
@@ -178,7 +185,7 @@ export function useAppState() {
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.tpdf);
 
   // Tab operations
-  const switchTab = useCallback((tabId: string) => {
+  const applySwitchTab = useCallback((tabId: string) => {
     const targetTab = tabsRef.current.find(t => t.id === tabId);
     if (!targetTab) return;
 
@@ -204,13 +211,37 @@ export function useAppState() {
     // render carrying the new activeTabId has committed (no arbitrary timeout).
   }, [markDocumentSaved]);
 
+  // EmbedPDF annotations are not guaranteed to be mirrored into tab state.
+  // Switching documents must not silently unmount an unsaved viewer.
+  const switchTab = useCallback((tabId: string) => {
+    if (tabId === activeTabId) return;
+    if (saveState === "saving") {
+      toast.info("Wait for the current PDF to finish saving before switching.");
+      return;
+    }
+    if (hasDocument && saveState === "idle") {
+      void confirm({
+        title: "Switch document",
+        message: `"${fileName}" has unsaved changes. Switch without saving them?`,
+        confirmLabel: "Switch without saving",
+        danger: true,
+      }).then((approved) => { if (approved) applySwitchTab(tabId); });
+      return;
+    }
+    applySwitchTab(tabId);
+  }, [activeTabId, applySwitchTab, confirm, fileName, hasDocument, saveState, toast]);
+
   const closeTab = useCallback(async (tabId: string) => {
     const prevTabs = tabsRef.current;
     const tabToClose = prevTabs.find(t => t.id === tabId);
     if (!tabToClose) return;
+    if (activeTabId === tabId && saveState === "saving") {
+      toast.info("Wait for the PDF to finish saving before closing it.");
+      return;
+    }
 
     // Guard: closing the active tab while it has unsaved changes requires confirmation.
-    if (activeTabId === tabId && (docBytes || sourceBlob) && saveState === "idle") {
+    if (activeTabId === tabId && (docBytes || sourceBlob || sourceIdentity.startsWith("server://")) && saveState === "idle") {
       const ok = await confirm({
         title: "Close tab",
         message: `"${tabToClose.fileName || fileName}" has unsaved changes. Do you still want to close this tab?`,
@@ -237,7 +268,7 @@ export function useAppState() {
 
     if (activeTabId === tabId) {
       if (remainingTabs.length > 0) {
-        switchTab(remainingTabs[0].id);
+        applySwitchTab(remainingTabs[0].id);
       } else {
         isSwitchingRef.current = true;
         pendingSwitchTabIdRef.current = null;
@@ -253,7 +284,7 @@ export function useAppState() {
         clearDocumentSaveTracking();
       }
     }
-  }, [activeTabId, switchTab, clearDocumentSaveTracking, confirm, toast, docBytes, sourceBlob, saveState, fileName, hasDesktopBridge]);
+  }, [activeTabId, applySwitchTab, clearDocumentSaveTracking, confirm, toast, docBytes, sourceBlob, sourceIdentity, saveState, fileName, hasDesktopBridge]);
 
   const addTabToGroup = useCallback((tabId: string, groupName: string, groupColor?: string) => {
     const colors = ["#ff5a5f", "#e03e2d", "#10b981", "#0061d5", "#8b5cf6", "#f59e0b"];
@@ -319,35 +350,46 @@ export function useAppState() {
     });
   }, []);
 
-  const closeTabGroup = useCallback((groupName: string) => {
-    setTabs(prevTabs => {
-      const remainingTabs = prevTabs.filter(t => t.group !== groupName);
-      const tabsToClose = prevTabs.filter(t => t.group === groupName);
-      
-      const isActiveInClosedGroup = tabsToClose.some(t => t.id === activeTabId);
-      
-      if (isActiveInClosedGroup) {
-        if (remainingTabs.length > 0) {
-          setTimeout(() => {
-            switchTab(remainingTabs[0].id);
-          }, 0);
-        } else {
-          isSwitchingRef.current = true;
-          pendingSwitchTabIdRef.current = null;
-          setActiveTabId(null);
-          setFileName("");
-          setDocBytes(null);
-          setPage(1);
-          setTotalPages(0);
-          setAnnotations([]);
-            setShowDashboard(false);
-          clearDocumentSaveTracking();
-        }
-      }
-      
-      return remainingTabs;
-    });
-  }, [activeTabId, switchTab]);
+  const closeTabGroup = useCallback(async (groupName: string) => {
+    const currentTabs = tabsRef.current;
+    const closing = currentTabs.filter((tab) => tab.group === groupName);
+    if (!closing.length) return;
+    const activeInGroup = closing.some((tab) => tab.id === activeTabId);
+    if (activeInGroup && saveState === "saving") {
+      toast.info("Wait for the PDF to finish saving before closing its group.");
+      return;
+    }
+    if (activeInGroup && saveState === "idle") {
+      const approved = await confirm({
+        title: "Close tab group",
+        message: `"${fileName}" has unsaved changes. Close the group without saving?`,
+        confirmLabel: "Close without saving",
+        danger: true,
+      });
+      if (!approved) return;
+    }
+
+    const remaining = currentTabs.filter((tab) => tab.group !== groupName);
+    setTabs(remaining);
+    if (!activeInGroup) return;
+    if (remaining.length) {
+      // The user has already confirmed discarding edits; avoid a second prompt.
+      applySwitchTab(remaining[0].id);
+      return;
+    }
+    isSwitchingRef.current = true;
+    pendingSwitchTabIdRef.current = null;
+    setActiveTabId(null);
+    setFileName("");
+    setDocBytes(null);
+    setSourceBlob(null);
+    setSourceIdentity("");
+    setPage(1);
+    setTotalPages(0);
+    setAnnotations([]);
+    setShowDashboard(false);
+    clearDocumentSaveTracking();
+  }, [activeTabId, applySwitchTab, clearDocumentSaveTracking, confirm, fileName, saveState, toast]);
 
   const ungroupGroup = useCallback((groupName: string) => {
     setTabs(prevTabs => {
@@ -439,7 +481,7 @@ export function useAppState() {
     fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale,
     annotations, setAnnotations, ocrJobs, setOcrJobs, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
-    saveState, setSaveState,
+    saveState, setSaveState, markViewerDirty,
     openMenu, setOpenMenu,
     theme, setTheme, fileInputRef, lastWheelFlipAtRef, hasDocument, hasDesktopBridge,
     showDashboard, setShowDashboard, activeDashboardTool, setActiveDashboardTool,

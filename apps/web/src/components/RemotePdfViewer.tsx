@@ -64,6 +64,13 @@ export function RemotePdfViewer(props: PdfViewerProps) {
     })) };
   }, [pages, viewport.width, zoom]);
   const page = Math.max(1, Math.min(pages.length || 1, props.page));
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element) return;
+    element.scrollLeft = 0;
+    element.scrollTop = 0;
+    setPosition({ x: 0, y: 0 });
+  }, [page]);
 
   useEffect(() => {
     if (!base) return;
@@ -143,9 +150,9 @@ export function RemotePdfViewer(props: PdfViewerProps) {
   if (!base) return <div role="status">Open a stored server document to use lightweight viewing.</div>;
   return <div className="h-full w-full" style={{ display: "flex", flexDirection: "column", minHeight: 0 }} data-tpdf-remote-viewer="true">
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, padding: 6, background: "#f1f5f9", color: "#0f172a" }}>
-      <button style={toolStyle} onClick={() => props.onActivePageChange?.(Math.max(1, page - 1))} aria-label="Previous sheet">‹</button>
+      <button style={toolStyle} onClick={() => props.onActivePageChange?.(Math.max(1, page - 1))} disabled={!pages.length || page <= 1} aria-label="Previous page">‹</button>
       <span style={{ fontSize: 13 }}>Page {page}/{pages.length || "…"}</span>
-      <button style={toolStyle} onClick={() => props.onActivePageChange?.(Math.min(pages.length, page + 1))} aria-label="Next sheet">›</button>
+      <button style={toolStyle} onClick={() => props.onActivePageChange?.(Math.min(pages.length, page + 1))} disabled={!pages.length || page >= pages.length} aria-label="Next page">›</button>
       <button style={toolStyle} onClick={() => changeZoom(zoom / 1.5)} aria-label="Zoom out">−</button>
       <span style={{ fontSize: 12 }}>{Math.round(zoom * 100)}%</span>
       <button style={toolStyle} onClick={() => changeZoom(zoom * 1.5)} aria-label="Zoom in">+</button>

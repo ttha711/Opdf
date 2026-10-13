@@ -29,7 +29,6 @@ import {
   matrixIsIdentity,
   type NativeEditDragState,
 } from "./nativeEditPointerTransform";
-
 type Props = {
   pageIndex: number;
   enabled: boolean;
@@ -224,7 +223,8 @@ export function NativeEditPageOverlay({
     overlayRef, objects, interactiveObjects, selected, editingText, setSelectedId, setEditingText,
     setEditingObject, setGroupedTextLines, commitInlineText, setError, pageIndex,
   });
-  useEffect(() => registerNativeInlineCommitter(commitInlineText), [commitInlineText]);
+  useEffect(() => enabled ? registerNativeInlineCommitter(commitInlineText) : undefined,
+    [commitInlineText, enabled]);
   useEffect(() => registerNativeInlineTextEditRequestListener((request) => {
     if (request.pageIndex !== pageIndex) return;
     const object = objects.find((item) => item.id === request.objectId);
@@ -243,7 +243,7 @@ export function NativeEditPageOverlay({
     } else beginEdit();
   }), [commitInlineText, editingText, objects, pageIndex]);
   useNativeEditSelectionSync({
-    pageIndex, selectedId, editingText, setSelectedId, commitInlineText, setError,
+    pageIndex, enabled, selectedId, editingText, setSelectedId, commitInlineText, setError,
   });
   return (
     <>

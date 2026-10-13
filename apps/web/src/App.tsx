@@ -307,7 +307,7 @@ export function App() {
           success={toast.success}
         /></Suspense>
       )}
-      <StatusBar hasDocument={state.hasDocument && !showHome} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} autosaveStatus={controllers.autosaveStatus} />
+      <StatusBar onSelectPage={controllers.goToPage} hasDocument={state.hasDocument && !showHome} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} autosaveStatus={controllers.autosaveStatus} />
       {!isAiPanelOpen ? (
         <button
           ref={fab.buttonRef}
@@ -316,8 +316,9 @@ export function App() {
           style={fab.position ? { left: fab.position.x, top: fab.position.y, right: "auto", bottom: "auto" } : undefined}
           onMouseDown={fab.handleMouseDown}
           onTouchStart={fab.handleTouchStart}
-          onClick={() => {
-            if (fab.hasMovedRef.current) return;
+          onTouchEnd={(event) => { if (!fab.hasMovedRef.current) { event.preventDefault(); event.currentTarget.click(); } }}
+          onClick={(event) => {
+            if (fab.shouldSuppressClick(event.clientX, event.clientY, event.detail)) return;
             setIsAiPanelOpen(true);
             sidebars.setIsRightCollapsed(false);
             if (sidebars.rightWidth < 340) sidebars.setRightWidth(340);

@@ -79,6 +79,16 @@ export function MobilePageFilmstrip({
   onSelectPage: (page: number) => void;
   onClose: () => void;
 }) {
+  const [jumpPage, setJumpPage] = useState("");
+  const radius = 10;
+  const start = Math.max(1, Math.min(page - radius, Math.max(1, totalPages - radius * 2)));
+  const end = Math.min(totalPages, start + radius * 2);
+  const visiblePages = Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
+
+  useEffect(() => {
+    if (isOpen) setJumpPage(String(page));
+  }, [isOpen, page]);
+
   useEffect(() => {
     if (!isOpen) return;
     const current = document.querySelector<HTMLElement>(`[data-tpdf-page-thumb="${page}"]`);
@@ -98,10 +108,22 @@ export function MobilePageFilmstrip({
       <div className="tpdf-mobile-filmstrip__header">
         <strong>Pages</strong>
         <span>{page} / {totalPages}</span>
+        <form className="tpdf-mobile-page-jump" onSubmit={(event) => {
+          event.preventDefault();
+          const target = Number(jumpPage);
+          if (!Number.isInteger(target) || target < 1 || target > totalPages) return;
+          onSelectPage(target);
+          onClose();
+        }}>
+          <input type="number" min={1} max={totalPages} value={jumpPage}
+            onChange={(event) => setJumpPage(event.target.value)}
+            aria-label="Jump to page" inputMode="numeric" />
+          <button type="submit" aria-label="Go to page">Go</button>
+        </form>
         <button type="button" onClick={onClose} aria-label="Close page previews">×</button>
       </div>
       <div className="tpdf-mobile-filmstrip__track">
-        {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+        {visiblePages.map((pageNumber) => (
           <PageThumbnail
             key={pageNumber}
             page={pageNumber}

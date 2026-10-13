@@ -92,3 +92,9 @@ export function SaveControl({
     </div>
   );
 }
+
+export function MobileSaveButton({ onSave, saving }: { onSave: () => void; saving: boolean }) {
+  return <button type="button" className="tpdf-mobile-header-save"
+    data-tpdf-action="mobile-save" aria-label="Save PDF" title="Save PDF"
+    onClick={onSave} disabled={saving}><TpdfIcon name="save" size={20} /></button>;
+}

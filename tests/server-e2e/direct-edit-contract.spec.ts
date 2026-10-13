@@ -178,6 +178,20 @@ async function settledViewState(page: Page) {
   return nativeViewState(page);
 }
 
+/** The preserved reader sits under the editor; none of its layers may paint over it. */
+async function expectEditorOnTop(page: Page) {
+  const covered = await page.evaluate(() => {
+    const viewport = document.querySelector(".native-edit-viewport") as HTMLElement;
+    const box = viewport.getBoundingClientRect();
+    const points = [[0.3, 0.3], [0.5, 0.5], [0.7, 0.6], [0.4, 0.8], [0.85, 0.35]];
+    return points.map(([fx, fy]) => {
+      const top = document.elementFromPoint(box.left + box.width * fx, box.top + box.height * fy);
+      return top?.closest(".native-edit-surface") ? "editor" : (top?.tagName ?? "none");
+    });
+  });
+  expect(covered).toEqual(covered.map(() => "editor"));
+}
+
 async function openPage2Label(page: Page) {
   const text = page.locator(".native-edit-page svg[data-tpdf-native-edit-page='2'] polygon[data-tpdf-object-kind='text']").first();
   await expect(text).toBeVisible({ timeout: 20_000 });
@@ -252,7 +266,8 @@ test("direct edit at a higher zoom keeps zoom, page and the text under the point
   const input = page.getByRole("textbox", { name: "Edit PDF text" });
   await expect(input).toBeVisible({ timeout: 15_000 });
   await expect(input).toHaveValue(/PAGE 2/);
-  await page.waitForTimeout(800);
+  await settledViewState(page);
+  await expectEditorOnTop(page);
 
   const box = await input.boundingBox();
   expect(box).toBeTruthy();

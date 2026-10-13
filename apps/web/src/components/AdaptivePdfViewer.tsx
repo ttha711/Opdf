@@ -163,7 +163,10 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
         </div>
       ) : remote ? <RemotePdfViewer {...props} onViewerReady={handleViewerReady} onRequestFull={() => setForceFullViewer(true)} /> : (
         <>
-          {(!isEditing || !largeDocument) ? <div className="absolute inset-0">
+          {/* The reader stays mounted under the editor. Its own z-indexed layers (page tiles,
+              selection popup) must not escape into the shared stacking context and paint
+              over the editor, so give it an isolated one. */}
+          {(!isEditing || !largeDocument) ? <div className="absolute inset-0" style={{ isolation: "isolate", zIndex: 0 }}>
             <PdfViewer {...props} onViewerReady={handleViewerReady}
               onActivePageChange={isEditing ? undefined : props.onActivePageChange}
               onActiveToolChange={isEditing ? undefined : props.onActiveToolChange} />
@@ -174,7 +177,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
             onError={setNativeEditEngineError}
           /> : null}
           {isEditing ? (
-            <div className="absolute inset-0">
+            <div className="absolute inset-0" style={{ zIndex: 1 }}>
               {nativeEditEngine ? (
                 <NativeEditPdfViewer {...props} engine={nativeEditEngine} />
               ) : nativeEditEngineError ? (

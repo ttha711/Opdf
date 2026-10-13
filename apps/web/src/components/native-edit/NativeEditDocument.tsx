@@ -38,6 +38,10 @@ export function NativeEditDocument({
   // Keep Automatic zoom during first layout. An early numeric request can
   // leave EmbedPDF 2.x waiting for a viewport layout and paint no page.
   const previousExternalScale = useRef(scale);
+  // Zoom changes originate either in the viewer (Automatic fit) or in the
+  // parent. Remember each direction so one side never echoes the other back.
+  const reportedViewerScale = useRef<number | null>(null);
+  const requestedExternalScale = useRef<number | null>(null);
   const pendingPageRef = useRef<number | null>(null);
   const lastExternalPageRef = useRef<{ documentId: string; page: number } | null>(null);
 
@@ -105,13 +109,25 @@ export function NativeEditDocument({
     if (previousExternalScale.current === scale) return;
     previousExternalScale.current = scale;
     if (!Number.isFinite(scale) || scale <= 0) return;
+    // The parent merely echoed the zoom this viewer reported: not a request.
+    if (reportedViewerScale.current !== null &&
+        Math.abs(reportedViewerScale.current - scale) < 0.001) return;
     if (Math.abs(zoomState.currentZoomLevel - scale) < 0.001) return;
+    requestedExternalScale.current = Math.min(5, Math.max(0.05, scale));
     zoom.requestZoom(scale);
   }, [scale, scrollState.totalPages, zoom, zoomState.currentZoomLevel]);
 
   useEffect(() => {
     const next = zoomState.currentZoomLevel;
+    const requested = requestedExternalScale.current;
+    if (requested !== null) {
+      // Do not report interim zoom levels while a parent request is applying;
+      // that would overwrite the request and make the two sides oscillate.
+      if (Math.abs(next - requested) >= 0.001) return;
+      requestedExternalScale.current = null;
+    }
     if (Number.isFinite(next) && next > 0 && Math.abs(next - scale) >= 0.001) {
+      reportedViewerScale.current = next;
       onViewerScaleChange?.(next);
     }
   }, [onViewerScaleChange, scale, zoomState.currentZoomLevel]);

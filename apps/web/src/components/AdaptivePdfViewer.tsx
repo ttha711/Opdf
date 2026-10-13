@@ -60,7 +60,7 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
           setDocumentSize({ source: props.sourceIdentity || "", bytes: size });
         }
       })
-      .catch(() => undefined);
+      .catch(() => { if (!controller.signal.aborted) setDocumentSize({ source: props.sourceIdentity || "", bytes: null }); });
     return () => controller.abort();
   }, [props.data, props.sourceBlob, props.sourceIdentity]);
 

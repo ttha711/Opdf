@@ -4,7 +4,7 @@ import { App } from "./App";
 import { ToastProvider } from "./components/ToastProvider";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import "./styles.css";
-import { registerOfflineAppCache, warmAppAssetCache } from "./lib/appAssetCache";
+import { registerOfflineAppCache } from "./lib/appAssetCache";
 import { ServerAuthGate } from "./components/ServerAuthGate";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { installGlobalErrorReporting } from "./lib/clientDiagnostics";
@@ -39,4 +39,3 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 
 registerOfflineAppCache(__TPDF_BUILD_SHA__);
-warmAppAssetCache();

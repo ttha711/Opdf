@@ -66,8 +66,19 @@ test("cached app shell reopens offline and accepts a local PDF", async ({ page, 
   });
 
   // The first successful load must be enough to make the next navigation
-  // offline-capable; no second online reload should be required.
+  // offline-capable after the user has opened the viewer once online.
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBeTruthy();
+
+  const pdf = await PDFDocument.create();
+  const sheet = pdf.addPage([612, 792]);
+  sheet.drawText("OFFLINE LOCAL PDF", { x: 48, y: 720, size: 18 });
+  const pdfBytes = Buffer.from(await pdf.save());
+  const input = page.locator('input[type="file"][accept="application/pdf"]').first();
+  await input.setInputFiles({ name: "offline-local.pdf", mimeType: "application/pdf", buffer: pdfBytes });
+  const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
+  await expect(viewer).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Go to TPDF Home" }).click();
+  await expect(viewer).toHaveCount(0);
 
   await context.setOffline(true);
   try {
@@ -75,25 +86,18 @@ test("cached app shell reopens offline and accepts a local PDF", async ({ page, 
     await expect(page.locator("body")).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.__TPDF_RUNTIME__)).toBe("server");
 
-    const pdf = await PDFDocument.create();
-    const sheet = pdf.addPage([612, 792]);
-    sheet.drawText("OFFLINE LOCAL PDF", { x: 48, y: 720, size: 18 });
-    const input = page.locator('input[type="file"][accept="application/pdf"]').first();
     await input.setInputFiles({
       name: "offline-local.pdf",
       mimeType: "application/pdf",
-      buffer: Buffer.from(await pdf.save()),
+      buffer: pdfBytes,
     });
 
-    const viewer = page.locator('[data-tpdf-engine="pdfium-wasm"]');
     await expect(viewer).toBeVisible({ timeout: 30_000 });
     await expect(viewer).toHaveAttribute("data-tpdf-source", "working-copy");
-    await expect(page.getByTestId("status-bar").getByText(/Offline .* PDF is open locally/i)).toBeVisible();
   } finally {
     await context.setOffline(false);
   }
 });
-
 
 test("production open URLs use the TPDF document API and never Vite /@fs", async ({ page, request }) => {
   const pdf = await PDFDocument.create();

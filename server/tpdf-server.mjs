@@ -909,7 +909,8 @@ async function handleApi(req, res, url) {
         officeConversion: true,
         officeToPdf: true,
         storedMutations: true,
-        rangePreview: await remoteRenderer.isAvailable(),
+        // Separate contract: this is not provided by the native tile renderer.
+        rangePreview: false,
         remoteRendering: await remoteRenderer.isAvailable(),
         documentHealth: pdfcraftDiagnostics.enabled,
         resumableUpload: true,

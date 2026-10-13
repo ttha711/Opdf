@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 import http from "node:http";
 import { DocumentService } from "@tpdf/core";
 import { createTpdfStorage, assertDocumentId, sanitizeFileName } from "./tpdf-storage.mjs";
+import { createPageIndexApi } from "./tpdf-pageindex.mjs";
 import { createChunkUploadApi } from "./tpdf-upload.mjs";
 import { createRemoteRenderService } from "./tpdf-remote-render.mjs";
 import { createPdfcraftDiagnostics } from "./tpdf-pdfcraft-adapter.mjs";
@@ -78,6 +79,7 @@ const officeConverterScript = resolve(
 const officeWorkerTimeoutMs = Number(process.env.TPDF_OFFICE_WORKER_TIMEOUT_MS || 5 * 60 * 1000);
 const libreOfficePath = process.env.TPDF_LIBREOFFICE_PATH || (process.platform === "win32" ? "soffice.exe" : "soffice");
 const loginRateLimiter = createLoginRateLimiter(process.env);
+const pageIndexApi = createPageIndexApi({ storage, tenantRuntime, readJsonBody, sendJson, sendError, pythonPath });
 const agentPairing = createAgentPairingBroker(
   process.env.TPDF_AGENT_PAIRING_SECRET || process.env.TPDF_AUTH_SECRET || "tpdf-local-agent-pairing-development-secret-2026",
 );
@@ -281,6 +283,7 @@ async function createDocumentFromRequest(req, res, url) {
     await rename(record.tempPath, record.pdfPath);
     const updated = await storage.finalizeDocument(record.id, size);
     await storage.pushRecent(updated.filePath);
+    void pageIndexApi.onUploaded(updated.id);
     sendJson(res, 201, {
       id: updated.id,
       fileName: updated.fileName,
@@ -823,6 +826,10 @@ async function handleApi(req, res, url) {
     });
   }
 
+  if (url.pathname.startsWith("/api/tpdf/ai/")) {
+    if (await pageIndexApi.handle(req, res, url)) return;
+  }
+
   if (url.pathname === "/api/tpdf/agent/pairing/start" && req.method === "POST") {
     return sendJson(res, 201, agentPairing.startPairing(user, projectId));
   }
@@ -908,6 +915,7 @@ async function handleApi(req, res, url) {
         resumableUpload: true,
         localFirstUpload: true,
         ocrQueue: true,
+        pageIndex: pageIndexApi.enabled,
         searchablePdfOcr: true,
         digitalSignature: certificateStore.enabled,
         certificateStorage: certificateStore.enabled,

@@ -3,6 +3,7 @@ import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { applyVerifiedNativePatches } from "../lib/nativeEditPatchVerification";
 import { pdfHasDigitalSignature } from "../lib/pdfSignatureDetection";
+import { NATIVE_EDIT_MAX_BYTES, NativeEditTooLargeError } from "../lib/nativeEditLimits";
 import { useConfirm } from "./ConfirmDialog";
 import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
 import {
@@ -10,6 +11,7 @@ import {
   commitPendingNativeInlineEdit,
   emitNativeEditSelection,
   registerNativeEditPatchApplier,
+  setNativeEditPatchFailure,
   registerNativeEditSelectionListener,
 } from "../lib/nativeEditRuntime";
 import { NativeContentObjectList } from "./native-content-editor/NativeContentObjectList";
@@ -135,9 +137,11 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   const apply = useCallback((patches: PdfContentPatch[], success: string) => enqueueMutation(async () => {
     setLoading(true);
     setMessage(null);
+    setNativeEditPatchFailure(null);
     try {
       const bytes = currentBytesRef.current ?? await getDocumentBytesRef.current();
       if (!bytes) throw new Error("Unable to read the current PDF.");
+      if (bytes.byteLength > NATIVE_EDIT_MAX_BYTES) throw new NativeEditTooLargeError(bytes.byteLength);
       if (!signedEditAcknowledged.current && pdfHasDigitalSignature(bytes)) {
         const proceed = await confirm({
           title: "Digitally signed PDF",
@@ -170,6 +174,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     } catch (error) {
       console.error("[tpdf:native-edit] PDF patch rejected:", error);
       setMessage(error instanceof Error ? error.message : "Unable to edit PDF content.");
+      setNativeEditPatchFailure(error instanceof Error ? error.message : null);
       return null;
     } finally {
       setLoading(false);

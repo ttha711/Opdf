@@ -102,6 +102,10 @@ export function registerNativeEditPatchApplier(applier: PatchApplier) {
   };
 }
 
+let lastPatchFailure: string | null = null;
+export function setNativeEditPatchFailure(message: string | null) { lastPatchFailure = message; }
+export function getNativeEditPatchFailure() { return lastPatchFailure; }
+
 export async function applyNativeEditPatches(
   patches: PdfContentPatch[],
   successMessage: string,

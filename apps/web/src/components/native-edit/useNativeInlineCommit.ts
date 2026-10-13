@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { PdfContentObject } from "@tpdf/core";
-import { applyNativeEditPatches } from "../../lib/nativeEditRuntime";
+import { applyNativeEditPatches, getNativeEditPatchFailure } from "../../lib/nativeEditRuntime";
 import { nativeEditTextCommitPatches } from "./nativeEditTextCommit";
 import type { NativeEditTextLine } from "./nativeEditTextRun";
 
@@ -51,7 +51,7 @@ export function useNativeInlineCommit({
         "Text applied. Check the Save status in the toolbar.",
       );
       // Preserve the draft when the editing engine reports failure.
-      if (!bytes) throw new Error("Unable to apply PDF text; your draft is still available.");
+      if (!bytes) throw new Error(getNativeEditPatchFailure() ?? "Unable to apply PDF text; your draft is still available.");
       // The panel already reopened and verified these PDF bytes. The next
       // document revision reloads the selection overlay automatically.
       latestRef.current.editingText = null;

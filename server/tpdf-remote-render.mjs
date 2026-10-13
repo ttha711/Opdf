@@ -11,6 +11,9 @@ const TILE = 512;
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const numeric = (raw) => raw !== null && /^\d+$/.test(raw) ? Number(raw) : NaN;
 const badRequest = (message) => Object.assign(new Error(message), { statusCode: 400 });
+const canceledRequest = () => Object.assign(new Error("Render request canceled."), {
+  name: "AbortError", statusCode: 499,
+});
 
 export function parseRenderRequest(url) {
   const match = url.pathname.match(/^\/api\/tpdf\/documents\/([0-9a-f-]{36})\/render\/(meta|tile|text)$/i);
@@ -159,10 +162,56 @@ export function createRemoteRenderService(env = process.env) {
     }
   }
 
-  async function render(path, version, request) {
+  // A pending job can have multiple HTTP subscribers. Aborting one connection
+  // never cancels a tile needed by another; the last subscriber removes queued
+  // work or stops the native worker so stale jobs do not block visible tiles.
+  function settle(job, error, value) {
+    if (pending.get(job.key) !== job) return;
+    pending.delete(job.key);
+    if (!error) cacheSet(job.key, value);
+    for (const subscriber of job.subscribers) {
+      subscriber.signal?.removeEventListener("abort", subscriber.onAbort);
+      if (error) subscriber.reject(error);
+      else subscriber.resolve(value);
+    }
+    job.subscribers.clear();
+  }
+
+  function cancelJob(job) {
+    if (pending.get(job.key) !== job) return;
+    const at = queue.indexOf(job);
+    if (at >= 0) queue.splice(at, 1);
+    const worker = pool.find((entry) => entry.task === job);
+    pending.delete(job.key);
+    if (worker) {
+      worker.task = null;
+      retire(worker); // Abandon in-flight native work, then service newer tiles.
+    }
+  }
+
+  function subscribe(job, signal) {
+    if (signal?.aborted) return Promise.reject(canceledRequest());
+    return new Promise((resolveSubscriber, rejectSubscriber) => {
+      const subscriber = {
+        signal, resolve: resolveSubscriber, reject: rejectSubscriber,
+        onAbort: () => {
+          if (!job.subscribers.delete(subscriber)) return;
+          signal?.removeEventListener("abort", subscriber.onAbort);
+          rejectSubscriber(canceledRequest());
+          if (job.subscribers.size === 0) cancelJob(job);
+        },
+      };
+      job.subscribers.add(subscriber);
+      signal?.addEventListener("abort", subscriber.onAbort, { once: true });
+      if (signal?.aborted) subscriber.onAbort();
+    });
+  }
+
+  async function render(path, version, request, signal) {
     if (!await isAvailable()) {
       throw Object.assign(new Error("Remote renderer worker is unavailable."), { statusCode: 503 });
     }
+    if (signal?.aborted) throw canceledRequest();
     if (closed) throw Object.assign(new Error("Renderer is shutting down."), { statusCode: 503 });
     const key = JSON.stringify([path, version, request.kind, request.page, request.level, request.x, request.y]);
     const cached = cache.get(key);
@@ -170,21 +219,22 @@ export function createRemoteRenderService(env = process.env) {
       cache.delete(key); cache.set(key, cached);
       return cached.value;
     }
-    if (pending.has(key)) return pending.get(key);
+    if (pending.has(key)) return subscribe(pending.get(key), signal);
     if (queue.length >= maxQueued) {
       throw Object.assign(new Error("Remote renderer is busy."), { statusCode: 429, retryAfterSeconds: 1 });
     }
-    const promise = new Promise((resolveTask, rejectTask) => {
-      queue.push({
-        command: { ...request, path, version },
-        resolve(value) { cacheSet(key, value); resolveTask(value); },
-        reject: rejectTask,
-      });
+    const job = {
+      key, subscribers: new Set(), command: { ...request, path, version },
+      resolve(value) { settle(job, null, value); },
+      reject(error) { settle(job, error); },
+    };
+    pending.set(key, job);
+    const result = subscribe(job, signal);
+    if (pending.get(key) === job) {
+      queue.push(job);
       pump();
-    });
-    pending.set(key, promise);
-    promise.then(() => pending.delete(key), () => pending.delete(key));
-    return promise;
+    }
+    return result;
   }
 
   async function handle(req, res, url, { storage, sendJson, sendError, setBaseHeaders }) {
@@ -200,7 +250,21 @@ export function createRemoteRenderService(env = process.env) {
     const source = await stat(record.pdfPath).catch(() => null);
     if (!source?.isFile()) return sendError(res, 404, "Document bytes are unavailable.");
     const version = `${source.size}:${source.mtimeMs}`;
-    const result = await render(record.pdfPath, version, request);
+    const controller = new AbortController();
+    const onClose = () => controller.abort();
+    // Incoming GET requests can emit req.close before the response completes.
+    // Only the outgoing response close accurately detects a disconnected reader.
+    res.once("close", onClose);
+    let result;
+    try {
+      result = await render(record.pdfPath, version, request, controller.signal);
+    } catch (error) {
+      if (controller.signal.aborted) return true;
+      throw error;
+    } finally {
+      res.removeListener("close", onClose);
+    }
+    if (res.destroyed) return true;
     if (result.kind !== "tile") return sendJson(res, 200, result);
     setBaseHeaders(res);
     res.statusCode = 200;

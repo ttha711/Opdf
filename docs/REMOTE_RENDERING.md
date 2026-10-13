@@ -71,3 +71,77 @@ bytes in lightweight mode.
    network reconnection before enabling broadly.
 
 Rollback: unset `TPDF_REMOTE_RENDER_ENABLED` and restart the server.
+
+
+## Issue #168: progressive large server PDFs (October 2026)
+
+The server's `Accept-Ranges: bytes` support does **not** mean EmbedPDF/PDFium
+2.15.1 progressively renders via HTTP Range. Do not use `rangeReads` as the
+browser's progressive-rendering capability. The normal EmbedPDF URL engine
+can issue a full-file GET; this is a documented fallback, **not** a first-page
+performance path.
+
+For server-stored files >=100 MiB, the web UI first performs a HEAD metadata
+request and checks `/api/tpdf/health`. It does not mount the full PDFium
+viewer while these requests are pending. When `remoteRendering` is true the
+web reader uses on-demand 512px tiles with viewport-sized overscan and at most
+96 simultaneously mounted images. Moving pages/zooming discards out-of-view
+image elements. Explicit editing/full-viewer actions may download the complete
+PDF. Local file rendering and edit/save behavior are unchanged.
+
+The renderer remains **off by default**. To enable it on Ubuntu, install Python,
+PyMuPDF and Pillow in the **same interpreter used by the service**:
+
+```bash
+python3 -m pip install "PyMuPDF>=1.24,<2" "Pillow>=10,<13"
+export TPDF_REMOTE_RENDER_ENABLED=1
+export TPDF_PYTHON_PATH=python3
+export TPDF_RENDER_WORKERS=1
+export TPDF_RENDER_CACHE_MB=64
+npm run server-build
+npm run server-start
+```
+
+The worker must pass an independent import probe (`python3 -u
+server/workers/remote_pdf_worker.py --probe`) before `remoteRendering` and
+`rangePreview` are reported true in health. With the flag off, a missing
+Python executable, or missing native dependencies, the capabilities remain
+false. A large file without a healthy renderer shows a clear **opt-in** full
+download button rather than unexpectedly fetching the entire file. Worker
+errors while viewing likewise offer a manual full-viewer fallback. Monitor
+renderer worker memory separately from Node cache and enforce OS-level RSS
+limits as described above.
+
+### Safe, repeatable Ubuntu acceptance (user-run, no production documents)
+
+```bash
+npm ci
+npm run typecheck
+npm run server-build
+node --test tests/cli/remote-render.test.mjs
+npm run server-smoke
+npm run perf:pdf -- --mb 120 --pages 182 --out /tmp/tpdf-168-fixture.pdf
+```
+
+Use your **local** authenticated TPDF server to upload this generated fixture.
+Do **two independent cold browser opens**, clearing document cache/network
+state between them. Record `performance.now()` at navigation and first visible
+tile, total transferred bytes at first tile, requests to document vs
+`/render/meta` and `/render/tile`, scrolling to page 150, zoom x4, and
+browser/server peak RSS. A 120MB fixture here is mostly PDF comments used to
+exercise transfer size; also test a separately generated image-heavy and
+vector-heavy corpus to measure actual render CPU/RSS. The acceptance test
+must not observe a full GET before page 1, nor any second full download during
+scroll/zoom. Confirm unauthenticated and cross-project render endpoints remain
+inaccessible; confirm local PDF, text edit, save and reopen.
+
+Check the raw document Range endpoint independently with an authenticated
+synthetic fixture: `Range: bytes=0-1023` should return HTTP 206,
+`Content-Range: bytes 0-1023/<total>` and exactly 1024 body bytes.
+A successful 206 verifies server transport **only**; it does not establish
+that PDFium consumes Range. If the render worker is disabled or unhealthy,
+health must report `remoteRendering: false` and the UI must require consent
+before a large/unknown-size full fetch.
+
+Rollback: set `TPDF_REMOTE_RENDER_ENABLED=0`, restart, and use full viewing
+explicitly for large documents.

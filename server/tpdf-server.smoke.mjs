@@ -49,6 +49,7 @@ function assert(condition, message) {
 try {
   const health = await waitForHealth();
   assert(health.runtime === "server", "health runtime must be server");
+  assert(health.capabilities.rangePreview === false, "native tile rendering must not claim rangePreview capability");
   assert(health.capabilities?.ocrQueue === true, "health must expose OCR queue support");
   assert(health.capabilities?.searchablePdfOcr === true, "health must expose searchable PDF OCR support");
   assert(health.capabilities?.digitalSignature === true, "health must expose server digital signing");

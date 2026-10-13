@@ -1,7 +1,7 @@
 import { useCallback, useEffect, type Dispatch, type SetStateAction } from "react";
 import type { PdfContentObject } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "../../lib/pdfiumContentEngine";
-import { consumeNativeInlineTextEdit, emitNativeEditSelection } from "../../lib/nativeEditRuntime";
+import { consumeNativeInlineTextEdit, emitNativeEditSelection, getNativeEditSelection } from "../../lib/nativeEditRuntime";
 import { findTextObjectAtPoint } from "./nativeEditCanvasTextEdit";
 import { nativeEditTextRun } from "./nativeEditTextRun";
 import type { NativeEditTextLine } from "./nativeEditTextRun";
@@ -51,7 +51,13 @@ export function useNativeEditPageObjects({
         } else {
           setEditingObject(null);
           setGroupedTextLines([]);
-          setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
+          // Inspection can finish after an inspector click. Reconcile against
+          // the latest requested selection, not a stale captured state update.
+          setSelectedId((current) => {
+            const request = getNativeEditSelection();
+            const target = request?.pageIndex === pageIndex ? request.objectId : current;
+            return next.some((item) => item.id === target) ? target : null;
+          });
         }
       })
       .catch((reason) => {

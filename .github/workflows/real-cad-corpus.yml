@@ -47,14 +47,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Each fixture/attempt needs a fresh browser and viewer instance.
-          # Keep all three PDF fixtures and both repetitions.
-          for fixture in a0-vector-poster va-floor-finish va-site-utilities; do
-            for repeat in 1 2; do
-              echo "::group::CAD ${fixture} attempt ${repeat}"
-              npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium --grep "${fixture}" --workers=1
-              echo "::endgroup::"
-            done
+          # Independent full-corpus rounds exercise sequential worker lifecycles.
+          # Never hide a flaky case behind Playwright retries.
+          for round in 1 2; do
+            echo "::group::CAD full corpus round ${round}"
+            npx playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium --workers=1 --retries=0
+            echo "::endgroup::"
           done
         env:
           CI: 'true'

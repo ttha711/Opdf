@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useRef, type Dispatch, type SetStateAction } from "react";
 import type { useTpdfBridge } from "../useTpdfBridge";
 import { saveWebState, computeFileHash, saveAnnotationsByHash } from "../../lib/web-storage";
 import { commitPendingNativeInlineEdit } from "../../lib/nativeEditRuntime";
@@ -45,7 +45,20 @@ export function useExportAction({
   // ── Save (Ctrl+S) ──────────────────────────────────────────────────────────
   // Desktop: writes docBytes to existing path + saves annotations. No flatten.
   // Web: saves docBytes + annotations to IndexedDB draft. No download, no flatten.
+  // Serialize manual Save with background autosave. The manual request must
+  // persist after an in-flight autosave, never race it for the same document.
+  const activeSave = useRef<Promise<boolean> | null>(null);
   async function savePdf(options: { silent?: boolean } = {}) {
+    while (activeSave.current) await activeSave.current;
+    const operation = persistPdf(options);
+    activeSave.current = operation;
+    try { return await operation; }
+    finally {
+      if (activeSave.current === operation) activeSave.current = null;
+    }
+  }
+
+  async function persistPdf(options: { silent?: boolean } = {}) {
     if (!hasDocument || !fileName) return false;
     try {
       setSaveState("saving");
@@ -79,7 +92,9 @@ export function useExportAction({
         storageKey = await computeFileHash(bytes);
       }
 
-      if (storageKey) {
+      // Server annotations were already persisted via replaceAnnotations.
+      // An unrelated browser IndexedDB write must not delay server Save ACK.
+      if (storageKey && !isServerDocument) {
         await saveAnnotationsByHash(storageKey, annotations);
       }
 

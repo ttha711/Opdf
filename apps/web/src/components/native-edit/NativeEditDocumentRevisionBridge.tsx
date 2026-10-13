@@ -28,6 +28,8 @@ export function NativeEditDocumentRevisionBridge({
   const revisionRef = useRef(initialRevisionKey);
   const sequenceRef = useRef(1);
   const queueRef = useRef(Promise.resolve());
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   useEffect(() => {
     if (!documentManager || !revisionKey || revisionKey === revisionRef.current) return;
@@ -71,6 +73,9 @@ export function NativeEditDocumentRevisionBridge({
       documentManager.setActiveDocument(documentId);
       revisionRef.current = targetRevision;
       if (previousId && previousId !== documentId) {
+        // The previous RenderLayer must unmount before its PDFium worker is
+        // destroyed; otherwise pending canvas encoding can race document close.
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         await documentManager.closeDocument(previousId).toPromise();
       }
     };
@@ -78,9 +83,9 @@ export function NativeEditDocumentRevisionBridge({
     const run = queueRef.current.then(runRefresh, runRefresh);
     queueRef.current = run.then(() => undefined, () => undefined);
     void run.catch((reason) => {
-      onError?.(reason instanceof Error ? reason.message : String(reason));
+      onErrorRef.current?.(reason instanceof Error ? reason.message : String(reason));
     });
-  }, [baseDocumentId, data, documentManager, onError, revisionKey, sourceBlob, sourceUrl]);
+  }, [baseDocumentId, data, documentManager, revisionKey, sourceBlob, sourceUrl]);
 
   return null;
 }

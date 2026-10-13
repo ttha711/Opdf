@@ -3,7 +3,6 @@ import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { applyVerifiedNativePatches } from "../lib/nativeEditPatchVerification";
 import { pdfHasDigitalSignature } from "../lib/pdfSignatureDetection";
-import { NATIVE_EDIT_MAX_BYTES, NativeEditTooLargeError } from "../lib/nativeEditLimits";
 import { useConfirm } from "./ConfirmDialog";
 import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
 import {
@@ -141,7 +140,6 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     try {
       const bytes = currentBytesRef.current ?? await getDocumentBytesRef.current();
       if (!bytes) throw new Error("Unable to read the current PDF.");
-      if (bytes.byteLength > NATIVE_EDIT_MAX_BYTES) throw new NativeEditTooLargeError(bytes.byteLength);
       if (!signedEditAcknowledged.current && pdfHasDigitalSignature(bytes)) {
         const proceed = await confirm({
           title: "Digitally signed PDF",

@@ -838,6 +838,47 @@ async function withDocument<T>(pdf: Uint8Array, action: (module: PdfiumModule, d
   }
 }
 
+/**
+ * Stream the serialized PDF straight into a JS buffer. The writer-based path
+ * keeps the whole output in the WASM heap and then copies it a second time, and
+ * the WASM heap never shrinks, which cost ~1 GB extra on a 262 MB file.
+ */
+function saveDocumentStreaming(module: PdfiumModule, docPtr: number): Uint8Array {
+  const runtime = module.pdfium;
+  let capacity = 64 * 1024 * 1024;
+  let buffer = new (ArrayBuffer as unknown as new (length: number, options: { maxByteLength: number }) => ArrayBuffer)(
+    capacity, { maxByteLength: 3 * 1024 * 1024 * 1024 },
+  );
+  let used = 0;
+  let failed = false;
+  const callback = runtime.addFunction((_self: number, data: number, size: number) => {
+    try {
+      if (used + size > capacity) {
+        capacity = Math.max(used + size, capacity * 2);
+        (buffer as unknown as { resize(length: number): void }).resize(capacity);
+      }
+      new Uint8Array(buffer, used, size).set(runtime.HEAPU8.subarray(data, data + size));
+      used += size;
+      return 1;
+    } catch {
+      failed = true;
+      return 0;
+    }
+  }, "iiii");
+  const writer = malloc(module, 8);
+  try {
+    runtime.setValue(writer, 1, "i32");
+    runtime.setValue(writer + 4, callback, "i32");
+    const ok = module.FPDF_SaveAsCopy(docPtr, writer, 0);
+    if (!ok || failed) throw new Error("PDFium failed to serialize edited PDF.");
+    if (!used) throw new Error("PDFium produced an empty edited PDF.");
+    return new Uint8Array((buffer as unknown as { transferToFixedLength(length: number): ArrayBuffer }).transferToFixedLength(used));
+  } finally {
+    free(module, writer);
+    runtime.removeFunction(callback);
+  }
+}
+
 function saveDocument(module: PdfiumModule, docPtr: number): Uint8Array {
   const writer = module.PDFiumExt_OpenFileWriter();
   if (!writer) throw new Error("PDFium could not create an output writer.");
@@ -1279,7 +1320,12 @@ export class PdfiumContentEditingEngine implements PdfContentEditingEngine {
         }
       }
 
-      return saveDocument(module, docPtr);
+      try {
+        return saveDocumentStreaming(module, docPtr);
+      } catch (error) {
+        console.warn("[tpdf] streaming save failed, using the writer path:", error);
+        return saveDocument(module, docPtr);
+      }
     });
   }
 }

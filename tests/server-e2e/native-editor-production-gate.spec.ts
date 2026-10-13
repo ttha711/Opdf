@@ -130,7 +130,7 @@ test("image-only scanned page stays editable and persists native transforms", as
   const beforeBounds = await image.getAttribute("data-tpdf-bounds");
   expect(beforeBounds).toBeTruthy();
   await image.click();
-  await editor.getByRole("button", { name: "→" }).click();
+  await editor.getByRole("button", { name: "Move right" }).click();
   await expect(editor.getByText("Object moved.")).toBeVisible({ timeout: 20_000 });
 
   const moved = editor.locator("[data-tpdf-object-kind='image']").first();

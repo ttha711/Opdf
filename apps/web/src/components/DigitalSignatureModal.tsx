@@ -144,7 +144,7 @@ export function DigitalSignatureModal({
             <div className="premium-modal-title">Digital Signature · P12/PFX</div>
             <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">Desktop keeps certificate data local. Server mode sends it only to the same-origin TPDF API; the certificate is encrypted at rest and its password is not stored.</div>
           </div>
-          <button data-tpdf-action="close-dialog" type="button" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
+          <button data-tpdf-action="close-dialog" type="button" aria-label="Close dialog" className="rounded px-2 py-1 text-sm hover:bg-[var(--ui-hover-bg)]" onClick={onClose}>✕</button>
         </div>
 
         <div className="flex border-b border-[var(--border-color)] px-4 pt-2">

@@ -120,10 +120,10 @@ export function NativeContentProperties({
       <div className="native-content-editor__move">
         <span>Move object</span>
         <div>
-          <button type="button" onClick={() => move(-5, 0)}>←</button>
-          <button type="button" onClick={() => move(0, 5)}>↑</button>
-          <button type="button" onClick={() => move(0, -5)}>↓</button>
-          <button type="button" onClick={() => move(5, 0)}>→</button>
+          <button type="button" aria-label="Move left" onClick={() => move(-5, 0)}>←</button>
+          <button type="button" aria-label="Move up" onClick={() => move(0, 5)}>↑</button>
+          <button type="button" aria-label="Move down" onClick={() => move(0, -5)}>↓</button>
+          <button type="button" aria-label="Move right" onClick={() => move(5, 0)}>→</button>
         </div>
       </div>
       <div className="native-content-editor__move">
@@ -131,8 +131,8 @@ export function NativeContentProperties({
         <div>
           <button type="button" onClick={() => scale(0.9)}>− Size</button>
           <button type="button" onClick={() => scale(1.1)}>+ Size</button>
-          <button type="button" onClick={() => rotate(-5)}>↶ 5°</button>
-          <button type="button" onClick={() => rotate(5)}>↷ 5°</button>
+          <button type="button" aria-label="Rotate left 5 degrees" onClick={() => rotate(-5)}>↶ 5°</button>
+          <button type="button" aria-label="Rotate right 5 degrees" onClick={() => rotate(5)}>↷ 5°</button>
         </div>
       </div>
       <div className="native-content-editor__move">

@@ -89,7 +89,7 @@ test("native Edit PDF edits vector geometry and crops/duplicates images", async 
   await expect(objectButtons.filter({ hasText: "PATH" })).toHaveCount(2, { timeout: 20_000 });
 
   await objectButtons.filter({ hasText: "IMAGE" }).first().click();
-  await editor.getByRole("button", { name: "Left" }).click();
+  await editor.getByRole("button", { name: "Left", exact: true }).click();
   await expect(editor.getByText("Image cropped from left.")).toBeVisible({ timeout: 20_000 });
   await editor.getByRole("button", { name: "Duplicate" }).click();
   await expect(objectButtons.filter({ hasText: "IMAGE" })).toHaveCount(2, { timeout: 20_000 });
@@ -175,7 +175,7 @@ test("native Edit PDF deep-edits Form XObject text, path and image and persists 
 
   const beforeImageBounds = await nestedImage.getAttribute("data-tpdf-bounds");
   await nestedImage.click();
-  await editor.getByRole("button", { name: "→" }).click();
+  await editor.getByRole("button", { name: "Move right" }).click();
   await expect(editor.getByText("Object moved.")).toBeVisible({ timeout: 20_000 });
   const movedImage = editor.locator("[data-tpdf-object-depth='0'][data-tpdf-object-kind='image']").first();
   await expect(movedImage).toBeVisible({ timeout: 20_000 });

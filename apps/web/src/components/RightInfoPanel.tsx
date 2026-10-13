@@ -189,7 +189,7 @@ export function RightInfoPanel({
                         {resolved ? "Reopen" : "Resolve"}
                       </button>
                     ) : null}
-                    <button onClick={() => onRemoveAnnotation(item.id)} title="Delete annotation" className="rounded p-0.5 text-[#aaa] hover:bg-red-100 hover:text-red-600" type="button">✕</button>
+                    <button onClick={() => onRemoveAnnotation(item.id)} title="Delete annotation" aria-label="Delete annotation" className="rounded p-0.5 text-[#aaa] hover:bg-red-100 hover:text-red-600" type="button">✕</button>
                   </div>
 
                   {replies.length > 0 ? (

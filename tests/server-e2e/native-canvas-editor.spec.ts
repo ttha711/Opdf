@@ -198,7 +198,7 @@ test("rapid native mutations serialize and viewer root stays mounted", async ({ 
   expect(beforeRaw).toBeTruthy();
   const before = parseBounds(beforeRaw);
 
-  const right = editor.getByRole("button", { name: "→" });
+  const right = editor.getByRole("button", { name: "Move right" });
   await right.evaluate((element) => {
     (element as HTMLButtonElement).click();
     (element as HTMLButtonElement).click();

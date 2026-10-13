@@ -47,7 +47,7 @@ export function useExportAction({
   // Web: saves docBytes + annotations to IndexedDB draft. No download, no flatten.
   // Serialize manual Save with background autosave. The manual request must
   // persist after an in-flight autosave, never race it for the same document.
-  const activeSave = useRef<Promise<boolean> | null>(null);
+  const activeSave = useRef<ReturnType<typeof persistPdf> | null>(null);
   async function savePdf(options: { silent?: boolean } = {}) {
     while (activeSave.current) await activeSave.current;
     const operation = persistPdf(options);

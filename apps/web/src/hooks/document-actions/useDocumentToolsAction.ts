@@ -106,6 +106,7 @@ export function useDocumentToolsAction({
         return;
       }
       if (tool === "normalize") {
+        if (bridge.capabilities?.pdfA !== true) throw new Error("PDF/A conversion is unavailable in this runtime.");
         const next = await bridge.convertToPdfA(bytes);
         replaceDocumentBytes(next, page);
         return;

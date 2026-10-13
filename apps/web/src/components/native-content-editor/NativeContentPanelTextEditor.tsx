@@ -30,8 +30,8 @@ export function NativeContentPanelTextEditor({ object, onApply, onCancel }: Prop
 
   return (
     <div className="native-content-editor__inline-panel" aria-label="Edit selected PDF text">
-      <textarea autoFocus aria-label="Edit PDF text" data-opdf-inline-text-editor="true"
-        data-opdf-inline-object-id={object.id} aria-busy={busy}
+      <textarea autoFocus aria-label="Edit PDF text" data-tpdf-inline-text-editor="true"
+        data-tpdf-inline-object-id={object.id} aria-busy={busy}
         value={text} disabled={busy} onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Escape") { event.preventDefault(); onCancel(); }

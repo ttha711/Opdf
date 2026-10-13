@@ -41,6 +41,37 @@ export function createRemoteRenderService(env = process.env) {
   const script = resolve(env.TPDF_RENDER_WORKER_SCRIPT || join(ROOT, "workers", "remote_pdf_worker.py"));
   const queue = [], pool = [], pending = new Map(), cache = new Map();
   let cacheSize = 0, closed = false;
+  let workerStatus = enabled ? "checking" : "disabled";
+
+  // Capability is real only after the *same configured* Python executable and
+  // worker script can import its native dependencies. Never advertise a broken
+  // renderer just because its environment flag is set.
+  const readiness = enabled ? new Promise((resolveReady) => {
+    const child = spawn(python, ["-u", script, "--probe"], {
+      stdio: ["ignore", "pipe", "ignore"], windowsHide: true,
+    });
+    let output = "", done = false;
+    const finish = (ready) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      child.kill();
+      workerStatus = ready ? "ready" : "unavailable";
+      resolveReady(ready);
+    };
+    const timer = setTimeout(() => finish(false), 5000);
+    child.stdout.on("data", (part) => {
+      output += part.toString();
+      if (output.length > 1024) return finish(false);
+      const newline = output.indexOf("\\n");
+      if (newline === -1) return;
+      try { finish(JSON.parse(output.slice(0, newline)).ready === true); }
+      catch { finish(false); }
+    });
+    child.on("error", () => finish(false));
+    child.on("exit", () => finish(false));
+  }) : Promise.resolve(false);
+  const isAvailable = () => readiness;
 
   function cacheSet(key, value) {
     const bytes = value.kind === "tile" ? value.body.length : JSON.stringify(value).length;
@@ -129,7 +160,9 @@ export function createRemoteRenderService(env = process.env) {
   }
 
   async function render(path, version, request) {
-    if (!enabled) throw Object.assign(new Error("Remote renderer is disabled."), { statusCode: 503 });
+    if (!await isAvailable()) {
+      throw Object.assign(new Error("Remote renderer worker is unavailable."), { statusCode: 503 });
+    }
     if (closed) throw Object.assign(new Error("Renderer is shutting down."), { statusCode: 503 });
     const key = JSON.stringify([path, version, request.kind, request.page, request.level, request.x, request.y]);
     const cached = cache.get(key);
@@ -158,7 +191,7 @@ export function createRemoteRenderService(env = process.env) {
     const request = parseRenderRequest(url);
     if (!request) return false;
     if (req.method !== "GET") return sendError(res, 405, "Method not allowed.");
-    if (!enabled) return sendError(res, 503, "Remote rendering is disabled.");
+    if (!await isAvailable()) return sendError(res, 503, "Remote renderer worker is unavailable.");
     const record = await storage.getDocument(request.id);
     if (!record) return sendError(res, 404, "Document not found.");
     if (storage.ensureDocumentFile && !await storage.ensureDocumentFile(request.id)) {
@@ -173,7 +206,9 @@ export function createRemoteRenderService(env = process.env) {
     res.statusCode = 200;
     res.setHeader("Content-Type", result.mime);
     res.setHeader("Content-Length", String(result.body.length));
-    res.setHeader("Cache-Control", "private, max-age=30");
+    // The server already has a bounded LRU. Avoid uncontrolled browser
+    // image-cache growth across hundreds of pages and zoom levels.
+    res.setHeader("Cache-Control", "private, no-store");
     res.end(result.body);
   }
 
@@ -182,7 +217,7 @@ export function createRemoteRenderService(env = process.env) {
     for (const task of queue.splice(0)) task.reject(new Error("Renderer shutting down."));
     for (const worker of [...pool]) retire(worker);
   }
-  return { enabled, handle, close,
-    stats: () => ({ enabled, workers: pool.length, queued: queue.length, pending: pending.size,
+  return { enabled, isAvailable, handle, close,
+    stats: () => ({ enabled, status: workerStatus, workers: pool.length, queued: queue.length, pending: pending.size,
       cachedItems: cache.size, cachedBytes: cacheSize, tileSize: TILE }) };
 }

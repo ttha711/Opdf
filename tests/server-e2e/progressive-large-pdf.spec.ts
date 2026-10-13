@@ -32,7 +32,8 @@ async function visibleZoomTileState(page: Page, previousLevel: number) {
       ready: visible.length > 0 && currentLevel.length === visible.length &&
         decoded === currentLevel.length && failed === 0,
       visible: visible.length, decoded, failed,
-      urls: currentLevel.map((img) => img.dataset.tpdfTileUrl!),
+      // CDP tracks absolute request URLs; data-tpdf-tile-url may be relative.
+      urls: currentLevel.map((img) => new URL(img.dataset.tpdfTileUrl!, location.href).href),
     };
   }, { scrollerSelector: SCROLLER_SELECTOR, tileSelector: TILE_SELECTOR, minimumLevel: previousLevel });
 }

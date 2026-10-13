@@ -36,7 +36,7 @@ function makeTiles(base: string, layout: PageLayout, level: number, scale: numbe
   return tiles;
 }
 
-export function RemotePdfViewer(props: PdfViewerProps) {
+export function RemotePdfViewer(props: PdfViewerProps & { onRequestFull?: () => void }) {
   const source = getServerDocumentUrl(props.sourceIdentity || "");
   const base = source ? source.split("?")[0] + "/render" : null;
   const [pages, setPages] = useState<PageSize[]>([]);
@@ -70,6 +70,7 @@ export function RemotePdfViewer(props: PdfViewerProps) {
     if (!base) return;
     const ctrl = new AbortController();
     setPages([]);
+    setError("");
     readyRef.current = false;
     fetch(base + "/meta", { signal: ctrl.signal })
       .then((r) => { if (!r.ok) throw new Error("Remote renderer is unavailable"); return r.json(); })
@@ -152,7 +153,7 @@ export function RemotePdfViewer(props: PdfViewerProps) {
       <span style={{ fontSize: 12 }}>{Math.round(zoom * 100)}%</span>
       <button style={toolStyle} onClick={() => changeZoom(zoom * 1.5)} aria-label="Zoom in">+</button>
     </div>
-    {error ? <div role="alert" style={{ color: "#b91c1c", padding: 12 }}>{error}</div> : null}
+    {error ? <div role="alert" style={{ color: "#b91c1c", padding: 12 }}>{error} <button type="button" onClick={props.onRequestFull}>Open full PDF instead</button></div> : null}
     <div ref={scroller} style={{ flex: 1, overflow: "auto", minHeight: 0, background: "#cbd5e1", touchAction: "pan-x pan-y" }}
       onScroll={(e) => updatePosition(e.currentTarget)}
       onTouchStart={(e) => {
@@ -171,6 +172,7 @@ export function RemotePdfViewer(props: PdfViewerProps) {
         {layouts.pages.map((layout) => <div key={layout.index} style={{ position: "absolute", left: layout.left, top: layout.top,
           width: layout.width * layout.scale, height: layout.height * layout.scale, background: "white", overflow: "hidden", boxShadow: "0 2px 7px #0003" }} />)}
         {visibleTiles.map((tile) => <img key={tile.key} src={tile.src} alt="" draggable={false}
+          onError={() => setError("A PDF tile could not be rendered.")}
           onLoad={() => { if (!readyRef.current) { readyRef.current = true; props.onViewerReady?.(); } }}
           style={{ position: "absolute", left: tile.pageLeft + tile.left, top: tile.pageTop + tile.top,
             width: tile.width, height: tile.height, objectFit: "fill", userSelect: "none", pointerEvents: "none" }} />)}

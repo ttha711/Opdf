@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { execFile } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { mkdtemp, rm, stat } from "node:fs/promises";
@@ -10,6 +10,33 @@ import { auditPdfTraffic } from "../helpers/pdfNetworkAudit";
 const execFileAsync = promisify(execFile);
 const DOCUMENT_SIZE = 112 * 1024 * 1024;
 const TILE_SELECTOR = '[data-tpdf-remote-viewer="true"] img[src*="/render/tile"]';
+const SCROLLER_SELECTOR = '[data-tpdf-remote-scroller="true"]';
+
+async function visibleZoomTileState(page: Page, previousLevel: number) {
+  return page.evaluate(({ scrollerSelector, tileSelector, minimumLevel }) => {
+    const scroller = document.querySelector<HTMLElement>(scrollerSelector);
+    if (!scroller) return { ready: false, visible: 0, decoded: 0, failed: 0, urls: [] as string[] };
+    const viewport = scroller.getBoundingClientRect();
+    const visible = [...scroller.querySelectorAll<HTMLImageElement>(tileSelector)].filter((img) => {
+      const rect = img.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 &&
+        rect.right > viewport.left && rect.left < viewport.right &&
+        rect.bottom > viewport.top && rect.top < viewport.bottom;
+    });
+    const currentLevel = visible.filter((img) =>
+      Number(new URL(img.currentSrc || img.src).searchParams.get("level")) > minimumLevel
+    );
+    const decoded = currentLevel.filter((img) => img.complete && img.naturalWidth > 0).length;
+    const failed = currentLevel.filter((img) => img.complete && img.naturalWidth === 0).length;
+    return {
+      ready: visible.length > 0 && currentLevel.length === visible.length &&
+        decoded === currentLevel.length && failed === 0,
+      visible: visible.length, decoded, failed,
+      urls: currentLevel.map((img) => img.currentSrc || img.src),
+    };
+  }, { scrollerSelector: SCROLLER_SELECTOR, tileSelector: TILE_SELECTOR, minimumLevel: previousLevel });
+}
+
 
 test("two cold large-PDF opens use measured tile GETs, not full-file GETs", async ({
   browser, request,
@@ -96,13 +123,36 @@ test("two cold large-PDF opens use measured tile GETs, not full-file GETs", asyn
         }
         await expect.poll(() => audit.snapshot().maxTileLevel, { timeout: 90_000 })
           .toBeGreaterThan(previousLevel);
+        // A new-level network request alone does not mean a sharper image was
+        // delivered. All *visible* tiles must decode at that higher level.
+        await expect.poll(async () => (await visibleZoomTileState(page, previousLevel)).ready, {
+          timeout: 90_000,
+        }).toBe(true);
+        const zoomTiles = await visibleZoomTileState(page, previousLevel);
+        expect(zoomTiles.decoded).toBeGreaterThan(0);
+        expect(zoomTiles.failed).toBe(0);
+        await expect.poll(() => audit.tileSettlementFor(zoomTiles.urls).pending, {
+          timeout: 90_000,
+        }).toBe(0);
+        const liveTransfers = audit.tileSettlementFor(zoomTiles.urls);
+        expect(liveTransfers.unobserved).toBe(0);
+        expect(liveTransfers.completed).toBeGreaterThan(0);
+        expect(liveTransfers.failed).toBe(0);
+        expect(liveTransfers.canceled).toBe(0);
+        // Old tiles are removed during scroll/zoom; their network requests
+        // should complete or cancel rather than accumulate without a bound.
+        // At most 96 image elements may be mounted at a time.
+        await expect.poll(() => audit.snapshot().pendingTileGets, {
+          timeout: 90_000, intervals: [500, 1000, 2000, 5000],
+        }).toBeLessThanOrEqual(96);
         const final = audit.snapshot();
         expect(final.documentGetCount).toBe(0);
         expect(final.fullDocumentGetCount).toBe(0);
         expect(final.totalPdfGetWireBytes).toBeLessThan(bytes / 4);
         expect(await remote.locator('img[src*="/render/tile"]').count()).toBeLessThanOrEqual(96);
 
-        const evidence = { round, fixtureBytes: bytes, firstPageMs, firstTileSample: first, afterScrollZoom: final };
+        const evidence = { round, fixtureBytes: bytes, firstPageMs, firstTileSample: first,
+          visibleZoomTiles: zoomTiles, visibleZoomTransfers: liveTransfers, afterScrollZoom: final };
         console.log("Progressive PDF synthetic fixture:", JSON.stringify(evidence));
         await testInfo.attach(`progressive-round-${round}.json`, {
           body: JSON.stringify(evidence, null, 2), contentType: "application/json",
@@ -128,8 +178,10 @@ test("two cold large-PDF opens use measured tile GETs, not full-file GETs", asyn
       });
       await gatePage.goto(`/?open=${encodeURIComponent(heldDocument.filePath)}`, { waitUntil: "domcontentloaded" });
       await expect(gatePage.getByRole("status").filter({ hasText: "Checking PDF viewing capabilities" })).toBeVisible();
-      await expect.poll(() => gateAudit.snapshot().headCompletedCount).toBeGreaterThan(0);
+      // Chromium may emit responseReceived for HEAD without loadingFinished.
+      await expect.poll(() => gateAudit.snapshot().headRespondedCount).toBeGreaterThan(0);
       const held = gateAudit.snapshot();
+      expect(held.headResponseStatuses).toContain(200);
       expect(held.documentGetCount).toBe(0);
       expect(held.tileGetCount).toBe(0);
       await testInfo.attach("pending-capability-traffic.json", {

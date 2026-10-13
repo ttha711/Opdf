@@ -82,6 +82,7 @@ apps/editor/docs/
 # TPDF server runtime data
 .tpdf-data/
 .tpdf-e2e-data/
+.tpdf-progressive-e2e-data/
 
 # TPDF automation CLI artifacts
 tpdf-cli-artifacts/

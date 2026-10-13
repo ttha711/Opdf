@@ -85,6 +85,38 @@ test("single click selects; double-click opens the text editor", async ({ page, 
   await expect(input).toHaveValue("DOUBLE CLICK LABEL");
 });
 
+test("double-clicking text in the reader opens that text directly for editing", async ({ page, request }) => {
+  const pdf = await PDFDocument.create();
+  const sheet = pdf.addPage([520, 720]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  sheet.drawText("DIRECT EDIT LABEL", { x: 78, y: 525, font, size: 20 });
+  const response = await request.post("/api/tpdf/documents?name=direct-reader-edit.pdf", {
+    headers: { "Content-Type": "application/pdf" },
+    data: Buffer.from(await pdf.save({ useObjectStreams: false })),
+  });
+  expect(response.status()).toBe(201);
+  const stored = await response.json();
+  await page.goto("/?open=" + encodeURIComponent(stored.filePath));
+  await expect(page.locator("[data-tpdf-engine='pdfium-wasm']")).toBeVisible({ timeout: 30_000 });
+
+  // The standard reader renders inside EmbedPDF's shadow root. Send the
+  // double-click to the text's page position without opening Edit PDF first.
+  const pageImage = page.locator("embedpdf-container img").last();
+  await expect(pageImage).toBeVisible({ timeout: 30_000 });
+  const bounds = await pageImage.boundingBox();
+  expect(bounds).toBeTruthy();
+  // Target a point inside the label in PDF page coordinates. The reader scales
+  // the page to the viewport, so fixed CSS-pixel offsets miss at fit-to-page.
+  await page.mouse.dblclick(
+    bounds!.x + bounds!.width * (100 / 520),
+    bounds!.y + bounds!.height * ((720 - 535) / 720),
+  );
+
+  const input = page.getByRole("textbox", { name: "Edit PDF text" });
+  await expect(input).toBeVisible({ timeout: 15_000 });
+  await expect(input).toHaveValue("DIRECT EDIT LABEL");
+});
+
 test("Save commits focused inline text and persists it on reopen", async ({ page, request }) => {
   const doc = await PDFDocument.create();
   const sheet = doc.addPage([500, 700]);

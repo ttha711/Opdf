@@ -8,19 +8,41 @@ function parseBounds(value: string | null) {
   return { x, y, width, height };
 }
 
-async function buildPdf() {
+async function buildPdf(overlapText = false, centeredMediaBox = false) {
   const doc = await PDFDocument.create();
   const page = doc.addPage([420, 300]);
+  if (centeredMediaBox) page.setMediaBox(-210, -150, 420, 300);
   const font = await doc.embedFont(StandardFonts.Helvetica);
-  page.drawText("Canvas native text", { x: 70, y: 180, size: 24, font });
-  page.drawText("Second native text", { x: 70, y: 115, size: 20, font });
+  const origin = centeredMediaBox ? { x: -140, y: 30 } : { x: 70, y: 180 };
+  page.drawText("Canvas native text", { ...origin, size: 24, font });
+  page.drawText("Second native text", {
+    x: centeredMediaBox ? -140 : 70,
+    y: centeredMediaBox ? -35 : 115,
+    size: 20,
+    font,
+  });
+  if (overlapText) {
+    const transparent = await doc.embedPng(Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jf9sAAAAASUVORK5CYII=",
+      "base64",
+    ));
+    page.drawImage(transparent, {
+      x: origin.x - 5, y: origin.y - 5, width: 220, height: 36,
+    });
+  }
   return Buffer.from(await doc.save({ useObjectStreams: false }));
 }
 
-async function openCanvasEditor(page: import("@playwright/test").Page, request: import("@playwright/test").APIRequestContext) {
+async function openCanvasEditor(
+  page: import("@playwright/test").Page,
+  request: import("@playwright/test").APIRequestContext,
+  overlapText = false,
+  expandPanel = true,
+  centeredMediaBox = false,
+) {
   const upload = await request.post("/api/tpdf/documents?name=native-canvas.pdf", {
     headers: { "Content-Type": "application/pdf" },
-    data: await buildPdf(),
+    data: await buildPdf(overlapText, centeredMediaBox),
   });
   expect(upload.status()).toBe(201);
   const document = await upload.json();
@@ -30,8 +52,10 @@ async function openCanvasEditor(page: import("@playwright/test").Page, request: 
   await page.getByTitle("Edit PDF Content").click();
   const expand = page.locator("[data-tpdf-action='expand-right-panel']");
   await expect(expand).toBeVisible({ timeout: 20_000 });
-  await expand.click();
-  await expect(page.locator("[data-tpdf-native-editor='true']")).toBeVisible({ timeout: 20_000 });
+  if (expandPanel) {
+    await expand.click();
+    await expect(page.locator("[data-tpdf-native-editor='true']")).toBeVisible({ timeout: 20_000 });
+  }
   await expect(page.locator("[data-tpdf-native-edit-page='1']")).toBeVisible({ timeout: 30_000 });
   return document;
 }
@@ -80,6 +104,22 @@ test("canvas native editor selects, transforms and inline-edits PDF objects", as
 
   await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
   await expect(editor.getByText("Native content edit undone.")).toBeVisible({ timeout: 20_000 });
+});
+
+test("direct canvas double-click opens text under an overlapping transparent image", async ({ page, request }) => {
+  await openCanvasEditor(page, request, true, false, true);
+  const text = page.locator(".native-edit-page polygon[data-tpdf-object-kind='text']").first();
+  await expect(text).toBeVisible({ timeout: 20_000 });
+  const box = await text.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) throw new Error("Text hit target is unavailable.");
+
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2, { delay: 45 });
+  const input = page.getByRole("textbox", { name: "Edit PDF text" });
+  await expect(input).toBeVisible({ timeout: 10_000 });
+  await expect(input).toHaveValue("Canvas native text");
+  await input.press("Escape");
+  await expect(input).toHaveCount(0);
 });
 
 test("canvas selection stays synchronized with the right-side object list", async ({ page, request }) => {

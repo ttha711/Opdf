@@ -11,9 +11,10 @@ const TRANSFORM_EPSILON = 0.0005;
 
 export type NativeEditDragState = {
   mode: "move" | "resize" | "rotate";
-  objectId: string;
+  objectIds: string[];
   pageWidth: number;
   pageHeight: number;
+  pageOrigin?: PdfPoint;
   geometry: NativeObjectGeometry;
   start?: PdfPoint;
   handle?: NativeResizeHandle;

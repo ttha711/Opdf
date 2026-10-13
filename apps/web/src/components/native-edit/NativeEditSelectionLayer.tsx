@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import type { PdfContentObject } from "@tpdf/core";
+import type { PdfContentObject, PdfPoint } from "@tpdf/core";
 import {
   handlePdfPoint,
   pdfPointToDom,
@@ -15,9 +15,10 @@ function pointsAttribute(
   pageHeight: number,
   width: number,
   height: number,
+  origin: PdfPoint,
 ) {
   return geometry.corners
-    .map((point) => pdfPointToDom(point, pageWidth, pageHeight, width, height))
+    .map((point) => pdfPointToDom(point, pageWidth, pageHeight, width, height, origin))
     .map((point) => `${point.x},${point.y}`)
     .join(" ");
 }
@@ -64,11 +65,13 @@ type Props = {
   height: number;
   objects: PdfContentObject[];
   selected: PdfContentObject | null;
+  coverSelectedText: boolean;
+  objectIdsFor: (object: PdfContentObject) => string[];
   displayGeometry: NativeObjectGeometry | null;
   geometryFor: (object: PdfContentObject) => NativeObjectGeometry;
   onEmptyPointerDown: () => void;
-  onObjectPointerDown: (event: React.PointerEvent, object: PdfContentObject) => void;
-  onObjectDoubleClick: (event: React.MouseEvent, object: PdfContentObject) => void;
+  onObjectPointerDown: (event: React.PointerEvent, object: PdfContentObject, objectIds: string[]) => void;
+  onCanvasDoubleClickCapture: (event: React.MouseEvent<SVGSVGElement>) => void;
   onResizePointerDown: (event: React.PointerEvent, handle: NativeResizeHandle) => void;
   onRotatePointerDown: (event: React.PointerEvent) => void;
 };
@@ -80,11 +83,13 @@ export function NativeEditSelectionLayer({
   height,
   objects,
   selected,
+  coverSelectedText,
+  objectIdsFor,
   displayGeometry,
   geometryFor,
   onEmptyPointerDown,
   onObjectPointerDown,
-  onObjectDoubleClick,
+  onCanvasDoubleClickCapture,
   onResizePointerDown,
   onRotatePointerDown,
 }: Props) {
@@ -100,8 +105,20 @@ export function NativeEditSelectionLayer({
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onEmptyPointerDown();
       }}
+      onDoubleClickCapture={onCanvasDoubleClickCapture}
       data-tpdf-native-edit-page={pageIndex + 1}
     >
+      {coverSelectedText && selected?.kind === "text" ? (
+        <polygon
+          className="native-edit-text-cover-mask"
+          points={pointsAttribute(
+            geometryFor(selected), selected.pageWidth, selected.pageHeight, width, height,
+            selected.pageOrigin ?? { x: 0, y: 0 },
+          )}
+          data-tpdf-text-cover-mask={selected.id}
+        />
+      ) : null}
+
       {objects.map((object) => {
         const isSelected = selected?.id === object.id;
         const geometry = isSelected && displayGeometry ? displayGeometry : geometryFor(object);
@@ -112,11 +129,11 @@ export function NativeEditSelectionLayer({
             className={[
               "native-edit-object",
               isSelected ? "native-edit-selection" : "",
+              isSelected && coverSelectedText ? "is-editing-text" : "",
               isSelected && !editable ? "readonly" : "",
             ].filter(Boolean).join(" ")}
-            points={pointsAttribute(editableTextHitGeometry(geometry, object, width, height), object.pageWidth, object.pageHeight, width, height)}
-            onPointerDown={(event) => onObjectPointerDown(event, object)}
-            onDoubleClick={(event) => onObjectDoubleClick(event, object)}
+            points={pointsAttribute(editableTextHitGeometry(geometry, object, width, height), object.pageWidth, object.pageHeight, width, height, object.pageOrigin ?? { x: 0, y: 0 })}
+            onPointerDown={(event) => onObjectPointerDown(event, object, objectIdsFor(object))}
             data-tpdf-canvas-object={object.id}
             data-tpdf-canvas-selection={isSelected ? object.id : undefined}
             data-tpdf-object-kind={object.kind}
@@ -131,12 +148,11 @@ export function NativeEditSelectionLayer({
           className="native-edit-cad-foreground"
           points={pointsAttribute(
             editableTextHitGeometry(displayGeometry, selected, width, height),
-            selected.pageWidth, selected.pageHeight, width, height,
+            selected.pageWidth, selected.pageHeight, width, height, selected.pageOrigin ?? { x: 0, y: 0 },
           )}
           style={{ fill: "transparent", stroke: "transparent", pointerEvents: "all", cursor: "text" }}
           data-tpdf-foreground-hit-target={selected.id}
-          onPointerDown={(event) => onObjectPointerDown(event, selected)}
-          onDoubleClick={(event) => onObjectDoubleClick(event, selected)}
+          onPointerDown={(event) => onObjectPointerDown(event, selected, [selected.id])}
         />
       ) : null}
 
@@ -147,6 +163,7 @@ export function NativeEditSelectionLayer({
           selected.pageHeight,
           width,
           height,
+          selected.pageOrigin,
         );
         return (
           <rect
@@ -169,8 +186,8 @@ export function NativeEditSelectionLayer({
           x: top.x + displayGeometry.v.x * rotateOffset,
           y: top.y + displayGeometry.v.y * rotateOffset,
         };
-        const topDom = pdfPointToDom(top, selected.pageWidth, selected.pageHeight, width, height);
-        const rotateDom = pdfPointToDom(rotate, selected.pageWidth, selected.pageHeight, width, height);
+        const topDom = pdfPointToDom(top, selected.pageWidth, selected.pageHeight, width, height, selected.pageOrigin);
+        const rotateDom = pdfPointToDom(rotate, selected.pageWidth, selected.pageHeight, width, height, selected.pageOrigin);
         return (
           <>
             <line className="native-edit-rotate-line" x1={topDom.x} y1={topDom.y} x2={rotateDom.x} y2={rotateDom.y} />

@@ -181,10 +181,11 @@ export function pdfPointFromClient(
   rect: DOMRect,
   pageWidth: number,
   pageHeight: number,
+  origin: PdfPoint = { x: 0, y: 0 },
 ): PdfPoint {
-  const x = (clientX - rect.left) * pageWidth / rect.width;
+  const x = (clientX - rect.left) * pageWidth / rect.width + origin.x;
   const domY = (clientY - rect.top) * pageHeight / rect.height;
-  return { x, y: pageHeight - domY };
+  return { x, y: pageHeight - domY + origin.y };
 }
 
 export function pdfPointToDom(
@@ -193,9 +194,10 @@ export function pdfPointToDom(
   pageHeight: number,
   width: number,
   height: number,
+  origin: PdfPoint = { x: 0, y: 0 },
 ) {
   return {
-    x: point.x * width / pageWidth,
-    y: (pageHeight - point.y) * height / pageHeight,
+    x: (point.x - origin.x) * width / pageWidth,
+    y: (pageHeight - (point.y - origin.y)) * height / pageHeight,
   };
 }

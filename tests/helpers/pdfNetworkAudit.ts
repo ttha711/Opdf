@@ -6,6 +6,7 @@ import type { Page, CDPSession } from "@playwright/test";
 type Entry = {
   kind: "document" | "meta" | "tile" | "text";
   method: string;
+  url: string;
   status: number | null;
   range: boolean;
   level: number | null;
@@ -59,7 +60,7 @@ export async function auditPdfTraffic(page: Page, documentId: string) {
     const levelRaw = parsed.searchParams.get("level");
     const level = levelRaw === null ? null : Number(levelRaw);
     entries.set(event.requestId, {
-      kind, method: event.request.method, status: null,
+      kind, method: event.request.method, url: event.request.url, status: null,
       range: Object.keys(event.request.headers).some((key) => key.toLowerCase() === "range"),
       level, wireProgress: 0, wireFinished: 0, finished: false, failed: false,
       canceled: false,
@@ -121,5 +122,26 @@ export async function auditPdfTraffic(page: Page, documentId: string) {
     };
   }
 
-  return { snapshot, close: () => session.detach() };
+  // Only judge live DOM tile URLs after zoom: historical requests can be
+  // canceled during scroll and must not be confused with still-visible tiles.
+  function tileSettlementFor(urls: string[]) {
+    const wanted = new Set(urls);
+    const lastByUrl = new Map<string, Entry>();
+    for (const row of entries.values()) {
+      if (row.kind === "tile" && row.method === "GET" && wanted.has(row.url)) {
+        lastByUrl.set(row.url, row);
+      }
+    }
+    const active = [...lastByUrl.values()];
+    return {
+      observed: active.length,
+      unobserved: wanted.size - active.length,
+      pending: active.filter((row) => !row.finished && !row.failed).length,
+      completed: active.filter((row) => row.finished && row.status === 200).length,
+      canceled: active.filter((row) => row.canceled).length,
+      failed: active.filter((row) => row.failed && !row.canceled).length,
+    };
+  }
+
+  return { snapshot, tileSettlementFor, close: () => session.detach() };
 }

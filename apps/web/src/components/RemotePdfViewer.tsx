@@ -48,6 +48,7 @@ export function RemotePdfViewer(props: PdfViewerProps) {
   const touch = useRef<{ distance: number; zoom: number } | null>(null);
   const readyRef = useRef(false);
   const scrollPageRef = useRef<number | null>(null);
+  const lastExternalPage = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
   const layouts = useMemo(() => {
     let top = 0;
@@ -64,13 +65,6 @@ export function RemotePdfViewer(props: PdfViewerProps) {
     })) };
   }, [pages, viewport.width, zoom]);
   const page = Math.max(1, Math.min(pages.length || 1, props.page));
-  useEffect(() => {
-    const element = scroller.current;
-    if (!element) return;
-    element.scrollLeft = 0;
-    element.scrollTop = 0;
-    setPosition({ x: 0, y: 0 });
-  }, [page]);
 
   useEffect(() => {
     if (!base) return;
@@ -99,13 +93,12 @@ export function RemotePdfViewer(props: PdfViewerProps) {
   }, [pages.length]);
 
   useEffect(() => {
+    if (lastExternalPage.current === page) return;
+    lastExternalPage.current = page;
     const target = layouts.pages[page - 1];
     if (!target || !scroller.current) return;
-    if (scrollPageRef.current === target.index) {
-      scrollPageRef.current = null;
-      return;
-    }
-    scroller.current.scrollTo({ top: target.top, behavior: "smooth" });
+    if (scrollPageRef.current === target.index) return;
+    scroller.current.scrollTo({ top: target.top, behavior: "auto" });
   }, [props.page, layouts.pages]);
 
   const visibleTiles = useMemo(() => {
@@ -118,7 +111,7 @@ export function RemotePdfViewer(props: PdfViewerProps) {
       if (bottom < start || top > end) return [];
       return makeTiles(base, layout, levelFor(layout.scale), layout.scale, position, viewport)
         .map((tile) => ({ ...tile, pageIndex: layout.index, pageLeft: layout.left, pageTop: layout.top }));
-    });
+    }).slice(0, 96);
   }, [base, layouts, position, viewport, zoom]);
 
   function updatePosition(el: HTMLDivElement) {
@@ -128,7 +121,7 @@ export function RemotePdfViewer(props: PdfViewerProps) {
       setPosition({ x: el.scrollLeft, y: el.scrollTop });
       const center = el.scrollTop + el.clientHeight / 2;
       const current = layouts.pages.find((item) => center >= item.top && center < item.top + item.height * item.scale);
-      if (current && scrollPageRef.current !== current.index) {
+      if (current && current.index + 1 !== page) {
         scrollPageRef.current = current.index;
         props.onActivePageChange?.(current.index + 1);
       }
@@ -142,6 +135,7 @@ export function RemotePdfViewer(props: PdfViewerProps) {
     const ratio = bounded / zoom;
     const x = (el.scrollLeft + el.clientWidth / 2) * ratio - el.clientWidth / 2;
     const y = (el.scrollTop + el.clientHeight / 2) * ratio - el.clientHeight / 2;
+    lastExternalPage.current = page;
     setZoom(bounded);
     requestAnimationFrame(() => { el.scrollLeft = x; el.scrollTop = y; });
   }

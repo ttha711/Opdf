@@ -6,7 +6,9 @@ import { useZoom, ZoomMode } from "@embedpdf/plugin-zoom/react";
 import {
   registerViewerControls,
 } from "../../lib/viewer-runtime";
-import { consumeNativeEditViewportAnchor } from "../../lib/nativeEditRuntime";
+import {
+  consumeNativeEditViewportAnchor, peekNativeEditScrollMemory, setNativeEditScrollMemory,
+} from "../../lib/nativeEditRuntime";
 import { NativeEditPageOverlay } from "./NativeEditPageOverlay";
 import { NativeEditFallbackRaster } from "./NativeEditFallbackRaster";
 import type { NativeEditPinnedPoints } from "./NativeEditSelectionLayer";
@@ -22,6 +24,10 @@ type Props = {
   onActivePageChange?: (page: number) => void;
   onViewerScaleChange?: (scale: number) => void;
 };
+
+function lastNativeViewport() {
+  return [...document.querySelectorAll<HTMLElement>(".native-edit-viewport")].at(-1) ?? null;
+}
 
 /** True when the rendered page overlay is meaningfully inside its scroll viewport. */
 function requestedPageIsInView(pageNumber: number) {
@@ -68,7 +74,7 @@ export function NativeEditDocument({
   // viewer's own fit zoom.
   const initialScaleRef = useRef(scale);
   const initialScaleHandledRef = useRef(false);
-  const viewportAnchorRef = useRef(consumeNativeEditViewportAnchor());
+  const viewportRestoredRef = useRef(false);
   const [settleTick, setSettleTick] = useState(0);
 
   useEffect(() => registerViewerControls({
@@ -137,6 +143,17 @@ export function NativeEditDocument({
   }, [documentId, page, scroll, scrollState.totalPages]);
 
   useEffect(() => {
+    const viewport = lastNativeViewport();
+    if (!viewport) return;
+    // Remember where the user is so a revision swap or leaving the editor can resume there.
+    const remember = () => {
+      if (pageSettledRef.current) setNativeEditScrollMemory({ x: viewport.scrollLeft, y: viewport.scrollTop });
+    };
+    viewport.addEventListener("scroll", remember, { passive: true });
+    return () => viewport.removeEventListener("scroll", remember);
+  }, [documentId, scrollState.totalPages]);
+
+  useEffect(() => {
     if (pageSettledRef.current || !externalPageAppliedRef.current) return;
     const quiet = window.setTimeout(() => {
       if (!initialScaleHandledRef.current) {
@@ -152,20 +169,35 @@ export function NativeEditDocument({
         setSettleTick((tick) => tick + 1);
         return;
       }
-      const anchor = viewportAnchorRef.current;
-      if (anchor) {
-        viewportAnchorRef.current = null;
-        // Scroll so the anchored spot is back under the pointer after relayout.
-        const overlay = document.querySelector(`svg[data-tpdf-native-edit-page="${anchor.pageIndex + 1}"]`);
-        const viewport = overlay?.closest<HTMLElement>(".native-edit-viewport");
-        if (overlay && viewport) {
+      if (!viewportRestoredRef.current) {
+        viewportRestoredRef.current = true;
+        const viewport = lastNativeViewport();
+        const anchor = consumeNativeEditViewportAnchor();
+        const overlay = anchor
+          ? document.querySelector(`svg[data-tpdf-native-edit-page="${anchor.pageIndex + 1}"]`) : null;
+        const remembered = peekNativeEditScrollMemory();
+        if (viewport && anchor && overlay) {
+          // Double-click entry: put the clicked spot back under the pointer.
           const box = overlay.getBoundingClientRect();
           viewport.scrollTop += box.top + anchor.pageY * box.height - anchor.screenY;
           setSettleTick((tick) => tick + 1);
           return;
         }
+        if (viewport && remembered) {
+          // Button entry or revision swap: resume the offset the user was at.
+          viewport.scrollTop = remembered.y;
+          viewport.scrollLeft = remembered.x;
+          setSettleTick((tick) => tick + 1);
+          return;
+        }
       }
       pageSettledRef.current = true;
+      const settledViewport = lastNativeViewport();
+      if (settledViewport) {
+        // Record the position actually reached (anchor/zoom restore may have moved it).
+        setNativeEditScrollMemory({ x: settledViewport.scrollLeft, y: settledViewport.scrollTop });
+        settledViewport.setAttribute("data-tpdf-viewport-settled", "true");
+      }
     }, 400);
     return () => window.clearTimeout(quiet);
   }, [documentId, scrollState.currentPage, scrollState.totalPages, zoomState.currentZoomLevel, settleTick, zoom]);

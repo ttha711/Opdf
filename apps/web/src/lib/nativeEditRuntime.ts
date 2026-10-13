@@ -56,6 +56,24 @@ export function requestNativeInlineTextEditAtPoint(pageIndex: number, x: number,
   pendingInlineText = { pageIndex, x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
 }
 
+export type NativeEditScrollMemory = { x: number; y: number };
+let scrollMemory: NativeEditScrollMemory | null = null;
+
+/** Last scroll offset of whichever viewer (reader or editor) the user was in. */
+export function setNativeEditScrollMemory(position: NativeEditScrollMemory | null) {
+  scrollMemory = position;
+}
+
+export function peekNativeEditScrollMemory() {
+  return scrollMemory;
+}
+
+export function takeNativeEditScrollMemory() {
+  const position = scrollMemory;
+  scrollMemory = null;
+  return position;
+}
+
 export type NativeEditViewportAnchor = { pageIndex: number; pageY: number; screenY: number };
 let viewportAnchor: NativeEditViewportAnchor | null = null;
 

@@ -164,7 +164,9 @@ export function AdaptivePdfViewer(props: PdfViewerProps) {
       ) : remote ? <RemotePdfViewer {...props} onViewerReady={handleViewerReady} onRequestFull={() => setForceFullViewer(true)} /> : (
         <>
           {(!isEditing || !largeDocument) ? <div className="absolute inset-0">
-            <PdfViewer {...props} onViewerReady={handleViewerReady} />
+            <PdfViewer {...props} onViewerReady={handleViewerReady}
+              onActivePageChange={isEditing ? undefined : props.onActivePageChange}
+              onActiveToolChange={isEditing ? undefined : props.onActiveToolChange} />
           </div> : null}
           {shouldPreloadEditEngines ? <NativeEditEnginePreloader
             worker={usePdfiumWorker}

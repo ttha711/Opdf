@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import type { PdfContentObject, PdfMatrix } from "@tpdf/core";
 import {
   geometryForObject,
@@ -7,14 +7,13 @@ import {
   type NativeResizeHandle,
 } from "../../lib/nativeEditGeometry";
 import {
-  applyNativeEditPatches,
   emitNativeEditSelection,
   registerNativeInlineCommitter,
   registerNativeInlineTextEditRequestListener,
 } from "../../lib/nativeEditRuntime";
-import { NativeEditSelectionLayer, nativeEditObjectIsEditable } from "./NativeEditSelectionLayer";
+import { NativeEditSelectionLayer, nativeEditObjectIsEditable, type NativeEditPinnedPoints } from "./NativeEditSelectionLayer";
 import { getNativeEditOverlayObjects } from "./nativeEditOverlayObjects";
-import { getNativeEditInteractiveObjects, nativeEditTransformPatches } from "./nativeEditInteractiveObjects";
+import { getNativeEditInteractiveObjects } from "./nativeEditInteractiveObjects";
 import { nativeEditTextRun } from "./nativeEditTextRun";
 import type { NativeEditTextLine } from "./nativeEditTextRun";
 import { useNativeEditCanvasTextDoubleClick } from "./nativeEditCanvasTextEdit";
@@ -24,17 +23,15 @@ import { useNativeInlineTextFrame } from "./useNativeInlineTextFrame";
 import { useNativeEditKeyboardMove } from "./useNativeEditKeyboardMove";
 import { useNativeInlineCommit } from "./useNativeInlineCommit";
 import { useNativeEditSelectionSync } from "./useNativeEditSelectionSync";
-import {
-  matrixForPointer,
-  matrixIsIdentity,
-  type NativeEditDragState,
-} from "./nativeEditPointerTransform";
+import type { NativeEditDragState } from "./nativeEditPointerTransform";
+import { useNativeEditPointerGesture } from "./useNativeEditPointerGesture";
 type Props = {
   pageIndex: number;
   enabled: boolean;
   width: number;
   height: number;
   revisionKey: string;
+  pinnedPointsRef: MutableRefObject<NativeEditPinnedPoints | null>;
   getDocumentBytes: () => Promise<Uint8Array | null>;
 };
 export function NativeEditPageOverlay({
@@ -43,6 +40,7 @@ export function NativeEditPageOverlay({
   width,
   height,
   revisionKey,
+  pinnedPointsRef,
   getDocumentBytes,
 }: Props) {
   const overlayRef = useRef<SVGSVGElement>(null);
@@ -82,49 +80,15 @@ export function NativeEditPageOverlay({
       overlayRef.current.getBoundingClientRect(), state.pageWidth, state.pageHeight,
       "pageOrigin" in state ? state.pageOrigin : undefined);
   };
-  useEffect(() => {
-    if (!drag) return;
-    const onMove = (event: PointerEvent) => {
-      const pointer = clientToPdf(drag, event.clientX, event.clientY);
-      if (pointer) setPreviewMatrix(matrixForPointer(drag, pointer));
-    };
-    const onUp = (event: PointerEvent) => {
-      const pointer = clientToPdf(drag, event.clientX, event.clientY);
-      const matrix = pointer ? matrixForPointer(drag, pointer) : previewMatrix;
-      const mode = drag.mode;
-      const objectIds = drag.objectIds;
-      setDrag(null);
-      const clickDistance = drag.startClientX === undefined || drag.startClientY === undefined
-        ? Number.POSITIVE_INFINITY
-        : Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY);
-      if (mode === "move" && clickDistance < 4) {
-        setPreviewMatrix(null);
-        return;
-      }
-      if (!matrix || matrixIsIdentity(matrix)) {
-        setPreviewMatrix(null);
-        return;
-      }
-      const message = mode === "move" ? "Object moved on page."
-        : mode === "resize" ? "Object resized on page." : "Object rotated on page.";
-      void applyNativeEditPatches(nativeEditTransformPatches(objectIds, matrix), message)
-        .then(async (bytes) => {
-          if (bytes) await refreshObjectsFromBytes(bytes);
-          setPreviewMatrix(null);
-        }).catch((reason) => {
-          setPreviewMatrix(null);
-          setError(reason instanceof Error ? reason.message : String(reason));
-        });
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp, { once: true });
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-  }, [drag, previewMatrix]);
+  // Keep pointer listeners attached for the entire gesture, not for each
+  // optimistic matrix frame. A gap could lose pointerup during busy renders.
+  useNativeEditPointerGesture({
+    drag, overlayRef, pageIndex, pinnedPointsRef, setDrag, setPreviewMatrix, setError,
+    onPersistedBytes: refreshObjectsFromBytes,
+  });
 
   const selectObject = (object: PdfContentObject, objectIds = [object.id]) => {
+    if (pinnedPointsRef.current?.objectId !== object.id) pinnedPointsRef.current = null;
     setEditingObject(null);
     const item = interactiveObjects.find((entry) => entry.object.id === object.id);
     setGroupedTextLines(object.kind === "text" ? item?.lines ?? [{ object, objectIds }] : []);
@@ -142,6 +106,7 @@ export function NativeEditPageOverlay({
     const clientX = event.clientX;
     const clientY = event.clientY;
     const beginMove = () => {
+      pinnedPointsRef.current = null;
       selectObject(object, objectIds);
       const point = clientToPdf(object, clientX, clientY);
       if (!point) return;
@@ -170,6 +135,8 @@ export function NativeEditPageOverlay({
     if (!baseGeometry || !selected || !nativeEditObjectIsEditable(selected)) return;
     event.preventDefault();
     event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pinnedPointsRef.current = null;
     const beginResize = () => setDrag({
       mode: "resize", objectIds: selectedObjectIds,
       pageWidth: selected.pageWidth, pageHeight: selected.pageHeight,
@@ -190,6 +157,8 @@ export function NativeEditPageOverlay({
     if (!point) return;
     event.preventDefault();
     event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pinnedPointsRef.current = null;
     const beginRotate = () => setDrag({
       mode: "rotate",
       objectIds: selectedObjectIds,
@@ -257,10 +226,15 @@ export function NativeEditPageOverlay({
         coverSelectedText={coverSelectedText}
         objectIdsFor={objectIdsFor}
         displayGeometry={displayGeometry}
+        selectedId={selectedId}
+        pinnedPoints={pinnedPointsRef.current?.pageIndex === pageIndex &&
+          pinnedPointsRef.current.objectId === selectedId && !previewMatrix
+          ? pinnedPointsRef.current.points : null}
         geometryFor={geometryForObject}
         onCanvasDoubleClickCapture={handleCanvasDoubleClick}
         onEmptyPointerDown={() => {
           const deselect = () => {
+            pinnedPointsRef.current = null;
             setSelectedId(null);
             emitNativeEditSelection({ pageIndex, objectId: null });
           };

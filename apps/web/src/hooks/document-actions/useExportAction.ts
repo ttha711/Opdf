@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useRef, type Dispatch, type SetStateAction } from "react";
 import type { useTpdfBridge } from "../useTpdfBridge";
 import { saveWebState, computeFileHash, saveAnnotationsByHash } from "../../lib/web-storage";
 import { commitPendingNativeInlineEdit } from "../../lib/nativeEditRuntime";
@@ -7,6 +7,7 @@ export function useExportAction({
   bridge,
   hasDocument,
   hasDesktopBridge,
+  isNativeEditing,
   fileName,
   docBytes,
   sourceIdentity,
@@ -23,6 +24,7 @@ export function useExportAction({
   bridge: ReturnType<typeof useTpdfBridge>;
   hasDocument: boolean;
   hasDesktopBridge: boolean;
+  isNativeEditing: boolean;
   fileName: string;
   docBytes: Uint8Array | null;
   sourceIdentity: string;
@@ -45,7 +47,15 @@ export function useExportAction({
   // ── Save (Ctrl+S) ──────────────────────────────────────────────────────────
   // Desktop: writes docBytes to existing path + saves annotations. No flatten.
   // Web: saves docBytes + annotations to IndexedDB draft. No download, no flatten.
-  async function savePdf(options: { silent?: boolean } = {}) {
+  // Reserve each Save in FIFO order before any async work begins.
+  const saveTail = useRef<Promise<void>>(Promise.resolve());
+  function savePdf(options: { silent?: boolean } = {}) {
+    const operation = saveTail.current.then(() => persistPdf(options));
+    saveTail.current = operation.then(() => undefined, () => undefined);
+    return operation;
+  }
+
+  async function persistPdf(options: { silent?: boolean } = {}) {
     if (!hasDocument || !fileName) return false;
     try {
       setSaveState("saving");
@@ -59,7 +69,10 @@ export function useExportAction({
       // Embedded annotation edits live in the viewer until export. Reusing
       // docBytes merely because the source is server-backed silently drops them.
       // Inline native edits take priority to avoid reading a stale hidden reader.
-      let bytes = inlineEditBytes ?? (await getDocumentBytes()) ?? docBytes;
+      // Native patches publish verified bytes before the viewer reloads.
+      // Avoid waiting on a stale viewer; non-native edits still export it.
+      const nativeBytes = isNativeEditing && isServerDocument ? docBytes : null;
+      let bytes = inlineEditBytes ?? nativeBytes ?? (await getDocumentBytes()) ?? docBytes;
 
       if (hasDesktopBridge) {
         if (!inlineEditBytes) bytes = (await getDocumentBytes()) ?? bytes;
@@ -79,7 +92,9 @@ export function useExportAction({
         storageKey = await computeFileHash(bytes);
       }
 
-      if (storageKey) {
+      // Server annotations were already persisted via replaceAnnotations.
+      // An unrelated browser IndexedDB write must not delay server Save ACK.
+      if (storageKey && !isServerDocument) {
         await saveAnnotationsByHash(storageKey, annotations);
       }
 

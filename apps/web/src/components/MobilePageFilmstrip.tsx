@@ -81,8 +81,12 @@ export function MobilePageFilmstrip({
 }) {
   const [jumpPage, setJumpPage] = useState("");
   const radius = 10;
-  const start = Math.max(1, Math.min(page - radius, Math.max(1, totalPages - radius * 2)));
-  const end = Math.min(totalPages, start + radius * 2);
+  // Small and medium documents need every page to be directly reachable.
+  // Keep full page controls cheap; PageThumbnail already lazy-loads images.
+  // For huge PDFs, window the controls and retain the numeric Jump action.
+  const showAll = totalPages <= 200;
+  const start = showAll ? 1 : Math.max(1, Math.min(page - radius, Math.max(1, totalPages - radius * 2)));
+  const end = showAll ? totalPages : Math.min(totalPages, start + radius * 2);
   const visiblePages = Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
 
   useEffect(() => {

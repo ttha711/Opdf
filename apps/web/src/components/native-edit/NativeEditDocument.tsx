@@ -8,12 +8,14 @@ import {
 } from "../../lib/viewer-runtime";
 import { NativeEditPageOverlay } from "./NativeEditPageOverlay";
 import { NativeEditFallbackRaster } from "./NativeEditFallbackRaster";
+import type { NativeEditPinnedPoints } from "./NativeEditSelectionLayer";
 
 type Props = {
   documentId: string;
   page: number;
   scale: number;
   revisionKey: string;
+  pinnedPointsRef: React.MutableRefObject<NativeEditPinnedPoints | null>;
   getDocumentBytes: () => Promise<Uint8Array | null>;
   onDocumentLoaded?: (pages: number) => void;
   onActivePageChange?: (page: number) => void;
@@ -25,6 +27,7 @@ export function NativeEditDocument({
   page,
   scale,
   revisionKey,
+  pinnedPointsRef,
   getDocumentBytes,
   onDocumentLoaded,
   onActivePageChange,
@@ -35,6 +38,10 @@ export function NativeEditDocument({
   // Keep Automatic zoom during first layout. An early numeric request can
   // leave EmbedPDF 2.x waiting for a viewport layout and paint no page.
   const previousExternalScale = useRef(scale);
+  // Zoom changes originate either in the viewer (Automatic fit) or in the
+  // parent. Remember each direction so one side never echoes the other back.
+  const reportedViewerScale = useRef<number | null>(null);
+  const requestedExternalScale = useRef<number | null>(null);
   const pendingPageRef = useRef<number | null>(null);
   const lastExternalPageRef = useRef<{ documentId: string; page: number } | null>(null);
 
@@ -86,14 +93,14 @@ export function NativeEditDocument({
 
   useEffect(() => {
     const current = scrollState.currentPage;
-    if (current <= 0) return;
+    if (current <= 0 || scrollState.totalPages <= 0) return;
     const pending = pendingPageRef.current;
     if (pending !== null) {
       if (current !== pending) return;
       pendingPageRef.current = null;
     }
     if (current !== page) onActivePageChange?.(current);
-  }, [onActivePageChange, page, scrollState.currentPage]);
+  }, [onActivePageChange, page, scrollState.currentPage, scrollState.totalPages]);
 
   useEffect(() => {
     // Only apply actual external zoom changes after the initial document layout.
@@ -102,13 +109,25 @@ export function NativeEditDocument({
     if (previousExternalScale.current === scale) return;
     previousExternalScale.current = scale;
     if (!Number.isFinite(scale) || scale <= 0) return;
+    // The parent merely echoed the zoom this viewer reported: not a request.
+    if (reportedViewerScale.current !== null &&
+        Math.abs(reportedViewerScale.current - scale) < 0.001) return;
     if (Math.abs(zoomState.currentZoomLevel - scale) < 0.001) return;
+    requestedExternalScale.current = Math.min(5, Math.max(0.05, scale));
     zoom.requestZoom(scale);
   }, [scale, scrollState.totalPages, zoom, zoomState.currentZoomLevel]);
 
   useEffect(() => {
     const next = zoomState.currentZoomLevel;
+    const requested = requestedExternalScale.current;
+    if (requested !== null) {
+      // Do not report interim zoom levels while a parent request is applying;
+      // that would overwrite the request and make the two sides oscillate.
+      if (Math.abs(next - requested) >= 0.001) return;
+      requestedExternalScale.current = null;
+    }
     if (Number.isFinite(next) && next > 0 && Math.abs(next - scale) >= 0.001) {
+      reportedViewerScale.current = next;
       onViewerScaleChange?.(next);
     }
   }, [onViewerScaleChange, scale, zoomState.currentZoomLevel]);
@@ -123,17 +142,18 @@ export function NativeEditDocument({
             <NativeEditFallbackRaster
               pageIndex={pageIndex}
               revisionKey={revisionKey}
-              enabled={pageIndex + 1 === (scrollState.currentPage || page)}
+              enabled={pageIndex + 1 === page}
               width={width}
               height={height}
               getDocumentBytes={getDocumentBytes}
             />
             <NativeEditPageOverlay
               pageIndex={pageIndex}
-              enabled={pageIndex + 1 === (scrollState.currentPage || page)}
+              enabled={pageIndex + 1 === page}
               width={width}
               height={height}
               revisionKey={revisionKey}
+              pinnedPointsRef={pinnedPointsRef}
               getDocumentBytes={getDocumentBytes}
             />
           </div>

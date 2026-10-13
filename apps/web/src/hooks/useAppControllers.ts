@@ -102,6 +102,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
     bridge,
     hasDocument: state.hasDocument,
     hasDesktopBridge: state.hasDesktopBridge,
+    isNativeEditing: state.activeTool === "edit-content",
     fileName: state.fileName,
     docBytes: state.docBytes,
     sourceBlob: state.sourceBlob,

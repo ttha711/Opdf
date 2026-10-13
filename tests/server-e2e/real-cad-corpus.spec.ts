@@ -102,6 +102,28 @@ test.describe('public real-world CAD reference PDFs', () => {
       await expand.click();
       const editor = page.locator('[data-tpdf-native-editor="true"]');
       await expect(editor).toBeVisible({ timeout: 60_000 });
+      if (fixture.id === 'a0-vector-poster') {
+        // EmbedPDF can mount an A0 page before it has a measurable size.
+        // Once laid out, either the native bitmap must be ready or the
+        // independent raster fallback must leave its initial waiting state.
+        await expect.poll(async () => page.evaluate(() => {
+          const firstPage = document.querySelector<HTMLElement>('.native-edit-page');
+          if (!firstPage) return 'page-not-mounted';
+          const bounds = firstPage.getBoundingClientRect();
+          if (bounds.width <= 0 || bounds.height <= 0) return 'page-not-laid-out';
+          const nativeReady = [...firstPage.querySelectorAll<HTMLImageElement>('img')]
+            .some((img) => img.complete && img.naturalWidth > 0);
+          if (nativeReady) return 'render-ready';
+          const stage = firstPage.querySelector<HTMLCanvasElement>('[data-tpdf-pdfjs-fallback]')
+            ?.dataset.tpdfFallbackStage;
+          if (stage === 'ready') return 'render-ready';
+          if (stage === 'pdfium-rendering' || stage === 'pdfjs-rendering') return 'fallback-started';
+          return stage ?? 'fallback-not-mounted';
+        }), {
+          timeout: 10_000,
+          message: 'A0 raster fallback must start after page dimensions become nonzero',
+        }).toMatch(/^(render-ready|fallback-started)$/);
+      }
       try {
         await expect(page.locator('.native-edit-page img, .native-edit-page canvas').first())
           .toBeVisible({ timeout: 35_000 });

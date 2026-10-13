@@ -1,4 +1,6 @@
 import type { RefObject } from "react";
+
+export type NativeEditPinnedPoints = { pageIndex: number; objectId: string; points: string };
 import type { PdfContentObject, PdfPoint } from "@tpdf/core";
 import {
   handlePdfPoint,
@@ -71,6 +73,8 @@ type Props = {
   coverSelectedText: boolean;
   objectIdsFor: (object: PdfContentObject) => string[];
   displayGeometry: NativeObjectGeometry | null;
+  pinnedPoints: string | null;
+  selectedId: string | null;
   geometryFor: (object: PdfContentObject) => NativeObjectGeometry;
   onEmptyPointerDown: () => void;
   onObjectPointerDown: (event: React.PointerEvent, object: PdfContentObject, objectIds: string[]) => void;
@@ -89,6 +93,8 @@ export function NativeEditSelectionLayer({
   coverSelectedText,
   objectIdsFor,
   displayGeometry,
+  pinnedPoints,
+  selectedId,
   geometryFor,
   onEmptyPointerDown,
   onObjectPointerDown,
@@ -137,10 +143,10 @@ export function NativeEditSelectionLayer({
               isSelected && coverSelectedText ? "is-editing-text" : "",
               isSelected && !editable ? "readonly" : "",
             ].filter(Boolean).join(" ")}
-            points={pointsAttribute(editableTextHitGeometry(geometry, object, width, height), object.pageWidth, object.pageHeight, width, height, object.pageOrigin ?? { x: 0, y: 0 })}
+            points={isSelected && pinnedPoints !== null ? pinnedPoints : pointsAttribute(editableTextHitGeometry(geometry, object, width, height), object.pageWidth, object.pageHeight, width, height, object.pageOrigin ?? { x: 0, y: 0 })}
             onPointerDown={(event) => onObjectPointerDown(event, object, objectIdsFor(object))}
             data-tpdf-canvas-object={object.id}
-            data-tpdf-canvas-selection={isSelected ? object.id : undefined}
+            data-tpdf-canvas-selection={isSelected ? selectedId ?? object.id : undefined}
             data-tpdf-object-kind={object.kind}
             data-tpdf-object-depth={object.depth ?? 0}
           />

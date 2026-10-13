@@ -46,6 +46,16 @@ test("two cold large-PDF opens use measured tile GETs, not full-file GETs", asyn
       documents.push(await upload.json() as { id: string; filePath: string });
     }
 
+    // This proves the server transport's Range behavior, separately from
+    // the browser engine. 206 alone does NOT imply PDFium reads ranges.
+    const rangeId = documents[0].id;
+    const range = await request.get(`/api/tpdf/documents/${rangeId}`, {
+      headers: { Range: "bytes=0-1023" },
+    });
+    expect(range.status()).toBe(206);
+    expect(range.headers()["content-range"]).toBe(`bytes 0-1023/${bytes}`);
+    expect((await range.body()).length).toBe(1024);
+
     for (let round = 1; round <= 2; round += 1) {
       const document = documents[round - 1];
       const context = await browser.newContext({ baseURL: origin, serviceWorkers: "block" });

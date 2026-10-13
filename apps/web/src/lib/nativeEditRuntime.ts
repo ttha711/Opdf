@@ -56,6 +56,20 @@ export function requestNativeInlineTextEditAtPoint(pageIndex: number, x: number,
   pendingInlineText = { pageIndex, x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
 }
 
+export type NativeEditViewportAnchor = { pageIndex: number; pageY: number; screenY: number };
+let viewportAnchor: NativeEditViewportAnchor | null = null;
+
+/** Where on screen (and on which page) the user was looking when editing started. */
+export function setNativeEditViewportAnchor(anchor: NativeEditViewportAnchor | null) {
+  viewportAnchor = anchor;
+}
+
+export function consumeNativeEditViewportAnchor() {
+  const anchor = viewportAnchor;
+  viewportAnchor = null;
+  return anchor;
+}
+
 export function consumeNativeInlineTextEdit(pageIndex: number) {
   if (!pendingInlineText || pendingInlineText.pageIndex !== pageIndex) return null;
   const pending = pendingInlineText;

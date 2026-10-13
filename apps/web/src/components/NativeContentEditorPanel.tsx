@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { applyVerifiedNativePatches } from "../lib/nativeEditPatchVerification";
+import { pdfHasDigitalSignature } from "../lib/pdfSignatureDetection";
+import { useConfirm } from "./ConfirmDialog";
 import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
 import {
   clearNativeEditRuntime,
@@ -61,6 +63,9 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   const [draft, setDraftState] = useState<NativeContentDraft>(DEFAULT_DRAFT);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [signed, setSigned] = useState(false);
+  const signedEditAcknowledged = useRef(false);
+  const confirm = useConfirm();
   const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
   const [redoStack, setRedoStack] = useState<Uint8Array[]>([]);
   const currentBytesRef = useRef<Uint8Array | null>(null);
@@ -92,6 +97,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       const bytes = await getDocumentBytesRef.current();
       if (!bytes) throw new Error("Unable to read the current PDF.");
       currentBytesRef.current = bytes;
+      setSigned(pdfHasDigitalSignature(bytes));
       await inspectBytes(bytes);
     } catch (error) {
       setObjects([]);
@@ -132,6 +138,19 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     try {
       const bytes = currentBytesRef.current ?? await getDocumentBytesRef.current();
       if (!bytes) throw new Error("Unable to read the current PDF.");
+      if (!signedEditAcknowledged.current && pdfHasDigitalSignature(bytes)) {
+        const proceed = await confirm({
+          title: "Digitally signed PDF",
+          message: "This PDF is digitally signed. Editing it will invalidate its signature(s). Edit anyway?",
+          confirmLabel: "Edit anyway",
+          danger: true,
+        });
+        if (!proceed) {
+          setMessage("Edit cancelled: this PDF is digitally signed and was not changed.");
+          return null;
+        }
+        signedEditAcknowledged.current = true;
+      }
       const { edited, next } = await applyVerifiedNativePatches(
         bytes, patches, Math.max(0, page - 1),
       );
@@ -155,7 +174,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     } finally {
       setLoading(false);
     }
-  }), [enqueueMutation, onApplyBytes, page]);
+  }), [confirm, enqueueMutation, onApplyBytes, page]);
 
   useEffect(() => registerNativeEditPatchApplier(apply), [apply]);
 
@@ -282,6 +301,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
         </div>
         <button type="button" onClick={onClose} aria-label="Close Edit PDF">×</button>
       </div>
+      {signed ? <p role="note" className="native-content-editor__message" data-tpdf-signed-note="true">Digitally signed PDF: editing will invalidate its signature(s).</p> : null}
       <NativeContentToolbar page={page} loading={loading} message={message} canUndo={undoStack.length > 0} canRedo={redoStack.length > 0} refresh={refresh} undo={undo} redo={redo} apply={apply} />
       <NativeContentObjectList objects={objects} selectedId={selectedId} loading={loading} onSelect={selectFromPanel} onEditText={editObjectById} />
       {panelTextEditor}

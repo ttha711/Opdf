@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RenderLayer } from "@embedpdf/plugin-render/react";
 import { Scroller, useScroll } from "@embedpdf/plugin-scroll/react";
 import { Viewport } from "@embedpdf/plugin-viewport/react";
@@ -6,6 +6,7 @@ import { useZoom, ZoomMode } from "@embedpdf/plugin-zoom/react";
 import {
   registerViewerControls,
 } from "../../lib/viewer-runtime";
+import { consumeNativeEditViewportAnchor } from "../../lib/nativeEditRuntime";
 import { NativeEditPageOverlay } from "./NativeEditPageOverlay";
 import { NativeEditFallbackRaster } from "./NativeEditFallbackRaster";
 import type { NativeEditPinnedPoints } from "./NativeEditSelectionLayer";
@@ -21,6 +22,16 @@ type Props = {
   onActivePageChange?: (page: number) => void;
   onViewerScaleChange?: (scale: number) => void;
 };
+
+/** True when the rendered page overlay is meaningfully inside its scroll viewport. */
+function requestedPageIsInView(pageNumber: number) {
+  const overlay = document.querySelector(`svg[data-tpdf-native-edit-page="${pageNumber}"]`);
+  const viewport = overlay?.closest(".native-edit-viewport");
+  if (!overlay || !viewport) return false;
+  const page = overlay.getBoundingClientRect();
+  const view = viewport.getBoundingClientRect();
+  return page.top < view.bottom - 40 && page.bottom > view.top + 40;
+}
 
 export function NativeEditDocument({
   documentId,
@@ -51,6 +62,14 @@ export function NativeEditDocument({
   // requested page, which moves currentPage. Until layout stays quiet, keep the
   // requested page pinned instead of treating those moves as user scrolling.
   const pageSettledRef = useRef(false);
+  // The viewer starts in Automatic zoom (a numeric request before layout can
+  // leave it blank). Keep the zoom the user had when the editor opened and
+  // apply it once the first layout is quiet, instead of overwriting it with the
+  // viewer's own fit zoom.
+  const initialScaleRef = useRef(scale);
+  const initialScaleHandledRef = useRef(false);
+  const viewportAnchorRef = useRef(consumeNativeEditViewportAnchor());
+  const [settleTick, setSettleTick] = useState(0);
 
   useEffect(() => registerViewerControls({
     zoomIn: () => zoom?.zoomIn(),
@@ -119,18 +138,47 @@ export function NativeEditDocument({
 
   useEffect(() => {
     if (pageSettledRef.current || !externalPageAppliedRef.current) return;
-    const quiet = window.setTimeout(() => { pageSettledRef.current = true; }, 400);
+    const quiet = window.setTimeout(() => {
+      if (!initialScaleHandledRef.current) {
+        initialScaleHandledRef.current = true;
+        const wanted = initialScaleRef.current;
+        if (zoom && Number.isFinite(wanted) && wanted > 0 &&
+            Math.abs(zoomState.currentZoomLevel - wanted) >= 0.001) {
+          previousExternalScale.current = wanted;
+          requestedExternalScale.current = Math.min(5, Math.max(0.05, wanted));
+          zoom.requestZoom(wanted);
+        }
+        // Wait for the relayout this causes before releasing the page pin.
+        setSettleTick((tick) => tick + 1);
+        return;
+      }
+      const anchor = viewportAnchorRef.current;
+      if (anchor) {
+        viewportAnchorRef.current = null;
+        // Scroll so the anchored spot is back under the pointer after relayout.
+        const overlay = document.querySelector(`svg[data-tpdf-native-edit-page="${anchor.pageIndex + 1}"]`);
+        const viewport = overlay?.closest<HTMLElement>(".native-edit-viewport");
+        if (overlay && viewport) {
+          const box = overlay.getBoundingClientRect();
+          viewport.scrollTop += box.top + anchor.pageY * box.height - anchor.screenY;
+          setSettleTick((tick) => tick + 1);
+          return;
+        }
+      }
+      pageSettledRef.current = true;
+    }, 400);
     return () => window.clearTimeout(quiet);
-  }, [documentId, scrollState.currentPage, scrollState.totalPages, zoomState.currentZoomLevel]);
+  }, [documentId, scrollState.currentPage, scrollState.totalPages, zoomState.currentZoomLevel, settleTick, zoom]);
 
   useEffect(() => {
     if (!scroll || pageSettledRef.current || !externalPageAppliedRef.current) return;
-    if (page < 1 || page > scrollState.totalPages || scrollState.currentPage === page) return;
-    // scrollToPage can be dropped while EmbedPDF is still measuring pages, so
-    // retry for a bounded time instead of trusting a single call.
+    if (page < 1 || page > scrollState.totalPages) return;
+    // scrollToPage can be dropped while EmbedPDF is still measuring pages, and
+    // its reported currentPage can then claim a position the DOM never reached.
+    // Verify against the rendered page and retry for a bounded time.
     let attempts = 0;
     const pin = () => {
-      if (pageSettledRef.current) return;
+      if (pageSettledRef.current || requestedPageIsInView(page)) return;
       if (attempts++ >= 30) {
         pendingPageRef.current = null;
         pageSettledRef.current = true;
@@ -172,6 +220,7 @@ export function NativeEditDocument({
   }, [scale, scrollState.totalPages, zoom, zoomState.currentZoomLevel]);
 
   useEffect(() => {
+    if (!initialScaleHandledRef.current) return;
     const next = zoomState.currentZoomLevel;
     const requested = requestedExternalScale.current;
     if (requested !== null) {

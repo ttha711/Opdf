@@ -17,6 +17,7 @@ import {
   commitPendingNativeInlineEdit,
   requestNativeInlineTextEdit,
   requestNativeInlineTextEditAtPoint,
+  setNativeEditViewportAnchor,
 } from "../../lib/nativeEditRuntime";
 
 type Controllers = ReturnType<typeof import("../../hooks/useAppControllers").useAppControllers>;
@@ -32,7 +33,9 @@ function pdfPointFromViewerDoubleClick(event: React.MouseEvent<HTMLElement>) {
     .filter((rect) => rect.width >= 80 && rect.height >= 80 &&
       event.clientX >= rect.left && event.clientX <= rect.right &&
       event.clientY >= rect.top && event.clientY <= rect.bottom)
-    .sort((a, b) => a.width * a.height - b.width * b.height);
+    // At higher zoom EmbedPDF layers sharp tiles over a full-page image. The
+    // normalized point must be relative to the whole page, i.e. the largest one.
+    .sort((a, b) => b.width * b.height - a.width * a.height);
   const pageRect = candidates[0];
   if (!pageRect) return null;
   return {
@@ -135,11 +138,12 @@ export function AppWorkspace({
           onDoubleClick={(event) => {
             if (state.activeTool !== "select" || (event.target instanceof Element && event.target.closest("button,a,input,textarea,[role='button']"))) return;
             const text = window.getSelection()?.toString().trim() ?? "";
+            const point = pdfPointFromViewerDoubleClick(event);
+            // Keep the double-clicked spot under the pointer when the editor opens.
+            setNativeEditViewportAnchor(point
+              ? { pageIndex: state.page - 1, pageY: point.y, screenY: event.clientY } : null);
             if (text) requestNativeInlineTextEdit(state.page - 1, text);
-            else {
-              const point = pdfPointFromViewerDoubleClick(event);
-              if (point) requestNativeInlineTextEditAtPoint(state.page - 1, point.x, point.y);
-            }
+            else if (point) requestNativeInlineTextEditAtPoint(state.page - 1, point.x, point.y);
             setSelectedTextForEdit(null); state.setActiveTool("edit-content");
           }}
           aria-label="PDF viewer area"

@@ -145,3 +145,47 @@ before a large/unknown-size full fetch.
 
 Rollback: set `TPDF_REMOTE_RENDER_ENABLED=0`, restart, and use full viewing
 explicitly for large documents.
+
+
+### Dedicated byte-measured browser gate for #168
+
+The earlier `server-runtime.spec.ts` assertion `headRequests === []` was stale:
+main `4e4c7a0` intentionally issued HEAD to read `Content-Length`.
+A HEAD probe is not evidence of a full GET. That test now records GET
+status and CDP network wire bytes while preserving the small-file PDFium
+toolbar/sidebar behavior.
+
+For large PDFs, run the **separate**, isolated real-worker gate:
+
+```bash
+npm ci
+python3 -m pip install "PyMuPDF>=1.24,<2" "Pillow>=10,<13"
+npx playwright install chromium
+npx playwright test -c playwright.server.progressive.config.ts --project=chromium --retries=0
+```
+
+This configuration uses port 8791, starts its own server, and **never**
+reuses an already running server. It fails explicitly if renderer health
+is false. The spec locally generates one 112 MiB, 182-page fixture and
+uploads it twice with different stored IDs. Each cold open gets a fresh
+Chromium context with browser cache disabled and service worker bypassed.
+CDP `Network.requestWillBeSent`, `dataReceived`, and `loadingFinished`
+measure GET counts and encoded on-wire bytes for the document and tiles.
+The test records first visible tile elapsed time and transferred bytes at
+that sample, scrolls to page 150 (zero-based index 149), zooms 4 steps,
+and checks neither phase sends a raw document GET. It separately validates
+a 1024-byte 206 Range reply (transport only). Two additional scenarios
+hold `/health` until HEAD completes and simulate unhealthy health; the
+first must not issue a document GET, and the second must require a manual
+full-download click. Metrics are attached as local Playwright JSON
+artifacts; no document UUID or original PDF contents are logged.
+
+The byte figure is a **CDP encoded-wire estimate sampled when the first
+visible tile is observed**, not a server-side byte counter or peak memory
+measurement; other in-flight requests can finish slightly later. Measure
+actual browser/worker RSS externally. This synthetic fixture's large size
+mainly comes from PDF comments, so test separate representative heavy
+raster/vector corpora before production rollout.
+
+**Execution status:** these new Playwright scenarios have not been run
+in the GitHub-connected editing environment; no CI status is inferred.

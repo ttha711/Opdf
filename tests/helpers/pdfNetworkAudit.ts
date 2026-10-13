@@ -17,6 +17,7 @@ type Entry = {
 
 export type PdfTrafficSnapshot = {
   headCount: number;
+  headCompletedCount: number;
   documentGetCount: number;
   fullDocumentGetCount: number;
   rangedDocumentGetCount: number;
@@ -88,6 +89,7 @@ export async function auditPdfTraffic(page: Page, documentId: string) {
     const sum = (items: Entry[]) => items.reduce((total, row) => total + wireBytes(row), 0);
     return {
       headCount: rows.filter((row) => row.kind === "document" && row.method === "HEAD").length,
+      headCompletedCount: rows.filter((row) => row.kind === "document" && row.method === "HEAD" && row.finished).length,
       documentGetCount: documentGets.length,
       fullDocumentGetCount: documentGets.filter((row) => !row.range).length,
       rangedDocumentGetCount: documentGets.filter((row) => row.range).length,

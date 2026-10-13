@@ -176,7 +176,7 @@ export function createRemoteRenderService(env = process.env) {
     }
     const promise = new Promise((resolveTask, rejectTask) => {
       queue.push({
-        command: { ...request, path },
+        command: { ...request, path, version },
         resolve(value) { cacheSet(key, value); resolveTask(value); },
         reject: rejectTask,
       });

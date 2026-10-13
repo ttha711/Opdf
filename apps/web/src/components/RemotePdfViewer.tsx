@@ -94,9 +94,9 @@ export function RemotePdfViewer(props: PdfViewerProps) {
 
   useEffect(() => {
     if (lastExternalPage.current === page) return;
-    lastExternalPage.current = page;
     const target = layouts.pages[page - 1];
     if (!target || !scroller.current) return;
+    lastExternalPage.current = page;
     if (scrollPageRef.current === target.index) return;
     scroller.current.scrollTo({ top: target.top, behavior: "auto" });
   }, [props.page, layouts.pages]);
@@ -122,6 +122,7 @@ export function RemotePdfViewer(props: PdfViewerProps) {
       const center = el.scrollTop + el.clientHeight / 2;
       const current = layouts.pages.find((item) => center >= item.top && center < item.top + item.height * item.scale);
       if (current && current.index + 1 !== page) {
+        lastExternalPage.current = current.index + 1;
         scrollPageRef.current = current.index;
         props.onActivePageChange?.(current.index + 1);
       }

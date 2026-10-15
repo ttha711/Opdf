@@ -106,6 +106,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
 
   const original = editor.locator('.native-content-editor__objects [data-tpdf-object-kind="text"]').first();
   await expect(original).toBeVisible({ timeout: 60_000 });
+  const inspectReadyMs = Date.now() - editStartedAt;
   const objectId = await original.getAttribute("data-tpdf-object-id");
   expect(objectId).toBeTruthy();
   const originalText = (await original.innerText()).trim();
@@ -143,7 +144,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
 
   console.log("LARGE_PDF_PERF_RESULT=" + JSON.stringify({
     sizeMiB: Math.round(fileInfo.size / MiB), uploadMs, firstPageMs, navigationMs, zoomMs, editReadyMs,
-    directEditMs, applyMs, saveMs, reloadMs, editTimings, documentGets,
+    inspectReadyMs, directEditMs, applyMs, saveMs, reloadMs, editTimings, documentGets,
     heapBeforeMiB: heapBefore == null ? null : Math.round(heapBefore / MiB),
     heapAfterSaveMiB: heapAfter == null ? null : Math.round(heapAfter / MiB),
     memoryBefore, memoryWithEditor, memoryAfterSave,

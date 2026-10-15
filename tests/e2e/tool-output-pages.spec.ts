@@ -21,6 +21,10 @@ test("Rotate PDF changes only the requested page in the exported PDF", async ({ 
   await panel.getByLabel("Pages").fill("2");
   await panel.getByRole("button", { name: /Rotate right/i }).click();
   await waitForStatusText(page, "Pages rotated.");
+  // Status must survive the 3 -> 0 -> 3 viewer revision reload.
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute("data-tpdf-total-pages", "3");
+  await page.waitForTimeout(500);
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toContainText("Pages rotated.");
 
   const output = await PDFDocument.load(await exportCurrentPdf(page));
   expect(output.getPageCount()).toBe(3);
@@ -72,6 +76,9 @@ test("Crop PDF changes the selected page media box and leaves other pages unchan
   await panel.getByLabel("Pages").fill("1");
   await panel.getByRole("button", { name: "Apply crop", exact: true }).click();
   await waitForStatusText(page, "Crop applied.");
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toHaveAttribute("data-tpdf-total-pages", "3");
+  await page.waitForTimeout(500);
+  await expect(page.locator('[data-tpdf-region="status-bar"]')).toContainText("Crop applied.");
 
   const output = await PDFDocument.load(await exportCurrentPdf(page));
   expect(output.getPage(0).getWidth()).toBeCloseTo(270, 3);

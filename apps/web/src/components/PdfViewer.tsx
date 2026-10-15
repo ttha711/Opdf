@@ -547,7 +547,8 @@ export function PdfViewer({
           const openedId = doc?.id ?? doc?.document?.id;
           if (openedId && openedId !== DOCUMENT_ID) return;
           const count = syncPageCount(doc);
-          onError?.(null);
+          // Lifecycle/open actions clear stale errors. Reloading a patched PDF
+          // must not erase the operation's time-limited success feedback.
           if (count) signalViewerReady();
         });
         if (typeof off === "function") unsubscribers.push(off);

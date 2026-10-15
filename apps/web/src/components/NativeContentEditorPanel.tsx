@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "../lib/pdfiumContentEngine";
 import { applyVerifiedNativePatches } from "../lib/nativeEditPatchVerification";
+import { recordNativeEditTiming } from "../lib/nativeEditPerf";
 import { pdfHasDigitalSignature } from "../lib/pdfSignatureDetection";
 import { useConfirm } from "./ConfirmDialog";
 import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
@@ -86,7 +87,9 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   }, []);
 
   const inspectBytes = useCallback(async (bytes: Uint8Array) => {
+    const startedAt = performance.now();
     const next = await pdfiumContentEditingEngine.inspectPage(bytes, Math.max(0, page - 1));
+    recordNativeEditTiming("inspect-page-objects", startedAt, bytes.byteLength);
     setObjects(next);
     setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
   }, [page]);
@@ -95,8 +98,10 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     setLoading(true);
     setMessage(null);
     try {
+      const readStartedAt = performance.now();
       const bytes = await getDocumentBytesRef.current();
       if (!bytes) throw new Error("Unable to read the current PDF.");
+      recordNativeEditTiming("read-editor-document-bytes", readStartedAt, bytes.byteLength);
       currentBytesRef.current = bytes;
       setSigned(pdfHasDigitalSignature(bytes));
       await inspectBytes(bytes);
@@ -134,6 +139,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   }, [selected?.id]);
 
   const apply = useCallback((patches: PdfContentPatch[], success: string) => enqueueMutation(async () => {
+    const applyStartedAt = performance.now();
     setLoading(true);
     setMessage(null);
     setNativeEditPatchFailure(null);
@@ -153,9 +159,11 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
         }
         signedEditAcknowledged.current = true;
       }
+      const patchStartedAt = performance.now();
       const { edited, next } = await applyVerifiedNativePatches(
         bytes, patches, Math.max(0, page - 1),
       );
+      recordNativeEditTiming("verified-patch-total", patchStartedAt, bytes.byteLength);
       const maxHistoryBytes = 128 * 1024 * 1024;
       undoStackRef.current = trimHistory([...undoStackRef.current, bytes], maxHistoryBytes);
       redoStackRef.current = [];
@@ -165,6 +173,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       setObjects(next);
       setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
       onApplyBytes(edited);
+      recordNativeEditTiming("apply-to-revision-total", applyStartedAt, bytes.byteLength);
       setMessage(bytes.byteLength > maxHistoryBytes
         ? success + " Undo snapshot skipped for this large PDF."
         : success);

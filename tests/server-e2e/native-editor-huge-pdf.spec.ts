@@ -54,9 +54,13 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   const uploadMs = Date.now() - uploadStartedAt;
 
   const failures: string[] = [];
+  const editTimings: Array<{ stage: string; elapsedMs: number; sizeMiB?: number }> = [];
   let documentGets = 0;
   page.on("pageerror", (error) => failures.push(error.message));
   page.on("console", (message) => {
+    if (message.text().startsWith("TPDF_NATIVE_EDIT_TIMING=")) {
+      try { editTimings.push(JSON.parse(message.text().slice("TPDF_NATIVE_EDIT_TIMING=".length))); } catch {}
+    }
     if (message.type() === "error" && message.text().includes("ERR_INSUFFICIENT_RESOURCES")) {
       failures.push(message.text());
     }
@@ -68,7 +72,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   });
 
   const openStartedAt = Date.now();
-  await page.goto(`/?open=${encodeURIComponent(stored.filePath)}`);
+  await page.goto(`/?tpdf-perf=1&open=${encodeURIComponent(stored.filePath)}`);
   const status = page.locator('[data-tpdf-region="status-bar"]');
   await expect(status).toHaveAttribute("data-tpdf-page", "1", { timeout: 120_000 });
   await expect.poll(async () => Number(await status.getAttribute("data-tpdf-total-pages")),
@@ -102,6 +106,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
 
   const original = editor.locator('.native-content-editor__objects [data-tpdf-object-kind="text"]').first();
   await expect(original).toBeVisible({ timeout: 60_000 });
+  const inspectReadyMs = Date.now() - editStartedAt;
   const objectId = await original.getAttribute("data-tpdf-object-id");
   expect(objectId).toBeTruthy();
   const originalText = (await original.innerText()).trim();
@@ -111,9 +116,11 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   await expect(inlineEditor).toBeVisible();
   const directEditMs = Date.now() - directEditStartedAt;
   await inlineEditor.fill("TPDF stress edit persisted");
+  const applyStartedAt = Date.now();
   await inlineEditor.press("Enter");
   await expect(inlineEditor).toHaveCount(0);
   await expect(editor.getByText("Text applied. Check the Save status in the toolbar.")).toBeVisible();
+  const applyMs = Date.now() - applyStartedAt;
 
   const saveStartedAt = Date.now();
   await saveServerDocumentAndWait(page);
@@ -123,6 +130,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   );
   const memoryAfterSave = await browserMemory(page);
 
+  const reloadStartedAt = Date.now();
   await page.reload();
   await page.getByTitle("Edit PDF Content").click();
   await page.locator('[data-tpdf-action="expand-right-panel"]').click();
@@ -130,12 +138,13 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   await expect(reloadedEditor.locator(".native-content-editor__objects").getByText("TPDF stress edit persisted"))
     .toBeVisible({ timeout: 60_000 });
   await expect(reloadedEditor.locator(".native-content-editor__objects").getByText(originalText)).toHaveCount(0);
+  const reloadMs = Date.now() - reloadStartedAt;
   expect(documentGets).toBeLessThan(20);
   expect(failures).toEqual([]);
 
   console.log("LARGE_PDF_PERF_RESULT=" + JSON.stringify({
     sizeMiB: Math.round(fileInfo.size / MiB), uploadMs, firstPageMs, navigationMs, zoomMs, editReadyMs,
-    directEditMs, saveMs, documentGets,
+    inspectReadyMs, directEditMs, applyMs, saveMs, reloadMs, editTimings, documentGets,
     heapBeforeMiB: heapBefore == null ? null : Math.round(heapBefore / MiB),
     heapAfterSaveMiB: heapAfter == null ? null : Math.round(heapAfter / MiB),
     memoryBefore, memoryWithEditor, memoryAfterSave,

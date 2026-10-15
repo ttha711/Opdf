@@ -614,8 +614,7 @@ test("zooming inside the editor carries over when leaving it", async ({ page, re
 
   await page.locator('[data-tpdf-action="expand-right-panel"]').click();
   await page.getByRole("button", { name: "Close Edit PDF" }).click();
-  await expect(page.locator("embedpdf-container img").last()).toBeVisible({ timeout: 30_000 });
-  await page.waitForTimeout(800);
+  const widthAfter = await fullReaderPageWidth(page);
   expect(/(\d+)%/.exec(await statusText(page))![1]).toBe(zoomed);
   // The reader page itself must be drawn at that zoom, not just the label.
   const expected = widthBefore * Number(zoomed) / Number(before);

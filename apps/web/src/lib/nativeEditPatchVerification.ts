@@ -1,6 +1,7 @@
 import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "./pdfiumContentEngine";
 import { parseContentObjectId } from "./pdfiumObjectTree";
+import { recordNativeEditTiming } from "./nativeEditPerf";
 
 export function withUnicodeGlyphFallback(patches: PdfContentPatch[]): PdfContentPatch[] {
   const unicodeStyled = new Set(patches.flatMap((patch) =>
@@ -58,15 +59,23 @@ export async function applyVerifiedNativePatches(
   patches: PdfContentPatch[],
   panelPageIndex: number,
 ) {
+  let startedAt = performance.now();
   let edited = await pdfiumContentEditingEngine.applyPatches(bytes, patches);
+  recordNativeEditTiming("pdfium-apply-and-serialize", startedAt, bytes.byteLength);
+  startedAt = performance.now();
   let { missing, next } = await inspectReplacements(edited, patches, panelPageIndex);
+  recordNativeEditTiming("verify-inspect-edited", startedAt, edited.byteLength);
   if (!missing) return { edited, next };
   const fallback = withUnicodeGlyphFallback(patches);
   if (fallback.length === patches.length) {
     throw new Error("PDF did not retain the new text, even with Unicode fallback.");
   }
+  startedAt = performance.now();
   edited = await pdfiumContentEditingEngine.applyPatches(bytes, fallback);
+  recordNativeEditTiming("pdfium-unicode-fallback", startedAt, bytes.byteLength);
+  startedAt = performance.now();
   ({ missing, next } = await inspectReplacements(edited, patches, panelPageIndex));
+  recordNativeEditTiming("verify-inspect-fallback", startedAt, edited.byteLength);
   if (missing) {
     const targets = patches.filter((patch) => patch.type === "replace-text");
     for (const target of targets) {

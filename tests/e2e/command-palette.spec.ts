@@ -51,7 +51,8 @@ test("native inspector exposes object search and type filters on a small PDF", a
   await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });
   await page.locator('[data-tpdf-action="edit-content"]').click();
   const expand = page.locator('[data-tpdf-action="expand-right-panel"]');
-  if (await expand.isVisible()) await expand.click();
+  await expect(expand).toBeVisible();
+  await expand.click();
   await expect(page.locator('[data-tpdf-native-editor="true"]')).toBeVisible();
   await expect(page.getByRole("searchbox", { name: "Find PDF object" })).toBeVisible();
   await page.locator('[data-tpdf-object-filter="text"]').click();

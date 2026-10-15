@@ -87,7 +87,9 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   }, []);
 
   const inspectBytes = useCallback(async (bytes: Uint8Array) => {
+    const startedAt = performance.now();
     const next = await pdfiumContentEditingEngine.inspectPage(bytes, Math.max(0, page - 1));
+    recordNativeEditTiming("inspect-page-objects", startedAt, bytes.byteLength);
     setObjects(next);
     setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
   }, [page]);
@@ -96,8 +98,10 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     setLoading(true);
     setMessage(null);
     try {
+      const readStartedAt = performance.now();
       const bytes = await getDocumentBytesRef.current();
       if (!bytes) throw new Error("Unable to read the current PDF.");
+      recordNativeEditTiming("read-editor-document-bytes", readStartedAt, bytes.byteLength);
       currentBytesRef.current = bytes;
       setSigned(pdfHasDigitalSignature(bytes));
       await inspectBytes(bytes);

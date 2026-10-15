@@ -577,11 +577,32 @@ test("direct edit at a very high zoom keeps zoom, page and the text under the po
   expect(/(\d+)%/.exec(await statusText(page))![1]).toBe(zoomBefore);
 });
 
+/** Wait for the decoded full-page raster, not a visible thumbnail or temporary tile. */
+async function fullReaderPageWidth(page: Page): Promise<number> {
+  let width = 0;
+  await expect.poll(async () => {
+    const zoom = Number(await page.locator('[data-tpdf-region="status-bar"]').getAttribute("data-tpdf-zoom"));
+    if (!Number.isFinite(zoom) || zoom <= 0) return 0;
+    width = await page.locator("embedpdf-container img").evaluateAll((nodes, scale) => {
+      const expected = 520 * scale; // uploadThreePagePdf uses 520pt wide pages.
+      const candidates = nodes.map((node) => {
+        const img = node as HTMLImageElement;
+        const box = img.getBoundingClientRect();
+        return img.complete && img.naturalWidth > 0 &&
+          box.height >= 500 * scale && Math.abs(box.width - expected) <= expected * 0.06
+          ? box.width : 0;
+      });
+      return Math.max(0, ...candidates);
+    }, zoom);
+    return width;
+  }, { timeout: 30_000, message: "full-size 520pt reader page has rendered at the displayed zoom" }).toBeGreaterThan(0);
+  return width;
+}
+
 test("zooming inside the editor carries over when leaving it", async ({ page, request }) => {
   const { filePath } = await uploadThreePagePdf(request);
   await openReader(page, filePath);
-  await expect(page.locator("embedpdf-container img").first()).toBeVisible({ timeout: 30_000 });
-  const widthBefore = await page.locator("embedpdf-container img").evaluateAll((n) => Math.max(...n.map((i) => Math.round(i.getBoundingClientRect().width))));
+  const widthBefore = await fullReaderPageWidth(page);
   await page.getByTitle("Edit PDF Content").click();
   await expect(page.locator(".native-edit-page").first()).toBeVisible({ timeout: 30_000 });
   await settledViewState(page);
@@ -597,7 +618,6 @@ test("zooming inside the editor carries over when leaving it", async ({ page, re
   await page.waitForTimeout(800);
   expect(/(\d+)%/.exec(await statusText(page))![1]).toBe(zoomed);
   // The reader page itself must be drawn at that zoom, not just the label.
-  const widthAfter = await page.locator("embedpdf-container img").evaluateAll((n) => Math.max(...n.map((i) => Math.round(i.getBoundingClientRect().width))));
   const expected = widthBefore * Number(zoomed) / Number(before);
   expect(Math.abs(widthAfter - expected) / expected).toBeLessThan(0.06);
 });

@@ -15,6 +15,9 @@ test("command search opens with Ctrl+K and respects empty-document availability"
   await expect(dialog).toBeVisible();
   await dialog.getByRole("combobox").fill("open");
   await expect(page.locator('[data-tpdf-command="open"]')).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Meta+k");
+  await expect(dialog).toBeVisible();
 });
 
 test("searching tools opens the real PDF panel without another UI engine", async ({ page }) => {

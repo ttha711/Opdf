@@ -27,6 +27,7 @@ async function goToPage(page: Page, target: number) {
 async function browserMemory(page: Page) {
   try {
     const session = await page.context().newCDPSession(page);
+    await session.send("HeapProfiler.collectGarbage");
     const usage = await session.send("Runtime.getHeapUsage");
     await session.detach();
     return {
@@ -55,11 +56,13 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   const uploadMs = Date.now() - uploadStartedAt;
 
   const failures: string[] = [];
+  const historyStorageWarnings: string[] = [];
   const editTimings: Array<{ stage: string; elapsedMs: number; sizeMiB?: number }> = [];
   let documentGets = 0;
   let previewUploads = 0;
   page.on("pageerror", (error) => failures.push(error.message));
   page.on("console", (message) => {
+    if (message.text().startsWith("[tpdf:native-edit-history]")) historyStorageWarnings.push(message.text());
     if (message.text().startsWith("TPDF_NATIVE_EDIT_TIMING=")) {
       try { editTimings.push(JSON.parse(message.text().slice("TPDF_NATIVE_EDIT_TIMING=".length))); } catch {}
     }
@@ -156,6 +159,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
     expect(changedBounds).toBeTruthy();
     expect(changedBounds).not.toBe(originalBounds);
   }
+  expect(historyStorageWarnings).toEqual([]);
   await expect(editor.getByText("Undo history is limited to one step for this large PDF.", { exact: false })).toBeVisible();
   const directEditMs = Date.now() - directEditStartedAt;
   const applyMs = Date.now() - applyStartedAt;
@@ -181,6 +185,9 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
     expect(previewUploads).toBe(2);
   }
   const memoryAfterUndoRedo = await browserMemory(page);
+  if (memoryAfterUndoRedo) {
+    expect(memoryAfterUndoRedo.usedMiB, "retained JS heap after large-PDF Undo/Redo").toBeLessThan(400);
+  }
 
   const saveStartedAt = Date.now();
   await saveServerDocumentAndWait(page);

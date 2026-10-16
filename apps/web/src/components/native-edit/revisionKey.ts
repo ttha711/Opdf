@@ -8,3 +8,8 @@ export function getNativeEditRevisionKey(buffer: ArrayBuffer) {
   revisionKeys.set(buffer, key);
   return key;
 }
+
+export function setNativeEditRevisionKey(buffer: ArrayBuffer, key: string) {
+  revisionKeys.set(buffer, key);
+  return key;
+}

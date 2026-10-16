@@ -16,7 +16,7 @@ import { NativeEditDocument } from "./native-edit/NativeEditDocument";
 import { NativeEditDocumentRevisionBridge } from "./native-edit/NativeEditDocumentRevisionBridge";
 import { NativeEditPaintShield } from "./native-edit/NativeEditPaintShield";
 import type { NativeEditPinnedPoints } from "./native-edit/NativeEditSelectionLayer";
-import { getNativeEditRevisionKey } from "./native-edit/revisionKey";
+import { getNativeEditRevisionKey, setNativeEditRevisionKey } from "./native-edit/revisionKey";
 import "../styles/native-edit-surface.css";
 
 const EDIT_DOCUMENT_ID = "tpdf-native-edit-document";
@@ -80,8 +80,15 @@ export function NativeEditPdfViewer({
 
   const sourceUrl = localUrl ?? serverUrl;
   const revisionKey = isLargeServerPdf && data
-    ? matchingBuffer === data.buffer ? sourceUrl ?? "" : getNativeEditRevisionKey(data.buffer as ArrayBuffer)
+    ? matchingBuffer === data.buffer
+      ? setNativeEditRevisionKey(data.buffer as ArrayBuffer, sourceUrl ?? "")
+      : getNativeEditRevisionKey(data.buffer as ArrayBuffer)
     : sourceUrl ?? "";
+  useEffect(() => {
+    if (isLargeServerPdf && matchingBuffer && sourceUrl) {
+      setNativeEditRevisionKey(matchingBuffer, sourceUrl);
+    }
+  }, [isLargeServerPdf, matchingBuffer, sourceUrl]);
   useEffect(() => { pinnedPointsRef.current = null; }, [sourceIdentity]);
   if (!initialSourceUrlRef.current && sourceUrl) {
     initialSourceUrlRef.current = sourceUrl;

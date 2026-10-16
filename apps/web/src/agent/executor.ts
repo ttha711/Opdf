@@ -146,8 +146,22 @@ async function runAgentAction(
     case "note-tool": return actions.setActiveTool?.("note");
     case "shape-tool": return actions.setActiveTool?.("shape");
     case "redact-tool": return actions.setActiveTool?.("redact");
+    case "ocr-pdf": return actions.runOcr?.();
     case "signature-tool": return actions.setActiveTool?.("signature");
     case "ai-content-editor": return actions.setActiveTool?.("edit-content");
+    case "measure-drawing": return actions.setActiveTool?.("measure");
+    case "edit-content": return actions.setActiveTool?.("edit-content");
+    case "redact-pdf":
+    case "compare-pdf":
+    case "sign-pdf":
+    case "advanced-pdf":
+    case "print-pdf": {
+      if (!actions.runAppTool) {
+        return { status: "input_required", message: `${definition.title} is unavailable in this app runtime.` };
+      }
+      await actions.runAppTool(definition.id);
+      return;
+    }
     case "replace-text": {
       if (!actions.replaceText) {
         return { status: "input_required", message: "Native PDF text editing is unavailable in this runtime." };

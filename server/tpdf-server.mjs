@@ -980,8 +980,16 @@ async function handleApi(req, res, url) {
     if (req.method === "PUT") return sendJson(res, 200, await storage.putSession(await readJsonBody(req)));
   }
 
-  if (url.pathname.includes("/render/")) {
-    const handled = await remoteRenderer.handle(req, res, url, { storage, sendJson, sendError, setBaseHeaders });
+  if (url.pathname === "/api/tpdf/native-edit-previews" && req.method === "POST") {
+    try {
+      return sendJson(res, 201, await remoteRenderer.createPreview(req, maxOperationBytes, tenantRuntime.active().tenantRoot));
+    } catch (error) {
+      return sendError(res, error.statusCode || 400, error.message || "Unable to create edit preview.");
+    }
+  }
+
+  if (url.pathname.includes("/render/") || url.pathname.includes("/native-edit-previews/")) {
+    const handled = await remoteRenderer.handle(req, res, url, { storage, sendJson, sendError, setBaseHeaders, previewScope: tenantRuntime.active().tenantRoot });
     if (handled !== false) return;
   }
 

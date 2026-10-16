@@ -27,6 +27,14 @@ function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
+function serverApiBase(documentUrl: string) {
+  const url = new URL(documentUrl, window.location.href);
+  url.pathname = url.pathname.replace(/\/documents\/[0-9a-f-]{36}$/i, "");
+  url.search = "";
+  url.hash = "";
+  return url.toString().replace(/\/$/, "");
+}
+
 export function NativeEditPdfViewer({
   data,
   sourceBlob = null,
@@ -43,6 +51,7 @@ export function NativeEditPdfViewer({
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const [initialBuffer, setInitialBuffer] = useState<{ sourceUrl: string; buffer: ArrayBuffer } | null>(null);
   const [initialBufferError, setInitialBufferError] = useState<string | null>(null);
+  const [remoteRenderAvailable, setRemoteRenderAvailable] = useState<{ source: string; value: boolean } | null>(null);
   const initialSourceUrlRef = useRef<string | null>(null);
   const pinnedPointsRef = useRef<NativeEditPinnedPoints | null>(null);
   const serverUrl = useMemo(
@@ -69,6 +78,29 @@ export function NativeEditPdfViewer({
   const initialSourceUrl = initialSourceUrlRef.current;
   const needsServerBuffer = Boolean(sourceIdentity.startsWith("server://") && !sourceBlob && !data);
   const matchingBuffer = initialBuffer?.sourceUrl === initialSourceUrl ? initialBuffer.buffer : null;
+  const currentBytes = data?.byteLength ?? sourceBlob?.size ?? matchingBuffer?.byteLength ?? 0;
+  const isLargeServerPdf = currentBytes >= 100 * 1024 * 1024 && Boolean(serverUrl);
+  const previewBase = isLargeServerPdf && serverUrl && remoteRenderAvailable?.source === serverUrl && remoteRenderAvailable.value
+    ? `${serverApiBase(serverUrl)}/native-edit-previews`
+    : null;
+
+  useEffect(() => {
+    if (!isLargeServerPdf || !serverUrl) return;
+    const controller = new AbortController();
+    setRemoteRenderAvailable(null);
+    const healthUrl = `${serverApiBase(serverUrl)}/health`;
+    void fetch(healthUrl, { signal: controller.signal, cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((health) => {
+        if (!controller.signal.aborted) {
+          setRemoteRenderAvailable({ source: serverUrl, value: health?.capabilities?.remoteRendering === true });
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setRemoteRenderAvailable({ source: serverUrl, value: false });
+      });
+    return () => controller.abort();
+  }, [isLargeServerPdf, serverUrl]);
 
   useEffect(() => {
     if (!needsServerBuffer || !initialSourceUrl || !getDocumentBytes) return;
@@ -126,6 +158,7 @@ export function NativeEditPdfViewer({
           <NativeEditDocumentRevisionBridge
             baseDocumentId={EDIT_DOCUMENT_ID}
             initialRevisionKey={initialSourceUrl}
+            skipRevisionReload={isLargeServerPdf}
             revisionKey={sourceUrl}
             data={data}
             sourceBlob={sourceBlob}
@@ -147,6 +180,8 @@ export function NativeEditPdfViewer({
                     revisionKey={sourceUrl}
                     pinnedPointsRef={pinnedPointsRef}
                     getDocumentBytes={getDocumentBytes}
+                    remoteRenderBase={previewBase}
+                    disableNativeRender={isLargeServerPdf}
                     onDocumentLoaded={onDocumentLoaded}
                     onActivePageChange={onActivePageChange}
                     onViewerScaleChange={onViewerScaleChange}

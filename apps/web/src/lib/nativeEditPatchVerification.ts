@@ -2,6 +2,7 @@ import type { PdfContentObject, PdfContentPatch } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "./pdfiumContentEngine";
 import { parseContentObjectId } from "./pdfiumObjectTree";
 import { recordNativeEditTiming } from "./nativeEditPerf";
+import { rememberVerifiedNativeEditPage } from "./nativeEditPageObjectCache";
 
 export function withUnicodeGlyphFallback(patches: PdfContentPatch[]): PdfContentPatch[] {
   const unicodeStyled = new Set(patches.flatMap((patch) =>
@@ -51,7 +52,7 @@ async function inspectReplacements(
       item.kind === "text" && retainedPdfText(item.text, patch.text)));
   // A direct inline edit might be on another page than the right-side panel.
   // Return that edited page's objects so the visible update is not rejected.
-  return { missing, next: pages.get(editedPages[0] ?? panelPageIndex) ?? [] };
+  return { missing, next: pages.get(editedPages[0] ?? panelPageIndex) ?? [], pages };
 }
 
 export async function applyVerifiedNativePatches(
@@ -63,9 +64,14 @@ export async function applyVerifiedNativePatches(
   let edited = await pdfiumContentEditingEngine.applyPatches(bytes, patches);
   recordNativeEditTiming("pdfium-apply-and-serialize", startedAt, bytes.byteLength);
   startedAt = performance.now();
-  let { missing, next } = await inspectReplacements(edited, patches, panelPageIndex);
+  let { missing, next, pages } = await inspectReplacements(edited, patches, panelPageIndex);
   recordNativeEditTiming("verify-inspect-edited", startedAt, edited.byteLength);
-  if (!missing) return { edited, next };
+  if (!missing) {
+    for (const [pageIndex, objects] of pages) {
+      rememberVerifiedNativeEditPage(edited, pageIndex, objects);
+    }
+    return { edited, next };
+  }
   const fallback = withUnicodeGlyphFallback(patches);
   if (fallback.length === patches.length) {
     throw new Error("PDF did not retain the new text, even with Unicode fallback.");
@@ -74,7 +80,7 @@ export async function applyVerifiedNativePatches(
   edited = await pdfiumContentEditingEngine.applyPatches(bytes, fallback);
   recordNativeEditTiming("pdfium-unicode-fallback", startedAt, bytes.byteLength);
   startedAt = performance.now();
-  ({ missing, next } = await inspectReplacements(edited, patches, panelPageIndex));
+  ({ missing, next, pages } = await inspectReplacements(edited, patches, panelPageIndex));
   recordNativeEditTiming("verify-inspect-fallback", startedAt, edited.byteLength);
   if (missing) {
     const targets = patches.filter((patch) => patch.type === "replace-text");
@@ -109,6 +115,9 @@ export async function applyVerifiedNativePatches(
       }));
     }
     throw new Error("Unable to preserve edited CAD text, including Unicode fallback.");
+  }
+  for (const [pageIndex, objects] of pages) {
+    rememberVerifiedNativeEditPage(edited, pageIndex, objects);
   }
   return { edited, next };
 }

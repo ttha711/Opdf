@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import type { PdfContentObject } from "@tpdf/core";
 import { pdfiumContentEditingEngine } from "../../lib/pdfiumContentEngine";
+import { takeVerifiedNativeEditPage } from "../../lib/nativeEditPageObjectCache";
 import { consumeNativeInlineTextEdit, emitNativeEditSelection, getNativeEditSelection } from "../../lib/nativeEditRuntime";
 import { findTextObjectAtPoint } from "./nativeEditCanvasTextEdit";
 import { nativeEditTextRun } from "./nativeEditTextRun";
@@ -36,7 +37,11 @@ export function useNativeEditPageObjects({
     }
     setError(null);
     void bytesRef.current()
-      .then((bytes) => !cancelled && bytes ? pdfiumContentEditingEngine.inspectPage(bytes, pageIndex) : [])
+      .then((bytes) => {
+        if (cancelled || !bytes) return [];
+        return takeVerifiedNativeEditPage(bytes, pageIndex) ??
+          pdfiumContentEditingEngine.inspectPage(bytes, pageIndex);
+      })
       .then((next) => {
         if (cancelled) return;
         setObjects(next);

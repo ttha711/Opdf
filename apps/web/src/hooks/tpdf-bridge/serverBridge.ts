@@ -173,7 +173,7 @@ export function createServerBridge(baseUrl = "/api/tpdf"): TpdfBridge {
       const response = await fetch(`${baseUrl}/documents/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/pdf" },
-        body: bytes as unknown as BodyInit,
+        body: new Blob([bytes as unknown as BlobPart], { type: "application/pdf" }),
       });
       await expectJson(response);
     },

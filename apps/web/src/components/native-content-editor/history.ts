@@ -1,4 +1,6 @@
-export function trimNativeContentHistory(items: Uint8Array[], maxHistoryBytes: number) {
+import type { NativeHistoryEntry } from "./historyStore";
+
+export function trimNativeContentHistory(items: NativeHistoryEntry[], maxHistoryBytes: number) {
   const candidates = [...items];
   let total = candidates.reduce((sum, item) => sum + item.byteLength, 0);
   while (candidates.length > 10 || (candidates.length > 1 && total > maxHistoryBytes)) {

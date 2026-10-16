@@ -6,7 +6,8 @@ import { recordNativeEditTiming } from "../lib/nativeEditPerf";
 import { pdfHasDigitalSignature } from "../lib/pdfSignatureDetection";
 import { useConfirm } from "./ConfirmDialog";
 import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
-import { createSerialMutationQueue, trimNativeContentHistory } from "./native-content-editor/history";
+import { createSerialMutationQueue } from "./native-content-editor/history";
+import { useNativeContentHistory } from "./native-content-editor/useNativeContentHistory";
 import { DEFAULT_DRAFT } from "./native-content-editor/defaultDraft";
 import {
   clearNativeEditRuntime,
@@ -38,11 +39,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
   const [signed, setSigned] = useState(false);
   const signedEditAcknowledged = useRef(false);
   const confirm = useConfirm();
-  const [undoStack, setUndoStack] = useState<Uint8Array[]>([]);
-  const [redoStack, setRedoStack] = useState<Uint8Array[]>([]);
   const currentBytesRef = useRef<Uint8Array | null>(null);
-  const undoStackRef = useRef<Uint8Array[]>([]);
-  const redoStackRef = useRef<Uint8Array[]>([]);
   const enqueueMutation = useRef(createSerialMutationQueue()).current;
   const getDocumentBytesRef = useRef(getDocumentBytes);
   useEffect(() => { getDocumentBytesRef.current = getDocumentBytes; }, [getDocumentBytes]);
@@ -63,6 +60,19 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     setObjects(next);
     setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
   }, [page]);
+
+  const history = useNativeContentHistory({
+    enqueueMutation,
+    getCurrentBytes: () => currentBytesRef.current,
+    getDocumentBytes: () => getDocumentBytesRef.current(),
+    applyBytes: (bytes) => {
+      currentBytesRef.current = bytes;
+      onApplyBytes(bytes);
+    },
+    inspectBytes,
+    onMessage: setMessage,
+  });
+  const { undoStack, redoStack, recordAppliedRevision, undo, redo } = history;
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -135,17 +145,16 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       );
       recordNativeEditTiming("verified-patch-total", patchStartedAt, bytes.byteLength);
       const maxHistoryBytes = 128 * 1024 * 1024;
-      undoStackRef.current = trimNativeContentHistory([...undoStackRef.current, bytes], maxHistoryBytes);
-      redoStackRef.current = [];
-      setUndoStack(undoStackRef.current);
-      setRedoStack([]);
+      const historyResult = await recordAppliedRevision(bytes, maxHistoryBytes);
       currentBytesRef.current = edited;
       setObjects(next);
       setSelectedId((current) => next.some((item) => item.id === current) ? current : null);
       onApplyBytes(edited);
       recordNativeEditTiming("apply-to-revision-total", applyStartedAt, bytes.byteLength);
-      setMessage(bytes.byteLength > maxHistoryBytes
-        ? success + " Undo history is limited to one step for this large PDF."
+      setMessage(historyResult.limited
+        ? success + (historyResult.storedOnDisk
+          ? " Undo history is limited to one step for this large PDF."
+          : ` Large PDF history storage is unavailable${historyResult.storageError ? ` (${historyResult.storageError})` : ""}; Undo uses memory for one step.`)
         : success);
       return edited;
     } catch (error) {
@@ -156,7 +165,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
     } finally {
       setLoading(false);
     }
-  }), [confirm, enqueueMutation, onApplyBytes, page]);
+  }), [confirm, enqueueMutation, onApplyBytes, page, recordAppliedRevision]);
 
   useEffect(() => registerNativeEditPatchApplier(apply), [apply]);
 
@@ -197,36 +206,6 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       "Object rotated.",
     );
   }, [centeredTransform]);
-
-  const undo = useCallback(() => enqueueMutation(async () => {
-    const previous = undoStackRef.current.at(-1);
-    if (!previous) return;
-    const current = currentBytesRef.current ?? await getDocumentBytesRef.current();
-    if (!current) return;
-    undoStackRef.current = undoStackRef.current.slice(0, -1);
-    redoStackRef.current = [...redoStackRef.current.slice(-9), current];
-    setUndoStack(undoStackRef.current);
-    setRedoStack(redoStackRef.current);
-    currentBytesRef.current = previous;
-    onApplyBytes(previous);
-    await inspectBytes(previous);
-    setMessage("Native content edit undone.");
-  }), [enqueueMutation, inspectBytes, onApplyBytes]);
-
-  const redo = useCallback(() => enqueueMutation(async () => {
-    const next = redoStackRef.current.at(-1);
-    if (!next) return;
-    const current = currentBytesRef.current ?? await getDocumentBytesRef.current();
-    if (!current) return;
-    redoStackRef.current = redoStackRef.current.slice(0, -1);
-    undoStackRef.current = [...undoStackRef.current.slice(-9), current];
-    setRedoStack(redoStackRef.current);
-    setUndoStack(undoStackRef.current);
-    currentBytesRef.current = next;
-    onApplyBytes(next);
-    await inspectBytes(next);
-    setMessage("Native content edit redone.");
-  }), [enqueueMutation, inspectBytes, onApplyBytes]);
 
   useEffect(() => registerNativeContentHistoryControls({
     undo,

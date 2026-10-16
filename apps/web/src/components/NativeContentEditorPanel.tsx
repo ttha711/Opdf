@@ -6,6 +6,8 @@ import { recordNativeEditTiming } from "../lib/nativeEditPerf";
 import { pdfHasDigitalSignature } from "../lib/pdfSignatureDetection";
 import { useConfirm } from "./ConfirmDialog";
 import { registerNativeContentHistoryControls } from "../lib/nativeContentHistory";
+import { createSerialMutationQueue, trimNativeContentHistory } from "./native-content-editor/history";
+import { DEFAULT_DRAFT } from "./native-content-editor/defaultDraft";
 import {
   clearNativeEditRuntime,
   commitPendingNativeInlineEdit,
@@ -25,38 +27,6 @@ type Props = {
   getDocumentBytes: () => Promise<Uint8Array | null>;
   onApplyBytes: (bytes: Uint8Array) => void;
   onClose: () => void;
-};
-
-function trimHistory(items: Uint8Array[], maxHistoryBytes: number) {
-  const candidates = [...items];
-  let total = candidates.reduce((sum, item) => sum + item.byteLength, 0);
-  while (candidates.length > 10 || (candidates.length && total > maxHistoryBytes)) {
-    total -= candidates[0].byteLength;
-    candidates.shift();
-  }
-  return candidates;
-}
-
-function createSerialMutationQueue() {
-  let tail = Promise.resolve();
-  return <T,>(operation: () => Promise<T>) => {
-    const run = tail.then(operation, operation);
-    tail = run.then(() => undefined, () => undefined);
-    return run;
-  };
-}
-
-const DEFAULT_DRAFT: NativeContentDraft = {
-  size: "12",
-  color: "#000000",
-  font: "",
-  stroke: "#000000",
-  strokeWidth: "1",
-  renderMode: "fill",
-  lineCap: "butt",
-  lineJoin: "miter",
-  dash: "",
-  blendMode: "Normal",
 };
 
 export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes, onClose }: Props) {
@@ -165,7 +135,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       );
       recordNativeEditTiming("verified-patch-total", patchStartedAt, bytes.byteLength);
       const maxHistoryBytes = 128 * 1024 * 1024;
-      undoStackRef.current = trimHistory([...undoStackRef.current, bytes], maxHistoryBytes);
+      undoStackRef.current = trimNativeContentHistory([...undoStackRef.current, bytes], maxHistoryBytes);
       redoStackRef.current = [];
       setUndoStack(undoStackRef.current);
       setRedoStack([]);
@@ -175,7 +145,7 @@ export function NativeContentEditorPanel({ page, getDocumentBytes, onApplyBytes,
       onApplyBytes(edited);
       recordNativeEditTiming("apply-to-revision-total", applyStartedAt, bytes.byteLength);
       setMessage(bytes.byteLength > maxHistoryBytes
-        ? success + " Undo snapshot skipped for this large PDF."
+        ? success + " Undo history is limited to one step for this large PDF."
         : success);
       return edited;
     } catch (error) {

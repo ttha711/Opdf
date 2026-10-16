@@ -16,6 +16,7 @@ import { NativeEditDocument } from "./native-edit/NativeEditDocument";
 import { NativeEditDocumentRevisionBridge } from "./native-edit/NativeEditDocumentRevisionBridge";
 import { NativeEditPaintShield } from "./native-edit/NativeEditPaintShield";
 import type { NativeEditPinnedPoints } from "./native-edit/NativeEditSelectionLayer";
+import { getNativeEditRevisionKey } from "./native-edit/revisionKey";
 import "../styles/native-edit-surface.css";
 
 const EDIT_DOCUMENT_ID = "tpdf-native-edit-document";
@@ -58,8 +59,15 @@ export function NativeEditPdfViewer({
     () => sourceIdentity.startsWith("server://") ? getServerDocumentUrl(sourceIdentity) : null,
     [sourceIdentity],
   );
+  const matchingBuffer = initialBuffer?.sourceUrl === (localUrl ?? serverUrl) ? initialBuffer.buffer : null;
+  const currentBytes = data?.byteLength ?? sourceBlob?.size ?? matchingBuffer?.byteLength ?? 0;
+  const isLargeServerPdf = currentBytes >= 100 * 1024 * 1024 && Boolean(serverUrl);
 
   useEffect(() => {
+    if (isLargeServerPdf) {
+      setLocalUrl(null);
+      return;
+    }
     const blob = data ? new Blob([data as unknown as BlobPart], { type: "application/pdf" }) : sourceBlob;
     if (!blob) {
       setLocalUrl(null);
@@ -68,18 +76,18 @@ export function NativeEditPdfViewer({
     const url = URL.createObjectURL(blob);
     setLocalUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [data, sourceBlob]);
+  }, [data, isLargeServerPdf, sourceBlob]);
 
   const sourceUrl = localUrl ?? serverUrl;
+  const revisionKey = isLargeServerPdf && data
+    ? matchingBuffer === data.buffer ? sourceUrl ?? "" : getNativeEditRevisionKey(data.buffer as ArrayBuffer)
+    : sourceUrl ?? "";
   useEffect(() => { pinnedPointsRef.current = null; }, [sourceIdentity]);
   if (!initialSourceUrlRef.current && sourceUrl) {
     initialSourceUrlRef.current = sourceUrl;
   }
   const initialSourceUrl = initialSourceUrlRef.current;
   const needsServerBuffer = Boolean(sourceIdentity.startsWith("server://") && !sourceBlob && !data);
-  const matchingBuffer = initialBuffer?.sourceUrl === initialSourceUrl ? initialBuffer.buffer : null;
-  const currentBytes = data?.byteLength ?? sourceBlob?.size ?? matchingBuffer?.byteLength ?? 0;
-  const isLargeServerPdf = currentBytes >= 100 * 1024 * 1024 && Boolean(serverUrl);
   const previewBase = isLargeServerPdf && serverUrl && remoteRenderAvailable?.source === serverUrl && remoteRenderAvailable.value
     ? `${serverApiBase(serverUrl)}/native-edit-previews`
     : null;
@@ -159,7 +167,7 @@ export function NativeEditPdfViewer({
             baseDocumentId={EDIT_DOCUMENT_ID}
             initialRevisionKey={initialSourceUrl}
             skipRevisionReload={isLargeServerPdf}
-            revisionKey={sourceUrl}
+            revisionKey={revisionKey}
             data={data}
             sourceBlob={sourceBlob}
             sourceUrl={sourceUrl}
@@ -177,7 +185,7 @@ export function NativeEditPdfViewer({
                     documentId={activeDocumentId}
                     page={page}
                     scale={scale}
-                    revisionKey={sourceUrl}
+                    revisionKey={revisionKey}
                     pinnedPointsRef={pinnedPointsRef}
                     getDocumentBytes={getDocumentBytes}
                     remoteRenderBase={previewBase}
@@ -190,7 +198,7 @@ export function NativeEditPdfViewer({
               }}
             </DocumentContent>
           ) : <div className="native-edit-loading">Opening PDF…</div>}
-          <NativeEditPaintShield revisionKey={sourceUrl} activeDocumentId={activeDocumentId} />
+          <NativeEditPaintShield revisionKey={revisionKey} activeDocumentId={activeDocumentId} />
         </div>
       )}
     </EmbedPDF>

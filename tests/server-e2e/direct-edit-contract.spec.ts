@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import zlib from "node:zlib";
 import { PDFDocument, PDFHexString, PDFName, PDFString, StandardFonts } from "pdf-lib";
 import { saveServerDocumentAndWait } from "../helpers/save";
+import { zoomInFromViewer } from "../helpers/zoom";
 
 test.setTimeout(120_000);
 
@@ -252,8 +253,9 @@ test("a committed direct edit keeps the viewport; undo, redo, Save and reopen ke
 test("direct edit at a higher zoom keeps zoom, page and the text under the pointer", async ({ page, request }) => {
   const { filePath } = await uploadThreePagePdf(request);
   await openReader(page, filePath);
-  for (let step = 0; step < 3; step++) {
-    await page.getByRole("button", { name: "Zoom In" }).first().click();
+  const zoomSteps = (page.viewportSize()?.width ?? 0) < 600 ? 5 : 3;
+  for (let step = 0; step < zoomSteps; step++) {
+    await zoomInFromViewer(page);
     await page.waitForTimeout(300);
   }
   await expect.poll(async () => Number(/(\d+)%/.exec(await statusText(page))?.[1])).toBeGreaterThan(130);
@@ -262,7 +264,22 @@ test("direct edit at a higher zoom keeps zoom, page and the text under the point
   // Page 2 starts after one zoomed page plus its gap.
   await scrollReaderUntil(page, 1130, /Page 2 of 3/);
   const point = await visibleLabelPoint(page);
-  await page.mouse.dblclick(point.x, point.y);
+  await page.evaluate(({ x }) => {
+    let scroller: HTMLElement | null = null;
+    const walk = (root: Document | ShadowRoot) => root.querySelectorAll("*").forEach((el) => {
+      const node = el as HTMLElement;
+      if (node.scrollHeight > node.clientHeight + 40 && /auto|scroll/.test(getComputedStyle(node).overflowY) &&
+          (!scroller || node.scrollHeight > scroller.scrollHeight)) scroller = node;
+      if (node.shadowRoot) walk(node.shadowRoot);
+    });
+    walk(document);
+    if (!scroller) return;
+    const box = (scroller as HTMLElement).getBoundingClientRect();
+    (scroller as HTMLElement).scrollLeft += x - (box.left + box.width / 2);
+  }, point);
+  await page.waitForTimeout(500);
+  const centeredPoint = await visibleLabelPoint(page);
+  await page.mouse.dblclick(centeredPoint.x, centeredPoint.y);
   const input = page.getByRole("textbox", { name: "Edit PDF text" });
   await expect(input).toBeVisible({ timeout: 15_000 });
   await expect(input).toHaveValue(/PAGE 2/);
@@ -271,7 +288,7 @@ test("direct edit at a higher zoom keeps zoom, page and the text under the point
 
   const box = await input.boundingBox();
   expect(box).toBeTruthy();
-  expect(Math.abs((box!.y + box!.height / 2) - point.y)).toBeLessThan(24);
+  expect(Math.abs((box!.y + box!.height / 2) - centeredPoint.y)).toBeLessThan(24);
   expect(await statusText(page)).toMatch(/Page 2 of 3/);
   expect(/(\d+)%/.exec(await statusText(page))![1]).toBe(zoomBefore);
 });
@@ -524,8 +541,8 @@ test("zoomed out with several pages visible, direct edit opens the page under th
 test("direct edit at a very high zoom keeps zoom, page and the text under the pointer", async ({ page, request }) => {
   const { filePath } = await uploadThreePagePdf(request);
   await openReader(page, filePath);
-  for (let step = 0; step < 9; step++) {
-    await page.getByRole("button", { name: "Zoom In" }).first().click();
+  for (let step = 0; step < 10; step++) {
+    await zoomInFromViewer(page);
     await page.waitForTimeout(250);
   }
   await expect.poll(async () => Number(/(\d+)%/.exec(await statusText(page))?.[1])).toBeGreaterThan(250);
@@ -561,7 +578,9 @@ test("direct edit at a very high zoom keeps zoom, page and the text under the po
   }, target);
   await page.waitForTimeout(800);
   target = await visibleLabelPoint(page);
-  expect(target.x).toBeGreaterThan(260);
+  const viewport = page.viewportSize()!;
+  expect(target.x).toBeGreaterThan(viewport.width * 0.35);
+  expect(target.x).toBeLessThan(viewport.width * 0.8);
   expect(target.y).toBeGreaterThan(100);
   expect(target.y).toBeLessThan(680);
   await page.mouse.dblclick(target.x, target.y);

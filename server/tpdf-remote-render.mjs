@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stat } from "node:fs/promises";
+import { createEditPreviewStore } from "./tpdf-edit-previews.mjs";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const LEVELS = new Set([0.25, 0.5, 1, 2, 4, 8]);
@@ -43,6 +44,7 @@ export function createRemoteRenderService(env = process.env) {
   const python = env.TPDF_PYTHON_PATH || (process.platform === "win32" ? "python" : "python3");
   const script = resolve(env.TPDF_RENDER_WORKER_SCRIPT || join(ROOT, "workers", "remote_pdf_worker.py"));
   const queue = [], pool = [], pending = new Map(), cache = new Map();
+  const previews = createEditPreviewStore(env);
   let cacheSize = 0, closed = false;
   let workerStatus = enabled ? "checking" : "disabled";
 
@@ -237,14 +239,19 @@ export function createRemoteRenderService(env = process.env) {
     return result;
   }
 
-  async function handle(req, res, url, { storage, sendJson, sendError, setBaseHeaders }) {
-    const request = parseRenderRequest(url);
+  async function handle(req, res, url, { storage, sendJson, sendError, setBaseHeaders, previewScope }) {
+    const previewMatch = url.pathname.match(/^\/api\/tpdf\/native-edit-previews\/([0-9a-f-]{36})\/render\/(meta|tile|text)$/i);
+    const request = previewMatch
+      ? parseRenderRequest(new URL(`/api/tpdf/documents/${previewMatch[1]}/render/${previewMatch[2]}${url.search}`, url))
+      : parseRenderRequest(url);
     if (!request) return false;
     if (req.method !== "GET") return sendError(res, 405, "Method not allowed.");
     if (!await isAvailable()) return sendError(res, 503, "Remote renderer worker is unavailable.");
-    const record = await storage.getDocument(request.id);
+    const preview = previewMatch ? previews.get(previewMatch[1], previewScope) : null;
+    if (previewMatch && !preview) return sendError(res, 404, "Edit preview expired.");
+    const record = preview ? { pdfPath: preview.path } : await storage.getDocument(request.id);
     if (!record) return sendError(res, 404, "Document not found.");
-    if (storage.ensureDocumentFile && !await storage.ensureDocumentFile(request.id)) {
+    if (!preview && storage.ensureDocumentFile && !await storage.ensureDocumentFile(request.id)) {
       return sendError(res, 404, "Document bytes are unavailable.");
     }
     const source = await stat(record.pdfPath).catch(() => null);
@@ -280,8 +287,12 @@ export function createRemoteRenderService(env = process.env) {
     closed = true;
     for (const task of queue.splice(0)) task.reject(new Error("Renderer shutting down."));
     for (const worker of [...pool]) retire(worker);
+    previews.close();
   }
-  return { enabled, isAvailable, handle, close,
+  return { enabled, isAvailable, handle, async createPreview(...args) {
+      if (!await isAvailable()) throw Object.assign(new Error("Remote renderer worker is unavailable."), { statusCode: 503 });
+      return previews.create(...args);
+    }, close,
     stats: () => ({ enabled, status: workerStatus, workers: pool.length, queued: queue.length, pending: pending.size,
       cachedItems: cache.size, cachedBytes: cacheSize, tileSize: TILE }) };
 }

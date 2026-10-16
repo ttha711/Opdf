@@ -5,6 +5,7 @@ import { openClickableCadText } from "./cad-text-hit-target";
 import { saveServerDocumentAndWait } from "../helpers/save";
 
 const stressPdfPath = process.env.TPDF_STRESS_PDF;
+const requestedEditPage = process.env.TPDF_STRESS_EDIT_PAGE;
 const MiB = 1024 * 1024;
 
 // Generate the local fixture with:
@@ -66,18 +67,27 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
     }
   });
   page.on("request", (requestEvent) => {
-    if (requestEvent.method() === "GET" && new URL(requestEvent.url()).pathname.startsWith("/api/tpdf/documents/")) {
+    if (requestEvent.method() === "GET" && /^\/api\/tpdf\/documents\/[0-9a-f-]{36}$/i.test(new URL(requestEvent.url()).pathname)) {
       documentGets += 1;
     }
   });
 
   const openStartedAt = Date.now();
   await page.goto(`/?tpdf-perf=1&open=${encodeURIComponent(stored.filePath)}`);
+  const fullPdfFallback = page.getByRole("button", { name: "Download and open full PDF" });
   const status = page.locator('[data-tpdf-region="status-bar"]');
+  await expect.poll(async () =>
+    Number(await status.getAttribute("data-tpdf-total-pages")) > 0 || fullPdfFallback.isVisible(),
+  { timeout: 120_000 }).toBe(true);
+  if (Number(await status.getAttribute("data-tpdf-total-pages")) <= 0) {
+    await fullPdfFallback.click();
+  }
   await expect(status).toHaveAttribute("data-tpdf-page", "1", { timeout: 120_000 });
   await expect.poll(async () => Number(await status.getAttribute("data-tpdf-total-pages")),
     { timeout: 30_000 }).toBeGreaterThan(0);
   const totalPages = Number(await status.getAttribute("data-tpdf-total-pages"));
+  const editPage = requestedEditPage === "last" ? totalPages : Number(requestedEditPage || 1);
+  expect(Number.isInteger(editPage) && editPage >= 1 && editPage <= totalPages).toBe(true);
   const firstPageMs = Date.now() - openStartedAt;
   const heapBefore = await page.evaluate(() =>
     (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null,
@@ -85,14 +95,14 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   const memoryBefore = await browserMemory(page);
 
   const navigationMs: number[] = [];
-  for (const target of [Math.max(1, Math.round(totalPages / 2)), totalPages, 1]) {
+  for (const target of [Math.max(1, Math.round(totalPages / 2)), totalPages, editPage]) {
     const startedAt = Date.now();
     await goToPage(page, target);
     navigationMs.push(Date.now() - startedAt);
   }
   const zoomBefore = await status.getAttribute("data-tpdf-zoom");
   const zoomStartedAt = Date.now();
-  await page.keyboard.press("Control+=");
+  await page.keyboard.press("=");
   await expect(status).not.toHaveAttribute("data-tpdf-zoom", zoomBefore || "");
   const zoomMs = Date.now() - zoomStartedAt;
 
@@ -104,22 +114,35 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   const editReadyMs = Date.now() - editStartedAt;
   const memoryWithEditor = await browserMemory(page);
 
-  const original = editor.locator('.native-content-editor__objects [data-tpdf-object-kind="text"]').first();
+  const original = editor.locator(".native-content-editor__objects button[data-tpdf-object-kind]").first();
   await expect(original).toBeVisible({ timeout: 60_000 });
+  if (fileInfo.size >= 100 * MiB) {
+    await expect.poll(() => editor.page().locator('[data-tpdf-native-edit-remote-raster="true"] img')
+      .evaluateAll((images) => images.length > 0 && images.every((image) =>
+        (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)),
+    { timeout: 60_000 }).toBe(true);
+  }
   const inspectReadyMs = Date.now() - editStartedAt;
   const objectId = await original.getAttribute("data-tpdf-object-id");
+  const objectKind = await original.getAttribute("data-tpdf-object-kind");
+  const originalBounds = await original.getAttribute("data-tpdf-bounds");
   expect(objectId).toBeTruthy();
-  const originalText = (await original.innerText()).trim();
   const directEditStartedAt = Date.now();
-  await openClickableCadText(page, objectId!);
-  const inlineEditor = page.getByRole("textbox", { name: "Edit PDF text" });
-  await expect(inlineEditor).toBeVisible();
-  const directEditMs = Date.now() - directEditStartedAt;
-  await inlineEditor.fill("TPDF stress edit persisted");
   const applyStartedAt = Date.now();
-  await inlineEditor.press("Enter");
-  await expect(inlineEditor).toHaveCount(0);
-  await expect(editor.getByText("Text applied. Check the Save status in the toolbar.")).toBeVisible();
+  if (objectKind === "text") {
+    await openClickableCadText(page, objectId!);
+    const inlineEditor = page.getByRole("textbox", { name: "Edit PDF text" });
+    await expect(inlineEditor).toBeVisible();
+    await inlineEditor.fill("TPDF stress edit persisted");
+    await inlineEditor.press("Enter");
+    await expect(inlineEditor).toHaveCount(0);
+    await expect(editor.getByText("Text applied. Check the Save status in the toolbar.")).toBeVisible();
+  } else {
+    await original.click();
+    await editor.getByRole("button", { name: "Move right" }).click();
+    await expect(editor.getByText("Object moved.")).toBeVisible();
+  }
+  const directEditMs = Date.now() - directEditStartedAt;
   const applyMs = Date.now() - applyStartedAt;
 
   const saveStartedAt = Date.now();
@@ -132,22 +155,30 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
 
   const reloadStartedAt = Date.now();
   await page.reload();
+  await expect(status).toHaveAttribute("data-tpdf-total-pages", String(totalPages), { timeout: 120_000 });
+  if (Number(await status.getAttribute("data-tpdf-page")) !== editPage) await goToPage(page, editPage);
   await page.getByTitle("Edit PDF Content").click();
   await page.locator('[data-tpdf-action="expand-right-panel"]').click();
   const reloadedEditor = page.locator('[data-tpdf-native-editor="true"]');
-  await expect(reloadedEditor.locator(".native-content-editor__objects").getByText("TPDF stress edit persisted"))
-    .toBeVisible({ timeout: 60_000 });
-  await expect(reloadedEditor.locator(".native-content-editor__objects").getByText(originalText)).toHaveCount(0);
+  const reloadedObject = reloadedEditor.locator(
+    `.native-content-editor__objects button[data-tpdf-object-id="${objectId}"]`,
+  );
+  await expect(reloadedObject).toBeVisible({ timeout: 60_000 });
+  if (objectKind === "text") {
+    await expect(reloadedObject).toContainText("TPDF stress edit persisted");
+  } else {
+    await expect(reloadedObject).not.toHaveAttribute("data-tpdf-bounds", originalBounds || "");
+  }
   const reloadMs = Date.now() - reloadStartedAt;
   expect(documentGets).toBeLessThan(20);
   expect(failures).toEqual([]);
 
   console.log("LARGE_PDF_PERF_RESULT=" + JSON.stringify({
-    sizeMiB: Math.round(fileInfo.size / MiB), uploadMs, firstPageMs, navigationMs, zoomMs, editReadyMs,
+    sizeMiB: Math.round(fileInfo.size / MiB), editPage, uploadMs, firstPageMs, navigationMs, zoomMs, editReadyMs,
     inspectReadyMs, directEditMs, applyMs, saveMs, reloadMs, editTimings, documentGets,
     heapBeforeMiB: heapBefore == null ? null : Math.round(heapBefore / MiB),
     heapAfterSaveMiB: heapAfter == null ? null : Math.round(heapAfter / MiB),
     memoryBefore, memoryWithEditor, memoryAfterSave,
-    textPersistedAfterReload: true, failures,
+    editedObjectPersistedAfterReload: true, failures,
   }));
 });

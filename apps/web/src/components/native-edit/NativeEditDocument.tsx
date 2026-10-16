@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { RenderLayer } from "@embedpdf/plugin-render/react";
 import { Scroller, useScroll } from "@embedpdf/plugin-scroll/react";
 import { Viewport } from "@embedpdf/plugin-viewport/react";
 import { useZoom, ZoomMode } from "@embedpdf/plugin-zoom/react";
@@ -10,7 +9,7 @@ import {
   consumeNativeEditViewportAnchor, peekNativeEditScrollMemory, setNativeEditScrollMemory,
 } from "../../lib/nativeEditRuntime";
 import { NativeEditPageOverlay } from "./NativeEditPageOverlay";
-import { NativeEditFallbackRaster } from "./NativeEditFallbackRaster";
+import { NativeEditPageRaster } from "./NativeEditPageRaster";
 import type { NativeEditPinnedPoints } from "./NativeEditSelectionLayer";
 
 type Props = {
@@ -20,6 +19,8 @@ type Props = {
   revisionKey: string;
   pinnedPointsRef: React.MutableRefObject<NativeEditPinnedPoints | null>;
   getDocumentBytes: () => Promise<Uint8Array | null>;
+  disableNativeRender?: boolean;
+  remoteRenderBase?: string | null;
   onDocumentLoaded?: (pages: number) => void;
   onActivePageChange?: (page: number) => void;
   onViewerScaleChange?: (scale: number) => void;
@@ -46,6 +47,8 @@ export function NativeEditDocument({
   revisionKey,
   pinnedPointsRef,
   getDocumentBytes,
+  remoteRenderBase = null,
+  disableNativeRender = false,
   onDocumentLoaded,
   onActivePageChange,
   onViewerScaleChange,
@@ -273,15 +276,10 @@ export function NativeEditDocument({
         documentId={documentId}
         renderPage={({ width, height, pageIndex }) => (
           <div className="native-edit-page" style={{ width, height }}>
-            <RenderLayer documentId={documentId} pageIndex={pageIndex} />
-            <NativeEditFallbackRaster
-              pageIndex={pageIndex}
-              revisionKey={revisionKey}
-              enabled={pageIndex + 1 === page}
-              width={width}
-              height={height}
-              getDocumentBytes={getDocumentBytes}
-            />
+            <NativeEditPageRaster documentId={documentId} pageIndex={pageIndex}
+              revisionKey={revisionKey} enabled={pageIndex + 1 === page}
+              width={width} height={height} previewBase={remoteRenderBase} disableNativeRender={disableNativeRender}
+              getDocumentBytes={getDocumentBytes} />
             <NativeEditPageOverlay
               pageIndex={pageIndex}
               enabled={pageIndex + 1 === page}

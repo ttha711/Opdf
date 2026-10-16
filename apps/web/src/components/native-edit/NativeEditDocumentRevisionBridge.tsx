@@ -8,6 +8,7 @@ type Props = {
   data: Uint8Array | null;
   sourceBlob: Blob | null;
   sourceUrl: string;
+  skipRevisionReload?: boolean;
   onError?: (message: string | null) => void;
 };
 
@@ -23,6 +24,7 @@ export function NativeEditDocumentRevisionBridge({
   sourceBlob,
   sourceUrl,
   onError,
+  skipRevisionReload = false,
 }: Props) {
   const { provides: documentManager } = useDocumentManagerCapability();
   const revisionRef = useRef(initialRevisionKey);
@@ -34,6 +36,12 @@ export function NativeEditDocumentRevisionBridge({
   useEffect(() => {
     if (!documentManager || !revisionKey || revisionKey === revisionRef.current) return;
 
+    // Large document edits use current bytes in the remote raster and object
+    // overlays. Retain the base document solely for stable page geometry.
+    if (skipRevisionReload) {
+      revisionRef.current = revisionKey;
+      return;
+    }
     const targetRevision = revisionKey;
     const runRefresh = async () => {
       if (targetRevision === revisionRef.current) return;
@@ -85,7 +93,7 @@ export function NativeEditDocumentRevisionBridge({
     void run.catch((reason) => {
       onErrorRef.current?.(reason instanceof Error ? reason.message : String(reason));
     });
-  }, [baseDocumentId, data, documentManager, revisionKey, sourceBlob, sourceUrl]);
+  }, [baseDocumentId, data, documentManager, revisionKey, skipRevisionReload, sourceBlob, sourceUrl]);
 
   return null;
 }

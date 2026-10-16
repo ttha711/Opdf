@@ -127,8 +127,13 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   const objectKind = await original.getAttribute("data-tpdf-object-kind");
   const originalBounds = await original.getAttribute("data-tpdf-bounds");
   expect(objectId).toBeTruthy();
+  const targetObject = editor.locator(
+    `.native-content-editor__objects button[data-tpdf-object-id="${objectId}"]`,
+  );
+  const originalText = objectKind === "text" ? await targetObject.innerText() : null;
   const directEditStartedAt = Date.now();
   const applyStartedAt = Date.now();
+  let changedBounds: string | null = null;
   if (objectKind === "text") {
     await openClickableCadText(page, objectId!);
     const inlineEditor = page.getByRole("textbox", { name: "Edit PDF text" });
@@ -137,13 +142,35 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
     await inlineEditor.press("Enter");
     await expect(inlineEditor).toHaveCount(0);
     await expect(editor.getByText("Text applied. Check the Save status in the toolbar.")).toBeVisible();
+    await expect(targetObject).toContainText("TPDF stress edit persisted");
   } else {
     await original.click();
     await editor.getByRole("button", { name: "Move right" }).click();
     await expect(editor.getByText("Object moved.")).toBeVisible();
+    changedBounds = await targetObject.getAttribute("data-tpdf-bounds");
+    expect(changedBounds).toBeTruthy();
+    expect(changedBounds).not.toBe(originalBounds);
   }
+  await expect(editor.getByText("Undo history is limited to one step for this large PDF.", { exact: false })).toBeVisible();
   const directEditMs = Date.now() - directEditStartedAt;
   const applyMs = Date.now() - applyStartedAt;
+
+  await editor.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(editor.getByText("Native content edit undone.", { exact: false })).toBeVisible({ timeout: 20_000 });
+  if (objectKind === "text") {
+    await expect(targetObject).toContainText(originalText!);
+    await expect(targetObject).not.toContainText("TPDF stress edit persisted");
+  } else {
+    await expect(targetObject).toHaveAttribute("data-tpdf-bounds", originalBounds || "");
+  }
+  await editor.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(editor.getByText("Native content edit redone.", { exact: false })).toBeVisible({ timeout: 20_000 });
+  if (objectKind === "text") {
+    await expect(targetObject).toContainText("TPDF stress edit persisted");
+  } else {
+    await expect(targetObject).toHaveAttribute("data-tpdf-bounds", changedBounds || "");
+  }
+  const memoryAfterUndoRedo = await browserMemory(page);
 
   const saveStartedAt = Date.now();
   await saveServerDocumentAndWait(page);
@@ -178,7 +205,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
     inspectReadyMs, directEditMs, applyMs, saveMs, reloadMs, editTimings, documentGets,
     heapBeforeMiB: heapBefore == null ? null : Math.round(heapBefore / MiB),
     heapAfterSaveMiB: heapAfter == null ? null : Math.round(heapAfter / MiB),
-    memoryBefore, memoryWithEditor, memoryAfterSave,
+    memoryBefore, memoryWithEditor, memoryAfterUndoRedo, memoryAfterSave,
     editedObjectPersistedAfterReload: true, failures,
   }));
 });

@@ -1,8 +1,13 @@
 import { expect, type Page } from "@playwright/test";
 
 export async function saveServerDocumentAndWait(page: Page) {
-  const saveButton = page.locator('[data-tpdf-action="save"]').first();
-  await expect(saveButton).toBeVisible({ timeout: 10_000 });
+  const desktopSave = page.locator('[data-tpdf-action="save"]').first();
+  const mobileSave = page.locator('[data-tpdf-action="mobile-save"]').first();
+  await expect.poll(async () => await desktopSave.isVisible() || await mobileSave.isVisible(), {
+    timeout: 10_000,
+    message: "a desktop or mobile Save control is visible",
+  }).toBe(true);
+  const saveButton = await desktopSave.isVisible() ? desktopSave : mobileSave;
   await expect(saveButton).toBeEnabled({ timeout: 30_000 });
   // Wait for manual Save to become clickable before arming the PUT waiter.
   // Earlier autosaves must not consume its 30-second response budget.

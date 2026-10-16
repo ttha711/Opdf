@@ -982,7 +982,9 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/tpdf/native-edit-previews" && req.method === "POST") {
     try {
-      return sendJson(res, 201, await remoteRenderer.createPreview(req, maxOperationBytes, tenantRuntime.active().tenantRoot));
+      // Native previews must accept documents already admitted by the upload
+      // limit; the smaller operation limit applies to transformations only.
+      return sendJson(res, 201, await remoteRenderer.createPreview(req, maxBytes, tenantRuntime.active().tenantRoot));
     } catch (error) {
       return sendError(res, error.statusCode || 400, error.message || "Unable to create edit preview.");
     }

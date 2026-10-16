@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { dispatchAgentAppTool } from "./appToolDispatcher";
 import {
   AGENT_TOOL_DEFINITIONS,
   createAgentCommandQueue,
@@ -97,6 +98,45 @@ describe("agent command registry", () => {
     expect(result.status).toBe("completed");
     expect(ctx.actions.setActiveDashboardTool).toHaveBeenCalledWith("watermark-pdf");
     expect(ctx.actions.openRightSidebar).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes app-owned dashboard tools to their existing user workflows", async () => {
+    const runAppTool = vi.fn();
+    const ctx = createContext({ actions: { ...createContext().actions, runAppTool } });
+    for (const tool of ["print-pdf", "compare-pdf", "redact-pdf", "sign-pdf", "advanced-pdf"] as const) {
+      const result = await executeAgentCommand({ tool }, ctx);
+      expect(result.status).toBe("completed");
+      expect(runAppTool).toHaveBeenLastCalledWith(tool);
+    }
+    expect(runAppTool).toHaveBeenCalledTimes(5);
+  });
+
+  it("connects app tool commands to the corresponding main-view actions", () => {
+    const handlers = {
+      print: vi.fn(), compare: vi.fn(), redact: vi.fn(), sign: vi.fn(), advanced: vi.fn(),
+    };
+    const routes = [
+      ["print-pdf", handlers.print], ["compare-pdf", handlers.compare],
+      ["redact-pdf", handlers.redact], ["sign-pdf", handlers.sign],
+      ["advanced-pdf", handlers.advanced],
+    ] as const;
+    for (const [tool, handler] of routes) {
+      dispatchAgentAppTool(tool, handlers);
+      expect(handler).toHaveBeenCalledOnce();
+    }
+    for (const handler of Object.values(handlers)) expect(handler).toHaveBeenCalledOnce();
+  });
+
+  it("maps dashboard OCR and crop commands to the same document actions", async () => {
+    const runOcr = vi.fn();
+    const runConfiguredDocumentTool = vi.fn();
+    const ctx = createContext({ actions: { ...createContext().actions, runOcr, runConfiguredDocumentTool } });
+    const ocr = await executeAgentCommand({ tool: "ocr-pdf" }, ctx);
+    const crop = await executeAgentCommand({ tool: "crop-pdf", args: { marginPercent: 5 }, confirmed: true }, ctx);
+    expect(ocr.status).toBe("completed");
+    expect(runOcr).toHaveBeenCalledOnce();
+    expect(crop.status).toBe("completed");
+    expect(runConfiguredDocumentTool).toHaveBeenCalledWith("crop-current", { marginPercent: 5 });
   });
 
   it("uses headless conversion for PDF page image exports", async () => {

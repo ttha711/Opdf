@@ -15,6 +15,7 @@ import type { MarkupTool } from "./useDocumentActions";
 import { toast } from "../components/ToastProvider";
 import { buildPdfTextExport } from "../lib/pdfTextExport";
 import { getServerDocumentUrl } from "../lib/documentSource";
+import type { AgentToolId } from "../agent/types";
 
 import { useDocumentAutosave } from "./useDocumentAutosave";
 
@@ -22,9 +23,10 @@ type UseAppControllersArgs = {
   isPublic: boolean;
   setActiveMarkupTool: (tool: MarkupTool | null) => void;
   openRightSidebar?: () => void;
+  runAgentAppTool?: (toolId: AgentToolId) => void | Promise<void>;
 };
 
-export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSidebar }: UseAppControllersArgs) {
+export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSidebar, runAgentAppTool }: UseAppControllersArgs) {
   const bridge = useTpdfBridge();
   const state = useAppState();
   const viewerAreaRef = useRef<HTMLDivElement>(null);
@@ -588,6 +590,7 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
       setViewerError: state.setViewerError,
       runHeadlessConversion,
       replaceText,
+      runAppTool: runAgentAppTool,
     },
   });
 

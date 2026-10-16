@@ -65,7 +65,23 @@ export type AgentToolId =
   | "merge-pdf"
   | "split-pdf"
   | "watermark-pdf"
-  | "fill-form";
+  | "fill-form"
+  | "rotate-pdf"
+  | "extract-pages"
+  | "crop-pdf"
+  | "ocr-pdf"
+  | "protect-pdf"
+  | "unlock-pdf"
+  | "redact-pdf"
+  | "compare-pdf"
+  | "sign-pdf"
+  | "measure-drawing"
+  | "edit-content"
+  | "advanced-pdf"
+  | "print-pdf"
+  | "drawing-workspace"
+  | "organize-pages"
+  | "document-health";
 
 export interface AgentToolDefinition {
   id: AgentToolId;
@@ -142,5 +158,6 @@ export interface AgentActionContext {
       toolId: AgentToolId,
       args: Record<string, unknown>,
     ) => Promise<{ message?: string } | void>;
+    runAppTool?: (toolId: AgentToolId) => void | Promise<void>;
   };
 }

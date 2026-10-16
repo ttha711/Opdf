@@ -1,5 +1,5 @@
 // tpdf-file-size-allow: app coordinator integrates existing tool workflows; follow-up extraction will separate tool dispatch.
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiSparkIcon } from "./components/AiSparkIcon";
 import { AppHeader } from "./components/AppHeader";
 import { CommandPalette } from "./components/CommandPalette";
@@ -19,6 +19,8 @@ import { hasFullWebAccess } from "./lib/runtimeAccess";
 import { AiRewriteEditorWindow, AllToolsDashboard, LiveHtmlEditor, AppDocumentDialogs, AppWorkspace } from "./components/app/AppLazyModules";
 import "./types/tpdf";
 import { printViewerDocument, subscribeViewerPrintReady } from "./lib/viewer-runtime";
+import type { AgentToolId } from "./agent/types";
+import { dispatchAgentAppTool } from "./agent/appToolDispatcher";
 
 export function App() {
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.tpdf);
@@ -42,9 +44,15 @@ export function App() {
   const [pendingPrint, setPendingPrint] = useState(false);
   const [showHome, setShowHome] = useState(false);
   const [bridgeRecents, setBridgeRecents] = useState<Array<{ filePath: string; openedAt: number }>>([]);
+  const agentAppToolRef = useRef<(toolId: AgentToolId) => void>(() => {});
   const sidebars = useResizableSidebars();
   const fab = useDraggableFab();
-  const controllers = useAppControllers({ isPublic, setActiveMarkupTool, openRightSidebar: () => sidebars.setIsRightCollapsed(false) });
+  const controllers = useAppControllers({
+    isPublic,
+    setActiveMarkupTool,
+    openRightSidebar: () => sidebars.setIsRightCollapsed(false),
+    runAgentAppTool: (toolId) => agentAppToolRef.current(toolId),
+  });
   const { state, bridge, headerProps, onDragOver, onDrop, replaceDocumentBytes, materializeDocumentBytes, openAiEditorWindow, openFileWithPath } = controllers;
   const toast = useToast();
   const { handleIntegratedFileSelected } = useIntegratedFileConverter({
@@ -131,6 +139,16 @@ export function App() {
     setActiveMarkupTool(tool);
     sidebars.setIsRightCollapsed(false);
   }, [sidebars.setIsRightCollapsed, state.setActiveDashboardTool, state.setShowDashboard]);
+  agentAppToolRef.current = (toolId) => {
+    state.setShowDashboard(false);
+    dispatchAgentAppTool(toolId, {
+      print: () => setPendingPrint(true),
+      compare: () => setShowRevisionCompare(true),
+      redact: () => setShowSearchRedact(true),
+      sign: () => setShowDigitalSignature(true),
+      advanced: () => setShowAdvancedPdf(true),
+    });
+  };
   if (isAiEditorWindow) {
     if (isPublic) {
       return <div className="flex h-screen items-center justify-center text-gray-500">This feature is only available on Local or Desktop App versions.</div>;

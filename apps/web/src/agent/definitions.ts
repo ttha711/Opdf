@@ -22,6 +22,25 @@ const conversionPanelTools: AgentToolDefinition[] = [
   { id: "fill-form", title: "Fill Form", description: "Enable form filling and annotation tools.", risk: "needs-input", requiresDocument: true, panelTool: "fill-form" },
 ];
 
+const dashboardToolsNotPreviouslyExposed: AgentToolDefinition[] = [
+  { id: "rotate-pdf", title: "Rotate PDF Pages", description: "Open the page rotation controls for choosing pages and direction.", risk: "needs-input", requiresDocument: true, panelTool: "rotate-pdf" },
+  { id: "extract-pages", title: "Extract Pages", description: "Open page extraction controls for selecting pages to export.", risk: "needs-input", requiresDocument: true, panelTool: "extract-pages" },
+  { id: "crop-pdf", title: "Crop PDF", description: "Crop the current page using the requested margin percentage.", risk: "destructive", requiresDocument: true, requiredArgs: ["marginPercent"], documentTool: "crop-current" },
+  { id: "ocr-pdf", title: "OCR PDF", description: "Run OCR on the current PDF.", risk: "safe", requiresDocument: true },
+  { id: "protect-pdf", title: "Protect PDF", description: "Encrypt the current PDF with a password.", risk: "destructive", requiresDocument: true, requiredArgs: ["password"], documentTool: "encrypt" },
+  { id: "unlock-pdf", title: "Unlock PDF", description: "Decrypt the current PDF with a password.", risk: "destructive", requiresDocument: true, requiredArgs: ["password"], documentTool: "decrypt" },
+  { id: "redact-pdf", title: "Redact PDF", description: "Open the text search and redaction workflow.", risk: "needs-input", requiresDocument: true },
+  { id: "compare-pdf", title: "Compare PDFs", description: "Open revision comparison for the current PDF.", risk: "needs-input", requiresDocument: true },
+  { id: "sign-pdf", title: "Sign PDF", description: "Open the digital signature workflow.", risk: "needs-input", requiresDocument: true },
+  { id: "measure-drawing", title: "Measure Drawing", description: "Activate the drawing measurement tool.", risk: "safe", requiresDocument: true },
+  { id: "edit-content", title: "Edit PDF Content", description: "Open native PDF content editing.", risk: "needs-input", requiresDocument: true },
+  { id: "advanced-pdf", title: "Advanced PDF Tools", description: "Open advanced PDF forms and document tools.", risk: "needs-input", requiresDocument: true },
+  { id: "print-pdf", title: "Print PDF", description: "Print the current PDF.", risk: "safe", requiresDocument: true },
+  { id: "drawing-workspace", title: "Drawing Layers and CAD Snap", description: "Open the drawing workspace for PDF layers and CAD snapping.", risk: "needs-input", requiresDocument: true, panelTool: "drawing-workspace" },
+  { id: "organize-pages", title: "Organize Pages", description: "Open the page organizer for reordering pages.", risk: "needs-input", requiresDocument: true, panelTool: "organize-pages" },
+  { id: "document-health", title: "Document Health", description: "Open saved-document health diagnostics.", risk: "needs-input", requiresDocument: true, panelTool: "document-health" },
+];
+
 export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
   { id: "open-file", title: "Open File", description: "Open a document from a path, URL, base64 payload, or local file picker.", risk: "needs-input", optionalArgs: ["filePath", "fileUrl", "base64", "fileName"] },
   { id: "close-document", title: "Close Document", description: "Close the current document.", risk: "destructive", requiresDocument: true },
@@ -65,6 +84,7 @@ export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
   { id: "open-tools-dashboard", title: "Open Tools Dashboard", description: "Open the all-tools dashboard.", risk: "safe" },
   { id: "open-tool-panel", title: "Open Tool Panel", description: "Open a specific tool panel by id.", risk: "safe", requiredArgs: ["toolId"] },
   ...conversionPanelTools,
+  ...dashboardToolsNotPreviouslyExposed,
 ];
 
 const definitionById = new Map(AGENT_TOOL_DEFINITIONS.map((definition) => [definition.id, definition]));

@@ -57,6 +57,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   const failures: string[] = [];
   const editTimings: Array<{ stage: string; elapsedMs: number; sizeMiB?: number }> = [];
   let documentGets = 0;
+  let previewUploads = 0;
   page.on("pageerror", (error) => failures.push(error.message));
   page.on("console", (message) => {
     if (message.text().startsWith("TPDF_NATIVE_EDIT_TIMING=")) {
@@ -69,6 +70,9 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   page.on("request", (requestEvent) => {
     if (requestEvent.method() === "GET" && /^\/api\/tpdf\/documents\/[0-9a-f-]{36}$/i.test(new URL(requestEvent.url()).pathname)) {
       documentGets += 1;
+    }
+    if (requestEvent.method() === "POST" && new URL(requestEvent.url()).pathname === "/api/tpdf/native-edit-previews") {
+      previewUploads += 1;
     }
   });
 
@@ -121,6 +125,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
       .evaluateAll((images) => images.length > 0 && images.every((image) =>
         (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)),
     { timeout: 60_000 }).toBe(true);
+    expect(previewUploads).toBe(1);
   }
   const inspectReadyMs = Date.now() - editStartedAt;
   const objectId = await original.getAttribute("data-tpdf-object-id");
@@ -170,6 +175,11 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
   } else {
     await expect(targetObject).toHaveAttribute("data-tpdf-bounds", changedBounds || "");
   }
+  if (fileInfo.size >= 100 * MiB) {
+    await expect.poll(() => previewUploads, { timeout: 20_000 }).toBe(2);
+    await page.waitForTimeout(1_000);
+    expect(previewUploads).toBe(2);
+  }
   const memoryAfterUndoRedo = await browserMemory(page);
 
   const saveStartedAt = Date.now();
@@ -202,7 +212,7 @@ test("large CAD PDF opens, navigates, edits text, saves, and reloads", async ({ 
 
   console.log("LARGE_PDF_PERF_RESULT=" + JSON.stringify({
     sizeMiB: Math.round(fileInfo.size / MiB), editPage, uploadMs, firstPageMs, navigationMs, zoomMs, editReadyMs,
-    inspectReadyMs, directEditMs, applyMs, saveMs, reloadMs, editTimings, documentGets,
+    inspectReadyMs, directEditMs, applyMs, saveMs, reloadMs, editTimings, documentGets, previewUploads,
     heapBeforeMiB: heapBefore == null ? null : Math.round(heapBefore / MiB),
     heapAfterSaveMiB: heapAfter == null ? null : Math.round(heapAfter / MiB),
     memoryBefore, memoryWithEditor, memoryAfterUndoRedo, memoryAfterSave,

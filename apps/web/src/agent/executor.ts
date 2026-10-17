@@ -102,7 +102,11 @@ async function runAgentAction(
         missingArgs: ["filePath|fileUrl|base64"],
       };
     }
-    case "close-document": return actions.closeDocument?.();
+    case "close-document": {
+      const closed = await actions.closeDocument?.({ approvedByAgent: command.confirmed === true });
+      if (closed !== true) throw new Error("Document close was not completed.");
+      return;
+    }
     case "export-pdf": return actions.exportPdf?.();
     case "save-pdf": {
       await actions.savePdf?.();

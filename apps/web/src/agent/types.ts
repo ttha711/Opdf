@@ -101,6 +101,7 @@ export interface AgentCommand {
   tool: AgentToolId;
   args?: Record<string, unknown>;
   confirmed?: boolean;
+  expectedRevision?: string;
 }
 
 export interface AgentCommandResult {
@@ -114,6 +115,7 @@ export interface AgentCommandResult {
 export interface AgentStateSnapshot {
   hasDocument: boolean;
   fileName: string;
+  documentRevision?: string;
   currentPage: number;
   totalPages: number;
   activeTool: string;

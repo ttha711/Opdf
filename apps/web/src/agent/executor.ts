@@ -10,6 +10,12 @@ export async function executeAgentCommand(command: AgentCommand, context: AgentA
     return { status: "unavailable", tool: command.tool, message: `Unknown tool: ${command.tool}` };
   }
 
+  if (definition.requiresDocument && command.expectedRevision !== undefined &&
+      command.expectedRevision !== context.state.documentRevision) {
+    return { status: "failed", tool: command.tool,
+      message: "Document changed since this command was planned or approved. Please request the action again." };
+  }
+
   if (definition.requiresDocument && !context.state.hasDocument) {
     return { status: "input_required", tool: command.tool, message: "A document must be opened first.", missingArgs: ["file"] };
   }

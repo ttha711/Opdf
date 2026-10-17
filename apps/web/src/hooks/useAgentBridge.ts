@@ -81,6 +81,7 @@ export function createAgentStateSnapshot(input: AgentStateSnapshot): AgentStateS
   return {
     hasDocument: input.hasDocument,
     fileName: input.fileName,
+    documentRevision: input.documentRevision,
     currentPage: input.currentPage,
     totalPages: input.totalPages,
     activeTool: input.activeTool,

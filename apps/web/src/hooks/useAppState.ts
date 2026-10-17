@@ -481,7 +481,7 @@ export function useAppState() {
     fileName, setFileName, docBytes, setDocBytes, sourceBlob, setSourceBlob, sourceIdentity, setSourceIdentity, materializeDocumentBytes, page, setPage, totalPages, setTotalPages, scale, setScale,
     annotations, setAnnotations, ocrJobs, setOcrJobs, activeTool, setActiveTool, annotationToolDefaults, setAnnotationToolDefaults,
     zoomPreset, setZoomPreset, showSplitModal, setShowSplitModal, showMergeModal, setShowMergeModal, showInsertModal, setShowInsertModal, viewerError, setViewerError, viewMode, setViewMode, documentTool, setDocumentTool,
-    saveState, setSaveState, markViewerDirty,
+    saveState, setSaveState, markViewerDirty, viewerEditRevision,
     openMenu, setOpenMenu,
     theme, setTheme, fileInputRef, lastWheelFlipAtRef, hasDocument, hasDesktopBridge,
     showDashboard, setShowDashboard, activeDashboardTool, setActiveDashboardTool,

@@ -25,6 +25,7 @@ export type HarnessAdapter = {
   listTools: () => AgentToolDefinition[];
   getState: () => unknown;
   onEvent?: (event: HarnessEvent) => void;
+  isCancelled?: () => boolean;
 };
 
 const COMMON = new Set([
@@ -141,6 +142,7 @@ export async function runAgentHarness(
     adapter.onEvent?.({ action, message: detail });
   };
 
+  if (adapter.isCancelled?.()) return { status: "failed", message: "Stopped before the next action.", checkpoint };
   if (checkpoint.pending) {
     const pending = checkpoint.pending;
     checkpoint.pending = undefined;
@@ -149,6 +151,7 @@ export async function runAgentHarness(
       return { status: "failed", message: "Action cancelled by user.", checkpoint };
     }
     // Only this user-confirmation pathway may mark a command confirmed.
+    if (adapter.isCancelled?.()) return { status: "failed", message: "Stopped before approval execution.", checkpoint };
     const approved = await adapter.execute({ ...pending, confirmed: true });
     observe("execute", pending.tool, approved);
     if (approved.status !== "completed") {
@@ -158,6 +161,7 @@ export async function runAgentHarness(
   let invalid = 0;
   let failed = 0;
   for (let index = 0; index < MAX_STEPS; index++) {
+    if (adapter.isCancelled?.()) return { status: "failed", message: "Stopped before the next step. Completed edits are not automatically undone.", checkpoint };
     let decision: Decision;
     try {
       const response = await adapter.model(prompt(checkpoint, tools, adapter.getState()));
@@ -182,6 +186,7 @@ export async function runAgentHarness(
       continue;
     }
 
+    if (adapter.isCancelled?.()) return { status: "failed", message: "Stopped before executing next tool.", checkpoint };
     const tool = byId.get(decision.tool as AgentToolDefinition["id"]);
     if (!tool) {
       observe("tool_unavailable", decision.tool, { available: false });

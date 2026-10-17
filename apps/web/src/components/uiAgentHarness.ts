@@ -6,6 +6,7 @@ type AdapterArgs = {
   machineBridge: MachineBridge;
   execute: (command: AgentCommand) => Promise<AgentCommandResult | null>;
   onProgress: (message: string) => void;
+  isCancelled?: () => boolean;
 };
 
 function bridge() {
@@ -14,7 +15,7 @@ function bridge() {
   return value;
 }
 
-export function createUiAgentHarness({ machineBridge, execute, onProgress }: AdapterArgs) {
+export function createUiAgentHarness({ machineBridge, execute, onProgress, isCancelled }: AdapterArgs) {
   return {
     async run(goal: string, previous?: HarnessCheckpoint, approval?: "approve" | "reject") {
       const agent = bridge();
@@ -26,6 +27,7 @@ export function createUiAgentHarness({ machineBridge, execute, onProgress }: Ada
         listTools: () => agent.listTools(),
         getState: () => agent.getState(),
         onEvent: ({ action, message }) => onProgress(action + ": " + message),
+        isCancelled,
       }, approval);
     },
   };

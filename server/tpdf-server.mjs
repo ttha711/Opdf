@@ -774,6 +774,18 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { task });
   }
 
+  const agentRenewMatch = url.pathname.match(/^\/api\/tpdf\/agent\/tasks\/([0-9a-f-]{36})\/renew$/i);
+  if (agentRenewMatch && req.method === "POST") {
+    const bearer = typeof req.headers.authorization === "string" &&
+      req.headers.authorization.startsWith("Bearer ")
+      ? req.headers.authorization.slice(7).trim() : "";
+    const agent = agentPairing.verifyAgentToken(bearer);
+    if (!agent) return sendError(res, 401, "Machine agent token is invalid or expired.");
+    const body = await readJsonBody(req, 16 * 1024);
+    const renewed = agentPairing.renewTask(agent, agentRenewMatch[1], body.leaseToken);
+    return renewed ? sendJson(res, 200, renewed) : sendError(res, 409, "Task lease is no longer owned by this worker.");
+  }
+
   const agentResultMatch = url.pathname.match(/^\/api\/tpdf\/agent\/tasks\/([0-9a-f-]{36})\/result$/i);
   if (agentResultMatch && req.method === "POST") {
     const bearer = typeof req.headers.authorization === "string" &&

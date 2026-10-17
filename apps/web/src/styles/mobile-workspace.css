@@ -41,8 +41,16 @@
     grid-template-rows: auto minmax(0, 1fr) 44px;
   }
 
+  .app.is-home {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
   .app.has-update-banner {
     grid-template-rows: auto auto minmax(0, 1fr) 44px;
+  }
+
+  .app.is-home.has-update-banner {
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
 
   .tpdf-mobile-pages-button {

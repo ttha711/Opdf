@@ -107,7 +107,7 @@ export function IntegratedUploadWorkspace({
   };
 
   return (
-    <div className="upload-workspace flex-1 flex flex-col justify-center items-center p-8 bg-[var(--bg-app)] select-none">
+    <div className="upload-workspace min-h-full flex flex-col justify-center items-center p-4 sm:p-8 bg-[var(--bg-app)] select-none">
       <input
         id={`tpdf-tool-upload-${activeToolId}`}
         type="file"

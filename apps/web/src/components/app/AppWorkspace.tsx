@@ -112,7 +112,7 @@ export function AppWorkspace({
   return (
     <main className="workspace acrobat-body" style={{ gridTemplateColumns: columns }}>
       {!state.hasDocument && state.activeDashboardTool ? (
-        <div style={{ gridColumn: 1 }} className="w-full h-full min-h-0 overflow-hidden">
+        <div style={{ gridColumn: 1 }} className="w-full h-full min-h-0 overflow-y-auto">
           <IntegratedUploadWorkspace
             activeToolId={state.activeDashboardTool}
             onFileSelected={handleIntegratedFileSelected}

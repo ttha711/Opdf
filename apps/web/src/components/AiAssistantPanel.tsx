@@ -6,7 +6,7 @@ import { AiSparkIcon } from "./AiSparkIcon";
 export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = false }: AiAssistantPanelProps) {
   const {
     messages, inputValue, setInputValue, chatEndRef, jobs,
-    handleConfirmInline, handleSubmit,
+    handleConfirmInline, handleSubmit, stopJob, undoLast,
     machineAgentConnected, machineAgentCount,
     pairingCode, pairingExpiresAt, pairingLoading, pairingError, startMachineAgentPairing,
     showSettings, setShowSettings,
@@ -49,7 +49,16 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = fa
         ))}
         <div ref={chatEndRef} />
       </div>
-      <div aria-live="polite" style={{ padding: "4px 12px", fontSize: 12 }}>{jobs.filter((job) => job.status === "running").length} running · {jobs.filter((job) => job.status === "queued").length} queued · {jobs.filter((job) => job.status === "approval").length} awaiting approval</div>
+      <div aria-live="polite" style={{ padding: "4px 12px", fontSize: 12 }}>
+        {jobs.filter((job) => job.status === "running").length} running · {jobs.filter((job) => job.status === "queued").length} queued · {jobs.filter((job) => job.status === "approval").length} awaiting approval
+        <button type="button" onClick={() => { void undoLast(); }} title="Undo last annotation change">Undo annotation</button>
+        {jobs.filter((job) => job.status === "running" || job.status === "queued" || job.status === "approval").map((job) => (
+          <div key={job.id} data-tpdf-job={job.id}>
+            <span>{job.status}: {job.goal.slice(0, 80)} </span>
+            <button type="button" onClick={() => stopJob(job.id)}>{job.status === "running" ? "Stop" : "Cancel"}</button>
+          </div>
+        ))}
+      </div>
       <ChatInputForm inputValue={inputValue} setInputValue={setInputValue} onSubmit={handleSubmit} engineMode="agent" />
     </div>
   );

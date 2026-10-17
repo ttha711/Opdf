@@ -1,6 +1,8 @@
 @layer components {
   .app { @apply h-screen overflow-hidden grid; grid-template-rows: auto minmax(0, 1fr) 26px; background: var(--bg-app); }
+  .app.is-home { grid-template-rows: auto minmax(0, 1fr); }
   .app.has-update-banner { grid-template-rows: auto auto minmax(0, 1fr) 26px; }
+  .app.is-home.has-update-banner { grid-template-rows: auto auto minmax(0, 1fr); }
   .top-menu-btn { @apply inline-flex cursor-pointer items-center gap-1.5 rounded px-2.5 py-1.5 text-[13px] font-medium transition-colors; color: var(--text-primary); }
   .top-menu-btn:hover { background: var(--ui-hover-bg); }
   .top-menu-btn.menu-open { background: var(--ui-hover-bg); color: var(--acrobat-blue); }
@@ -395,12 +397,24 @@
 
 /* Home and responsive application shell (2026 Modern Bento Edition) */
 .tpdf-home {
+  flex: 1 1 0%;
   min-height: 0;
+  height: 100%;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior-y: contain;
   position: relative;
   padding: clamp(24px, 4vw, 56px) clamp(16px, 3.5vw, 40px);
   background: var(--bg-app);
   color: var(--text-primary);
+}
+
+.tpdf-home__container,
+.tpdf-home__dropzone,
+.tpdf-home__quick-tools,
+.tpdf-home__recent-grid {
+  touch-action: pan-y;
 }
 
 .tpdf-home__ambient-glow {

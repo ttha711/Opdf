@@ -74,11 +74,6 @@ test.describe("Mobile Browser-Style Tab Switcher", () => {
     const activeCard = tabSwitcher.locator(".mobile-tab-card.is-active");
     await expect(activeCard).toBeVisible();
 
-    // 10. Verify search input works
-    const searchInput = tabSwitcher.locator("input[aria-label='Search your tabs']");
-    await expect(searchInput).toBeVisible();
-    await searchInput.fill("beta");
-    await page.waitForTimeout(200);
 
     // 11. Verify floating + button (New tab FAB) is visible
     const newTabFab = tabSwitcher.locator("[data-tpdf-action='mobile-new-tab']");

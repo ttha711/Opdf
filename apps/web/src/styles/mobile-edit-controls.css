@@ -60,6 +60,22 @@
     right: 12px;
     bottom: max(166px, calc(env(safe-area-inset-bottom) + 154px));
   }
+  .app.is-home .ai-float-toggle-btn,
+  .all-tools-dashboard ~ .ai-float-toggle-btn,
+  :is(body, .app):has([data-tpdf-right-sidebar="open"]) .tpdf-mobile-edit-toolbar,
+  :is(body, .app):has([data-tpdf-right-sidebar="open"]) .ai-float-toggle-btn,
+  :is(body, .app):has(.tpdf-menu-surface--mobile) .tpdf-mobile-edit-toolbar,
+  :is(body, .app):has(.tpdf-menu-surface--mobile) .ai-float-toggle-btn,
+  :is(body, .app):has([data-tpdf-menu-surface]) .tpdf-mobile-edit-toolbar,
+  :is(body, .app):has([data-tpdf-menu-surface]) .ai-float-toggle-btn,
+  :is(body, .app):has([data-tpdf-tab-switcher="open"]) .tpdf-mobile-edit-toolbar,
+  :is(body, .app):has([data-tpdf-tab-switcher="open"]) .ai-float-toggle-btn,
+  :is(body, .app):has(.tpdf-mobile-filmstrip) .tpdf-mobile-edit-toolbar,
+  :is(body, .app):has(.tpdf-mobile-filmstrip) .ai-float-toggle-btn,
+  :is(body, .app):has([data-tpdf-dialog]) .tpdf-mobile-edit-toolbar,
+  :is(body, .app):has([data-tpdf-dialog]) .ai-float-toggle-btn {
+    display: none !important;
+  }
 }
 
 /* Browser chrome changes the usable viewport height on Android/iOS. */

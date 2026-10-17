@@ -80,12 +80,25 @@
     backdrop-filter: blur(1px);
   }
 
+  .tpdf-side-panel--right[data-tpdf-right-sidebar="open"] {
+    display: flex !important;
+    flex-direction: column;
+  }
+
   .tpdf-panel-collapse {
-    top: 9px;
-    right: 48px;
+    position: static;
+    margin: 8px 12px 6px auto;
+    align-self: flex-end;
     min-width: 76px;
-    min-height: 34px;
+    min-height: 36px;
     justify-content: center;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .tpdf-side-panel--right > :not(.tpdf-panel-collapse) {
+    flex: 1 1 0;
+    min-height: 0;
   }
 
   .tpdf-mobile-filmstrip {
@@ -118,14 +131,17 @@
   }
 
   .tpdf-mobile-filmstrip__header button {
-    width: 34px;
-    height: 34px;
+    min-width: 44px;
+    min-height: 44px;
     margin-left: auto;
     border: 0;
-    border-radius: 7px;
+    border-radius: 8px;
     background: var(--ui-hover-bg);
     color: var(--text-primary);
     font-size: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .tpdf-mobile-filmstrip__track {
@@ -180,5 +196,12 @@
     text-align: center;
     font-size: 10px;
     font-weight: 800;
+  }
+
+  .acrobat-tool-panel button.w-full,
+  .acrobat-tool-panel [data-tpdf-action$="-run"] {
+    min-height: 44px;
+    font-size: 13px;
+    font-weight: 700;
   }
 }

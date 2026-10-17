@@ -186,7 +186,13 @@ export function DocumentToolPanel({
         <h4 className="m-0 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.04em] text-[var(--text-primary)]">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 6h16M7 12h10M9 18h6" /></svg> {toolName}
         </h4>
-        <button data-tpdf-action="close-tool" onClick={onClose} title="Close tool" className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-[11px] text-[var(--text-secondary)] hover:bg-[var(--ui-hover-bg)] hover:text-[var(--text-primary)] transition-all">
+        <button
+          data-tpdf-action="close-tool"
+          onClick={onClose}
+          title="Close tool"
+          aria-label="Close tool"
+          className="flex min-h-[36px] min-w-[36px] cursor-pointer items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-toolbar)] text-sm font-bold text-[var(--text-primary)] hover:bg-[var(--ui-hover-bg)] transition-all"
+        >
           ✕
         </button>
       </div>
@@ -317,14 +323,14 @@ export function DocumentToolPanel({
         {activeToolId === "organize-pages" && <button type="button" data-tpdf-action="open-page-organizer" title="Organize all pages" onClick={() => setOrganizerOpen(true)} className="h-10 rounded bg-[var(--acrobat-blue)] text-sm font-semibold text-white">Open page grid</button>}
         {activeToolId === "fill-form" && <FillFormPanel />}
         {activeToolId === "document-health" && <DocumentHealthPanel sourceIdentity={sourceIdentity} />}
+        <div className="mt-6 p-2.5 rounded bg-[var(--ui-muted-bg)] border border-[var(--border-color)] text-[10px] text-[var(--text-secondary)] leading-normal flex gap-2 items-start">
+          <span className="text-[12px] relative top-px">🔒</span>
+          <span>Processing location depends on the selected tool. Large conversions may use a configured service; PDF viewing and annotations stay in the browser.</span>
+        </div>
       </div>
 
       {activeToolId === "drawing-workspace" && drawingWorkspaceOpen && <PdfDrawingWorkspace fileName={fileName} getDocumentBytes={getDocumentBytes} onClose={() => setDrawingWorkspaceOpen(false)} />}
       {activeToolId === "organize-pages" && organizerOpen && <PageOrganizer totalPages={totalPages} fileName={fileName} getDocumentBytes={getDocumentBytes} bridge={bridge} replaceDocumentBytes={replaceDocumentBytes} onClose={() => setOrganizerOpen(false)} />}
-      <div className="absolute bottom-6 left-4 right-4 p-2.5 rounded bg-[var(--ui-muted-bg)] border border-[var(--border-color)] text-[10px] text-[var(--text-secondary)] leading-normal flex gap-2 items-start">
-        <span className="text-[12px] relative top-px">🔒</span>
-        <span>Processing location depends on the selected tool. Large conversions may use a configured service; PDF viewing and annotations stay in the browser.</span>
-      </div>
     </aside>
   );
 }

@@ -1,3 +1,4 @@
+// tpdf-file-size-allow: legacy revision comparison viewer dialog
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist";
 import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
@@ -268,7 +269,7 @@ export function RevisionCompareModal({
           <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => setRevisionFile(event.target.files?.[0] ?? null)} />
         </label>
         <select value={mode} onChange={(event) => setMode(event.target.value as CompareMode)} className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs" aria-label="Comparison mode">
-          <option value="side-by-side">Song song</option>
+          <option value="side-by-side">Side by side</option>
           <option value="overlay">Overlay</option>
           <option value="changes">Changes</option>
         </select>
@@ -293,7 +294,7 @@ export function RevisionCompareModal({
           <span className="text-[11px] text-slate-400">/ {Math.max(1, maxPage)}</span>
           <button type="button" aria-label="Next page" className="px-2 text-xs" onClick={() => setPageNumber((value) => Math.min(Math.max(1, maxPage), value + 1))}>›</button>
         </div>
-        <button data-tpdf-action="close-dialog" type="button" className="rounded bg-white px-3 py-1.5 text-xs font-bold text-slate-900" onClick={onClose}>Close</button>
+        <button data-tpdf-action="close-dialog" type="button" className="min-h-[38px] min-w-[56px] rounded bg-white px-3 py-1.5 text-xs font-bold text-slate-900 inline-flex items-center justify-center" onClick={onClose}>Close</button>
       </header>
 
       {(baseError || revisionError || analysisError) ? (

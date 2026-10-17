@@ -352,7 +352,7 @@ export function AllToolsDashboard({
         </h2>
         <button
           onClick={onClose}
-          className="px-3 py-1.5 text-xs font-semibold rounded-md border border-[var(--border-color)] bg-[var(--ui-muted-bg)] hover:bg-[var(--ui-hover-bg)] transition-all cursor-pointer"
+          className="min-h-[44px] px-3 py-2 text-xs font-semibold rounded-lg border border-[var(--border-color)] bg-[var(--ui-muted-bg)] hover:bg-[var(--ui-hover-bg)] transition-all cursor-pointer inline-flex items-center"
         >
           <span className="inline-flex items-center gap-1.5"><TpdfIcon name="close" size={14} />Close Tools</span>
         </button>
@@ -431,7 +431,8 @@ export function AllToolsDashboard({
                 return;
               }
               if (!hasDocument && tool.requiresDocument) {
-                toast.info("Open a PDF first to use this tool.");
+                toast.info(`Choose a PDF to use with ${tool.name}.`);
+                onOpenPdf();
                 return;
               }
               void tool.action();

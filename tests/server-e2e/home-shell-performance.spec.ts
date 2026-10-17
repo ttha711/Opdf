@@ -26,3 +26,52 @@ test("home defers PDF and font engines until a document is opened", async ({ pag
   // The root bundle must not pull in pdf-lib again (it was ~430 KB of a ~780 KB entry).
   expect(scriptBytes).toBeLessThan(600_000);
 });
+
+
+test("authenticated home paints without waiting for the projects endpoint", async ({ page }) => {
+  let projectsRequested = false;
+  await page.route("**/api/tpdf/auth/me", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: { id: "perf-user", email: "perf@example.test", role: "user", quotaBytes: 1000000 },
+        projectId: "default",
+        quota: { usedBytes: 0, quotaBytes: 1000000, availableBytes: 1000000, percentUsed: 0 },
+      }),
+    });
+  });
+  // Keep the optional list pending: the home UI should still render.
+  await page.route("**/api/tpdf/projects", () => {
+    projectsRequested = true;
+  });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toBeVisible();
+  await expect.poll(() => projectsRequested).toBe(true);
+});
+
+test("first-paint hero is in HTML before application JS and is removed after home mounts", async ({ page }) => {
+  let resumeScripts: () => void = () => {};
+  const scriptGate = new Promise<void>((resolve) => {
+    resumeScripts = resolve;
+  });
+  await page.route("**/assets/*.js", async (route) => {
+    await scriptGate;
+    await route.continue();
+  });
+  await page.goto("/", { waitUntil: "commit" });
+  await expect(page.locator("#tpdf-first-paint h1")).toHaveText("Your documents, ready when you are.");
+  resumeScripts();
+  await expect(page.locator("#tpdf-first-paint")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toHaveCount(1);
+});
+
+test("unauthenticated sign-in clears the first-paint placeholder", async ({ page }) => {
+  await page.route("**/api/tpdf/auth/me", async (route) => {
+    await route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
+  });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Sign in to TPDF" })).toBeVisible();
+  await expect(page.locator("#tpdf-first-paint")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toHaveCount(0);
+});

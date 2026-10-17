@@ -753,6 +753,16 @@ async function handleApi(req, res, url) {
       : sendError(res, 400, "Pairing code is invalid or expired.");
   }
 
+  if (url.pathname === "/api/tpdf/agent/heartbeat" && req.method === "POST") {
+    const bearer = typeof req.headers.authorization === "string" &&
+      req.headers.authorization.startsWith("Bearer ")
+      ? req.headers.authorization.slice(7).trim() : "";
+    const agent = agentPairing.verifyAgentToken(bearer);
+    if (!agent) return sendError(res, 401, "Machine agent token is invalid or expired.");
+    agentPairing.heartbeatAgent(agent);
+    return sendJson(res, 200, { ok: true });
+  }
+
   if (url.pathname === "/api/tpdf/agent/tasks/next" && req.method === "GET") {
     const bearer = typeof req.headers.authorization === "string" &&
       req.headers.authorization.startsWith("Bearer ")

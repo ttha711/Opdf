@@ -19,6 +19,8 @@ export function createAgentPairingBroker(secret, options = {}) {
   const tokenTtlMs = Number(options.tokenTtlMs || 30 * 24 * 60 * 60 * 1000);
   const taskTtlMs = Number(options.taskTtlMs || 5 * 60 * 1000);
   const presenceTtlMs = Number(options.presenceTtlMs || 20 * 1000);
+  const leaseTtlMs = Number(options.leaseTtlMs || 30 * 1000);
+  const maxAttempts = Number(options.maxAttempts || 2);
   const now = typeof options.now === "function" ? options.now : Date.now;
   const pairings = new Map();
   const agents = new Map();
@@ -54,7 +56,20 @@ export function createAgentPairingBroker(secret, options = {}) {
   function cleanup() {
     const timestamp = now();
     for (const [id, row] of pairings) if (row.expiresAt <= timestamp || row.claimedAt) pairings.delete(id);
-    for (const [id, row] of tasks) if (row.expiresAt <= timestamp) tasks.delete(id);
+    for (const [id, row] of tasks) {
+      if (row.expiresAt <= timestamp) { tasks.delete(id); continue; }
+      if (row.status !== "running" || row.leaseUntil > timestamp) continue;
+      row.claimedBy = null;
+      row.leaseToken = null;
+      row.leaseUntil = null;
+      if (row.attempts >= maxAttempts) {
+        row.status = "failed";
+        row.error = "Worker lost its task lease; automatic retry limit reached.";
+        row.completedAt = timestamp;
+      } else {
+        row.status = "queued";
+      }
+    }
   }
 
   function startPairing(user, projectId) {
@@ -138,6 +153,9 @@ export function createAgentPairingBroker(secret, options = {}) {
       createdAt: now(),
       expiresAt: now() + taskTtlMs,
       claimedBy: null,
+      attempts: 0,
+      leaseToken: null,
+      leaseUntil: null,
       result: null,
       error: null,
     };
@@ -156,14 +174,34 @@ export function createAgentPairingBroker(secret, options = {}) {
     if (!task) return null;
     task.status = "running";
     task.claimedBy = agent.id;
-    return { id: task.id, query: task.query, context: task.context, createdAt: task.createdAt };
+    task.attempts += 1;
+    task.leaseToken = randomBytes(16).toString("base64url");
+    task.leaseUntil = now() + leaseTtlMs;
+    return {
+      id: task.id, query: task.query, context: task.context,
+      createdAt: task.createdAt, attempt: task.attempts, leaseToken: task.leaseToken,
+    };
+  }
+
+  function renewTask(agent, taskId, leaseToken) {
+    cleanup();
+    const task = tasks.get(taskId);
+    if (!task || task.userId !== agent.userId || task.projectId !== agent.projectId) return null;
+    if (task.status !== "running" || task.claimedBy !== agent.id ||
+        !leaseToken || task.leaseToken !== leaseToken) return null;
+    task.leaseUntil = now() + leaseTtlMs;
+    heartbeatAgent(agent);
+    return { id: task.id, leaseUntil: task.leaseUntil };
   }
 
   function completeTask(agent, taskId, payload) {
     cleanup();
     const task = tasks.get(taskId);
     if (!task || task.userId !== agent.userId || task.projectId !== agent.projectId) return null;
-    if (task.status !== "running" || task.claimedBy !== agent.id) return null;
+    if (task.status !== "running" || task.claimedBy !== agent.id ||
+        !payload?.leaseToken || task.leaseToken !== payload.leaseToken) return null;
+    task.leaseUntil = null;
+    task.leaseToken = null;
     task.status = payload?.error ? "failed" : "completed";
     task.result = payload?.result ?? payload?.answer ?? null;
     task.error = payload?.error ? String(payload.error).slice(0, 4000) : null;
@@ -210,6 +248,7 @@ export function createAgentPairingBroker(secret, options = {}) {
     createTask,
     nextTask,
     completeTask,
+    renewTask,
     getTask,
     cancelTask,
   };

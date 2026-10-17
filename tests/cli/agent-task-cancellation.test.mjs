@@ -25,11 +25,12 @@ test("cancel queued task prevents machine pickup and does not impact another tas
 test("cancel running task rejects late result and other tenant cannot cancel", () => {
   const { broker, user, project, agent } = fixture();
   const job = broker.createTask(user, project, { query: "run" });
-  assert.equal(broker.nextTask(agent).id, job.id);
+  const claimed = broker.nextTask(agent);
+  assert.equal(claimed.id, job.id);
   assert.equal(broker.cancelTask({ id: "outsider" }, project, job.id), null);
   assert.equal(broker.cancelTask(user, "other-project", job.id), null);
   assert.equal(broker.cancelTask(user, project, job.id).status, "cancelled");
-  assert.equal(broker.completeTask(agent, job.id, { answer: "late success" }), null);
+  assert.equal(broker.completeTask(agent, job.id, { leaseToken: claimed.leaseToken, answer: "late success" }), null);
   assert.equal(broker.getTask(user, project, job.id).result, null);
 });
 
@@ -39,7 +40,8 @@ test("only claiming worker can complete running task", () => {
   const another = broker.claimPairing(pairing2.code, { name: "Other Worker" }).agent;
   const job = broker.createTask(user, project, { query: "work" });
   assert.equal(broker.completeTask(agent, job.id, { answer: "not claimed" }), null);
-  assert.equal(broker.nextTask(agent).id, job.id);
-  assert.equal(broker.completeTask(another, job.id, { answer: "wrong worker" }), null);
-  assert.equal(broker.completeTask(agent, job.id, { answer: "correct" }).status, "completed");
+  const claimed = broker.nextTask(agent);
+  assert.equal(claimed.id, job.id);
+  assert.equal(broker.completeTask(another, job.id, { leaseToken: claimed.leaseToken, answer: "wrong worker" }), null);
+  assert.equal(broker.completeTask(agent, job.id, { leaseToken: claimed.leaseToken, answer: "correct" }).status, "completed");
 });

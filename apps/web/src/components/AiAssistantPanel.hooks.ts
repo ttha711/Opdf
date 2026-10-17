@@ -17,6 +17,7 @@ export function useAiAssistant() {
   const active = useRef(new Set<string>());
   const serial = useRef(Promise.resolve());
   const stopped = useRef(new Set<string>());
+  const jobControllers = useRef(new Map<string, AbortController>());
   const machineBridge = useMachineAgentBridge();
   const { messages, chatEndRef, addMessage, setMessages } = useAiAssistantMessages();
   const commandRuntime = useAiCommandRuntime({ addMessage, setMessages });
@@ -45,10 +46,12 @@ export function useAiAssistant() {
   async function run(job: Job, approval?: "approve" | "reject") {
     if (active.current.has(job.id)) return;
     active.current.add(job.id);
+    const controller = new AbortController();
+    jobControllers.current.set(job.id, controller);
     update({ ...job, status: "running" });
     const pendingId = addMessage("assistant", "Processing: " + job.goal, { isPending: true });
     try {
-      const result = await harness.run(job.goal, job.checkpoint, approval, () => stopped.current.has(job.id));
+      const result = await harness.run(job.goal, job.checkpoint, approval, () => stopped.current.has(job.id), controller.signal);
       setMessages((items) => items.filter((item) => item.id !== pendingId));
       if (stopped.current.has(job.id)) {
         update({ ...job, status: "failed" });
@@ -74,6 +77,7 @@ export function useAiAssistant() {
       addMessage("assistant", "Agent error: " + String(error), { jobId: job.id });
     } finally {
       active.current.delete(job.id);
+      jobControllers.current.delete(job.id);
       queueMicrotask(drainQueued);
     }
   }
@@ -116,6 +120,7 @@ export function useAiAssistant() {
     const job = jobsRef.current.find((item) => item.id === jobId);
     if (!job || job.status === "completed" || job.status === "failed") return;
     stopped.current.add(jobId);
+    jobControllers.current.get(jobId)?.abort();
     if (job.status === "queued" || job.status === "approval") {
       update({ ...job, status: "failed", checkpoint: undefined });
       setMessages((items) => items.map((item) =>

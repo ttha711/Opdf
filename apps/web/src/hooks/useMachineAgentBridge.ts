@@ -17,7 +17,7 @@ type Pairing = {
 
 type TaskState = {
   id: string;
-  status: "queued" | "running" | "completed" | "failed";
+  status: "queued" | "running" | "completed" | "failed" | "cancelled";
   result?: unknown;
   error?: string | null;
 };
@@ -77,7 +77,7 @@ export function useMachineAgentBridge() {
     }
   }, []);
 
-  const sendQuery = useCallback(async (query: string, context: Record<string, unknown>) => {
+  const sendQuery = useCallback(async (query: string, context: Record<string, unknown>, signal?: AbortSignal) => {
     if (!isServerRuntime()) throw new Error("Machine Agent Bridge is available on TPDF Server.");
     const response = await fetch("/api/tpdf/agent/chat", {
       method: "POST",
@@ -91,8 +91,16 @@ export function useMachineAgentBridge() {
     if (!response.ok) throw new Error(`Machine Agent request failed: HTTP ${response.status}`);
     const task = await response.json() as { id: string };
 
+    const cancelRemote = () => fetch(`/api/tpdf/agent/tasks/${task.id}/cancel`, {
+      method: "POST", credentials: "same-origin",
+    }).catch(() => undefined);
+    if (signal?.aborted) { await cancelRemote(); throw new DOMException("Cancelled", "AbortError"); }
+    const onAbort = () => { void cancelRemote(); };
+    signal?.addEventListener("abort", onAbort, { once: true });
     const deadline = Date.now() + 90_000;
+    try {
     while (Date.now() < deadline) {
+      if (signal?.aborted) throw new DOMException("Cancelled", "AbortError");
       await new Promise((resolve) => window.setTimeout(resolve, 600));
       const poll = await fetch(`/api/tpdf/agent/tasks/${task.id}`, {
         credentials: "same-origin",
@@ -104,11 +112,14 @@ export function useMachineAgentBridge() {
         void refresh();
         return state.result;
       }
+      if (state.status === "cancelled") throw new DOMException("Cancelled", "AbortError");
       if (state.status === "failed") {
         throw new Error(state.error || "Machine Agent task failed.");
       }
     }
+    void cancelRemote();
     throw new Error("Machine Agent did not respond within 90 seconds.");
+    } finally { signal?.removeEventListener("abort", onAbort); }
   }, [refresh]);
 
   return {

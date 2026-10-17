@@ -5,6 +5,7 @@ export type HarnessCheckpoint = {
   goal: string;
   observations: HarnessObservation[];
   pending?: AgentCommand;
+  discoveredTools?: Array<{ id: string; description: string; requiredArgs: string[]; optionalArgs: string[]; risk: string }>;
 };
 export type HarnessOutcome = {
   status: "completed" | "confirmation_required" | "input_required" | "failed";
@@ -125,6 +126,7 @@ function prompt(checkpoint: HarnessCheckpoint, tools: AgentToolDefinition[], sta
     goal: checkpoint.goal,
     documentState: state,
     commonTools: compactTools,
+    discoveredTools: checkpoint.discoveredTools ?? [],
     observations: checkpoint.observations.slice(-MAX_OBSERVATIONS),
   });
 }
@@ -175,6 +177,12 @@ export async function runAgentHarness(
     }
 
     if (decision.action === "finish") {
+      const hasToolResult = checkpoint.observations.some((item) => item.action === "execute" &&
+        (item.result as { status?: string } | null)?.status === "completed");
+      if (!hasToolResult && /(?:completed|done|saved|deleted|processed|finished)/i.test(decision.message)) {
+        observe("unverified_finish", "Model claimed a result without a completed tool", decision.message);
+        return { status: "failed", message: "Agent reported completion without a verified tool result.", checkpoint };
+      }
       return { status: "completed", message: decision.message, checkpoint };
     }
     if (decision.action === "ask") {
@@ -182,6 +190,7 @@ export async function runAgentHarness(
     }
     if (decision.action === "discover") {
       const found = discoverTools(tools, decision.query);
+      checkpoint.discoveredTools = found;
       observe("discover", decision.query, found.length ? found : { note: "No matching native tool available." });
       continue;
     }

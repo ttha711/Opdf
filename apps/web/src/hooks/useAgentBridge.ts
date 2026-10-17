@@ -41,8 +41,8 @@ export function useAgentBridge(context: AgentActionContext) {
       return undo.execute(
         command,
         (item) => executeAgentCommand(item, latestContextRef.current),
-        actions.captureAgentUndo,
-        actions.restoreAgentUndo,
+        () => latestContextRef.current.actions.captureAgentUndo?.() ?? Promise.resolve(null),
+        (snapshot) => latestContextRef.current.actions.restoreAgentUndo!(snapshot),
       );
     }),
     [undo]

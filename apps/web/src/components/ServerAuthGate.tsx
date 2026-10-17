@@ -75,6 +75,13 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
     });
   }, [isServerRuntime]);
 
+  useEffect(() => {
+    if (ready && isServerRuntime && requiresLogin) {
+      // Never cover the login form with an anonymous landing placeholder.
+      document.getElementById("tpdf-first-paint")?.remove();
+    }
+  }, [ready, isServerRuntime, requiresLogin]);
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     setWorking(true);

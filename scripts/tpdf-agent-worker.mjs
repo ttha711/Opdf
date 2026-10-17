@@ -57,17 +57,34 @@ async function work() {
         headers: { Authorization: "Bearer " + token },
       });
       if (!next.task) { await sleep(1250); continue; }
-      const { id, query } = next.task;
+      const { id, query, leaseToken } = next.task;
+      let leaseLost = false;
+      const renew = async () => {
+        try {
+          await request(base + "/api/tpdf/agent/tasks/" + id + "/renew", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+            body: JSON.stringify({ leaseToken }),
+          });
+        } catch (error) {
+          leaseLost = true;
+          console.error("Task lease lost:", String(error));
+        }
+      };
+      const renewTimer = setInterval(() => { void renew(); }, 10_000);
+      renewTimer.unref?.();
       let result;
       try {
         result = await askModel(String(query || ""));
       } catch (error) {
         result = { error: String(error) };
       }
+      clearInterval(renewTimer);
+      if (leaseLost) continue;
       await request(base + "/api/tpdf/agent/tasks/" + id + "/result", {
         method: "POST",
         headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-        body: JSON.stringify(result.error ? { error: result.error } : { result }),
+        body: JSON.stringify(result.error ? { error: result.error, leaseToken } : { result, leaseToken }),
       });
     } catch (error) {
       console.error("Worker retry:", String(error));

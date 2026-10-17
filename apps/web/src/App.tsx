@@ -23,6 +23,11 @@ import type { AgentToolId } from "./agent/types";
 import { dispatchAgentAppTool } from "./agent/appToolDispatcher";
 
 export function App() {
+  useEffect(() => {
+    // The HTML first-paint shell is a non-interactive placeholder only.
+    // Remove it after the real application has committed its first render.
+    document.getElementById("tpdf-first-paint")?.remove();
+  }, []);
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.tpdf);
   const isServerRuntime = typeof window !== "undefined" && window.__TPDF_RUNTIME__ === "server";
   const isPublic = !hasFullWebAccess({

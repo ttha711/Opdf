@@ -10,7 +10,6 @@ export default tseslint.config(
       "**/build/**",
       "**/node_modules/**",
       "**/.tpdf-*/**",
-      "**/.opdf-*/**",
       "**/tpdf-cli-artifacts/**",
       "**/test-results/**",
       "**/playwright-report/**",

@@ -139,6 +139,14 @@ export function App() {
     setActiveMarkupTool(tool);
     sidebars.setIsRightCollapsed(false);
   }, [sidebars.setIsRightCollapsed, state.setActiveDashboardTool, state.setShowDashboard]);
+  const handleHomeSelectTool = useCallback((toolId: string) => {
+    setShowHome(false);
+    if (toolId === "digital-sign") {
+      setShowDigitalSignature(true);
+    } else {
+      state.setActiveDashboardTool(toolId);
+    }
+  }, [state.setActiveDashboardTool]);
   agentAppToolRef.current = (toolId) => {
     state.setShowDashboard(false);
     dispatchAgentAppTool(toolId, {
@@ -251,6 +259,12 @@ export function App() {
               if (id.startsWith("tab:")) return state.switchTab(id.slice(4));
               if (id.startsWith("path:")) void openFileWithPath(id.slice(5));
             }}
+            onSelectTool={handleHomeSelectTool}
+            onOpenAiAssistant={() => {
+              setIsAiPanelOpen(true);
+              sidebars.setIsRightCollapsed(false);
+              if (sidebars.rightWidth < 340) sidebars.setRightWidth(340);
+            }}
           />
         </div>
       ) : state.showDashboard && !isPublic ? (
@@ -315,6 +329,12 @@ export function App() {
               if (id.startsWith("tab:")) return state.switchTab(id.slice(4));
               if (id.startsWith("path:")) void openFileWithPath(id.slice(5));
             }}
+            onSelectTool={handleHomeSelectTool}
+            onOpenAiAssistant={() => {
+              setIsAiPanelOpen(true);
+              sidebars.setIsRightCollapsed(false);
+              if (sidebars.rightWidth < 340) sidebars.setRightWidth(340);
+            }}
           />
         </div>
       ) : (
@@ -333,7 +353,20 @@ export function App() {
           success={toast.success}
         /></Suspense>
       )}
-      <StatusBar onSelectPage={controllers.goToPage} hasDocument={state.hasDocument && !showHome} page={state.page} totalPages={state.totalPages} viewerError={state.viewerError} scale={state.scale} viewMode={state.viewMode} activeTool={state.activeTool} saveState={state.saveState} autosaveStatus={controllers.autosaveStatus} />
+      {!showHome && showWorkspace && !state.showDashboard && (
+        <StatusBar
+          onSelectPage={controllers.goToPage}
+          hasDocument={state.hasDocument}
+          page={state.page}
+          totalPages={state.totalPages}
+          viewerError={state.viewerError}
+          scale={state.scale}
+          viewMode={state.viewMode}
+          activeTool={state.activeTool}
+          saveState={state.saveState}
+          autosaveStatus={controllers.autosaveStatus}
+        />
+      )}
       {!isAiPanelOpen ? (
         <button
           ref={fab.buttonRef}

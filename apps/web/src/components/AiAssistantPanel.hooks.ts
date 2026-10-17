@@ -1,11 +1,10 @@
-import { useState, type FormEvent } from "react";
-import { checkAndParseCommand } from "./AiAssistantPanel.utils";
+import { useRef, useState, type FormEvent } from "react";
+import type { HarnessCheckpoint } from "../agent/harness";
+import { createUiAgentHarness } from "./uiAgentHarness";
 import { useAiAssistantSettings } from "./useAiAssistantSettings";
 import { useAiAssistantMessages } from "./useAiAssistantMessages";
-import { useAiAssistantIframeBridge } from "./useAiAssistantIframeBridge";
 import { useMachineAgentBridge } from "../hooks/useMachineAgentBridge";
 import { useAiCommandRuntime } from "./useAiCommandRuntime";
-import { useAiQueryRuntime } from "./useAiQueryRuntime";
 
 export function useAiAssistant() {
   const [inputValue, setInputValue] = useState("");
@@ -14,19 +13,12 @@ export function useAiAssistant() {
   const messageState = useAiAssistantMessages();
   const { addMessage, setMessages } = messageState;
 
-  useAiAssistantIframeBridge();
-
+  const pending = useRef<HarnessCheckpoint | null>(null);
   const commandRuntime = useAiCommandRuntime({ addMessage, setMessages });
-  const queryRuntime = useAiQueryRuntime({
-    addMessage,
-    setMessages,
-    difyUrl: settings.difyUrl,
-    difyKey: settings.difyKey,
-    conversationId: settings.conversationId,
-    setConversationId: settings.setConversationId,
+  const harness = createUiAgentHarness({
     machineBridge,
-    executeCommand: commandRuntime.executeCommand,
-    handleAgentResult: commandRuntime.handleAgentResult,
+    execute: commandRuntime.executeCommand,
+    onProgress: () => {},
   });
 
   const handleSaveSettings = () => {
@@ -67,35 +59,37 @@ export function useAiAssistant() {
     ]);
   };
 
+  const runHarness = async (goal: string, approval?: "approve" | "reject") => {
+    const tempId = addMessage("assistant", "Agent is working...", { isPending: true });
+    try {
+      const result = await harness.run(goal, pending.current ?? undefined, approval);
+      pending.current = result.status === "confirmation_required" ? result.checkpoint : null;
+      setMessages((messages) => messages.filter((message) => message.id !== tempId));
+      if (result.status === "confirmation_required" && result.checkpoint.pending) {
+        addMessage("assistant", result.message, { confirmation: result.checkpoint.pending });
+      } else {
+        addMessage("assistant", result.message, {
+          toolLogs: result.checkpoint.observations.map((entry) =>
+            entry.action + ": " + entry.detail + " " + JSON.stringify(entry.result)).join("\\n"),
+        });
+      }
+    } catch (error) {
+      pending.current = null;
+      setMessages((messages) => messages.filter((message) => message.id !== tempId));
+      addMessage("assistant", "Agent error: " + (error instanceof Error ? error.message : String(error)));
+    }
+  };
+  const handleConfirmInline = async (_command: import("../agent/agentCommands").AgentCommand, confirm: boolean) => {
+    if (!pending.current) return;
+    const checkpoint = pending.current;
+    setMessages((messages) => messages.map((message) =>
+      message.confirmation ? { ...message, confirmation: undefined } : message,
+    ));
+    await runHarness(checkpoint.goal, confirm ? "approve" : "reject");
+  };
   const handleUserQuery = async (queryText: string) => {
-    const parsed = checkAndParseCommand(queryText);
-    if (parsed && typeof parsed !== "string" && !("error" in parsed)) {
-      const tempId = addMessage(
-        "assistant",
-        `🤖 Detected PDF command: **${parsed.tool}**. Executing...`,
-        {
-          toolLogs: `Payload: ${JSON.stringify(parsed, null, 2)}`,
-          isPending: true,
-        },
-      );
-      const result = await commandRuntime.executeCommand(parsed);
-      setMessages((prev) => prev.filter((message) => message.id !== tempId));
-      if (result) commandRuntime.handleAgentResult(result, parsed);
-      return;
-    }
-
-    if (parsed === "help") {
-      await commandRuntime.processLocalQuery(queryText);
-      return;
-    }
-
-    if (settings.engineMode === "agent") {
-      await queryRuntime.processMachineAgentQuery(queryText);
-    } else if (settings.engineMode === "local") {
-      await commandRuntime.processLocalQuery(queryText);
-    } else {
-      await queryRuntime.processDifyQuery(queryText);
-    }
+    pending.current = null;
+    await runHarness(queryText);
   };
 
   const submitText = (text: string) => {
@@ -128,7 +122,7 @@ export function useAiAssistant() {
     setIframeUrl: settings.setIframeUrl,
     chatEndRef: messageState.chatEndRef,
     handleSaveSettings,
-    handleConfirmInline: commandRuntime.handleConfirmInline,
+    handleConfirmInline,
     handleSubmit,
     handleSuggestionClick: submitText,
     isProductionWeb: settings.isServerRuntime,

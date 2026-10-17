@@ -85,8 +85,10 @@ export function useAiAssistant() {
     jobsRef.current.push(job);
     setJobs([...jobsRef.current]);
     addMessage("user", goal + (mode === "queue" ? " (queued)" : ""), { jobId: job.id });
-    if (mode === "now") void run(job);
-    else queueMicrotask(drainQueued);
+    if (mode === "now") {
+      // Priority requests are accepted immediately; document changes remain serialized.
+      void run(job);
+    } else queueMicrotask(drainQueued);
   };
 
   const handleSubmit = (event: FormEvent, mode: "now" | "queue" = "now") => {
@@ -126,6 +128,10 @@ export function useAiAssistant() {
     }
   };
   const undoLast = async () => {
+    if (active.current.size || jobsRef.current.some((job) => job.status === "approval")) {
+      addMessage("assistant", "Finish, stop or resolve pending actions before undoing the last edit.");
+      return;
+    }
     const result = await commandRuntime.executeCommand({ tool: "undo-last-agent-action" });
     addMessage("assistant", result?.message || "No recent AI PDF edit is available to undo.");
   };

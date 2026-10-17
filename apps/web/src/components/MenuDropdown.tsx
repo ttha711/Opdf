@@ -191,19 +191,29 @@ export function MenuDropdown({
         {triggerIcon ? <TpdfIcon name={triggerIcon} size={20} /> : label}
       </button>
       {isOpen ? (
-        <div
-          role="menu"
-          data-tpdf-menu-surface={label}
-          data-tpdf-mobile-sheet={mobileSheet ? "true" : "false"}
-          className={
-            mobileSheet
-              ? "tpdf-menu-surface tpdf-menu-surface--mobile"
-              : "tpdf-menu-surface tpdf-menu-surface--desktop"
-          }
-          style={{ zIndex: "var(--z-dropdown)" }}
-        >
-          <MenuItems items={items} mobileSheet={mobileSheet} onClose={onClose} />
-        </div>
+        <>
+          {mobileSheet ? (
+            <div
+              className="fixed inset-0 bg-black/40 backdrop-blur-[1px]"
+              style={{ zIndex: "calc(var(--z-dropdown) - 1)" }}
+              onClick={onClose}
+              aria-hidden="true"
+            />
+          ) : null}
+          <div
+            role="menu"
+            data-tpdf-menu-surface={label}
+            data-tpdf-mobile-sheet={mobileSheet ? "true" : "false"}
+            className={
+              mobileSheet
+                ? "tpdf-menu-surface tpdf-menu-surface--mobile"
+                : "tpdf-menu-surface tpdf-menu-surface--desktop"
+            }
+            style={{ zIndex: "var(--z-dropdown)" }}
+          >
+            <MenuItems items={items} mobileSheet={mobileSheet} onClose={onClose} />
+          </div>
+        </>
       ) : null}
     </div>
   );

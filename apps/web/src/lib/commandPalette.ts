@@ -41,6 +41,9 @@ export const PALETTE_COMMANDS: PaletteCommand[] = [
   { id: "protect", title: "Protect PDF", group: "Document", icon: "lock", keywords: "encrypt password", requiresDocument: true, needsFullAccess: true, tool: "open-tool-panel", toolId: "protect-pdf" },
   { id: "unlock", title: "Unlock PDF", group: "Document", icon: "unlock", keywords: "decrypt password", requiresDocument: true, needsFullAccess: true, tool: "open-tool-panel", toolId: "unlock-pdf" },
   { id: "health", title: "Document Health", group: "Document", icon: "advanced", keywords: "pdfcraft accessibility pdfa revision inspect", requiresDocument: true, needsFullAccess: true, tool: "open-tool-panel", toolId: "document-health" },
+  { id: "compare", title: "Compare PDF revisions", group: "Review", icon: "compare", keywords: "diff revision compare changes version", requiresDocument: true, needsFullAccess: true, tool: "compare-pdf" },
+  { id: "digitalsign", title: "Digital signature", group: "Review", icon: "signature", keywords: "certificate p12 pfx sign cryptographic", requiresDocument: true, needsFullAccess: true, tool: "sign-pdf" },
+  { id: "advanced", title: "Advanced PDF forms & actions", group: "Document", icon: "advanced", keywords: "acroform fill interactive bookmarks links xfa", requiresDocument: true, needsFullAccess: true, tool: "advanced-pdf" },
 ];
 
 export function paletteUnavailableReason(command: PaletteCommand, hasDocument: boolean, isPublic: boolean) {

@@ -28,7 +28,7 @@ export function PdfMeasurementToolbar({
   onClose: () => void;
 }) {
   return (
-    <div className="pointer-events-auto absolute left-3 top-3 z-40 flex max-w-[620px] flex-wrap items-center gap-1.5 rounded-md border border-emerald-300 bg-white/95 px-2 py-1 text-[11px] font-semibold text-emerald-900 shadow-lg">
+    <div className="pointer-events-auto absolute left-3 right-3 sm:right-auto top-3 z-40 flex max-w-[620px] flex-wrap items-center gap-1.5 rounded-md border border-emerald-300 bg-white/95 px-2 py-1 text-[11px] font-semibold text-emerald-900 shadow-lg">
       <span>Measure</span>
       <select
         aria-label="Measurement mode"
@@ -87,7 +87,7 @@ export function PdfMeasurementToolbar({
       <button
         type="button"
         onClick={onClose}
-        className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-900"
+        className="ml-auto inline-flex min-h-[34px] min-w-[34px] items-center justify-center rounded-full border border-emerald-200 bg-white text-sm font-bold text-emerald-900"
         aria-label="Close measurement tool"
         title="Close measurement tool"
       >

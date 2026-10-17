@@ -191,7 +191,7 @@ export function AppHeader(props: AppHeaderProps) {
           title={`Tabs (${tabs.length})`}
           aria-label={`Open tabs overview (${tabs.length} tabs)`}
         >
-          <span className="tpdf-mobile-tab-count">{tabs.length || 1}</span>
+          <span className="tpdf-mobile-tab-count">{tabs.length}</span>
         </button>
 
         <div className="tpdf-header-tabs">

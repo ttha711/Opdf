@@ -809,19 +809,14 @@ function registerIpcHandlers(): void {
 
     const run = () =>
       new Promise<void>((resolve, reject) => {
-        let child;
-        if (false) {
-        } else {
-          const pythonExe = resolveBundledPython();
-          const mode = format === "docx" ? (process.env.TPDF_REWRITE_MODE || "strict-factual") : "auto";
-          const scriptPath = format === "docx" ? resolveRewritePipelineScript() : resolveConverterScript();
-          child = spawn(pythonExe, [scriptPath, inputPath, format, outputPath, mode], {
-            stdio: ["ignore", "pipe", "pipe"],
-            env: { ...process.env, TPDF_SOFFICE_PATH: resolveSofficePath(), TPDF_DIFY_URL: aiProviderConfig.difyUrl || "", TPDF_DIFY_KEY: aiProviderConfig.difyKey || "", TPDF_AI_MODE: aiProviderConfig.mode || "local" },
-          });
-
-        }
-        let stderr = "";
+        const pythonExe = resolveBundledPython();
+        const mode = format === "docx" ? (process.env.TPDF_REWRITE_MODE || "strict-factual") : "auto";
+        const scriptPath = format === "docx" ? resolveRewritePipelineScript() : resolveConverterScript();
+        const child = spawn(pythonExe, [scriptPath, inputPath, format, outputPath, mode], {
+          stdio: ["ignore", "pipe", "pipe"],
+          env: { ...process.env, TPDF_SOFFICE_PATH: resolveSofficePath(), TPDF_DIFY_URL: aiProviderConfig.difyUrl || "", TPDF_DIFY_KEY: aiProviderConfig.difyKey || "", TPDF_AI_MODE: aiProviderConfig.mode || "local" },
+        });
+                let stderr = "";
         child.stderr.on("data", (d) => { stderr += String(d); });
         let stdout = "";
         child.stdout.on("data", (d) => { stdout += String(d); });

@@ -1,137 +1,146 @@
-import { useState, type FormEvent } from "react";
-import { checkAndParseCommand } from "./AiAssistantPanel.utils";
-import { useAiAssistantSettings } from "./useAiAssistantSettings";
+import { useRef, useState, type FormEvent } from "react";
+import type { AgentCommand } from "../agent/agentCommands";
+import type { HarnessCheckpoint } from "../agent/harness";
+import { createUiAgentHarness } from "./uiAgentHarness";
 import { useAiAssistantMessages } from "./useAiAssistantMessages";
-import { useAiAssistantIframeBridge } from "./useAiAssistantIframeBridge";
 import { useMachineAgentBridge } from "../hooks/useMachineAgentBridge";
 import { useAiCommandRuntime } from "./useAiCommandRuntime";
-import { useAiQueryRuntime } from "./useAiQueryRuntime";
+
+type Job = { id: string; goal: string; status: "queued" | "running" | "approval" | "completed" | "failed"; checkpoint?: HarnessCheckpoint };
+const id = () => globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
 
 export function useAiAssistant() {
   const [inputValue, setInputValue] = useState("");
-  const settings = useAiAssistantSettings();
+  const [showSettings, setShowSettings] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const jobsRef = useRef<Job[]>([]);
+  const active = useRef(new Set<string>());
+  const serial = useRef(Promise.resolve());
+  const stopped = useRef(new Set<string>());
   const machineBridge = useMachineAgentBridge();
-  const messageState = useAiAssistantMessages();
-  const { addMessage, setMessages } = messageState;
-
-  useAiAssistantIframeBridge();
-
+  const { messages, chatEndRef, addMessage, setMessages } = useAiAssistantMessages();
   const commandRuntime = useAiCommandRuntime({ addMessage, setMessages });
-  const queryRuntime = useAiQueryRuntime({
-    addMessage,
-    setMessages,
-    difyUrl: settings.difyUrl,
-    difyKey: settings.difyKey,
-    conversationId: settings.conversationId,
-    setConversationId: settings.setConversationId,
+
+  const update = (job: Job) => {
+    jobsRef.current = jobsRef.current.map((item) => item.id === job.id ? job : item);
+    setJobs([...jobsRef.current]);
+  };
+  const harness = createUiAgentHarness({
     machineBridge,
-    executeCommand: commandRuntime.executeCommand,
-    handleAgentResult: commandRuntime.handleAgentResult,
+    execute: (command) => {
+      const execute = serial.current.then(() => commandRuntime.executeCommand(command));
+      serial.current = execute.then(() => undefined, () => undefined);
+      return execute;
+    },
+    onProgress: () => {},
   });
 
-  const handleSaveSettings = () => {
-    const {
-      engineMode,
-      difyUrl,
-      difyKey,
-      iframeUrl,
-      isServerRuntime,
-      setShowSettings,
-      syncAiConfigToDesktop,
-    } = settings;
-
-    localStorage.setItem("tpdf_ai_mode", isServerRuntime ? "agent" : engineMode);
-    if (!isServerRuntime) localStorage.setItem("tpdf_dify_url", difyUrl);
-    if (isServerRuntime || window.tpdf?.setAiConfig) localStorage.removeItem("tpdf_dify_key");
-    else localStorage.setItem("tpdf_dify_key", difyKey);
-    localStorage.setItem("tpdf_iframe_url", iframeUrl);
-    setShowSettings(false);
-    if (!isServerRuntime) void syncAiConfigToDesktop(engineMode, difyUrl, difyKey);
-
-    let modeText = isServerRuntime
-      ? "Authenticated Machine Agent Bridge"
-      : "Local Assistant (Offline NLP)";
-    if (!isServerRuntime && engineMode === "dify") modeText = "Dify Chatbot API";
-    if (!isServerRuntime && engineMode === "iframe") {
-      modeText = `Embedded AI-WEB-CHAT (${iframeUrl})`;
-    }
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Math.random().toString(),
-        sender: "assistant",
-        text: `Settings saved. Current mode: **${modeText}**`,
-        timestamp: new Date(),
-      },
-    ]);
+  const drainQueued = () => {
+    // Queue mode runs in FIFO order after all active immediate jobs finish.
+    if (active.current.size > 0 || jobsRef.current.some((job) => job.status === "approval")) return;
+    const first = jobsRef.current.find((job) => job.status === "queued");
+    if (first) void run(first);
   };
 
-  const handleUserQuery = async (queryText: string) => {
-    const parsed = checkAndParseCommand(queryText);
-    if (parsed && typeof parsed !== "string" && !("error" in parsed)) {
-      const tempId = addMessage(
-        "assistant",
-        `🤖 Detected PDF command: **${parsed.tool}**. Executing...`,
-        {
-          toolLogs: `Payload: ${JSON.stringify(parsed, null, 2)}`,
-          isPending: true,
-        },
-      );
-      const result = await commandRuntime.executeCommand(parsed);
-      setMessages((prev) => prev.filter((message) => message.id !== tempId));
-      if (result) commandRuntime.handleAgentResult(result, parsed);
-      return;
+  async function run(job: Job, approval?: "approve" | "reject") {
+    if (active.current.has(job.id)) return;
+    active.current.add(job.id);
+    update({ ...job, status: "running" });
+    const pendingId = addMessage("assistant", "Processing: " + job.goal, { isPending: true });
+    try {
+      const result = await harness.run(job.goal, job.checkpoint, approval, () => stopped.current.has(job.id));
+      setMessages((items) => items.filter((item) => item.id !== pendingId));
+      if (stopped.current.has(job.id)) {
+        update({ ...job, status: "failed" });
+        addMessage("assistant", "Stopped. Changes from earlier completed steps may remain; use Undo when supported.", { jobId: job.id });
+      } else if (result.status === "confirmation_required" && result.checkpoint.pending) {
+        addMessage("assistant", result.message, {
+          confirmation: result.checkpoint.pending,
+          jobId: job.id,
+        });
+        update({ ...job, status: "approval", checkpoint: result.checkpoint });
+      } else {
+        const status = result.status === "completed" ? "completed" : "failed";
+        update({ ...job, status });
+        addMessage("assistant", result.message, {
+          jobId: job.id,
+          toolLogs: result.checkpoint.observations.map((entry) =>
+            entry.action + ": " + entry.detail + " " + JSON.stringify(entry.result)).join("\n"),
+        });
+      }
+    } catch (error) {
+      setMessages((items) => items.filter((item) => item.id !== pendingId));
+      update({ ...job, status: "failed" });
+      addMessage("assistant", "Agent error: " + String(error), { jobId: job.id });
+    } finally {
+      active.current.delete(job.id);
+      queueMicrotask(drainQueued);
     }
+  }
 
-    if (parsed === "help") {
-      await commandRuntime.processLocalQuery(queryText);
-      return;
-    }
-
-    if (settings.engineMode === "agent") {
-      await queryRuntime.processMachineAgentQuery(queryText);
-    } else if (settings.engineMode === "local") {
-      await commandRuntime.processLocalQuery(queryText);
-    } else {
-      await queryRuntime.processDifyQuery(queryText);
-    }
+  const submitText = (text: string, mode: "now" | "queue" = "now") => {
+    const goal = text.trim();
+    if (!goal) return;
+    const job: Job = { id: id(), goal, status: "queued" };
+    jobsRef.current.push(job);
+    setJobs([...jobsRef.current]);
+    addMessage("user", goal + (mode === "queue" ? " (queued)" : ""), { jobId: job.id });
+    if (mode === "now") {
+      // Priority requests are accepted immediately; document changes remain serialized.
+      void run(job);
+    } else queueMicrotask(drainQueued);
   };
 
-  const submitText = (text: string) => {
-    if (!text.trim()) return;
-    addMessage("user", text);
-    setTimeout(() => { void handleUserQuery(text); }, 400);
-  };
-
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = (event: FormEvent, mode: "now" | "queue" = "now") => {
     event.preventDefault();
-    const userText = inputValue;
-    if (!userText.trim()) return;
+    const text = inputValue;
+    if (!text.trim()) return;
     setInputValue("");
-    submitText(userText);
+    submitText(text, mode);
+  };
+
+  const handleConfirmInline = (command: AgentCommand, confirm: boolean, jobId?: string) => {
+    const job = jobsRef.current.find((candidate) =>
+      candidate.id === jobId && candidate.status === "approval" &&
+      candidate.checkpoint?.pending?.tool === command.tool &&
+      JSON.stringify(candidate.checkpoint.pending.args ?? {}) === JSON.stringify(command.args ?? {}),
+    );
+    if (!job) return;
+    setMessages((items) => items.map((item) =>
+      item.jobId === job.id && item.confirmation ? { ...item, confirmation: undefined } : item,
+    ));
+    void run(job, confirm ? "approve" : "reject");
+  };
+
+  const stopJob = (jobId: string) => {
+    const job = jobsRef.current.find((item) => item.id === jobId);
+    if (!job || job.status === "completed" || job.status === "failed") return;
+    stopped.current.add(jobId);
+    if (job.status === "queued" || job.status === "approval") {
+      update({ ...job, status: "failed", checkpoint: undefined });
+      setMessages((items) => items.map((item) =>
+        item.jobId === jobId && item.confirmation ? { ...item, confirmation: undefined } : item,
+      ));
+      addMessage("assistant", "Task cancelled before further execution.", { jobId });
+      queueMicrotask(drainQueued);
+    } else {
+      addMessage("assistant", "Stop requested. The current tool may finish; no further steps will start.", { jobId });
+    }
+  };
+  const undoLast = async () => {
+    if (active.current.size || jobsRef.current.some((job) => job.status === "approval")) {
+      addMessage("assistant", "Finish, stop or resolve pending actions before undoing the last edit.");
+      return;
+    }
+    const result = await commandRuntime.executeCommand({ tool: "undo-last-agent-action" });
+    addMessage("assistant", result?.message || "No recent AI PDF edit is available to undo.");
   };
 
   return {
-    messages: messageState.messages,
-    inputValue,
-    setInputValue,
-    showSettings: settings.showSettings,
-    setShowSettings: settings.setShowSettings,
-    engineMode: settings.engineMode,
-    setEngineMode: settings.setEngineMode,
-    difyUrl: settings.difyUrl,
-    setDifyUrl: settings.setDifyUrl,
-    difyKey: settings.difyKey,
-    setDifyKey: settings.setDifyKey,
-    iframeUrl: settings.iframeUrl,
-    setIframeUrl: settings.setIframeUrl,
-    chatEndRef: messageState.chatEndRef,
-    handleSaveSettings,
-    handleConfirmInline: commandRuntime.handleConfirmInline,
-    handleSubmit,
-    handleSuggestionClick: submitText,
-    isProductionWeb: settings.isServerRuntime,
+    stopJob, undoLast,
+    messages, inputValue, setInputValue, chatEndRef,
+    jobs, showSettings, setShowSettings,
+    handleSubmit, handleConfirmInline, handleSuggestionClick: submitText,
     machineAgentConnected: machineBridge.connected,
     machineAgentCount: machineBridge.agents.length,
     pairingCode: machineBridge.pairing?.code,

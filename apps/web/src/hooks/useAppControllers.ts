@@ -16,6 +16,7 @@ import { toast } from "../components/ToastProvider";
 import { buildPdfTextExport } from "../lib/pdfTextExport";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import type { AgentToolId } from "../agent/types";
+import type { PdfUndoSnapshot } from "../agent/lastPdfActionUndo";
 
 import { useDocumentAutosave } from "./useDocumentAutosave";
 
@@ -547,6 +548,30 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
     return { message: parts.join("; ") };
   }, [state.sourceIdentity]);
 
+  const captureAgentUndo = useCallback(async (): Promise<PdfUndoSnapshot | null> => {
+    if (!state.hasDocument) return null;
+    const bytes = await state.materializeDocumentBytes();
+    if (!bytes) return null;
+    return {
+      bytes: bytes.slice(),
+      fileName: state.fileName,
+      sourceIdentity: state.sourceIdentity,
+      page: state.page,
+      annotations: structuredClone(state.annotations),
+    };
+  }, [state.hasDocument, state.materializeDocumentBytes, state.fileName, state.sourceIdentity, state.page, state.annotations]);
+
+  const restoreAgentUndo = useCallback(async (snapshot: PdfUndoSnapshot) => {
+    if (!state.hasDocument || state.fileName !== snapshot.fileName) {
+      throw new Error("Cannot undo: the original PDF is no longer open.");
+    }
+    replaceDocumentBytes(snapshot.bytes.slice(), snapshot.page, {
+      preserveSourceIdentity: false,
+      preserveAnnotations: true,
+    });
+    state.setAnnotations(structuredClone(snapshot.annotations) as typeof state.annotations);
+  }, [state.hasDocument, state.fileName, state.setAnnotations, replaceDocumentBytes]);
+
   useAgentBridge({
     state: createAgentStateSnapshot({
       hasDocument: state.hasDocument,
@@ -558,6 +583,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
       hasDesktopBridge: state.hasDesktopBridge,
     }),
     actions: {
+      captureAgentUndo,
+      restoreAgentUndo,
       openFile,
       openFileWithPath,
       openFileBytes,

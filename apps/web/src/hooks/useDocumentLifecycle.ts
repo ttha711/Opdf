@@ -186,29 +186,27 @@ export function useDocumentLifecycle({
         : "",
     );
     if (!options.preserveAnnotations) setAnnotations([]);
-    if (options.resetDocumentMetadata) {
-        }
     if (!options.preservePageCount) setTotalPages(0);
     setViewerError(null);
     setPage(Math.max(1, nextPage));
     setSaveState("idle");
   }
 
-  async function closeDocument() {
+  async function closeDocument(options: { approvedByAgent?: boolean } = {}): Promise<boolean> {
     if (saveState === "saving") {
       toast.info("Wait for the PDF to finish saving before closing it.");
-      return;
+      return false;
     }
     // Guard: require confirmation when there are unsaved changes (saveState "idle"
     // means the current fingerprint differs from the last saved one — see StatusBar "Unsaved").
-    if (saveState === "idle") {
+    if (saveState === "idle" && !options.approvedByAgent) {
       const ok = await confirm({
         title: "Close document",
         message: "The document has unsaved changes. Close without saving?",
         confirmLabel: "Close without saving",
         danger: true,
       });
-      if (!ok) return;
+      if (!ok) return false;
     }
     cancelUpload();
     setDocBytes(null);
@@ -222,6 +220,7 @@ export function useDocumentLifecycle({
     clearDocumentSaveTracking();
     const { clearDraft } = await import("../lib/web-storage");
     await clearDraft();
+    return true;
   }
 
   useOpenPathEffect({

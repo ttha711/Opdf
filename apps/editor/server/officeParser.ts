@@ -42,7 +42,7 @@ export async function extractTextFromOfficeFile(
         extractedContentText = (await ast.to("text")).value as string;
       } catch (pErr: any) {
         console.error("OfficeParser fallback failed:", pErr);
-        throw new Error("Không thể trích xuất dữ liệu từ văn bản Word: " + pErr.message);
+        throw new Error("Không thể trích xuất dữ liệu từ văn bản Word: " + pErr.message, { cause: pErr });
       }
     }
   }
@@ -70,7 +70,7 @@ export async function extractTextFromOfficeFile(
       extractedContentText = sheetHtmls;
     } catch (excelErr: any) {
       console.error("SheetJS Excel parsing failed:", excelErr);
-      throw new Error("Không thể trích xuất dữ liệu từ bảng tính Excel: " + excelErr.message);
+      throw new Error("Không thể trích xuất dữ liệu từ bảng tính Excel: " + excelErr.message, { cause: excelErr });
     }
   }
   // 3. POWERPOINT SLIDES DETECT
@@ -87,7 +87,7 @@ export async function extractTextFromOfficeFile(
       extractedContentText = (await ast.to("text")).value as string;
     } catch (pptxErr: any) {
       console.error("OfficeParser PPTX parsing failed:", pptxErr);
-      throw new Error("Không thể trích xuất dữ liệu từ slide PowerPoint: " + pptxErr.message);
+      throw new Error("Không thể trích xuất dữ liệu từ slide PowerPoint: " + pptxErr.message, { cause: pptxErr });
     }
   }
   // 4. PLAIN TEXT / HTML DETECT
@@ -104,7 +104,7 @@ export async function extractTextFromOfficeFile(
       extractedContentText = buffer.toString("utf-8");
     } catch (txtErr: any) {
       console.error("Text file encoding decoding failed:", txtErr);
-      throw new Error("Không thể giải mã nội dung tệp tin văn bản.");
+      throw new Error("Không thể giải mã nội dung tệp tin văn bản.", { cause: txtErr });
     }
   }
   // 5. PDF DETECT

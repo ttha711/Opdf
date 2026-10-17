@@ -52,9 +52,9 @@ export function createAgentPairingBroker(secret, options = {}) {
   }
 
   function cleanup() {
-    const now = now();
-    for (const [id, row] of pairings) if (row.expiresAt <= now || row.claimedAt) pairings.delete(id);
-    for (const [id, row] of tasks) if (row.expiresAt <= now) tasks.delete(id);
+    const timestamp = now();
+    for (const [id, row] of pairings) if (row.expiresAt <= timestamp || row.claimedAt) pairings.delete(id);
+    for (const [id, row] of tasks) if (row.expiresAt <= timestamp) tasks.delete(id);
   }
 
   function startPairing(user, projectId) {

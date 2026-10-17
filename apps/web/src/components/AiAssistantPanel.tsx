@@ -1,155 +1,55 @@
 import type { AiAssistantPanelProps } from "./AiAssistantPanel.types";
 import { useAiAssistant } from "./AiAssistantPanel.hooks";
-import { ChatMessageBubble, SuggestionChips, ChatInputForm } from "./AiAssistantPanel.parts";
-import { SettingsPanel } from "./AiAssistantSettingsPanel";
+import { ChatMessageBubble, ChatInputForm } from "./AiAssistantPanel.parts";
 import { AiSparkIcon } from "./AiSparkIcon";
 
-function isHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = false, onOpenLiveEditor }: AiAssistantPanelProps) {
+export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = false }: AiAssistantPanelProps) {
   const {
-    messages,
-    inputValue,
-    setInputValue,
-    showSettings,
-    setShowSettings,
-    engineMode,
-    setEngineMode,
-    difyUrl,
-    setDifyUrl,
-    difyKey,
-    setDifyKey,
-    iframeUrl,
-    setIframeUrl,
-    chatEndRef,
-    handleSaveSettings,
-    handleConfirmInline,
-    handleSubmit,
-    handleSuggestionClick,
-    isProductionWeb,
-    machineAgentConnected,
-    machineAgentCount,
-    pairingCode,
-    pairingExpiresAt,
-    pairingLoading,
-    pairingError,
-    startMachineAgentPairing,
+    messages, inputValue, setInputValue, chatEndRef,
+    handleConfirmInline, handleSubmit,
+    machineAgentConnected, machineAgentCount,
+    pairingCode, pairingExpiresAt, pairingLoading, pairingError, startMachineAgentPairing,
+    showSettings, setShowSettings,
   } = useAiAssistant();
 
   if (!isOpen) return null;
-
   return (
     <div data-tpdf-panel="ai" className={`ai-chat-panel glassmorphism align-${align}${docked ? " docked" : ""}`}>
-      {/* Panel Header */}
       <div className="ai-chat-header">
         <div className="ai-header-title">
           <AiSparkIcon size={18} />
-          <span>TPDF AI Copilot</span>
-          <span
-            className={`ai-status-badge${machineAgentConnected ? " pulse" : ""}`}
-            title={isProductionWeb ? (machineAgentConnected ? "Machine Agent paired" : "Machine Agent pairing required") : "TPDF Agent Bridge"}
-          >
-            {isProductionWeb ? (machineAgentConnected ? "Paired" : "Pair") : "Sync"}
+          <span>TPDF Agent</span>
+          <span className={`ai-status-badge${machineAgentConnected ? " pulse" : ""}`}>
+            {machineAgentConnected ? "Connected" : "Offline"}
           </span>
         </div>
         <div className="ai-header-actions">
-          <button
-            data-tpdf-action="ai-settings"
-            className={`ai-header-btn${showSettings ? " active" : ""}`}
-            onClick={() => setShowSettings(!showSettings)}
-            title={isProductionWeb ? "Machine Agent pairing" : "AI settings"}
-            type="button"
-          >
-            <span aria-hidden="true">⚙</span>
-          </button>
-          {onOpenLiveEditor ? (
-            <button className="ai-header-live-editor" onClick={onOpenLiveEditor} title="Open Live HTML Editor" type="button">
-              Live Editor
-            </button>
-          ) : null}
-          <button data-tpdf-action="close-ai" className="ai-header-close" onClick={onClose} title="Hide AI Copilot" type="button">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
+          <button type="button" className="ai-header-btn" onClick={() => setShowSettings(!showSettings)} title="Agent connection">⚙</button>
+          <button type="button" className="ai-header-close" onClick={onClose} title="Close agent">×</button>
         </div>
       </div>
-
-      {/* Settings Panel */}
       {showSettings ? (
-        <SettingsPanel 
-          engineMode={engineMode}
-          setEngineMode={setEngineMode}
-          difyUrl={difyUrl}
-          setDifyUrl={setDifyUrl}
-          difyKey={difyKey}
-          setDifyKey={setDifyKey}
-          iframeUrl={iframeUrl}
-          setIframeUrl={setIframeUrl}
-          isProductionWeb={isProductionWeb}
-          machineAgentConnected={machineAgentConnected}
-          machineAgentCount={machineAgentCount}
-          pairingCode={pairingCode}
-          pairingExpiresAt={pairingExpiresAt}
-          pairingLoading={pairingLoading}
-          pairingError={pairingError}
-          onStartPairing={() => { void startMachineAgentPairing(); }}
-          onCancel={() => setShowSettings(false)}
-          onSave={handleSaveSettings}
-        />
-      ) : engineMode === "iframe" ? (
-        /* Embedded AI-WEB-CHAT client iframe */
-        <div style={{ flex: 1, width: "100%", height: "100%", overflow: "hidden" }}>
-          {isHttpUrl(iframeUrl) ? (
-            <iframe
-              src={iframeUrl}
-              style={{ width: "100%", height: "100%", border: "none" }}
-              title="AI-WEB-CHAT NextJS Client"
-              allow="clipboard-write"
-              sandbox="allow-scripts allow-same-origin allow-forms"
-            />
-          ) : (
-            <div style={{ padding: 16, fontSize: 13, color: "#64748b" }}>
-              Invalid iframe URL. Enter a valid http(s) address in settings.
-            </div>
-          )}
+        <div className="ai-settings-panel">
+          <h4>Machine Agent connection</h4>
+          <p>{machineAgentConnected
+            ? `${machineAgentCount} machine agent(s) available.`
+            : "Pair a machine agent to use model-driven PDF tools. No LLM API key is stored in the browser."}</p>
+          {pairingCode ? <div className="ai-pairing-code"><span>Pairing code</span><strong>{pairingCode}</strong>
+            {pairingExpiresAt ? <small>Expires: {new Date(pairingExpiresAt).toLocaleTimeString()}</small> : null}
+          </div> : null}
+          {pairingError ? <div className="ai-pairing-error">{pairingError}</div> : null}
+          <button type="button" className="btn-premium btn-premium-primary" disabled={pairingLoading} onClick={() => { void startMachineAgentPairing(); }}>
+            {pairingLoading ? "Pairing..." : "Pair machine agent"}
+          </button>
         </div>
-      ) : (
-        <>
-          {/* Messages Container */}
-          <div className="ai-messages-container">
-            {messages.map((m) => (
-              <ChatMessageBubble key={m.id} message={m} onConfirmInline={handleConfirmInline} />
-            ))}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Suggestions */}
-          <SuggestionChips onSuggestionClick={handleSuggestionClick} />
-          {onOpenLiveEditor ? (
-            <div style={{ padding: "0 12px 8px" }}>
-              <button className="ai-header-live-editor" onClick={onOpenLiveEditor} type="button" style={{ width: "100%" }}>
-                Open Live Editor
-              </button>
-            </div>
-          ) : null}
-
-          {/* Form Input */}
-          <ChatInputForm
-            inputValue={inputValue}
-            setInputValue={setInputValue}
-            onSubmit={handleSubmit}
-            engineMode={engineMode}
-          />
-        </>
-      )}
+      ) : null}
+      <div className="ai-messages-container">
+        {messages.map((message) => (
+          <ChatMessageBubble key={message.id} message={message} onConfirmInline={handleConfirmInline} />
+        ))}
+        <div ref={chatEndRef} />
+      </div>
+      <ChatInputForm inputValue={inputValue} setInputValue={setInputValue} onSubmit={handleSubmit} engineMode="agent" />
     </div>
   );
 }

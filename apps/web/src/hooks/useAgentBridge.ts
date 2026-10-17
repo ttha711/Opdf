@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { LastPdfActionUndo } from "../agent/lastPdfActionUndo";
 import {
   AGENT_TOOL_DEFINITIONS,
   createAgentCommandQueue,
@@ -30,9 +31,21 @@ export function useAgentBridge(context: AgentActionContext) {
   const latestContextRef = useRef(context);
   latestContextRef.current = context;
 
+  const undo = useMemo(() => new LastPdfActionUndo(), []);
   const queue = useMemo(
-    () => createAgentCommandQueue((command) => executeAgentCommand(command, latestContextRef.current)),
-    []
+    () => createAgentCommandQueue((command) => {
+      const actions = latestContextRef.current.actions;
+      if (!actions.captureAgentUndo || !actions.restoreAgentUndo) {
+        return executeAgentCommand(command, latestContextRef.current);
+      }
+      return undo.execute(
+        command,
+        (item) => executeAgentCommand(item, latestContextRef.current),
+        actions.captureAgentUndo,
+        actions.restoreAgentUndo,
+      );
+    }),
+    [undo]
   );
 
   useEffect(() => {

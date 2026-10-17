@@ -6,7 +6,7 @@ import { MarkdownMessage } from "./AiAssistantMarkdown";
 
 interface ChatMessageBubbleProps {
   message: Message;
-  onConfirmInline: (cmd: AgentCommand, confirm: boolean) => void;
+  onConfirmInline: (cmd: AgentCommand, confirm: boolean, jobId?: string) => void;
 }
 
 export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbleProps) {
@@ -48,10 +48,10 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
               ) : null}
               <small>The agent is paused. Only this action is approved; subsequent destructive steps require separate approval.</small>
             </div>
-            <button className="ai-confirm-btn cancel" onClick={() => onConfirmInline(confirmation, false)} type="button">
+            <button className="ai-confirm-btn cancel" onClick={() => onConfirmInline(confirmation, false, message.jobId)} type="button">
               Reject
             </button>
-            <button className="ai-confirm-btn confirm" onClick={() => onConfirmInline(confirmation, true)} type="button">
+            <button className="ai-confirm-btn confirm" onClick={() => onConfirmInline(confirmation, true, message.jobId)} type="button">
               Approve this action
             </button>
           </div>
@@ -95,7 +95,7 @@ export function SuggestionChips({ onSuggestionClick }: { onSuggestionClick: (tex
 interface ChatInputFormProps {
   inputValue: string;
   setInputValue: (value: string) => void;
-  onSubmit: (event: React.FormEvent) => void;
+  onSubmit: (event: React.FormEvent, mode?: "now" | "queue") => void;
   engineMode: EngineMode;
   disabled?: boolean;
 }
@@ -122,7 +122,7 @@ export function ChatInputForm({
       : "Chat with AI...";
 
   return (
-    <form className="ai-chat-input-form" onSubmit={onSubmit}>
+    <form className="ai-chat-input-form" onSubmit={(event) => onSubmit(event, "now")}>
       <textarea
         data-tpdf-ai-input
         ref={textareaRef}
@@ -134,10 +134,11 @@ export function ChatInputForm({
         onKeyDown={(event) => {
           if (event.key !== "Enter" || event.shiftKey) return;
           event.preventDefault();
-          onSubmit(event);
+          onSubmit(event, "now");
         }}
         placeholder={placeholder}
       />
+      <button type="button" title="Add to queue" className="ai-chat-send-btn" disabled={!inputValue.trim()} onClick={(event) => onSubmit(event, "queue")}>Queue</button>
       <button
         data-tpdf-ai-send
         className="ai-chat-send-btn"

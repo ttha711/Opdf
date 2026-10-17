@@ -56,11 +56,11 @@ export class LastPdfActionUndo {
     }
 
     const before = await capture().catch(() => null);
+    // Once an edit starts the previous snapshot is stale, even if this attempt fails.
+    this.entry = null;
     const result = await run(command);
     if (result.status !== "completed") return result;
 
-    // A completed editing operation supersedes the preceding undo slot.
-    this.entry = null;
     if (!before || before.bytes.byteLength > MAX_UNDO_BYTES) return result;
 
     // Allow React's document replacement to commit before checking new bytes.
@@ -68,7 +68,8 @@ export class LastPdfActionUndo {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     }
     const after = await capture().catch(() => null);
-    if (!after || after.fileName !== before.fileName) return result;
+    if (!after || after.fileName !== before.fileName ||
+        after.sourceIdentity !== before.sourceIdentity) return result;
 
     const [beforeHash, afterHash] = await Promise.all([digest(before), digest(after)]);
     if (beforeHash === afterHash) return result;

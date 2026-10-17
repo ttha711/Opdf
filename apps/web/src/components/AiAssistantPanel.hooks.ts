@@ -14,6 +14,8 @@ export function useAiAssistant() {
   const { addMessage, setMessages } = messageState;
 
   const pending = useRef<HarnessCheckpoint | null>(null);
+  const busy = useRef(false);
+  const [isBusy, setIsBusy] = useState(false);
   const commandRuntime = useAiCommandRuntime({ addMessage, setMessages });
   const harness = createUiAgentHarness({
     machineBridge,
@@ -60,6 +62,9 @@ export function useAiAssistant() {
   };
 
   const runHarness = async (goal: string, approval?: "approve" | "reject") => {
+    if (busy.current) return;
+    busy.current = true;
+    setIsBusy(true);
     const tempId = addMessage("assistant", "Agent is working...", { isPending: true });
     try {
       const result = await harness.run(goal, pending.current ?? undefined, approval);
@@ -77,10 +82,13 @@ export function useAiAssistant() {
       pending.current = null;
       setMessages((messages) => messages.filter((message) => message.id !== tempId));
       addMessage("assistant", "Agent error: " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      busy.current = false;
+      setIsBusy(false);
     }
   };
   const handleConfirmInline = async (_command: import("../agent/agentCommands").AgentCommand, confirm: boolean) => {
-    if (!pending.current) return;
+    if (!pending.current || busy.current) return;
     const checkpoint = pending.current;
     setMessages((messages) => messages.map((message) =>
       message.confirmation ? { ...message, confirmation: undefined } : message,
@@ -88,12 +96,16 @@ export function useAiAssistant() {
     await runHarness(checkpoint.goal, confirm ? "approve" : "reject");
   };
   const handleUserQuery = async (queryText: string) => {
-    pending.current = null;
+    if (busy.current) return;
+    if (pending.current) {
+      addMessage("assistant", "Approve or reject the pending action before starting a new task.");
+      return;
+    }
     await runHarness(queryText);
   };
 
   const submitText = (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || busy.current || pending.current) return;
     addMessage("user", text);
     setTimeout(() => { void handleUserQuery(text); }, 400);
   };
@@ -124,6 +136,7 @@ export function useAiAssistant() {
     handleSaveSettings,
     handleConfirmInline,
     handleSubmit,
+    isBusy,
     handleSuggestionClick: submitText,
     isProductionWeb: settings.isServerRuntime,
     machineAgentConnected: machineBridge.connected,

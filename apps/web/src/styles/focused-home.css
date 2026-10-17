@@ -1,0 +1,49 @@
+.tpdf-home--focused .tpdf-home__container {
+  width: min(780px, 100%); gap: 22px;
+}
+.tpdf-home--focused .tpdf-home__hero { gap: 0; }
+.tpdf-home--focused .tpdf-home__hero-text h1 {
+  font-size: clamp(26px, 5vw, 34px); letter-spacing: -.03em;
+}
+.tpdf-home--focused .tpdf-home__subtitle { font-size: 14px; margin-top: 6px; }
+.tpdf-home__open-section { display: flex; flex-direction: column; gap: 8px; }
+.tpdf-home__open-primary {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; min-height: 72px; padding: 16px 20px;
+  background: var(--acrobat-blue); color: #fff;
+  border: 0; border-radius: 16px; cursor: pointer; text-align: left;
+  font-size: 17px; font-weight: 750;
+}
+.tpdf-home__open-primary > span { flex: 1; }
+.tpdf-home__open-hint { margin: 0; font-size: 12px; color: var(--text-secondary); }
+.tpdf-home__recent-list { display: flex; flex-direction: column; gap: 8px; }
+.tpdf-home__recent-row {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-width: 0; min-height: 64px; padding: 10px 14px;
+  border: 1px solid var(--border-color); border-radius: 12px;
+  background: var(--bg-panel); color: var(--text-primary);
+  text-align: left; cursor: pointer;
+}
+.tpdf-home__recent-row .tpdf-home__file-copy {
+  display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px;
+}
+.tpdf-home__recent-row .tpdf-home__file-copy strong {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px;
+}
+.tpdf-home__recent-row .tpdf-home__file-copy small { color: var(--text-secondary); font-size: 12px; }
+.tpdf-home__recent-empty { color: var(--text-secondary); font-size: 13px; }
+.tpdf-home__actions-section h2 { font-size: 15px; font-weight: 700; margin: 0 0 12px; }
+.tpdf-home__action-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.tpdf-home__action-list button {
+  min-height: 44px; display: inline-flex; align-items: center;
+  gap: 8px; padding: 8px 12px; border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-panel); color: var(--text-primary);
+  font-size: 13px; cursor: pointer;
+}
+@media (max-width: 520px) {
+  .tpdf-home--focused { padding: 20px 16px 35px; }
+  .tpdf-home__open-primary { min-height: 64px; }
+  .tpdf-home__action-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tpdf-home__action-list button { justify-content: flex-start; min-width: 0; }
+}

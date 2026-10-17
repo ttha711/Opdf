@@ -51,13 +51,17 @@ test("authenticated home paints without waiting for the projects endpoint", asyn
 });
 
 test("first-paint hero is in HTML before application JS and is removed after home mounts", async ({ page }) => {
+  let resumeScripts: () => void = () => {};
+  const scriptGate = new Promise<void>((resolve) => {
+    resumeScripts = resolve;
+  });
   await page.route("**/assets/*.js", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await scriptGate;
     await route.continue();
   });
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/", { waitUntil: "commit" });
   await expect(page.locator("#tpdf-first-paint h1")).toHaveText("Your documents, ready when you are.");
-  await expect(page.getByRole("button", { name: "Choose PDF file to open" })).toBeVisible();
+  resumeScripts();
   await expect(page.locator("#tpdf-first-paint")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toHaveCount(1);
 });

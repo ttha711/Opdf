@@ -372,8 +372,6 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
   const { headerProps, viewerProps } = useAppViewModel({
     state,
     actions: {
-      captureAgentUndo,
-      restoreAgentUndo,
       openFile,
       closeDocument,
       savePdf,
@@ -585,6 +583,8 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
       hasDesktopBridge: state.hasDesktopBridge,
     }),
     actions: {
+      captureAgentUndo,
+      restoreAgentUndo,
       openFile,
       openFileWithPath,
       openFileBytes,

@@ -5,7 +5,7 @@ import type { AgentCommand, AgentCommandResult } from "../agent/agentCommands";
 type MachineBridge = { sendQuery: (query: string, context: Record<string, unknown>, signal?: AbortSignal) => Promise<unknown> };
 type AdapterArgs = {
   machineBridge: MachineBridge;
-  execute: (command: AgentCommand) => Promise<AgentCommandResult | null>;
+  execute: (command: AgentCommand, signal?: AbortSignal) => Promise<AgentCommandResult | null>;
   onProgress: (message: string) => void;
   isCancelled?: () => boolean;
 };
@@ -25,13 +25,18 @@ export function createUiAgentHarness({ machineBridge, execute, onProgress, isCan
           if (signal?.aborted) return Promise.reject(Object.assign(new Error("Agent task cancelled."), { name: "AbortError" }));
           return raceAbort(machineBridge.sendQuery(prompt, agent.getState() as Record<string, unknown>, signal), signal);
         },
-        execute: async (command) => await execute(command) ?? {
-          status: "failed", tool: command.tool, message: "TPDF command bridge unavailable.",
+        execute: async (command) => {
+          if (signal?.aborted || cancelled?.() || isCancelled?.()) {
+            return { status: "failed", tool: command.tool, message: "Cancelled before tool execution." };
+          }
+          return await execute(command, signal) ?? {
+            status: "failed", tool: command.tool, message: "TPDF command bridge unavailable.",
+          };
         },
         listTools: () => agent.listTools(),
         getState: () => agent.getState(),
         onEvent: ({ action, message }) => onProgress(action + ": " + message),
-        isCancelled: cancelled ?? isCancelled,
+        isCancelled: () => Boolean(signal?.aborted || cancelled?.() || isCancelled?.()),
       }, approval);
     },
   };

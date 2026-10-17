@@ -5,6 +5,7 @@ import { createUiAgentHarness } from "./uiAgentHarness";
 import { useAiAssistantMessages } from "./useAiAssistantMessages";
 import { useMachineAgentBridge } from "../hooks/useMachineAgentBridge";
 import { useAiCommandRuntime } from "./useAiCommandRuntime";
+import { enqueueAbortable } from "../agent/enqueueAbortable";
 
 type Job = { id: string; goal: string; status: "queued" | "running" | "approval" | "completed" | "failed"; checkpoint?: HarnessCheckpoint };
 const id = () => globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
@@ -28,10 +29,15 @@ export function useAiAssistant() {
   };
   const harness = createUiAgentHarness({
     machineBridge,
-    execute: (command) => {
-      const execute = serial.current.then(() => commandRuntime.executeCommand(command));
-      serial.current = execute.then(() => undefined, () => undefined);
-      return execute;
+    execute: (command, signal) => {
+      const queued = enqueueAbortable(
+        serial.current,
+        signal,
+        () => commandRuntime.executeCommand(command),
+        () => ({ status: "failed" as const, tool: command.tool, message: "Stopped before queued PDF tool execution." }),
+      );
+      serial.current = queued.tail;
+      return queued.result;
     },
     onProgress: () => {},
   });

@@ -5,6 +5,7 @@ export function getAgentStateForPrompt(state: AgentStateSnapshot) {
   return {
     hasDocument: state.hasDocument,
     fileName: state.fileName,
+    documentRevision: state.documentRevision,
     currentPage: state.currentPage,
     totalPages: state.totalPages,
     activeTool: state.activeTool,

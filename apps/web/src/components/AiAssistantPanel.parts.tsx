@@ -6,7 +6,7 @@ import { MarkdownMessage } from "./AiAssistantMarkdown";
 
 interface ChatMessageBubbleProps {
   message: Message;
-  onConfirmInline: (cmd: AgentCommand, confirm: boolean) => void;
+  onConfirmInline: (cmd: AgentCommand, confirm: boolean, jobId?: string) => void;
 }
 
 export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbleProps) {
@@ -39,20 +39,20 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
           </details>
         ) : null}
         {confirmation ? (
-          <div className="ai-confirmation-box">
-            <button
-              className="ai-confirm-btn cancel"
-              onClick={() => onConfirmInline(confirmation, false)}
-              type="button"
-            >
-              Cancel
+          <div className="ai-confirmation-box" role="group" aria-label="Confirm agent action" data-tpdf-agent-approval>
+            <div className="ai-confirmation-details">
+              <strong>Approval required</strong>
+              <p>Tool: <code>{confirmation.tool}</code></p>
+              {confirmation.args && Object.keys(confirmation.args).length > 0 ? (
+                <details><summary>Arguments</summary><pre>{JSON.stringify(confirmation.args, null, 2)}</pre></details>
+              ) : null}
+              <small>The agent is paused. Only this action is approved; subsequent destructive steps require separate approval.</small>
+            </div>
+            <button className="ai-confirm-btn cancel" onClick={() => onConfirmInline(confirmation, false, message.jobId)} type="button">
+              Reject
             </button>
-            <button
-              className="ai-confirm-btn confirm"
-              onClick={() => onConfirmInline(confirmation, true)}
-              type="button"
-            >
-              Confirm action
+            <button className="ai-confirm-btn confirm" onClick={() => onConfirmInline(confirmation, true, message.jobId)} type="button">
+              Approve this action
             </button>
           </div>
         ) : null}
@@ -95,8 +95,9 @@ export function SuggestionChips({ onSuggestionClick }: { onSuggestionClick: (tex
 interface ChatInputFormProps {
   inputValue: string;
   setInputValue: (value: string) => void;
-  onSubmit: (event: React.FormEvent) => void;
+  onSubmit: (event: React.FormEvent, mode?: "now" | "queue") => void;
   engineMode: EngineMode;
+  disabled?: boolean;
 }
 
 export function ChatInputForm({
@@ -104,6 +105,7 @@ export function ChatInputForm({
   setInputValue,
   onSubmit,
   engineMode,
+  disabled = false,
 }: ChatInputFormProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -120,25 +122,27 @@ export function ChatInputForm({
       : "Chat with AI...";
 
   return (
-    <form className="ai-chat-input-form" onSubmit={onSubmit}>
+    <form className="ai-chat-input-form" onSubmit={(event) => onSubmit(event, "now")}>
       <textarea
         data-tpdf-ai-input
         ref={textareaRef}
         className="ai-chat-textarea"
         rows={1}
         value={inputValue}
+        disabled={disabled}
         onChange={(event) => setInputValue(event.target.value)}
         onKeyDown={(event) => {
           if (event.key !== "Enter" || event.shiftKey) return;
           event.preventDefault();
-          onSubmit(event);
+          onSubmit(event, "now");
         }}
         placeholder={placeholder}
       />
+      <button type="button" title="Add to queue" className="ai-chat-send-btn" disabled={!inputValue.trim()} onClick={(event) => onSubmit(event, "queue")}>Queue</button>
       <button
         data-tpdf-ai-send
         className="ai-chat-send-btn"
-        disabled={!inputValue.trim()}
+        disabled={disabled || !inputValue.trim()}
         type="submit"
         title="Send command"
       >

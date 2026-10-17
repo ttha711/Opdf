@@ -61,6 +61,7 @@ export const AGENT_TOOL_DEFINITIONS: AgentToolDefinition[] = [
   { id: "set-view-mode", title: "Set View Mode", description: "Switch viewer layout mode.", risk: "safe", requiresDocument: true, requiredArgs: ["mode"] },
   { id: "rotate-view-left", title: "Rotate View Left", description: "Rotate the viewer left without changing the file.", risk: "safe", requiresDocument: true },
   { id: "rotate-view-right", title: "Rotate View Right", description: "Rotate the viewer right without changing the file.", risk: "safe", requiresDocument: true },
+  { id: "undo-last-agent-action", title: "Undo last AI edit", description: "Revert only the most recent completed AI PDF edit if the document has not changed since.", risk: "safe", requiresDocument: true },
   { id: "undo-annotations", title: "Undo Annotation", description: "Undo the latest annotation change.", risk: "safe", requiresDocument: true },
   { id: "redo-annotations", title: "Redo Annotation", description: "Redo the latest annotation change.", risk: "safe", requiresDocument: true },
   { id: "select-tool", title: "Select Tool", description: "Switch to select mode.", risk: "safe", requiresDocument: true },

@@ -8,6 +8,7 @@ export interface Message {
   isPending?: boolean;
   toolLogs?: string;
   confirmation?: AgentCommand;
+  jobId?: string;
 }
 
 export interface AiAssistantPanelProps {

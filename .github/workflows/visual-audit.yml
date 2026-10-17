@@ -1,0 +1,40 @@
+name: TPDF Visual Audit
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Optional deployed URL (requires public access and no login)"
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - "tests/visual/**"
+      - "playwright.visual.config.ts"
+      - ".github/workflows/visual-audit.yml"
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build -w @tpdf/core
+      - run: npx playwright install chromium --with-deps
+      - name: Walk all screen sizes
+        env:
+          TPDF_VISUAL_TARGET: ${{ inputs.target }}
+        run: npx playwright test -c playwright.visual.config.ts --project=chromium
+      - name: Upload every screenshot and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tpdf-mobile-desktop-visual-audit
+          path: |
+            test-results/visual-audit/
+            playwright-report/visual/
+          retention-days: 14

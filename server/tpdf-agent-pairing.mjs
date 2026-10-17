@@ -18,6 +18,8 @@ export function createAgentPairingBroker(secret, options = {}) {
   const pairingTtlMs = Number(options.pairingTtlMs || 5 * 60 * 1000);
   const tokenTtlMs = Number(options.tokenTtlMs || 30 * 24 * 60 * 60 * 1000);
   const taskTtlMs = Number(options.taskTtlMs || 5 * 60 * 1000);
+  const presenceTtlMs = Number(options.presenceTtlMs || 20 * 1000);
+  const now = typeof options.now === "function" ? options.now : Date.now;
   const pairings = new Map();
   const agents = new Map();
   const tasks = new Map();
@@ -30,7 +32,7 @@ export function createAgentPairingBroker(secret, options = {}) {
       agentId: agent.id,
       userId: agent.userId,
       projectId: agent.projectId,
-      exp: Date.now() + tokenTtlMs,
+      exp: now() + tokenTtlMs,
     });
     return `${payload}.${sign(payload)}`;
   }
@@ -41,7 +43,7 @@ export function createAgentPairingBroker(secret, options = {}) {
     if (!payload || !signature || !safeEqual(signature, sign(payload))) return null;
     try {
       const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-      if (parsed?.type !== "tpdf-machine-agent" || parsed.exp <= Date.now()) return null;
+      if (parsed?.type !== "tpdf-machine-agent" || parsed.exp <= now()) return null;
       const agent = agents.get(parsed.agentId);
       return agent && agent.userId === parsed.userId && agent.projectId === parsed.projectId ? agent : null;
     } catch {
@@ -50,9 +52,9 @@ export function createAgentPairingBroker(secret, options = {}) {
   }
 
   function cleanup() {
-    const now = Date.now();
-    for (const [id, row] of pairings) if (row.expiresAt <= now || row.claimedAt) pairings.delete(id);
-    for (const [id, row] of tasks) if (row.expiresAt <= now) tasks.delete(id);
+    const timestamp = now();
+    for (const [id, row] of pairings) if (row.expiresAt <= timestamp || row.claimedAt) pairings.delete(id);
+    for (const [id, row] of tasks) if (row.expiresAt <= timestamp) tasks.delete(id);
   }
 
   function startPairing(user, projectId) {
@@ -64,8 +66,8 @@ export function createAgentPairingBroker(secret, options = {}) {
       code,
       userId: user.id,
       projectId,
-      createdAt: Date.now(),
-      expiresAt: Date.now() + pairingTtlMs,
+      createdAt: now(),
+      expiresAt: now() + pairingTtlMs,
       claimedAt: null,
     };
     pairings.set(id, row);
@@ -77,7 +79,7 @@ export function createAgentPairingBroker(secret, options = {}) {
     const normalized = String(code || "").trim().toUpperCase();
     const pairing = [...pairings.values()].find((row) => row.code === normalized && !row.claimedAt);
     if (!pairing) return null;
-    pairing.claimedAt = Date.now();
+    pairing.claimedAt = now();
     const agent = {
       id: randomUUID(),
       userId: pairing.userId,
@@ -85,26 +87,44 @@ export function createAgentPairingBroker(secret, options = {}) {
       machineId: String(machine.machineId || "").slice(0, 160),
       name: String(machine.name || "Local Machine Agent").slice(0, 160),
       version: String(machine.version || "").slice(0, 80),
-      pairedAt: Date.now(),
-      lastSeenAt: Date.now(),
+      pairedAt: now(),
+      lastSeenAt: now(),
+      lastHeartbeatAt: null,
     };
     agents.set(agent.id, agent);
     return { agent, token: issueAgentToken(agent) };
+  }
+
+  function heartbeatAgent(agent) {
+    // Presence means a worker process actually polled or sent a heartbeat;
+    // claiming a pairing code does not mark the process online.
+    const current = agents.get(agent.id);
+    if (!current) return false;
+    current.lastHeartbeatAt = now();
+    current.lastSeenAt = current.lastHeartbeatAt;
+    return true;
+  }
+
+  function isOnline(agent) {
+    return agent.lastHeartbeatAt !== null &&
+      now() - agent.lastHeartbeatAt <= presenceTtlMs;
   }
 
   function listAgents(user, projectId) {
     cleanup();
     return [...agents.values()]
       .filter((agent) => agent.userId === user.id && agent.projectId === projectId)
-      .map(({ id, name, machineId, version, pairedAt, lastSeenAt }) => ({
-        id, name, machineId, version, pairedAt, lastSeenAt,
+      .map((agent) => ({
+        id: agent.id, name: agent.name, machineId: agent.machineId,
+        version: agent.version, pairedAt: agent.pairedAt,
+        lastSeenAt: agent.lastSeenAt, online: isOnline(agent),
       }));
   }
 
   function createTask(user, projectId, payload) {
     cleanup();
     const available = [...agents.values()].some(
-      (agent) => agent.userId === user.id && agent.projectId === projectId,
+      (agent) => agent.userId === user.id && agent.projectId === projectId && isOnline(agent),
     );
     if (!available) return null;
     const id = randomUUID();
@@ -115,8 +135,8 @@ export function createAgentPairingBroker(secret, options = {}) {
       status: "queued",
       query: String(payload.query || "").slice(0, 20000),
       context: payload.context && typeof payload.context === "object" ? payload.context : {},
-      createdAt: Date.now(),
-      expiresAt: Date.now() + taskTtlMs,
+      createdAt: now(),
+      expiresAt: now() + taskTtlMs,
       claimedBy: null,
       result: null,
       error: null,
@@ -127,7 +147,7 @@ export function createAgentPairingBroker(secret, options = {}) {
 
   function nextTask(agent) {
     cleanup();
-    agent.lastSeenAt = Date.now();
+    heartbeatAgent(agent);
     const task = [...tasks.values()].find(
       (row) => row.userId === agent.userId &&
         row.projectId === agent.projectId &&
@@ -147,8 +167,8 @@ export function createAgentPairingBroker(secret, options = {}) {
     task.status = payload?.error ? "failed" : "completed";
     task.result = payload?.result ?? payload?.answer ?? null;
     task.error = payload?.error ? String(payload.error).slice(0, 4000) : null;
-    task.completedAt = Date.now();
-    agent.lastSeenAt = Date.now();
+    task.completedAt = now();
+    agent.lastSeenAt = now();
     return { id: task.id, status: task.status };
   }
 
@@ -158,7 +178,7 @@ export function createAgentPairingBroker(secret, options = {}) {
     if (!task || task.userId !== user.id || task.projectId !== projectId) return null;
     if (task.status === "queued" || task.status === "running") {
       task.status = "cancelled";
-      task.completedAt = Date.now();
+      task.completedAt = now();
       task.result = null;
       task.error = null;
       task.context = {};
@@ -186,6 +206,7 @@ export function createAgentPairingBroker(secret, options = {}) {
     claimPairing,
     verifyAgentToken,
     listAgents,
+    heartbeatAgent,
     createTask,
     nextTask,
     completeTask,

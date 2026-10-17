@@ -9,6 +9,7 @@ function fixture() {
   const user = { id: "user-a" }, project = "project-a";
   const pairing = broker.startPairing(user, project);
   const claimed = broker.claimPairing(pairing.code, { name: "Test Worker" });
+  broker.heartbeatAgent(claimed.agent);
   return { broker, user, project, agent: claimed.agent };
 }
 

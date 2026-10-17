@@ -1,144 +1,117 @@
 import { useRef, useState, type FormEvent } from "react";
+import type { AgentCommand } from "../agent/agentCommands";
 import type { HarnessCheckpoint } from "../agent/harness";
 import { createUiAgentHarness } from "./uiAgentHarness";
-import { useAiAssistantSettings } from "./useAiAssistantSettings";
 import { useAiAssistantMessages } from "./useAiAssistantMessages";
 import { useMachineAgentBridge } from "../hooks/useMachineAgentBridge";
 import { useAiCommandRuntime } from "./useAiCommandRuntime";
 
+type Job = { id: string; goal: string; status: "queued" | "running" | "approval" | "completed" | "failed"; checkpoint?: HarnessCheckpoint };
+const id = () => globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+
 export function useAiAssistant() {
   const [inputValue, setInputValue] = useState("");
-  const settings = useAiAssistantSettings();
+  const [showSettings, setShowSettings] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const jobsRef = useRef<Job[]>([]);
+  const active = useRef(new Set<string>());
+  const approvals = useRef(new Map<string, string>());
+  const serial = useRef(Promise.resolve());
   const machineBridge = useMachineAgentBridge();
-  const messageState = useAiAssistantMessages();
-  const { addMessage, setMessages } = messageState;
-
-  const pending = useRef<HarnessCheckpoint | null>(null);
-  const busy = useRef(false);
-  const [isBusy, setIsBusy] = useState(false);
+  const { messages, chatEndRef, addMessage, setMessages } = useAiAssistantMessages();
   const commandRuntime = useAiCommandRuntime({ addMessage, setMessages });
+
+  const update = (job: Job) => {
+    jobsRef.current = jobsRef.current.map((item) => item.id === job.id ? job : item);
+    setJobs([...jobsRef.current]);
+  };
   const harness = createUiAgentHarness({
     machineBridge,
-    execute: commandRuntime.executeCommand,
+    execute: (command) => {
+      const execute = serial.current.then(() => commandRuntime.executeCommand(command));
+      serial.current = execute.then(() => undefined, () => undefined);
+      return execute;
+    },
     onProgress: () => {},
   });
 
-  const handleSaveSettings = () => {
-    const {
-      engineMode,
-      difyUrl,
-      difyKey,
-      iframeUrl,
-      isServerRuntime,
-      setShowSettings,
-      syncAiConfigToDesktop,
-    } = settings;
-
-    localStorage.setItem("tpdf_ai_mode", isServerRuntime ? "agent" : engineMode);
-    if (!isServerRuntime) localStorage.setItem("tpdf_dify_url", difyUrl);
-    if (isServerRuntime || window.tpdf?.setAiConfig) localStorage.removeItem("tpdf_dify_key");
-    else localStorage.setItem("tpdf_dify_key", difyKey);
-    localStorage.setItem("tpdf_iframe_url", iframeUrl);
-    setShowSettings(false);
-    if (!isServerRuntime) void syncAiConfigToDesktop(engineMode, difyUrl, difyKey);
-
-    let modeText = isServerRuntime
-      ? "Authenticated Machine Agent Bridge"
-      : "Local Assistant (Offline NLP)";
-    if (!isServerRuntime && engineMode === "dify") modeText = "Dify Chatbot API";
-    if (!isServerRuntime && engineMode === "iframe") {
-      modeText = `Embedded AI-WEB-CHAT (${iframeUrl})`;
-    }
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Math.random().toString(),
-        sender: "assistant",
-        text: `Settings saved. Current mode: **${modeText}**`,
-        timestamp: new Date(),
-      },
-    ]);
+  const drainQueued = () => {
+    // Queue mode runs in FIFO order after all active immediate jobs finish.
+    if (active.current.size > 0) return;
+    const first = jobsRef.current.find((job) => job.status === "queued");
+    if (first) void run(first);
   };
 
-  const runHarness = async (goal: string, approval?: "approve" | "reject") => {
-    if (busy.current) return;
-    busy.current = true;
-    setIsBusy(true);
-    const tempId = addMessage("assistant", "Agent is working...", { isPending: true });
+  async function run(job: Job, approval?: "approve" | "reject") {
+    if (active.current.has(job.id)) return;
+    active.current.add(job.id);
+    update({ ...job, status: "running" });
+    const pendingId = addMessage("assistant", "Processing: " + job.goal, { isPending: true });
     try {
-      const result = await harness.run(goal, pending.current ?? undefined, approval);
-      pending.current = result.status === "confirmation_required" ? result.checkpoint : null;
-      setMessages((messages) => messages.filter((message) => message.id !== tempId));
+      const result = await harness.run(job.goal, job.checkpoint, approval);
+      setMessages((items) => items.filter((item) => item.id !== pendingId));
       if (result.status === "confirmation_required" && result.checkpoint.pending) {
-        addMessage("assistant", result.message, { confirmation: result.checkpoint.pending });
+        const messageId = addMessage("assistant", result.message, {
+          confirmation: result.checkpoint.pending,
+          jobId: job.id,
+        });
+        approvals.current.set(messageId, job.id);
+        update({ ...job, status: "approval", checkpoint: result.checkpoint });
       } else {
+        const status = result.status === "completed" ? "completed" : "failed";
+        update({ ...job, status });
         addMessage("assistant", result.message, {
+          jobId: job.id,
           toolLogs: result.checkpoint.observations.map((entry) =>
-            entry.action + ": " + entry.detail + " " + JSON.stringify(entry.result)).join("\\n"),
+            entry.action + ": " + entry.detail + " " + JSON.stringify(entry.result)).join("\n"),
         });
       }
     } catch (error) {
-      pending.current = null;
-      setMessages((messages) => messages.filter((message) => message.id !== tempId));
-      addMessage("assistant", "Agent error: " + (error instanceof Error ? error.message : String(error)));
+      setMessages((items) => items.filter((item) => item.id !== pendingId));
+      update({ ...job, status: "failed" });
+      addMessage("assistant", "Agent error: " + String(error), { jobId: job.id });
     } finally {
-      busy.current = false;
-      setIsBusy(false);
+      active.current.delete(job.id);
+      queueMicrotask(drainQueued);
     }
-  };
-  const handleConfirmInline = async (_command: import("../agent/agentCommands").AgentCommand, confirm: boolean) => {
-    if (!pending.current || busy.current) return;
-    const checkpoint = pending.current;
-    setMessages((messages) => messages.map((message) =>
-      message.confirmation ? { ...message, confirmation: undefined } : message,
-    ));
-    await runHarness(checkpoint.goal, confirm ? "approve" : "reject");
-  };
-  const handleUserQuery = async (queryText: string) => {
-    if (busy.current) return;
-    if (pending.current) {
-      addMessage("assistant", "Approve or reject the pending action before starting a new task.");
-      return;
-    }
-    await runHarness(queryText);
+  }
+
+  const submitText = (text: string, mode: "now" | "queue" = "now") => {
+    const goal = text.trim();
+    if (!goal) return;
+    const job: Job = { id: id(), goal, status: "queued" };
+    jobsRef.current.push(job);
+    setJobs([...jobsRef.current]);
+    addMessage("user", goal + (mode === "queue" ? " (queued)" : ""), { jobId: job.id });
+    if (mode === "now") void run(job);
+    else queueMicrotask(drainQueued);
   };
 
-  const submitText = (text: string) => {
-    if (!text.trim() || busy.current || pending.current) return;
-    addMessage("user", text);
-    setTimeout(() => { void handleUserQuery(text); }, 400);
-  };
-
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = (event: FormEvent, mode: "now" | "queue" = "now") => {
     event.preventDefault();
-    const userText = inputValue;
-    if (!userText.trim()) return;
+    const text = inputValue;
+    if (!text.trim()) return;
     setInputValue("");
-    submitText(userText);
+    submitText(text, mode);
+  };
+
+  const handleConfirmInline = (command: AgentCommand, confirm: boolean, jobId?: string) => {
+    const job = jobsRef.current.find((candidate) =>
+      candidate.id === jobId && candidate.status === "approval" &&
+      candidate.checkpoint?.pending?.tool === command.tool &&
+      JSON.stringify(candidate.checkpoint.pending.args ?? {}) === JSON.stringify(command.args ?? {}),
+    );
+    if (!job) return;
+    setMessages((items) => items.map((item) =>
+      item.jobId === job.id && item.confirmation ? { ...item, confirmation: undefined } : item,
+    ));
+    void run(job, confirm ? "approve" : "reject");
   };
 
   return {
-    messages: messageState.messages,
-    inputValue,
-    setInputValue,
-    showSettings: settings.showSettings,
-    setShowSettings: settings.setShowSettings,
-    engineMode: settings.engineMode,
-    setEngineMode: settings.setEngineMode,
-    difyUrl: settings.difyUrl,
-    setDifyUrl: settings.setDifyUrl,
-    difyKey: settings.difyKey,
-    setDifyKey: settings.setDifyKey,
-    iframeUrl: settings.iframeUrl,
-    setIframeUrl: settings.setIframeUrl,
-    chatEndRef: messageState.chatEndRef,
-    handleSaveSettings,
-    handleConfirmInline,
-    handleSubmit,
-    isBusy,
-    handleSuggestionClick: submitText,
-    isProductionWeb: settings.isServerRuntime,
+    messages, inputValue, setInputValue, chatEndRef,
+    jobs, showSettings, setShowSettings,
+    handleSubmit, handleConfirmInline, handleSuggestionClick: submitText,
     machineAgentConnected: machineBridge.connected,
     machineAgentCount: machineBridge.agents.length,
     pairingCode: machineBridge.pairing?.code,

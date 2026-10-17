@@ -15,7 +15,6 @@ export function useAiAssistant() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const jobsRef = useRef<Job[]>([]);
   const active = useRef(new Set<string>());
-  const approvals = useRef(new Map<string, string>());
   const serial = useRef(Promise.resolve());
   const machineBridge = useMachineAgentBridge();
   const { messages, chatEndRef, addMessage, setMessages } = useAiAssistantMessages();
@@ -37,7 +36,7 @@ export function useAiAssistant() {
 
   const drainQueued = () => {
     // Queue mode runs in FIFO order after all active immediate jobs finish.
-    if (active.current.size > 0) return;
+    if (active.current.size > 0 || jobsRef.current.some((job) => job.status === "approval")) return;
     const first = jobsRef.current.find((job) => job.status === "queued");
     if (first) void run(first);
   };
@@ -51,11 +50,10 @@ export function useAiAssistant() {
       const result = await harness.run(job.goal, job.checkpoint, approval);
       setMessages((items) => items.filter((item) => item.id !== pendingId));
       if (result.status === "confirmation_required" && result.checkpoint.pending) {
-        const messageId = addMessage("assistant", result.message, {
+        addMessage("assistant", result.message, {
           confirmation: result.checkpoint.pending,
           jobId: job.id,
         });
-        approvals.current.set(messageId, job.id);
         update({ ...job, status: "approval", checkpoint: result.checkpoint });
       } else {
         const status = result.status === "completed" ? "completed" : "failed";

@@ -16,6 +16,7 @@ import { toast } from "../components/ToastProvider";
 import { buildPdfTextExport } from "../lib/pdfTextExport";
 import { getServerDocumentUrl } from "../lib/documentSource";
 import type { AgentToolId } from "../agent/types";
+import { agentDocumentRevision } from "../agent/documentRevision";
 import type { PdfUndoSnapshot } from "../agent/lastPdfActionUndo";
 
 import { useDocumentAutosave } from "./useDocumentAutosave";
@@ -576,6 +577,16 @@ export function useAppControllers({ isPublic, setActiveMarkupTool, openRightSide
     state: createAgentStateSnapshot({
       hasDocument: state.hasDocument,
       fileName: state.fileName,
+      documentRevision: agentDocumentRevision({
+        hasDocument: state.hasDocument,
+        fileName: state.fileName,
+        activeTabId: state.activeTabId,
+        sourceIdentity: state.sourceIdentity,
+        docBytes: state.docBytes,
+        sourceBlob: state.sourceBlob,
+        annotations: state.annotations,
+        viewerEditRevision: state.viewerEditRevision,
+      }),
       currentPage: state.page,
       totalPages: state.totalPages,
       activeTool: state.activeTool,

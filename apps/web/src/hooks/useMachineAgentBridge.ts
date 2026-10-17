@@ -7,6 +7,7 @@ type AgentSummary = {
   version: string;
   pairedAt: number;
   lastSeenAt: number;
+  online: boolean;
 };
 
 type Pairing = {
@@ -125,7 +126,7 @@ export function useMachineAgentBridge() {
   return {
     isServerRuntime: isServerRuntime(),
     agents,
-    connected: agents.length > 0,
+    connected: agents.some((agent) => agent.online),
     pairing,
     loading,
     error,

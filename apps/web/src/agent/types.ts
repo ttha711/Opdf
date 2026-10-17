@@ -126,7 +126,7 @@ export interface AgentActionContext {
     openFile?: () => void | Promise<void>;
     openFileWithPath?: (filePath: string) => void | Promise<void>;
     openFileBytes?: (bytes: Uint8Array, fileName?: string) => void | Promise<void>;
-    closeDocument?: () => void | Promise<void>;
+    closeDocument?: (options?: { approvedByAgent?: boolean }) => boolean | Promise<boolean>;
     exportPdf?: () => void | Promise<void>;
     savePdf?: () => void | boolean | Promise<void | boolean>;
     compressDocument?: () => void | Promise<void>;

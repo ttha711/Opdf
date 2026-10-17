@@ -182,8 +182,9 @@ export function App() {
     return <Suspense fallback={<div role="status">Loading AI editor…</div>}><AiRewriteEditorWindow /></Suspense>;
   }
     const showWorkspace = state.hasDocument || Boolean(state.activeDashboardTool);
+    const isHomeScreen = showHome || (!showWorkspace && !state.showDashboard);
   return (
-    <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}`}>
+    <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}${isHomeScreen ? " is-home" : ""}`}>
       <AppUpdateBanner updateInfo={updateInfo} />
       <ServerUploadBanner />
       <AppHeader
@@ -245,7 +246,7 @@ export function App() {
         />
       </Suspense>}
       {showHome ? (
-        <div className="min-h-0 overflow-hidden" onDragOver={onDragOver} onDrop={(event) => {
+        <div className="h-full min-h-0 overflow-hidden flex flex-col" onDragOver={onDragOver} onDrop={(event) => {
           setShowHome(false);
           onDrop(event);
         }}>
@@ -325,7 +326,7 @@ export function App() {
           }}
         /></Suspense>
       ) : !showWorkspace ? (
-        <div className="min-h-0 overflow-hidden" onDragOver={onDragOver} onDrop={onDrop}>
+        <div className="h-full min-h-0 overflow-hidden flex flex-col" onDragOver={onDragOver} onDrop={onDrop}>
           <HomeScreen
             recentDocuments={homeRecentDocuments}
             onOpenFile={headerProps.openFile}

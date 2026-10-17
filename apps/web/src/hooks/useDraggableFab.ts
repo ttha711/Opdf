@@ -142,11 +142,8 @@ export function useDraggableFab({
     return () => window.removeEventListener("resize", handleResize);
   }, [position, panelAlign]);
 
-  const shouldSuppressClick = useCallback((clientX: number, clientY: number, detail: number) =>
-    detail > 0 && Math.hypot(
-      clientX - dragStartMouse.current.x,
-      clientY - dragStartMouse.current.y,
-    ) > 18, []);
+  const shouldSuppressClick = useCallback((_clientX: number, _clientY: number, _detail: number) =>
+    hasMovedRef.current, []);
 
   return {
     shouldSuppressClick,

@@ -30,7 +30,7 @@ export async function executeAgentCommand(command: AgentCommand, context: AgentA
   }
 
   try {
-    const outcome = await runAgentAction(definition, args, context);
+    const outcome = await runAgentAction(definition, args, context, command.confirmed === true);
     if (outcome?.status === "input_required") {
       return {
         status: "input_required",
@@ -68,6 +68,7 @@ async function runAgentAction(
   definition: AgentToolDefinition,
   args: Record<string, unknown>,
   context: AgentActionContext,
+  approvedByAgent: boolean,
 ): Promise<AgentActionOutcome | void> {
   const { actions, state } = context;
   switch (definition.id) {
@@ -103,7 +104,7 @@ async function runAgentAction(
       };
     }
     case "close-document": {
-      const closed = await actions.closeDocument?.({ approvedByAgent: command.confirmed === true });
+      const closed = await actions.closeDocument?.({ approvedByAgent });
       if (closed !== true) throw new Error("Document close was not completed.");
       return;
     }

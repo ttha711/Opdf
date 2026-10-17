@@ -126,8 +126,8 @@ export function useAiAssistant() {
     }
   };
   const undoLast = async () => {
-    const result = await commandRuntime.executeCommand({ tool: "undo-annotations" });
-    addMessage("assistant", result?.message || "Undo is unavailable. Document edits may require restoring a prior saved version.");
+    const result = await commandRuntime.executeCommand({ tool: "undo-last-agent-action" });
+    addMessage("assistant", result?.message || "No recent AI PDF edit is available to undo.");
   };
 
   return {

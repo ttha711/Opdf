@@ -202,8 +202,10 @@ export async function runAgentHarness(
       if (++failed >= 3) break;
       continue;
     }
+    const currentState = adapter.getState() as { documentRevision?: string };
     const command: AgentCommand = {
       tool: tool.id,
+      expectedRevision: tool.requiresDocument ? currentState.documentRevision : undefined,
       args: decision.args ?? {},
       confirmed: false, // Untrusted LLM output may NEVER self-approve mutations.
     };

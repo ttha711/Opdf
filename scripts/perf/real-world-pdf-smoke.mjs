@@ -91,9 +91,9 @@ async function downloadPdf(url, outputPath) {
   };
 }
 
-function uploadPdf(filePath, fileName) {
-  return new Promise(async (resolve, reject) => {
-    const info = await stat(filePath);
+async function uploadPdf(filePath, fileName) {
+  const info = await stat(filePath);
+  return new Promise((resolve, reject) => {
     const input = createReadStream(filePath);
     const request = http.request(
       `${BASE}/api/tpdf/documents?name=${encodeURIComponent(fileName)}`,

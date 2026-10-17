@@ -156,7 +156,7 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
       }
     } catch (error) {
       if (!objectStore && error?.code === "ENOENT") users = [];
-      else throw new Error("TPDF user database is unreadable or corrupt; refusing to start authentication.");
+      else throw new Error("TPDF user database is unreadable or corrupt; refusing to start authentication.", { cause: error });
     }
 
     if (!enabled || users.length > 0) return;
@@ -299,6 +299,7 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
       users = users.filter((row) => row.id !== user.id);
       throw new Error(
         `User database changed on another node; retry the request. ${error instanceof Error ? error.message : ""}`.trim(),
+        { cause: error },
       );
     }
     return publicUser(user);
@@ -324,6 +325,7 @@ export function createAuthService(dataDir, env = process.env, options = {}) {
       Object.assign(user, previous);
       throw new Error(
         `User database changed on another node; retry the request. ${error instanceof Error ? error.message : ""}`.trim(),
+        { cause: error },
       );
     }
     return publicUser(user);

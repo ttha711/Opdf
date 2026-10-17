@@ -8,11 +8,12 @@ export function blocksToMarkdown(blocks: DocumentBlock[]): string {
 
   for (const block of blocks) {
     switch (block.type) {
-      case "heading":
+      case "heading": {
         const level = block.meta?.level || 2;
         lines.push(`${"#".repeat(level)} ${stripHtml(block.content)}`);
         lines.push("");
         break;
+      }
 
       case "paragraph":
         lines.push(stripHtml(block.content));
@@ -31,12 +32,13 @@ export function blocksToMarkdown(blocks: DocumentBlock[]): string {
         }
         break;
 
-      case "callout":
+      case "callout": {
         const calloutType = block.meta?.calloutType || "info";
         const emoji = { info: "ℹ️", warning: "⚠️", success: "✅", danger: "🚨" }[calloutType] || "💡";
         lines.push(`> ${emoji} **Lưu ý:** ${stripHtml(block.content)}`);
         lines.push("");
         break;
+      }
 
       case "image":
         lines.push(`![${block.meta?.imageAlt || ""}](${block.meta?.imageSrc || ""})`);

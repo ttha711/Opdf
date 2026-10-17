@@ -88,10 +88,11 @@ test("mobile Home, menu and Pages drawer remain usable by touch", async ({ page 
   await filmstrip.getByRole("button", { name: "Go to page", exact: true }).click();
   await expect(page.getByTestId("page-status")).toContainText(/Page\s+3\s+of\s+3/i, { timeout: 10_000 });
 
-  await expect(page.locator(".tpdf-topbar .tab-bar-container")).toBeVisible();
+  const mobileTabBtn = page.locator('[data-tpdf-action="open-tab-switcher"]');
+  await expect(mobileTabBtn).toBeVisible();
   await page.locator('[data-tpdf-action="home"]').click();
   await expect(page.getByRole("heading", { name: "Your documents, ready when you are." })).toBeVisible();
-  const preservedTab = page.locator(".tpdf-header-tabs").getByText("mobile-three-pages.pdf", { exact: true });
+  const preservedTab = page.locator(".tpdf-home__recent-row, .tpdf-home__recent-card").getByText("mobile-three-pages.pdf", { exact: false }).first();
   await expect(preservedTab).toBeVisible();
   await preservedTab.click();
   await expect(page.locator('[data-tpdf-engine="pdfium-wasm"]')).toBeVisible({ timeout: 20_000 });

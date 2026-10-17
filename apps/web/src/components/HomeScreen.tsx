@@ -29,7 +29,7 @@ export function HomeScreen({
       <div className="tpdf-home__container">
         <header className="tpdf-home__hero">
           <div className="tpdf-home__hero-text">
-            <h1>PDF workspace</h1>
+            <h1>Your documents, ready when you are.</h1>
             <p className="tpdf-home__subtitle">Open a document to read, edit or share.</p>
           </div>
         </header>

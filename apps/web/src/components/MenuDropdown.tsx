@@ -181,6 +181,7 @@ export function MenuDropdown({
       <button
         data-tpdf-menu-trigger={label}
         className={"top-menu-btn tpdf-menu-trigger" + (isOpen ? " menu-open" : "")}
+        style={isOpen ? { position: "relative", zIndex: "var(--z-dropdown)" } : undefined}
         onClick={onToggle}
         type="button"
         aria-haspopup="menu"

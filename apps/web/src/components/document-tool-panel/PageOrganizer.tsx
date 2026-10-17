@@ -133,18 +133,18 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
               {fileName || "PDF"} · {live.length} of {pageCount} pages retained
             </p>
           </div>
-          <button type="button" aria-label="Close organizer" onClick={close} disabled={working} className="rounded border border-[var(--border-color)] px-3 py-2">Close</button>
+          <button type="button" aria-label="Close organizer" onClick={close} disabled={working} className="rounded-lg border border-[var(--border-color)] px-4 py-2 font-semibold min-h-[44px] min-w-[44px] inline-flex items-center justify-center">Close</button>
         </header>
         <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-color)] p-3 text-xs">
-          <button type="button" onClick={() => setSelected(live)} disabled={working || loadingCount}>Select all</button>
-          <button type="button" onClick={() => setSelected([])} disabled={working}>Clear selection</button>
+          <button type="button" className="rounded-md border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2.5 py-1.5 font-semibold text-[var(--text-primary)] hover:bg-[var(--ui-hover-bg)] disabled:opacity-40 min-h-[36px] inline-flex items-center" onClick={() => setSelected(live)} disabled={working || loadingCount}>Select all</button>
+          <button type="button" className="rounded-md border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2.5 py-1.5 font-semibold text-[var(--text-primary)] hover:bg-[var(--ui-hover-bg)] disabled:opacity-40 min-h-[36px] inline-flex items-center" onClick={() => setSelected([])} disabled={working}>Clear selection</button>
           <span className="mr-2 text-[var(--text-secondary)]">{active.length} selected</span>
-          <button type="button" data-tpdf-action="organizer-move-left" onClick={() => move(-1)} disabled={!active.length || working}>← Earlier</button>
-          <button type="button" data-tpdf-action="organizer-move-right" onClick={() => move(1)} disabled={!active.length || working}>Later →</button>
-          <button type="button" data-tpdf-action="organizer-rotate-left" onClick={() => rotate(-90)} disabled={!active.length || working}>↶ Rotate left</button>
-          <button type="button" data-tpdf-action="organizer-rotate-right" onClick={() => rotate(90)} disabled={!active.length || working}>↷ Rotate right</button>
-          <button type="button" data-tpdf-action="organizer-delete" onClick={() => setRemoved(current => [...new Set([...current, ...active])])} disabled={!active.length || working || live.length <= active.length}>Remove</button>
-          <button type="button" onClick={() => { setOrder(range(pageCount)); setRemoved([]); setRotations({}); setSelected([]); setAcknowledged(false); }} disabled={working}>Reset</button>
+          <button type="button" data-tpdf-action="organizer-move-left" className="rounded-md border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2.5 py-1.5 font-semibold text-[var(--text-primary)] hover:bg-[var(--ui-hover-bg)] disabled:opacity-40 min-h-[36px] inline-flex items-center" onClick={() => move(-1)} disabled={!active.length || working}>← Earlier</button>
+          <button type="button" data-tpdf-action="organizer-move-right" className="rounded-md border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2.5 py-1.5 font-semibold text-[var(--text-primary)] hover:bg-[var(--ui-hover-bg)] disabled:opacity-40 min-h-[36px] inline-flex items-center" onClick={() => move(1)} disabled={!active.length || working}>Later →</button>
+          <button type="button" data-tpdf-action="organizer-rotate-left" className="rounded-md border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2.5 py-1.5 font-semibold text-[var(--text-primary)] hover:bg-[var(--ui-hover-bg)] disabled:opacity-40 min-h-[36px] inline-flex items-center" onClick={() => rotate(-90)} disabled={!active.length || working}>↶ Rotate left</button>
+          <button type="button" data-tpdf-action="organizer-rotate-right" className="rounded-md border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2.5 py-1.5 font-semibold text-[var(--text-primary)] hover:bg-[var(--ui-hover-bg)] disabled:opacity-40 min-h-[36px] inline-flex items-center" onClick={() => rotate(90)} disabled={!active.length || working}>↷ Rotate right</button>
+          <button type="button" data-tpdf-action="organizer-delete" className="rounded-md border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2.5 py-1.5 font-semibold text-[var(--text-primary)] hover:bg-[var(--ui-hover-bg)] disabled:opacity-40 min-h-[36px] inline-flex items-center" onClick={() => setRemoved(current => [...new Set([...current, ...active])])} disabled={!active.length || working || live.length <= active.length}>Remove</button>
+          <button type="button" className="rounded-md border border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-2.5 py-1.5 font-semibold text-[var(--text-primary)] hover:bg-[var(--ui-hover-bg)] disabled:opacity-40 min-h-[36px] inline-flex items-center" onClick={() => { setOrder(range(pageCount)); setRemoved([]); setRotations({}); setSelected([]); setAcknowledged(false); }} disabled={working}>Reset</button>
         </div>
         <p className="px-4 pt-3 text-xs text-[var(--text-secondary)]">
           Drag thumbnails to reorder, or use Earlier/Later. Click, Ctrl/⌘-click, or Shift-click to select.
@@ -183,10 +183,10 @@ export function PageOrganizer({ totalPages, fileName, getDocumentBytes, bridge, 
             <span>I understand that structural edits may invalidate signatures and affect bookmarks, links, forms or attachments. Review the saved PDF.</span>
           </label>
           {error ? <p role="alert" className="text-xs text-red-600">{error}</p> : null}
-          <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={close} disabled={working} className="rounded border border-[var(--border-color)] px-4 py-2">Cancel</button>
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+            <button type="button" onClick={close} disabled={working} className="rounded-lg border border-[var(--border-color)] px-4 py-2.5 min-h-[44px] font-semibold text-center">Cancel</button>
             <button type="button" data-tpdf-action="organizer-apply" onClick={() => void apply()} disabled={!safe}
-              className="rounded bg-[var(--acrobat-blue)] px-4 py-2 font-semibold text-white disabled:opacity-50">
+              className="rounded-lg bg-[var(--acrobat-blue)] px-5 py-2.5 font-semibold text-white min-h-[44px] text-center disabled:opacity-50">
               {working ? "Applying…" : "Apply page changes"}
             </button>
           </div>

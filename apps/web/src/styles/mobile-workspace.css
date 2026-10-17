@@ -80,17 +80,25 @@
     backdrop-filter: blur(1px);
   }
 
-  .tpdf-panel-collapse {
-    top: 8px;
-    right: 12px;
-    min-width: 76px;
-    min-height: 34px;
-    justify-content: center;
-    z-index: 50;
+  .tpdf-side-panel--right[data-tpdf-right-sidebar="open"] {
+    display: flex !important;
+    flex-direction: column;
   }
 
-  .tpdf-side-panel--right [data-tpdf-panel="document"] {
-    padding-top: 48px;
+  .tpdf-panel-collapse {
+    position: static;
+    margin: 8px 12px 6px auto;
+    align-self: flex-end;
+    min-width: 76px;
+    min-height: 36px;
+    justify-content: center;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .tpdf-side-panel--right > :not(.tpdf-panel-collapse) {
+    flex: 1 1 0;
+    min-height: 0;
   }
 
   .tpdf-mobile-filmstrip {
@@ -188,5 +196,12 @@
     text-align: center;
     font-size: 10px;
     font-weight: 800;
+  }
+
+  .acrobat-tool-panel button.w-full,
+  .acrobat-tool-panel [data-tpdf-action$="-run"] {
+    min-height: 44px;
+    font-size: 13px;
+    font-weight: 700;
   }
 }

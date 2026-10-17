@@ -118,13 +118,11 @@ async function runDeepAudit() {
     await page.screenshot({ path: `${OUT_DIR}/05-app-menu-sheet.png` });
 
     // Audit menu items
-    const menuItems = await page.locator(".menu-dropdown-item, .mobile-sheet-item, button").evaluateAll((elements) =>
-      elements.filter((el) => el.closest(".menu-dropdown-list, .mobile-menu-sheet")).map((el) => el.textContent?.trim())
-    );
-    log("APP_MENU", "Menu items in mobile sheet", JSON.stringify(menuItems));
+    const menuItems = await page.locator('[data-tpdf-menu-surface] [data-tpdf-menu-item]').allTextContents();
+    log("APP_MENU", "Menu items in mobile sheet", JSON.stringify(menuItems.map((s) => s.trim())));
 
-    // Click Document submenu if available
-    const docItem = page.getByRole("button", { name: /^Document/i }).first();
+    // Click Document submenu if available inside sheet
+    const docItem = page.locator('[data-tpdf-menu-surface] [data-tpdf-menu-item="Document"]').first();
     if (await docItem.isVisible()) {
       await docItem.click();
       await page.waitForTimeout(400);
@@ -133,7 +131,7 @@ async function runDeepAudit() {
 
     // Dismiss menu
     await page.keyboard.press("Escape").catch(() => {});
-    const backdrop = page.locator(".mobile-menu-backdrop");
+    const backdrop = page.locator(".fixed.inset-0.bg-black\\/40").first();
     if (await backdrop.isVisible()) await backdrop.click({ force: true }).catch(() => {});
     await page.waitForTimeout(400);
   }

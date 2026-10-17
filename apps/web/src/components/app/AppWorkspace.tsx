@@ -103,6 +103,11 @@ export function AppWorkspace({
   const rightAvailable = state.hasDocument || Boolean(state.activeDashboardTool) ||
     Boolean(activeMarkupTool) || isAiPanelOpen;
   const showRight = rightAvailable && !isRightCollapsed;
+  const closeSidebarOnMobile = () => {
+    if (typeof window !== "undefined" && window.innerWidth <= 900) {
+      setIsRightCollapsed(true);
+    }
+  };
   const columns = [
     "1fr",
     showRight ? "6px" : "0px",
@@ -261,13 +266,17 @@ export function AppWorkspace({
               void commitPendingNativeInlineEdit()
                 .then(() => state.setActiveTool("select"))
                 .catch((error) => state.setViewerError(error instanceof Error ? error.message : String(error)));
+              closeSidebarOnMobile();
             }}
           />
         ) : isAiPanelOpen ? (
           <AiAssistantPanel
             isOpen
             docked
-            onClose={() => setIsAiPanelOpen(false)}
+            onClose={() => {
+              setIsAiPanelOpen(false);
+              closeSidebarOnMobile();
+            }}
             onOpenLiveEditor={() => setIsLiveEditorOpen(true)}
           />
         ) : activeMarkupTool ? (
@@ -275,7 +284,10 @@ export function AppWorkspace({
             tool={activeMarkupTool}
             fileName={state.fileName}
             totalPages={state.totalPages}
-            onClose={() => setActiveMarkupTool(null)}
+            onClose={() => {
+              setActiveMarkupTool(null);
+              closeSidebarOnMobile();
+            }}
             onApply={runConfiguredMarkupTool}
           />
         ) : state.activeDashboardTool ? (
@@ -288,7 +300,10 @@ export function AppWorkspace({
             getDocumentBytes={materializeDocumentBytes}
             totalPages={state.totalPages}
             annotations={state.annotations}
-            onClose={() => state.setActiveDashboardTool(null)}
+            onClose={() => {
+              state.setActiveDashboardTool(null);
+              closeSidebarOnMobile();
+            }}
             onLoadConvertedPdf={(bytes, name) => {
               state.setFileName(name);
               replaceDocumentBytes(bytes, 1, {

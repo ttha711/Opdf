@@ -25,6 +25,7 @@ export type AgentToolId =
   | "set-view-mode"
   | "rotate-view-left"
   | "rotate-view-right"
+  | "undo-last-agent-action"
   | "undo-annotations"
   | "redo-annotations"
   | "select-tool"
@@ -123,6 +124,8 @@ export interface AgentStateSnapshot {
 export interface AgentActionContext {
   state: AgentStateSnapshot;
   actions: {
+    captureAgentUndo?: () => Promise<import("./lastPdfActionUndo").PdfUndoSnapshot | null>;
+    restoreAgentUndo?: (snapshot: import("./lastPdfActionUndo").PdfUndoSnapshot) => Promise<void>;
     openFile?: () => void | Promise<void>;
     openFileWithPath?: (filePath: string) => void | Promise<void>;
     openFileBytes?: (bytes: Uint8Array, fileName?: string) => void | Promise<void>;

@@ -143,12 +143,27 @@ export function createAgentPairingBroker(secret, options = {}) {
     cleanup();
     const task = tasks.get(taskId);
     if (!task || task.userId !== agent.userId || task.projectId !== agent.projectId) return null;
-    if (task.claimedBy && task.claimedBy !== agent.id) return null;
+    if (task.status !== "running" || task.claimedBy !== agent.id) return null;
     task.status = payload?.error ? "failed" : "completed";
     task.result = payload?.result ?? payload?.answer ?? null;
     task.error = payload?.error ? String(payload.error).slice(0, 4000) : null;
     task.completedAt = Date.now();
     agent.lastSeenAt = Date.now();
+    return { id: task.id, status: task.status };
+  }
+
+  function cancelTask(user, projectId, taskId) {
+    cleanup();
+    const task = tasks.get(taskId);
+    if (!task || task.userId !== user.id || task.projectId !== projectId) return null;
+    if (task.status === "queued" || task.status === "running") {
+      task.status = "cancelled";
+      task.completedAt = Date.now();
+      task.result = null;
+      task.error = null;
+      task.context = {};
+      task.query = "";
+    }
     return { id: task.id, status: task.status };
   }
 
@@ -175,5 +190,6 @@ export function createAgentPairingBroker(secret, options = {}) {
     nextTask,
     completeTask,
     getTask,
+    cancelTask,
   };
 }

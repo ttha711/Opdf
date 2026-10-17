@@ -6,8 +6,123 @@
     <title>TPDF — PDF workspace</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="description" content="TPDF is a PDF workspace for viewing, editing, annotating, organizing, and converting documents in your browser or desktop app." />
+    <!-- Paint the public, non-interactive home hero without waiting for React. -->
+    <style>
+      #tpdf-first-paint[hidden] { display: none !important; }
+      #tpdf-first-paint {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+        background: #e1e3e6;
+        color: #2c2c2c;
+        font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+        pointer-events: none;
+        overflow-y: auto;
+      }
+      #tpdf-first-paint .tpdf-first-paint__bar {
+        height: 46px;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        background: #f8f8f8;
+        border-bottom: 1px solid #d1d5db;
+        font-size: 14px;
+        font-weight: 800;
+        color: #a5281c;
+        letter-spacing: -.3px;
+      }
+      #tpdf-first-paint .tpdf-first-paint__glow {
+        position: absolute;
+        top: 46px;
+        left: 0;
+        right: 0;
+        height: 480px;
+        pointer-events: none;
+        background: radial-gradient(ellipse 80% 50% at 50% -15%, rgba(0, 97, 213, 0.14), transparent 70%);
+      }
+      #tpdf-first-paint .tpdf-first-paint__content {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: clamp(24px, 4vw, 56px) clamp(16px, 3.5vw, 40px);
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+      #tpdf-first-paint .tpdf-first-paint__meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      #tpdf-first-paint .tpdf-first-paint__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 11px;
+        border-radius: 999px;
+        background: rgba(0, 97, 213, 0.1);
+        border: 1px solid rgba(0, 97, 213, 0.25);
+        color: #0061d5;
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+      }
+      #tpdf-first-paint .tpdf-first-paint__dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #0061d5;
+      }
+      #tpdf-first-paint h1 {
+        margin: 12px 0 0;
+        font-size: clamp(28px, 4.2vw, 42px);
+        font-weight: 800;
+        line-height: 1.12;
+        letter-spacing: -.035em;
+        color: #2c2c2c;
+      }
+      #tpdf-first-paint .tpdf-first-paint__subtitle {
+        margin: 8px 0 0;
+        max-width: 680px;
+        color: #5e5e5e;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      #tpdf-first-paint .tpdf-first-paint__dropzone {
+        min-height: 180px;
+        border: 2px dashed rgba(0, 97, 213, 0.35);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.5);
+      }
+      @media (prefers-color-scheme: dark) {
+        #tpdf-first-paint { background: #121212; color: #e5e7eb; }
+        #tpdf-first-paint .tpdf-first-paint__bar { background: #1a1a1a; border-bottom-color: #333333; color: #ff8b80; }
+        #tpdf-first-paint h1 { color: #e5e7eb; }
+        #tpdf-first-paint .tpdf-first-paint__subtitle { color: #9ca3af; }
+        #tpdf-first-paint .tpdf-first-paint__dropzone { background: rgba(30, 30, 30, 0.5); border-color: rgba(59, 130, 246, 0.3); }
+      }
+    </style>
   </head>
   <body>
+    <div id="tpdf-first-paint">
+      <div class="tpdf-first-paint__bar" aria-hidden="true">TPDF</div>
+      <div class="tpdf-first-paint__glow" aria-hidden="true"></div>
+      <div class="tpdf-first-paint__content">
+        <div>
+          <div class="tpdf-first-paint__meta">
+            <span class="tpdf-first-paint__badge">
+              <span class="tpdf-first-paint__dot"></span>
+              TPDF WORKSPACE · 2026 EDITION
+            </span>
+          </div>
+          <h1>Your documents, ready when you are.</h1>
+          <p class="tpdf-first-paint__subtitle">Open a PDF to read, review, annotate, compare, convert, or export with high-performance AI tools.</p>
+        </div>
+        <div class="tpdf-first-paint__dropzone" aria-hidden="true"></div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -1,5 +1,5 @@
 // tpdf-file-size-allow: legacy central HTTP router; large-upload logic is delegated to tpdf-upload.mjs while router extraction is handled separately.
-import { createReadStream } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { mkdir, mkdtemp, open, readFile, rename, rm, stat } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -77,7 +77,21 @@ const officeConverterScript = resolve(
   join(repoRoot, "apps", "desktop", "tools", "pdf_office_convert.py"),
 );
 const officeWorkerTimeoutMs = Number(process.env.TPDF_OFFICE_WORKER_TIMEOUT_MS || 5 * 60 * 1000);
-const libreOfficePath = process.env.TPDF_LIBREOFFICE_PATH || (process.platform === "win32" ? "soffice.exe" : "soffice");
+function resolveLibreOfficePath(env = process.env) {
+  if (env.TPDF_LIBREOFFICE_PATH) return env.TPDF_LIBREOFFICE_PATH;
+  if (process.platform === "win32") {
+    const candidates = [
+      "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+      "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
+    ];
+    for (const candidate of candidates) {
+      if (existsSync(candidate)) return candidate;
+    }
+    return "soffice.exe";
+  }
+  return "soffice";
+}
+const libreOfficePath = resolveLibreOfficePath(process.env);
 const loginRateLimiter = createLoginRateLimiter(process.env);
 const pageIndexApi = createPageIndexApi({ storage, tenantRuntime, readJsonBody, sendJson, sendError, pythonPath });
 const agentPairing = createAgentPairingBroker(

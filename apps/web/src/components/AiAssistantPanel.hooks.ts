@@ -153,7 +153,7 @@ export function useAiAssistant() {
     jobs, showSettings, setShowSettings,
     handleSubmit, handleConfirmInline, handleSuggestionClick: submitText,
     machineAgentConnected: machineBridge.connected,
-    machineAgentCount: machineBridge.agents.length,
+    machineAgentCount: machineBridge.agents.filter((agent) => agent.online).length,
     pairingCode: machineBridge.pairing?.code,
     pairingExpiresAt: machineBridge.pairing?.expiresAt,
     pairingLoading: machineBridge.loading,

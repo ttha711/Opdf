@@ -5,7 +5,7 @@ import { AiSparkIcon } from "./AiSparkIcon";
 
 export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = false }: AiAssistantPanelProps) {
   const {
-    messages, inputValue, setInputValue, chatEndRef,
+    messages, inputValue, setInputValue, chatEndRef, isBusy,
     handleConfirmInline, handleSubmit,
     machineAgentConnected, machineAgentCount,
     pairingCode, pairingExpiresAt, pairingLoading, pairingError, startMachineAgentPairing,
@@ -49,7 +49,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = fa
         ))}
         <div ref={chatEndRef} />
       </div>
-      <ChatInputForm inputValue={inputValue} setInputValue={setInputValue} onSubmit={handleSubmit} engineMode="agent" />
+      <ChatInputForm inputValue={inputValue} setInputValue={setInputValue} onSubmit={handleSubmit} engineMode="agent" disabled={isBusy || messages.some((message) => Boolean(message.confirmation))} />
     </div>
   );
 }

@@ -60,10 +60,16 @@ async function sha256(filePath) {
 
 function runProcess(binary, args, cwd, timeoutMs, outputCap) {
   return new Promise((resolve, reject) => {
-    const child = spawn(binary, args, {
-      cwd, shell: false, windowsHide: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const isWindowsScript = process.platform === 'win32' && !binary.toLowerCase().endsWith('.exe');
+    const child = isWindowsScript
+      ? spawn(process.execPath, [binary, ...args], {
+          cwd, windowsHide: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+      : spawn(binary, args, {
+          cwd, shell: false, windowsHide: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
     let stdout = '', bytes = 0, settled = false, timedOut = false, tooLarge = false;
     const decoder = new StringDecoder('utf8');
     function kill() {

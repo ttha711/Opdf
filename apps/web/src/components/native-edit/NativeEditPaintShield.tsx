@@ -12,7 +12,7 @@ export function NativeEditPaintShield({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const lastRevisionRef = useRef(revisionKey);
-  const oldDocumentRef = useRef<string | null>(null);
+  const isShieldActiveRef = useRef(false);
 
   useLayoutEffect(() => {
     if (revisionKey === lastRevisionRef.current) return;
@@ -21,6 +21,7 @@ export function NativeEditPaintShield({
     const surface = cover?.parentElement;
     const viewport = surface?.querySelector(".native-edit-viewport");
     if (!cover || !surface || !viewport) return;
+
     // RenderLayer can produce a raster <img> instead of a <canvas>.
     const rasters = viewport.querySelectorAll<HTMLImageElement | HTMLCanvasElement>(
       ".native-edit-page img, .native-edit-page canvas",
@@ -63,17 +64,24 @@ export function NativeEditPaintShield({
     snapshot.style.height = "100%";
     cover.replaceChildren(snapshot);
     cover.style.display = "block";
-    oldDocumentRef.current = activeDocumentId;
-  }, [revisionKey, activeDocumentId]);
+    isShieldActiveRef.current = true;
+  }, [revisionKey]);
 
   useEffect(() => {
     const cover = ref.current;
-    const previous = oldDocumentRef.current;
-    if (!cover || previous === null || !activeDocumentId || previous === activeDocumentId) return;
+    if (!cover || !isShieldActiveRef.current) return;
+
     let frame = 0;
     let stableFrames = 0;
     const started = performance.now();
     let cancelled = false;
+
+    const hide = () => {
+      cover.style.display = "none";
+      cover.replaceChildren();
+      isShieldActiveRef.current = false;
+    };
+
     const check = () => {
       if (cancelled) return;
       const raster = cover.parentElement?.querySelector<HTMLImageElement | HTMLCanvasElement>(
@@ -85,15 +93,15 @@ export function NativeEditPaintShield({
       if (ready) stableFrames++;
       else stableFrames = 0;
 
-      // Wait for the new canvas to settle for two paints before uncovering it.
-      if (stableFrames >= 3 || performance.now() - started > 20000) {
-        cover.style.display = "none";
-        cover.replaceChildren();
-        oldDocumentRef.current = null;
+      // Wait for the new canvas to settle for two paints before uncovering it,
+      // or uncover after safety timeout (2500ms max) so editing is never blocked.
+      if (stableFrames >= 3 || performance.now() - started > 2500) {
+        hide();
         return;
       }
       frame = requestAnimationFrame(check);
     };
+
     frame = requestAnimationFrame(check);
     return () => {
       cancelled = true;

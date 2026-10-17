@@ -59,7 +59,11 @@ export function NativeEditPdfViewer({
     () => sourceIdentity.startsWith("server://") ? getServerDocumentUrl(sourceIdentity) : null,
     [sourceIdentity],
   );
-  const matchingBuffer = initialBuffer?.sourceUrl === (localUrl ?? serverUrl) ? initialBuffer.buffer : null;
+  if (!initialSourceUrlRef.current && (localUrl ?? serverUrl)) {
+    initialSourceUrlRef.current = localUrl ?? serverUrl;
+  }
+  const initialSourceUrl = initialSourceUrlRef.current;
+  const matchingBuffer = initialBuffer?.sourceUrl === initialSourceUrl ? initialBuffer.buffer : null;
   const currentBytes = data?.byteLength ?? sourceBlob?.size ?? matchingBuffer?.byteLength ?? 0;
   const isLargeServerPdf = currentBytes >= 100 * 1024 * 1024 && Boolean(serverUrl);
 
@@ -90,10 +94,6 @@ export function NativeEditPdfViewer({
     }
   }, [isLargeServerPdf, matchingBuffer, sourceUrl]);
   useEffect(() => { pinnedPointsRef.current = null; }, [sourceIdentity]);
-  if (!initialSourceUrlRef.current && sourceUrl) {
-    initialSourceUrlRef.current = sourceUrl;
-  }
-  const initialSourceUrl = initialSourceUrlRef.current;
   const needsServerBuffer = Boolean(sourceIdentity.startsWith("server://") && !sourceBlob && !data);
   const previewBase = isLargeServerPdf && serverUrl && remoteRenderAvailable?.source === serverUrl && remoteRenderAvailable.value
     ? `${serverApiBase(serverUrl)}/native-edit-previews`

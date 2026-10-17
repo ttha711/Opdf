@@ -37,7 +37,7 @@ for (const directive of ["object-src 'none'", "frame-ancestors 'none'", "wasm-un
 }
 const script = csp.split(";").map((part) => part.trim())
   .find((part) => part.startsWith("script-src ")) || "";
-check(!script.includes(" *") && !script.includes(" https:") && !script.includes("'unsafe-inline'"),
+check(!script.includes(" *") && !/(?:^|\s)https:(?:\s|$)/.test(script) && !script.includes("'unsafe-inline'"),
   "script-src has a broad script allowance");
 if (html.includes("static.cloudflareinsights.com/beacon.min.js")) {
   check(script.includes("https://static.cloudflareinsights.com/beacon.min.js/"),

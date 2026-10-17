@@ -96,7 +96,13 @@ export function assertSafeMutationRequest(req, env = process.env) {
     } catch {
       throw new Error("TPDF_PUBLIC_ORIGIN must be an absolute http(s) origin.");
     }
-    if (parsed.origin !== expected) throw httpError(403, "Request origin is not allowed.");
+    if (parsed.origin !== expected) {
+      const host = String(req.headers.host || "").toLowerCase();
+      const isLoopback = host.startsWith("127.0.0.1") || host.startsWith("localhost");
+      if (!isLoopback || parsed.host.toLowerCase() !== host) {
+        throw httpError(403, "Request origin is not allowed.");
+      }
+    }
     return;
   }
 

@@ -66,59 +66,22 @@ type AppHeaderProps = {
   changeTabGroupColor: (groupName: string, color: string) => void;
   closeTabGroup: (groupName: string) => void;
   ungroupGroup: (groupName: string) => void;
+  onOpenTabSwitcher?: () => void;
 };
 
 export function AppHeader(props: AppHeaderProps) {
   const {
-    fileInputRef,
-    hasDesktopBridge,
-    isPublic,
-    hasDocument,
-    openFile,
-    fileMenuItems,
-    editMenuItems,
-    viewMenuItems,
-    openMenu,
-    toggleMenu,
-    closeMenu,
-    activeTool,
-    setActiveTool,
-    undoAnnotations,
-    redoAnnotations,
-    runOcr,
-    compressDocument,
-    addWatermark,
-    splitDocument,
-    mergeDocuments,
-    convertToImages,
-    compareRevisions,
-    searchRedact,
-    advancedPdf,
-    digitalSign,
-    runDocumentTool,
-    openDocumentMarkupTool,
-    onSelectLocalFile,
-    theme,
-    toggleTheme,
-    showDashboard,
-    setShowDashboard,
-    onOpenAiEditorWindow,
-    onGoHome,
-    savePdf,
-    saveState,
-    autosaveEnabled,
-    autosaveStatus,
-    tabs,
-    activeTabId,
-    activeGroupFilter,
-    switchTab,
-    closeTab,
-    addTabToGroup,
-    removeTabFromGroup,
-    renameTabGroup,
-    changeTabGroupColor,
-    closeTabGroup,
-    ungroupGroup,
+    fileInputRef, hasDesktopBridge, isPublic, hasDocument, openFile,
+    fileMenuItems, editMenuItems, viewMenuItems, openMenu, toggleMenu, closeMenu,
+    activeTool, setActiveTool, undoAnnotations, redoAnnotations, runOcr,
+    compressDocument, addWatermark, splitDocument, mergeDocuments, convertToImages,
+    compareRevisions, searchRedact, advancedPdf, digitalSign, runDocumentTool,
+    openDocumentMarkupTool, onSelectLocalFile, theme, toggleTheme,
+    showDashboard, setShowDashboard, onOpenAiEditorWindow, onGoHome,
+    savePdf, saveState, autosaveEnabled, autosaveStatus,
+    tabs, activeTabId, activeGroupFilter, switchTab, closeTab,
+    addTabToGroup, removeTabFromGroup, renameTabGroup,
+    changeTabGroupColor, closeTabGroup, ungroupGroup, onOpenTabSwitcher,
   } = props;
   const bridgeCapabilities = useTpdfBridge().capabilities;
   const effectiveEditMenuItems = activeTool === "edit-content"
@@ -218,6 +181,17 @@ export function AppHeader(props: AppHeaderProps) {
           type="button"
         >
           {theme === "light" ? <TpdfIcon name="sun" size={18} /> : <TpdfIcon name="moon" size={18} />}
+        </button>
+
+        <button
+          type="button"
+          className="tpdf-mobile-tab-btn"
+          data-tpdf-action="open-tab-switcher"
+          onClick={onOpenTabSwitcher}
+          title={`Tabs (${tabs.length})`}
+          aria-label={`Open tabs overview (${tabs.length} tabs)`}
+        >
+          <span className="tpdf-mobile-tab-count">{tabs.length || 1}</span>
         </button>
 
         <div className="tpdf-header-tabs">

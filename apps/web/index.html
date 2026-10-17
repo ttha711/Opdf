@@ -6,8 +6,98 @@
     <title>TPDF — PDF workspace</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="description" content="TPDF is a PDF workspace for viewing, editing, annotating, organizing, and converting documents in your browser or desktop app." />
+    <!-- Paint the public, non-interactive home hero without waiting for React. -->
+    <style>
+      #tpdf-first-paint[hidden] { display: none !important; }
+      #tpdf-first-paint {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+        background: #e1e3e6;
+        color: #2c2c2c;
+        font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+        pointer-events: none;
+      }
+      #tpdf-first-paint .tpdf-first-paint__bar {
+        height: 52px;
+        display: flex;
+        align-items: center;
+        padding: 0 18px;
+        background: #fff;
+        border-bottom: 1px solid #d1d5db;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      #tpdf-first-paint .tpdf-first-paint__content { padding: clamp(24px, 5vw, 64px); }
+      #tpdf-first-paint #tpdf-first-paint-hero {
+        max-width: 920px;
+        margin: 0 auto;
+        display: flex;
+        align-items: flex-start;
+        gap: 18px;
+      }
+      #tpdf-first-paint .tpdf-home__mark {
+        width: 64px;
+        height: 64px;
+        flex: none;
+        display: grid;
+        place-items: center;
+        border: 1px solid #d1d5db;
+        border-radius: 18px;
+        background: #fff;
+        color: #a5281c;
+      }
+      #tpdf-first-paint .tpdf-home__eyebrow {
+        margin: 2px 0 6px;
+        color: #a5281c;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .12em;
+      }
+      #tpdf-first-paint h1 {
+        margin: 0;
+        font-size: clamp(28px, 5vw, 46px);
+        line-height: 1.08;
+        letter-spacing: -.04em;
+      }
+      #tpdf-first-paint .tpdf-home__subtitle {
+        margin: 12px 0 0;
+        max-width: 620px;
+        color: #5e5e5e;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      @media (max-width: 900px) {
+        #tpdf-first-paint .tpdf-first-paint__bar { height: 46px; }
+        #tpdf-first-paint .tpdf-first-paint__content { padding: 28px 16px 36px; }
+        #tpdf-first-paint #tpdf-first-paint-hero { gap: 12px; }
+        #tpdf-first-paint .tpdf-home__mark { width: 52px; height: 52px; border-radius: 14px; }
+      }
+      @media (max-width: 520px) {
+        #tpdf-first-paint #tpdf-first-paint-hero { align-items: center; }
+        #tpdf-first-paint .tpdf-home__mark { width: 46px; height: 46px; }
+        #tpdf-first-paint .tpdf-home__subtitle { font-size: 14px; }
+      }
+    </style>
   </head>
   <body>
+    <div id="tpdf-first-paint">
+      <div class="tpdf-first-paint__bar" aria-hidden="true">TPDF</div>
+      <div class="tpdf-first-paint__content">
+        <div id="tpdf-first-paint-hero" class="tpdf-home__hero">
+          <div class="tpdf-home__mark" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M7 16h10"/>
+            </svg>
+          </div>
+          <div>
+            <p class="tpdf-home__eyebrow">TPDF</p>
+            <h1>Your documents, ready when you are.</h1>
+            <p class="tpdf-home__subtitle">Open a PDF to read, review, annotate, compare, convert, or export.</p>
+          </div>
+        </div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

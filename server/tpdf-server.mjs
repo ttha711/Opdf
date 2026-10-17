@@ -871,7 +871,7 @@ async function handleApi(req, res, url) {
     return task ? sendJson(res, 200, task) : sendError(res, 404, "Agent task not found.");
   }
 
-  const agentCancelMatch = url.pathname.match(/^\\/api\\/tpdf\\/agent\\/tasks\\/([0-9a-f-]{36})\\/cancel$/i);
+  const agentCancelMatch = url.pathname.match(/^\/api\/tpdf\/agent\/tasks\/([0-9a-f-]{36})\/cancel$/i);
   if (agentCancelMatch && req.method === "POST") {
     const result = agentPairing.cancelTask(user, projectId, agentCancelMatch[1]);
     return result ? sendJson(res, 200, result) : sendError(res, 404, "Agent task not found.");

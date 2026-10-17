@@ -97,6 +97,7 @@ interface ChatInputFormProps {
   setInputValue: (value: string) => void;
   onSubmit: (event: React.FormEvent) => void;
   engineMode: EngineMode;
+  disabled?: boolean;
 }
 
 export function ChatInputForm({
@@ -104,6 +105,7 @@ export function ChatInputForm({
   setInputValue,
   onSubmit,
   engineMode,
+  disabled = false,
 }: ChatInputFormProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -127,6 +129,7 @@ export function ChatInputForm({
         className="ai-chat-textarea"
         rows={1}
         value={inputValue}
+        disabled={disabled}
         onChange={(event) => setInputValue(event.target.value)}
         onKeyDown={(event) => {
           if (event.key !== "Enter" || event.shiftKey) return;
@@ -138,7 +141,7 @@ export function ChatInputForm({
       <button
         data-tpdf-ai-send
         className="ai-chat-send-btn"
-        disabled={!inputValue.trim()}
+        disabled={disabled || !inputValue.trim()}
         type="submit"
         title="Send command"
       >

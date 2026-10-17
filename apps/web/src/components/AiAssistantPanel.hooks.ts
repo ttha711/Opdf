@@ -16,6 +16,7 @@ export function useAiAssistant() {
   const jobsRef = useRef<Job[]>([]);
   const active = useRef(new Set<string>());
   const serial = useRef(Promise.resolve());
+  const stopped = useRef(new Set<string>());
   const machineBridge = useMachineAgentBridge();
   const { messages, chatEndRef, addMessage, setMessages } = useAiAssistantMessages();
   const commandRuntime = useAiCommandRuntime({ addMessage, setMessages });
@@ -47,9 +48,12 @@ export function useAiAssistant() {
     update({ ...job, status: "running" });
     const pendingId = addMessage("assistant", "Processing: " + job.goal, { isPending: true });
     try {
-      const result = await harness.run(job.goal, job.checkpoint, approval);
+      const result = await harness.run(job.goal, job.checkpoint, approval, () => stopped.current.has(job.id));
       setMessages((items) => items.filter((item) => item.id !== pendingId));
-      if (result.status === "confirmation_required" && result.checkpoint.pending) {
+      if (stopped.current.has(job.id)) {
+        update({ ...job, status: "failed" });
+        addMessage("assistant", "Stopped. Changes from earlier completed steps may remain; use Undo when supported.", { jobId: job.id });
+      } else if (result.status === "confirmation_required" && result.checkpoint.pending) {
         addMessage("assistant", result.message, {
           confirmation: result.checkpoint.pending,
           jobId: job.id,
@@ -106,7 +110,28 @@ export function useAiAssistant() {
     void run(job, confirm ? "approve" : "reject");
   };
 
+  const stopJob = (jobId: string) => {
+    const job = jobsRef.current.find((item) => item.id === jobId);
+    if (!job || job.status === "completed" || job.status === "failed") return;
+    stopped.current.add(jobId);
+    if (job.status === "queued" || job.status === "approval") {
+      update({ ...job, status: "failed", checkpoint: undefined });
+      setMessages((items) => items.map((item) =>
+        item.jobId === jobId && item.confirmation ? { ...item, confirmation: undefined } : item,
+      ));
+      addMessage("assistant", "Task cancelled before further execution.", { jobId });
+      queueMicrotask(drainQueued);
+    } else {
+      addMessage("assistant", "Stop requested. The current tool may finish; no further steps will start.", { jobId });
+    }
+  };
+  const undoLast = async () => {
+    const result = await commandRuntime.executeCommand({ tool: "undo-annotations" });
+    addMessage("assistant", result?.message || "Undo is unavailable. Document edits may require restoring a prior saved version.");
+  };
+
   return {
+    stopJob, undoLast,
     messages, inputValue, setInputValue, chatEndRef,
     jobs, showSettings, setShowSettings,
     handleSubmit, handleConfirmInline, handleSuggestionClick: submitText,

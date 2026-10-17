@@ -26,7 +26,7 @@ export function isPdfEditingTool(tool: AgentToolId) {
 
 async function digest(snapshot: PdfUndoSnapshot): Promise<string> {
   const bytes = snapshot.bytes;
-  const hash = await crypto.subtle.digest("SHA-256", bytes.slice().buffer);
+  const hash = await crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer);
   return Array.from(new Uint8Array(hash), (n) => n.toString(16).padStart(2, "0")).join("");
 }
 
@@ -64,7 +64,9 @@ export class LastPdfActionUndo {
     if (!before || before.bytes.byteLength > MAX_UNDO_BYTES) return result;
 
     // Allow React's document replacement to commit before checking new bytes.
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    if (typeof requestAnimationFrame === "function") {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
     const after = await capture().catch(() => null);
     if (!after || after.fileName !== before.fileName) return result;
 

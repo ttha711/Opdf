@@ -1,7 +1,8 @@
 import { runAgentHarness, type HarnessCheckpoint } from "../agent/harness";
+import { raceAbort } from "../agent/raceAbort";
 import type { AgentCommand, AgentCommandResult } from "../agent/agentCommands";
 
-type MachineBridge = { sendQuery: (query: string, context: Record<string, unknown>) => Promise<unknown> };
+type MachineBridge = { sendQuery: (query: string, context: Record<string, unknown>, signal?: AbortSignal) => Promise<unknown> };
 type AdapterArgs = {
   machineBridge: MachineBridge;
   execute: (command: AgentCommand) => Promise<AgentCommandResult | null>;
@@ -17,10 +18,10 @@ function bridge() {
 
 export function createUiAgentHarness({ machineBridge, execute, onProgress, isCancelled }: AdapterArgs) {
   return {
-    async run(goal: string, previous?: HarnessCheckpoint, approval?: "approve" | "reject", cancelled?: () => boolean) {
+    async run(goal: string, previous?: HarnessCheckpoint, approval?: "approve" | "reject", cancelled?: () => boolean, signal?: AbortSignal) {
       const agent = bridge();
       return runAgentHarness(previous ?? { goal, observations: [] }, {
-        model: (prompt) => machineBridge.sendQuery(prompt, agent.getState() as Record<string, unknown>),
+        model: (prompt) => raceAbort(machineBridge.sendQuery(prompt, agent.getState() as Record<string, unknown>, signal), signal),
         execute: async (command) => await execute(command) ?? {
           status: "failed", tool: command.tool, message: "TPDF command bridge unavailable.",
         },

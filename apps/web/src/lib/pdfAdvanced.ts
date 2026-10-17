@@ -91,7 +91,7 @@ export async function fillFormFields(
     if (field instanceof PDFTextField) {
       field.setText(String(value ?? ""));
     } else if (field instanceof PDFCheckBox) {
-      if (Boolean(value)) field.check();
+      if (value) field.check();
       else field.uncheck();
     } else if (field instanceof PDFDropdown) {
       const next = Array.isArray(value) ? value[0] : String(value ?? "");

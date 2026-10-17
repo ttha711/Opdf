@@ -149,12 +149,6 @@ export function App() {
       advanced: () => setShowAdvancedPdf(true),
     });
   };
-  if (isAiEditorWindow) {
-    if (isPublic) {
-      return <div className="flex h-screen items-center justify-center text-gray-500">This feature is only available on Local or Desktop App versions.</div>;
-    }
-    return <Suspense fallback={<div role="status">Loading AI editor…</div>}><AiRewriteEditorWindow /></Suspense>;
-  }
   useEffect(() => {
     if (!pendingPrint || state.showDashboard || !state.hasDocument) return;
     return subscribeViewerPrintReady(() => {
@@ -167,6 +161,13 @@ export function App() {
       }
     });
   }, [pendingPrint, state.showDashboard, state.hasDocument, state.setViewerError]);
+
+  if (isAiEditorWindow) {
+    if (isPublic) {
+      return <div className="flex h-screen items-center justify-center text-gray-500">This feature is only available on Local or Desktop App versions.</div>;
+    }
+    return <Suspense fallback={<div role="status">Loading AI editor…</div>}><AiRewriteEditorWindow /></Suspense>;
+  }
     const showWorkspace = state.hasDocument || Boolean(state.activeDashboardTool);
   return (
     <div className={`app acrobat-shell${updateInfo ? " has-update-banner" : ""}`}>

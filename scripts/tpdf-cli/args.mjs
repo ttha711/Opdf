@@ -45,7 +45,7 @@ export function resolveRuntimeOptions(options = {}) {
       if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error("must be a JSON object");
       headers = Object.fromEntries(Object.entries(parsed).map(([key, value]) => [key, String(value)]));
     } catch (error) {
-      throw new Error(`TPDF_E2E_HEADERS_JSON is invalid: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`TPDF_E2E_HEADERS_JSON is invalid: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
   }
   if (process.env.TPDF_CF_ACCESS_CLIENT_ID && process.env.TPDF_CF_ACCESS_CLIENT_SECRET) {

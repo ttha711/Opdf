@@ -13,7 +13,8 @@
   "scripts": {
     "build": "npm run build --workspace=@tpdf/core && npm run build --workspace=@tpdf/web && npm run build --workspace=@tpdf/desktop && npm run build --workspace=@tpdf/editor",
     "typecheck": "npm run build --workspace=@tpdf/core && npm run typecheck --workspace=@tpdf/web && npm run typecheck --workspace=@tpdf/desktop && npm run typecheck --workspace=@tpdf/editor",
-    "lint": "npm run typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "check:english-ui": "node scripts/check-english-ui.mjs",
     "check:branding": "node scripts/check-branding.mjs",
     "web-dev": "npm run dev --workspace=@tpdf/web",
@@ -47,9 +48,14 @@
     "test:cad": "playwright test -c playwright.server.config.ts tests/server-e2e/real-cad-corpus.spec.ts --project=chromium"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
     "playwright": "^1.60.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.71.2"
   },
   "bin": {
     "tpdf": "./scripts/tpdf-cli.mjs"

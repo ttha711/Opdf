@@ -186,8 +186,6 @@ export function useDocumentLifecycle({
         : "",
     );
     if (!options.preserveAnnotations) setAnnotations([]);
-    if (options.resetDocumentMetadata) {
-        }
     if (!options.preservePageCount) setTotalPages(0);
     setViewerError(null);
     setPage(Math.max(1, nextPage));

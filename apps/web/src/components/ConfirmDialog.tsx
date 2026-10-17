@@ -102,7 +102,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 onClick={() => close(false)}
                 style={{
                   cursor: "pointer",
-                  padding: "6px 16px",
+                  padding: "8px 16px",
+                  minHeight: 44,
+                  minWidth: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   fontSize: "var(--ui-font-sm)",
                   fontWeight: 500,
                   borderRadius: "var(--ui-radius-sm)",
@@ -118,7 +123,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 onClick={() => close(true)}
                 style={{
                   cursor: "pointer",
-                  padding: "6px 16px",
+                  padding: "8px 16px",
+                  minHeight: 44,
+                  minWidth: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   fontSize: "var(--ui-font-sm)",
                   fontWeight: 600,
                   borderRadius: "var(--ui-radius-sm)",

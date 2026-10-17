@@ -136,7 +136,10 @@ export function CommandPalette({ hasDocument, isPublic, onOpenFile, onNavigate }
               className="w-full border-none bg-transparent text-base text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]" />
           </div>
           <button type="button" onClick={close} aria-label="Close command search"
-            className="rounded border border-[var(--border-color)] px-2 py-1 text-[11px] text-[var(--text-secondary)]">Esc</button>
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-[var(--border-color)] px-2 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+            <span className="hidden sm:inline">Esc</span>
+            <span className="sm:hidden text-base leading-none">✕</span>
+          </button>
         </div>
         <div id="tpdf-command-results" role="listbox" aria-label="Available commands"
           className="max-h-[min(55vh,440px)] overflow-y-auto p-2">
@@ -164,7 +167,8 @@ export function CommandPalette({ hasDocument, isPublic, onOpenFile, onNavigate }
           })}
         </div>
         <div className="flex justify-between border-t border-[var(--border-color)] bg-[var(--ui-muted-bg)] px-4 py-2 text-[11px] text-[var(--text-secondary)]">
-          <span>↑ ↓ Navigate · Enter Run · Esc Close</span>
+          <span className="hidden sm:inline">↑ ↓ Navigate · Enter Run · Esc Close</span>
+          <span className="sm:hidden">Tap any action to run</span>
           <span>{matches.length} commands</span>
         </div>
       </div>

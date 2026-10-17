@@ -353,3 +353,81 @@
 .btn-premium-outline:hover {
   background: var(--ui-accent-bg);
 }
+
+@media (max-width: 640px) {
+  .premium-modal {
+    width: 100% !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    margin: 8px !important;
+    border-radius: var(--ui-radius-lg);
+  }
+
+  .premium-modal-header {
+    padding: 12px 14px;
+    min-height: 48px;
+    gap: 8px;
+  }
+
+  .premium-modal-title {
+    font-size: 15px;
+  }
+
+  .premium-modal-close,
+  .premium-modal-header button[data-tpdf-action="close-dialog"],
+  .premium-modal-header button[aria-label="Close dialog"] {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .premium-modal-body {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .premium-modal-footer {
+    padding: 12px 14px;
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .premium-modal-footer button,
+  .premium-modal-footer .btn-premium {
+    width: 100%;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .radio-group {
+    grid-template-columns: 1fr;
+  }
+
+  .merge-action-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  [data-tpdf-dialog="compare-revisions"] header {
+    padding: 8px 12px;
+  }
+
+  [data-tpdf-dialog="compare-revisions"] header button,
+  [data-tpdf-dialog="compare-revisions"] header label,
+  [data-tpdf-dialog="compare-revisions"] header select {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+

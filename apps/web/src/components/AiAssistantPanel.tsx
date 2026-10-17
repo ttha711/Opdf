@@ -51,7 +51,7 @@ export function AiAssistantPanel({ isOpen, onClose, align = "right", docked = fa
       </div>
       <div aria-live="polite" style={{ padding: "4px 12px", fontSize: 12 }}>
         {jobs.filter((job) => job.status === "running").length} running · {jobs.filter((job) => job.status === "queued").length} queued · {jobs.filter((job) => job.status === "approval").length} awaiting approval
-        <button type="button" onClick={() => { void undoLast(); }} title="Undo last annotation change">Undo annotation</button>
+        <button type="button" onClick={() => { void undoLast(); }} title="Undo most recent completed AI PDF edit">Undo last AI edit</button>
         {jobs.filter((job) => job.status === "running" || job.status === "queued" || job.status === "approval").map((job) => (
           <div key={job.id} data-tpdf-job={job.id}>
             <span>{job.status}: {job.goal.slice(0, 80)} </span>

@@ -21,7 +21,10 @@ export function createUiAgentHarness({ machineBridge, execute, onProgress, isCan
     async run(goal: string, previous?: HarnessCheckpoint, approval?: "approve" | "reject", cancelled?: () => boolean, signal?: AbortSignal) {
       const agent = bridge();
       return runAgentHarness(previous ?? { goal, observations: [] }, {
-        model: (prompt) => raceAbort(machineBridge.sendQuery(prompt, agent.getState() as Record<string, unknown>, signal), signal),
+        model: (prompt) => {
+          if (signal?.aborted) return Promise.reject(Object.assign(new Error("Agent task cancelled."), { name: "AbortError" }));
+          return raceAbort(machineBridge.sendQuery(prompt, agent.getState() as Record<string, unknown>, signal), signal);
+        },
         execute: async (command) => await execute(command) ?? {
           status: "failed", tool: command.tool, message: "TPDF command bridge unavailable.",
         },

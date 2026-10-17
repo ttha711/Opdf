@@ -10,8 +10,8 @@ export type ConfirmOptions = {
 
 type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
 
-// Fallback: if no provider is mounted, fall back to the native confirm so callers never break.
-const ConfirmContext = createContext<ConfirmFn>(async (options) => window.confirm(options.message));
+// Fail closed if the application provider is missing. Never use browser-native confirm.
+const ConfirmContext = createContext<ConfirmFn>(async () => false);
 
 export function useConfirm(): ConfirmFn {
   return useContext(ConfirmContext);

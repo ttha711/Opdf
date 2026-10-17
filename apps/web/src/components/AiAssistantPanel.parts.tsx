@@ -39,20 +39,20 @@ export function ChatMessageBubble({ message, onConfirmInline }: ChatMessageBubbl
           </details>
         ) : null}
         {confirmation ? (
-          <div className="ai-confirmation-box">
-            <button
-              className="ai-confirm-btn cancel"
-              onClick={() => onConfirmInline(confirmation, false)}
-              type="button"
-            >
-              Cancel
+          <div className="ai-confirmation-box" role="group" aria-label="Confirm agent action" data-tpdf-agent-approval>
+            <div className="ai-confirmation-details">
+              <strong>Approval required</strong>
+              <p>Tool: <code>{confirmation.tool}</code></p>
+              {confirmation.args && Object.keys(confirmation.args).length > 0 ? (
+                <details><summary>Arguments</summary><pre>{JSON.stringify(confirmation.args, null, 2)}</pre></details>
+              ) : null}
+              <small>The agent is paused. Only this action is approved; subsequent destructive steps require separate approval.</small>
+            </div>
+            <button className="ai-confirm-btn cancel" onClick={() => onConfirmInline(confirmation, false)} type="button">
+              Reject
             </button>
-            <button
-              className="ai-confirm-btn confirm"
-              onClick={() => onConfirmInline(confirmation, true)}
-              type="button"
-            >
-              Confirm action
+            <button className="ai-confirm-btn confirm" onClick={() => onConfirmInline(confirmation, true)} type="button">
+              Approve this action
             </button>
           </div>
         ) : null}

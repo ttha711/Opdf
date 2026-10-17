@@ -54,9 +54,18 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
     const nextSession = await response.json() as Session;
     setSession(nextSession);
     setRequiresLogin(false);
-    const projectsResponse = await fetch("/api/tpdf/projects", { credentials: "same-origin" });
-    if (projectsResponse.ok) setProjects(await projectsResponse.json() as Array<{ id: string }>);
+    // The authenticated app can paint immediately. Project choices only affect
+    // the account switcher, so their network latency must not block home LCP.
     setReady(true);
+    void fetch("/api/tpdf/projects", { credentials: "same-origin" })
+      .then(async (projectsResponse) => {
+        if (projectsResponse.ok) {
+          setProjects(await projectsResponse.json() as Array<{ id: string }>);
+        }
+      })
+      .catch(() => {
+        // Project switching is optional; a failed listing must not hide the app.
+      });
   }
 
   useEffect(() => {
@@ -65,6 +74,13 @@ export function ServerAuthGate({ children }: { children: ReactNode }) {
       setReady(true);
     });
   }, [isServerRuntime]);
+
+  useEffect(() => {
+    if (ready && isServerRuntime && requiresLogin) {
+      // Never cover the login form with an anonymous landing placeholder.
+      document.getElementById("tpdf-first-paint")?.remove();
+    }
+  }, [ready, isServerRuntime, requiresLogin]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();

@@ -45,6 +45,12 @@ async function askModel(prompt) {
 async function work() {
   const token = await getToken();
   process.stdout.write("TPDF model worker ready (tool execution remains in authenticated browser).\n");
+  const heartbeat = () => request(base + "/api/tpdf/agent/heartbeat", {
+    method: "POST", headers: { Authorization: "Bearer " + token },
+  }).catch((error) => console.error("Heartbeat:", String(error)));
+  await heartbeat();
+  const heartbeatTimer = setInterval(() => { void heartbeat(); }, 8_000);
+  heartbeatTimer.unref?.();
   while (true) {
     try {
       const next = await request(base + "/api/tpdf/agent/tasks/next", {

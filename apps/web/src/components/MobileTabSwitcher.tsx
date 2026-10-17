@@ -190,7 +190,7 @@ export function MobileTabSwitcher({
         ) : null}
       </div>
 
-      <main className="mobile-tab-grid">
+      <main className="mobile-tab-grid" data-tpdf-tab-count={filteredTabs.length}>
         {filteredTabs.length === 0 ? (
           <div className="col-span-2 py-16 text-center text-sm text-[var(--text-secondary)]">
             {search ? "No matching tabs found." : "No tabs open. Tap + to open a PDF."}

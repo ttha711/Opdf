@@ -156,7 +156,14 @@
   padding: 12px 14px 96px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Do not stretch the only card to fill the modal's remaining height. */
+  align-content: start;
+  grid-auto-rows: max-content;
   gap: 12px;
+}
+
+.mobile-tab-grid[data-tpdf-tab-count="1"] {
+  grid-template-columns: minmax(0, min(100%, 240px));
 }
 
 .mobile-tab-card {

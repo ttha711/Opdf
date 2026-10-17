@@ -33,7 +33,7 @@
 .mobile-tab-close-btn {
   display: grid; place-items: center; width: 44px; height: 44px;
   border: 0; border-radius: 12px; color: var(--text-primary);
-  background: transparent;
+  background: var(--ui-hover-bg);
 }
 .mobile-tab-grid {
   flex: 1; min-height: 0; overflow-y: auto; align-content: start;
@@ -71,7 +71,7 @@
 .mobile-tab-card-close {
   flex: 0 0 44px; display: grid; place-items: center;
   min-width: 44px; min-height: 44px; margin-right: 7px;
-  border: 0; border-radius: 11px; background: transparent;
+  border: 0; border-radius: 11px; background: var(--ui-muted-bg);
   color: var(--text-secondary);
 }
 .mobile-tab-footer {

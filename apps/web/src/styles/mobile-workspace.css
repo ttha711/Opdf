@@ -81,11 +81,16 @@
   }
 
   .tpdf-panel-collapse {
-    top: 9px;
-    right: 48px;
+    top: 8px;
+    right: 12px;
     min-width: 76px;
     min-height: 34px;
     justify-content: center;
+    z-index: 50;
+  }
+
+  .tpdf-side-panel--right [data-tpdf-panel="document"] {
+    padding-top: 48px;
   }
 
   .tpdf-mobile-filmstrip {

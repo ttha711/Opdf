@@ -431,7 +431,8 @@ export function AllToolsDashboard({
                 return;
               }
               if (!hasDocument && tool.requiresDocument) {
-                toast.info("Open a PDF first to use this tool.");
+                toast.info(`Choose a PDF to use with ${tool.name}.`);
+                onOpenPdf();
                 return;
               }
               void tool.action();

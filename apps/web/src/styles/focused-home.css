@@ -47,3 +47,18 @@
   .tpdf-home__action-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tpdf-home__action-list button { justify-content: flex-start; min-width: 0; }
 }
+
+.tpdf-home__recents-toggle {
+  background: transparent;
+  border: 0;
+  color: var(--acrobat-blue);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.tpdf-home__recents-toggle:hover {
+  background: var(--ui-hover-bg);
+}
+

@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { TpdfIcon } from "./TpdfIcon";
 
 type RecentDocument = {
@@ -19,19 +20,31 @@ export function HomeScreen({
   onOpenRecent,
 }: HomeScreenProps) {
   const visibleRecent = recentDocuments.slice(0, 6);
+  const heroRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const hero = document.getElementById("tpdf-first-paint-hero");
+    const target = heroRef.current;
+    if (!hero || !target) return;
+    // Keep the original painted LCP node instead of re-creating it.
+    target.replaceChildren(hero);
+    const shell = document.getElementById("tpdf-first-paint");
+    if (shell) shell.hidden = true;
+  }, []);
 
   return (
     <main className="tpdf-home" aria-label="Tpdf home">
-      <div className="tpdf-home__hero">
-        <div className="tpdf-home__mark" aria-hidden="true">
-          <TpdfIcon name="file-pdf" size={34} />
-        </div>
-        <div>
-          <p className="tpdf-home__eyebrow">TPDF</p>
-          <h1>Your documents, ready when you are.</h1>
-          <p className="tpdf-home__subtitle">
-            Open a PDF to read, review, annotate, compare, convert, or export.
-          </p>
+      <div ref={heroRef} data-tpdf-home-hero-slot>
+        <div className="tpdf-home__hero">
+          <div className="tpdf-home__mark" aria-hidden="true">
+            <TpdfIcon name="file-pdf" size={34} />
+          </div>
+          <div>
+            <p className="tpdf-home__eyebrow">TPDF</p>
+            <h1>Your documents, ready when you are.</h1>
+            <p className="tpdf-home__subtitle">
+              Open a PDF to read, review, annotate, compare, convert, or export.
+            </p>
+          </div>
         </div>
       </div>
 

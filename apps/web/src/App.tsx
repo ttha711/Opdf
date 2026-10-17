@@ -4,6 +4,7 @@ import { AiSparkIcon } from "./components/AiSparkIcon";
 import { AppHeader } from "./components/AppHeader";
 import { CommandPalette } from "./components/CommandPalette";
 import { HomeScreen } from "./components/HomeScreen";
+import { MobileTabSwitcher } from "./components/MobileTabSwitcher";
 import { StatusBar } from "./components/StatusBar";
 import { ServerUploadBanner } from "./components/ServerUploadBanner";
 import { AppUpdateBanner } from "./components/app/AppUpdateBanner";
@@ -28,6 +29,11 @@ export function App() {
     // Remove it after the real application has committed its first render.
     document.getElementById("tpdf-first-paint")?.remove();
   }, []);
+  useEffect(() => {
+    const handleOpenTabs = () => setShowMobileTabSwitcher(true);
+    window.addEventListener("tpdf:open-tab-switcher", handleOpenTabs);
+    return () => window.removeEventListener("tpdf:open-tab-switcher", handleOpenTabs);
+  }, []);
   const hasDesktopBridge = typeof window !== "undefined" && Boolean(window.tpdf);
   const isServerRuntime = typeof window !== "undefined" && window.__TPDF_RUNTIME__ === "server";
   const isPublic = !hasFullWebAccess({
@@ -46,6 +52,7 @@ export function App() {
   const [showSearchRedact, setShowSearchRedact] = useState(false);
   const [showAdvancedPdf, setShowAdvancedPdf] = useState(false);
   const [showDigitalSignature, setShowDigitalSignature] = useState(false);
+  const [showMobileTabSwitcher, setShowMobileTabSwitcher] = useState(false);
   const [pendingPrint, setPendingPrint] = useState(false);
   const [showHome, setShowHome] = useState(false);
   const [bridgeRecents, setBridgeRecents] = useState<Array<{ filePath: string; openedAt: number }>>([]);
@@ -221,12 +228,28 @@ export function App() {
         mergeDocuments={() => openSidebarTool("merge-pdf")}
         convertToImages={() => openSidebarTool("pdf-to-png")}
         openDocumentMarkupTool={openMarkupSidebar}
+        onOpenTabSwitcher={() => setShowMobileTabSwitcher(true)}
       />
       <CommandPalette
         hasDocument={state.hasDocument}
         isPublic={isPublic}
         onOpenFile={() => { setShowHome(false); headerProps.openFile(); }}
         onNavigate={() => setShowHome(false)}
+      />
+      <MobileTabSwitcher
+        isOpen={showMobileTabSwitcher}
+        onClose={() => setShowMobileTabSwitcher(false)}
+        tabs={state.tabs}
+        activeTabId={state.activeTabId}
+        switchTab={(id) => {
+          setShowHome(false);
+          state.switchTab(id);
+        }}
+        closeTab={state.closeTab}
+        openFile={() => {
+          setShowHome(false);
+          headerProps.openFile();
+        }}
       />
       {(showRevisionCompare || showSearchRedact || showAdvancedPdf || showDigitalSignature) && <Suspense fallback={null}>
         <AppDocumentDialogs

@@ -73,7 +73,7 @@ function MobileTabCard({
         aria-label={`Close tab ${name}`}
         onClick={onCloseTab}
       >
-        <TpdfIcon name="x" size={18} />
+        <TpdfIcon name="close" size={18} />
       </button>
     </article>
   );
@@ -114,7 +114,7 @@ export function MobileTabSwitcher({
           onClick={onClose}
           aria-label="Close tab overview"
         >
-          <TpdfIcon name="x" size={22} />
+          <TpdfIcon name="close" size={22} />
         </button>
       </header>
       <main className="mobile-tab-grid" data-tpdf-tab-count={tabs.length}>
